@@ -59,3 +59,45 @@ python3 tests/test_handoff.py
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - POC验证记录: `poc/`
+
+## 自动评审机制
+
+本仓库已同步自动代码评审闭环机制（参考自 dongjiagoushi / youxikaifaxilieagent）。
+
+### 机制流程
+
+```
+PR 提交 → 测试信号灯 → NPC 代码审查 → 需修改？→ CodeBuddy 自动修复
+                                              │           │
+                                              │ 不需要     │ 修复后触发下一轮
+                                              ▼           ▼
+                                        评审通过 → 合并门禁 → 自动合并
+                                              │
+                                              ▼
+                                        main 合并 → 全量回归
+```
+
+### 触发事件
+
+| 事件 | 动作 |
+|------|------|
+| `pull_request` | 自动跑测试 + NPC 代码审查 + 修复闭环 |
+| `pull_request.mergeable` | 评审通过后自动合并 |
+| `pull_request.changes_requested` | CodeBuddy 自动修复 |
+| `pull_request.comment@npc` | 手动 @CodeBuddy 兜底 |
+| `main.push` | 全量回归 + 知识库更新 |
+
+### 运行全部测试
+
+```bash
+python3 scripts/run_all_tests.py
+# 或变更感知测试
+bash scripts/change-aware-test.sh
+```
+
+### 评审相关文件
+
+- 流水线配置: `.cnb.yml`
+- NPC 角色: `.cnb/settings.yml`
+- 评审闭环规则: `docs/评审修复闭环护栏.md`
+- 测试脚本: `scripts/`
