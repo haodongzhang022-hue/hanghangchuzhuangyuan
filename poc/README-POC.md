@@ -41,3 +41,8 @@ cd poc
 ## R5 复合路由POC（M4/M6）
 - 见 `README-POC-R5.md` · 运行 `./m2_router_composite.sh industry-register.yaml "<复合意图>"`
 - 补 R4 复合缺口: 多槽位二次扫描 + 会话编排判定, 复合≥2岗位同session装配。
+
+---
+## R6 多行业单元路由POC（M1/M2/M8）
+- 见 `README-POC-R6.md` · 运行 `./m3_multiunit_router.sh unit-index.yaml "<意图>"`
+- 本仓以 `unit-index.yaml` 路由索引把多行业单元收编为原子, 意图→单元路由(不触碰源仓)。
