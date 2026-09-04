@@ -1,0 +1,29 @@
+# 「行行出状元」通用能力层 · 跨行业单元路由索引 v1.0 (正式版)
+# ---------------------------------------------------------------------------
+# 定位: 本仓 = 跨行业通用能力层, 只持【路由索引】, 把各行业单元收编为原子。
+#       单元内部实现归各自源仓(dongjiagoushi 独立仓), 本层只索引其能力入口。
+# 收敛策略(用户口径): 非重点/非大型行业尽量集中本仓开发, 不轻易开多仓;
+#       确需拆仓(大行业/重点行业)才在后续迁移, 不阻碍本仓开发推进。
+#
+# 字段规范: 见 docs/industry/register-spec.md (industry_alias/capability_tags
+#        供 M1 意图识别与 M8 索引检索; roles 为该单元可路由岗位)。
+#
+# 该文件由 cli/route 解析。可随时在末尾追加/编辑单元块, 无需改代码。
+# ---------------------------------------------------------------------------
+units:
+  - unit_id: dongjiagoushi
+    repo_ref: "https://cnb.cool/dongdongxiaozu/dongjiagoushi"
+    industry: 软件研发
+    industry_alias: [研发, 架构师, 软件开发, dev, 架构, 软件]
+    capability_tags: [架构设计, 编码实现, 协作编排, 接力交接, 经验记忆]
+    roles: [secretary, architect, developer, product, reviewer]
+    register_version: "1.0"
+
+  # 第2行业单元(预埋样例, 集中本仓开发; 真实强行业需要时才独立成仓)
+  - unit_id: game-dev
+    repo_ref: ""           # 集中本仓开发期留空; 拆仓时回填源仓地址
+    industry: 游戏研发
+    industry_alias: [游戏, 玩法, 数值策划, 关卡设计, 游戏研发]
+    capability_tags: [玩法设计, 数值平衡, 关卡策划, UE引擎]
+    roles: [game_planner, level_designer, game_dev]
+    register_version: "0.1"

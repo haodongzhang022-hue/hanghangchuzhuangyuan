@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# ============================================================================
+# 「行行出状元」通用能力层 · 跨行业路由编排服务  v1.0  (正式版)
+# ----------------------------------------------------------------------------
+# 定位: 本仓 = 跨行业通用能力层(路由/索引/编排)。把各「行业单元」当原子收编,
+#        在其上自动识别 意图→行业(单元)→岗位 并路由。
+# 整合正式化: R4单直连 + R5复合(≥2岗同行业同session) + R6多单元索引。
+# 规范: docs/architecture/ARCHITECTURE.md v0.2 · docs/industry/register-spec.md
+# ============================================================================
+set -u
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INDEX="${1:-$SELF_DIR/units.yaml}"
+INPUT="${2:-}"
+[ -f "$INDEX" ] || { echo "ERR: 单元索引不存在: $INDEX" >&2; exit 2; }
+[ -n "$INPUT" ] || { echo "ERR: 缺少意图输入。用法: $0 <units.yaml> \"<一句话意图>\"" >&2; exit 2; }
+
+# ---------------- 岗位词典(跨行业动作/对象词) ----------------
+declare -A ROLE_DICT
+ROLE_DICT[secretary]="编排 记录 秘书 汇总 会议纪要 纪要 分配 派发 调度"
+ROLE_DICT[reviewer]="评审 审查 复核 走查 检视 复审"
+ROLE_DICT[product]="产品 需求 规划 排期 商业模式 用户调研"
+ROLE_DICT[architect]="架构设计 架构方案 架构师 做架构 总体设计 技术方案 顶层设计"
+ROLE_DICT[developer]="开发 编码 实现 写代码 落地 部署"
+declare -a ROLE_ORDER=(architect product developer reviewer secretary)
+
+# ---------------- 解析 units.yaml ----------------
+NU=$(grep -c '^  - unit_id:' "$INDEX")
+[ "$NU" -gt 0 ] || { echo "ERR: 索引中无单元" >&2; exit 2; }
+declare -a U_ID U_IND U_REPO U_ALIAS U_TAGS U_ROLES
+blk=0
+while IFS= read -r line; do
+  case "$line" in
+    "  - unit_id:"*) blk=$((blk+1)); v="${line#*- unit_id: }"; U_ID[$blk]="$(echo "$v"|xargs)";;
+    *"repo_ref:"*)   v="${line#*repo_ref: }"; v="${v%%#*}"
+                     # 去引号; 若只剩引号/空则视为待回填
+                     v="$(echo "$v"|tr -d '"'"'"' ')"
+                     [ -n "$v" ] || v="集中本仓/待回填"
+                     U_REPO[$blk]="$v";;
+    *"industry:"*)   v="${line#*industry: }"; U_IND[$blk]="$(echo "$v"|xargs)";;
+    *"industry_alias:"*) U_ALIAS[$blk]="$(echo "${line#*industry_alias: }"|sed 's/#.*//;s/[][,]/ /g;s/["'"'"']//g')";;
+    *"capability_tags:"*)U_TAGS[$blk]="$(echo "${line#*capability_tags: }"|sed 's/#.*//;s/[][,]/ /g;s/["'"'"']//g')";;
+    *"roles:"*)      v="${line#*roles: }"; v="${v%%#*}"; v="${v#[[]}"; v="${v%[]]}"
+                     U_ROLES[$blk]="$(echo "$v"|sed 's/[][,]/ /g;s/["'"'"']//g')";;
+  esac
+done < "$INDEX"
+
+# ---------------- 行业(单元)命中 ----------------
+declare -A U_HIT_SIG
+for b in $(seq 1 $NU); do
+  s=""
+  for kw in ${U_ALIAS[$b]:-} ${U_TAGS[$b]:-}; do
+    case "$INPUT" in *"$kw"*) s="$kw"; break;; esac
+  done
+  [ -n "$s" ] && U_HIT_SIG[$b]="$s"
+done
+
+# ---------------- 岗位命中(存 角色->关键词, 并用普通变量统计) ----------------
+declare -A HIT_ROLE
+nrole_raw=0
+for r in "${ROLE_ORDER[@]}"; do
+  for kw in ${ROLE_DICT[$r]:-}; do
+    case "$INPUT" in *"$kw"*) HIT_ROLE[$r]="$kw"; nrole_raw=$((nrole_raw+1)); break;; esac
+  done
+done
+
+echo "======================================================"
+echo "「行行出状元」通用能力层 · 路由编排 v1.0"
+echo "------------------------------------------------------"
+echo "  索引单元数 : $NU    模式=auto"
+echo "  输入意图   : $INPUT"
+echo "------------------------------------------------------"
+
+# ---- 行业命中分类 ----
+hit_list=()
+for b in $(seq 1 $NU); do [ -n "${U_HIT_SIG[$b]:-}" ] && hit_list+=("$b"); done
+nh=${#hit_list[@]}
+ind_unit=""
+if [ "$nh" -eq 1 ]; then ind_unit="${hit_list[0]}";
+elif [ "$nh" -gt 1 ]; then
+  echo "  [跨界命中] ${nh} 个行业单元均命中(跨行业复合) → 拆子任务走 M5 交接:"
+  for b in "${hit_list[@]}"; do echo "     · ${U_ID[$b]}  (${U_IND[$b]} | 信号:${U_HIT_SIG[$b]})"; done
+fi
+
+# ---- 置信闸口: 行业与岗位全未命中 → 回落 L2 ----
+if [ -z "$ind_unit" ] && [ "$nrole_raw" -eq 0 ]; then
+  echo "  识别     : 行业/岗位均未命中 (置信低)"
+  echo "  => 回落  : L2 入口 人工一次意图确认 (人工两头化之入口端)"
+  echo "======================================================"
+  exit 0
+fi
+
+# ---- 唯一行业命中 → 过滤岗位为该单元可路由(roles)内 ----
+declare -A HIT_ROLE_OK
+nrole_ok=0
+if [ -n "$ind_unit" ]; then
+  for r in "${!HIT_ROLE[@]}"; do
+    for rr in ${U_ROLES[$ind_unit]:-}; do
+      [ "$r" = "$rr" ] && { HIT_ROLE_OK[$r]="${HIT_ROLE[$r]}"; nrole_ok=$((nrole_ok+1)); break; }
+    done
+  done
+fi
+
+# ---- 行业唯一 → 输出 ----
+if [ -n "$ind_unit" ]; then
+  echo "  单元     : ${U_ID[$ind_unit]}"
+  echo "  repo_ref : ${U_REPO[$ind_unit]}"
+  echo "  行业     : ${U_IND[$ind_unit]}   (信号:${U_HIT_SIG[$ind_unit]})"
+  if [ "$nrole_ok" -eq 0 ]; then
+    echo "  岗位     : 未明确 → 该单元默认入口"
+    echo "  路由     : 单直连 -> ${U_ID[$ind_unit]}@default"
+  elif [ "$nrole_ok" -eq 1 ]; then
+    for r in "${!HIT_ROLE_OK[@]}"; do
+      echo "  岗位     : $r (信号:${HIT_ROLE_OK[$r]})"
+      echo "  路由     : 单直连 -> ${U_ID[$ind_unit]}@$r"
+    done
+  else
+    rolelist=""; for r in "${!HIT_ROLE_OK[@]}"; do rolelist="$rolelist $r"; done
+    echo "  岗位     : 复合诉求 ${nrole_ok} 岗  → $rolelist"
+    echo "  路由     : 复合装配 -> ${U_ID[$ind_unit]}@{$rolelist }"
+    echo "  编排     : M6 同 session 并装 ≥2 岗, 前缀取 ${U_IND[$ind_unit]} 固定并集零突变"
+  fi
+  echo "  前缀稳定 : 一会话一行业=${U_IND[$ind_unit]}, 固定零突变"
+  echo "======================================================"
+  exit 0
+fi
+
+# ---- 行业未唯一但岗位命中 → 岗位先于行业, 建议 L2 补行业 ----
+if [ "$nrole_raw" -gt 0 ]; then
+  echo "  岗位命中 : ${nrole_raw} 岗 (行业未唯一)"
+  echo "  => 建议  : L2 入口补一次行业确认后再进 L1 编排"
+else
+  echo "  识别     : 行业未命中"
+  echo "  => 建议  : L2 人工一次确认行业归属"
+fi
+echo "======================================================"
+exit 0
