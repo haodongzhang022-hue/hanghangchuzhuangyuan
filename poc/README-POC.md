@@ -36,3 +36,8 @@ cd poc
 - 「bash/awk 轻量脚本 + YAML 解析」满足 M1/M2 最小 POC，**无需重前端/重运行时代理**。
 - 复合/交接/跨界(M4/M5/M6) 复杂装配需在此基础上叠加编排抽象，本 POC 验证其可行性边界。
 - 结论回填 ARCHITECTURE.md 决策表「技术栈」格 = **轻量脚本编排式 v0 已验证**，待 R3/R5 扩展。
+
+---
+## R5 复合路由POC（M4/M6）
+- 见 `README-POC-R5.md` · 运行 `./m2_router_composite.sh industry-register.yaml "<复合意图>"`
+- 补 R4 复合缺口: 多槽位二次扫描 + 会话编排判定, 复合≥2岗位同session装配。
