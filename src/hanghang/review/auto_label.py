@@ -66,11 +66,15 @@ class AutoLabelEngine:
         if "priority" in rule:
             labels_to_add.append(rule["priority"])
 
-        # 进度百分比
+        # 进度百分比（对非数字做类型防御，避免 int() 抛 ValueError）
         if "progress" in extra:
-            pct = int(extra["progress"])
-            nearest = min(self.PROGRESS_LABELS.keys(), key=lambda x: abs(x - pct))
-            labels_to_add.append(f"progress_{self.PROGRESS_LABELS[nearest]}")
+            try:
+                pct = int(extra["progress"])
+            except (TypeError, ValueError):
+                pct = None
+            if pct is not None and 0 <= pct <= 100:
+                nearest = min(self.PROGRESS_LABELS.keys(), key=lambda x: abs(x - pct))
+                labels_to_add.append(f"progress_{self.PROGRESS_LABELS[nearest]}")
 
         result = {
             "action": rule.get("action", "add"),

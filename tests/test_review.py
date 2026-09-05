@@ -131,7 +131,38 @@ def test_auto_label_review_pass():
         assert "评审通过" in result["labels"]
 
 
+def test_disposition_overlap_signal():
+    """重叠信号（merge+escalate）→ 取高介入 HUMAN，避免误判 merge"""
+    result = dispose(severity="info", trigger="merge and escalate")
+    assert result.disposition == Disposition.HUMAN
+
+    # 纯 merge / approved → merge
+    assert dispose(severity="info", trigger="approved").disposition == Disposition.MERGE
+    assert dispose(severity="info", trigger="merge").disposition == Disposition.MERGE
+
+    # 词边界：不因子串误命中（merged 不应命中 merge 判定外的信号）
+    assert dispose(severity="info", trigger="merged request").disposition == Disposition.MERGE
+
+
+def test_auto_label_progress_type_defense():
+    """progress 为非数字时不应抛 ValueError，且不产生进度标签"""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        engine = AutoLabelEngine(os.path.join(tmpdir, "labels.jsonl"))
+        # 非数字 progress
+        result = engine.apply_event("issue.open", entity_id="ISSUE-1", extra={"progress": "abc"})
+        assert "progress_" not in " ".join(result["labels"])
+        # 无 progress extra
+        result = engine.apply_event("issue.open", entity_id="ISSUE-1")
+        assert "progress_" not in " ".join(result["labels"])
+        # 合法 progress
+        result = engine.apply_event("issue.open", entity_id="ISSUE-1", extra={"progress": 50})
+        assert "progress_50%" in result["labels"]
+
+
 if __name__ == "__main__":
+
+
     test_disposition_default()
     test_disposition_severity_map()
     test_disposition_trigger_map()
@@ -142,4 +173,6 @@ if __name__ == "__main__":
     test_auto_label_issue_open()
     test_auto_label_review_need_fix()
     test_auto_label_review_pass()
+    test_disposition_overlap_signal()
+    test_auto_label_progress_type_defense()
     print("✅ 评审机制测试全部通过")

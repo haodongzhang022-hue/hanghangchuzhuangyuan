@@ -88,13 +88,16 @@ declare -a MODULE_MAP=(
   "src/hanghang/engine/metrics.py|tests/test_router.py"
   "src/hanghang/engine/models.py|tests/test_router.py,tests/test_registry.py,tests/test_handoff.py"
 
+  # ---- 评审基础设施模块 → test_review.py ----
+  "src/hanghang/review/|tests/test_review.py"
+
   # ---- 数据文件变更 → 全量路由相关测试 ----
   "data/|tests/test_router.py,tests/test_registry.py"
   "cli/units.yaml|tests/test_router.py,tests/test_registry.py"
   "cli/route|tests/test_router.py"
 
   # ---- 测试文件自身变更 → 全量 ----
-  "tests/|tests/test_router.py,tests/test_registry.py,tests/test_handoff.py"
+  "tests/|tests/test_router.py,tests/test_registry.py,tests/test_handoff.py,tests/test_review.py"
 
   # ---- 根级文件 → 全量 ----
   ".cnb.yml|tests/test_router.py,tests/test_registry.py,tests/test_handoff.py"
@@ -122,7 +125,7 @@ select_test() {
 
 if [ "$CHANGED_FILES" = "__ALL__" ]; then
   echo "  选定: ALL（全量模式）"
-  SELECTED_TESTS="tests/test_router.py tests/test_registry.py tests/test_handoff.py"
+  SELECTED_TESTS="tests/test_router.py tests/test_registry.py tests/test_handoff.py tests/test_review.py"
 else
   for file in $CHANGED_FILES; do
     [ -z "$file" ] && continue
@@ -141,13 +144,13 @@ else
   # 兜底：如果没有任何测试被选中，跑全部测试
   if [ -z "$SELECTED_TESTS" ]; then
     echo "  未匹配到任何模块，跑全部测试兜底"
-    SELECTED_TESTS="tests/test_router.py tests/test_registry.py tests/test_handoff.py"
+    SELECTED_TESTS="tests/test_router.py tests/test_registry.py tests/test_handoff.py tests/test_review.py"
   fi
 fi
 
 echo "  选定的测试($(echo $SELECTED_TESTS | wc -w)个):"
 for t in $SELECTED_TESTS; do
-  echo "    bash python3 $t"
+  echo "    python3 $t"
 done
 
 # ------------------------------------------------------------

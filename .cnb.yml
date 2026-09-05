@@ -114,6 +114,9 @@ $:
             print("✅ 全部测试通过")
             PY
         - name: 自动合并
+          # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
+          # 避免与 changes_requested 的 auto-fix 竞态误合。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]'
           type: git:auto-merge
           options:
             mergeType: squash

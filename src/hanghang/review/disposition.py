@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
@@ -33,6 +34,7 @@ DISPOSITION_ORDER = [
 ]
 
 # 归一化映射：零散信号 → 规范标签
+# （仅用于单一信号独立判定的展示/检索，判定逻辑见 SIGNAL_PRIORITY）
 SEVERITY_MAP = {
     "hard": Disposition.FIX_BUG,
     "high_risk": Disposition.CONSULT,
@@ -50,6 +52,20 @@ SEVERITY_MAP = {
     "changes_requested": Disposition.FIX_BUG,
 }
 
+# 触发信号 → 处置标签，按「介入强度」从高到低排序。
+# 匹配采用词边界（避免子串误命中），且重叠信号（如 merge+escalate）时
+# 取更高介入强度者，避免歧义。
+#   高介入：human / vote / research / consult / fix_bug
+#   低介入：merge（放最后，只有纯通过信号才落 merge）
+SIGNAL_PRIORITY = [
+    (r"\b(?:needs_human|requires_human|escalate)\b", Disposition.HUMAN),
+    (r"\bdispute\b", Disposition.VOTE),
+    (r"\b(?:skill_gap|stall|reroute)\b", Disposition.RESEARCH),
+    (r"\bhigh_risk\b", Disposition.CONSULT),
+    (r"\b(?:changes_requested|defect|hard)\b", Disposition.FIX_BUG),
+    (r"\b(?:adopt|merge|approved)\b", Disposition.MERGE),
+]
+
 
 @dataclass
 class ReviewResult:
@@ -63,7 +79,7 @@ class ReviewResult:
 def dispose(severity: str = "", trigger: str = "", context: str = "") -> ReviewResult:
     """
     确定性分类器：给定严重级 + 触发信号 + 场景，必然返回一个规范标签。
-    无输入也落到 proceed 兜底。
+    无输入时按默认严重级（info）落到 merge。
     """
     severity_lower = (severity or "").strip().lower()
     trigger_lower = (trigger or "").strip().lower()
@@ -78,11 +94,12 @@ def dispose(severity: str = "", trigger: str = "", context: str = "") -> ReviewR
     else:
         result = ReviewResult(disposition=Disposition.MERGE, severity="info")
 
-    # 触发信号 → 归一化
-    for signal, disp in SEVERITY_MAP.items():
-        if signal in trigger_lower:
-            result.disposition = disp
-            break
+    # 触发信号 → 归一化（词边界 + 介入强度优先级，重叠时取高者）
+    if trigger_lower:
+        for pattern, disp in SIGNAL_PRIORITY:
+            if re.search(pattern, trigger_lower):
+                result.disposition = disp
+                break
 
     # 补充原因说明
     if result.disposition == Disposition.FIX_BUG:

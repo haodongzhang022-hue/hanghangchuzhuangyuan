@@ -108,8 +108,8 @@ class StandardChecker:
                         "message": f"库代码中不应有 print: {content.strip()[:80]}",
                     })
 
-            # --- 警告检查 ---
-            if not is_comment and len(content) > 120:
+            # --- 警告检查（复用 WARN_RULES 正则，避免死代码/规则漂移） ---
+            if not is_comment and self.WARN_RULES["line_too_long"].search(content):
                 issues.append({
                     "severity": "warning",
                     "file": filepath,
