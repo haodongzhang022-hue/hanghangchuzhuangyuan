@@ -126,7 +126,11 @@ def test_search_capability_any_dimension():
     assert any(m["unit_id"] == "legal-services" for m in res)
     legal = next(m for m in res if m["unit_id"] == "legal-services")
     assert "contract_advisor" in legal["hit_roles"]
-    assert legal["hit_kind"] in ("role", "capability")
+    # 多维命中时维度不被后匹配覆盖：同时保留 capability(合同审查) 与 role(合同) 两个维度
+    assert "role" in legal["hit_kinds"]
+    assert "capability" in legal["hit_kinds"]
+    # 能力维度命中的标签也应写入实际命中词（评审 warning②）
+    assert any("合同审查" in t for t in legal["matched_terms"])
 
     # "架构" 命中 dongjiagoushi
     arch = reg.search_capability("架构")
@@ -209,6 +213,95 @@ def test_manual_fallback_unaffected():
     assert r.needs_manual is True
 
 
+# ============================================================
+# 评审闭环回归：领域名词 + 开发意图混合场景（critical 路由误判修复）
+# ============================================================
+
+def test_software_build_for_domain_not_misrouted():
+    """评审 critical 修复：为某业务领域"开发软件/系统/工具/代码/APP"不应判给纯业务域单元。
+
+    "合同/文案/数据分析"等业务名词仅是软件的被构建对象，
+    应路由到软件研发单元(dongjiagoushi)而不是 法律/内容/数据分析。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 合同管理系统 → 软件研发
+    r = router.route("帮我开发一个合同管理系统")
+    assert r.unit_id == "dongjiagoushi", f"got {r.unit_id}"
+    assert r.needs_manual is False
+    assert "developer" in r.roles
+
+    # 写合同管理功能的代码 → 软件研发
+    r2 = router.route("写一个合同管理功能的代码")
+    assert r2.unit_id == "dongjiagoushi", f"got {r2.unit_id}"
+    assert "developer" in r2.roles
+
+    # 数据分析工具 → 软件研发
+    r3 = router.route("开发一个数据分析工具")
+    assert r3.unit_id == "dongjiagoushi", f"got {r3.unit_id}"
+    assert "developer" in r3.roles
+
+
+def test_software_build_app_not_content():
+    """构建"文案类APP"属软件工程诉求，不应被误判为内容创作单元"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("做一个文案类APP")
+    assert r.unit_id == "dongjiagoushi", f"got {r.unit_id}"
+    assert "developer" in r.roles
+
+
+def test_genuine_domain_work_still_routed_to_domain():
+    """修复后，真实业务域作业(审合同/写文案/做报表)仍正确落到对应领域单元"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    # 真实法律作业（不含软件产物名词）
+    assert router.route("帮我审一份劳动纠纷的劳动合同").unit_id == "legal-services"
+    assert router.route("给新品写一条卖点文案").unit_id == "content-creation"
+    assert router.route("做一份本季度销售经营分析报表").unit_id == "data-analytics"
+    # 真实数据建模作业
+    assert router.route("用历史销售数据训练一个预测模型").unit_id == "data-analytics"
+
+
+def test_software_build_does_not_break_game_routing():
+    """软件产物联合判定不得误伤 游戏研发 路由（共享"开发"词仍按游戏行业信号归游戏）"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("开发一款手机游戏")
+    assert r.unit_id == "game-dev-unit", f"got {r.unit_id}"
+    # 真跨行业歧义仍回落人工（不因软件产物逻辑误放行）
+    r2 = router.route("开发一款游戏需求")
+    assert r2.needs_manual is True and r2.is_ambiguous is True
+
+
+def test_search_capability_multi_dimension_kept():
+    """warning①：多维命中的维度不因后匹配覆盖而丢失（hit_kinds 全量保留）"""
+    reg = Registry()
+    res = reg.search_capability("合同")
+    legal = next(m for m in res if m["unit_id"] == "legal-services")
+    assert "industry" in legal["hit_kinds"]
+    assert "capability" in legal["hit_kinds"]
+    assert "role" in legal["hit_kinds"]
+
+
+def test_search_capability_capability_term_in_matched():
+    """warning②：能力维度命中的标签也写入 matched_terms"""
+    reg = Registry()
+    res = reg.search_capability("数据分析", mode="capability")
+    da = next(m for m in res if m["unit_id"] == "data-analytics")
+    assert "数据分析" in da["matched_terms"]
+
+
+def test_capability_index_tags_all_mapped_for_domain_units():
+    """warning③：领域单元的能力标签均映射到承接岗位（无空映射）"""
+    reg = Registry()
+    index = {i["unit_id"]: i for i in reg.capability_index()}
+    for uid in ("legal-services", "content-creation", "data-analytics"):
+        for tag, roles in index[uid]["tag_to_roles"].items():
+            assert roles, f"{uid} 的能力标签 {tag} 无承接岗位"
+
+
 if __name__ == "__main__":
     test_five_industries_registered()
     test_legal_consultant_route()
@@ -222,4 +315,11 @@ if __name__ == "__main__":
     test_capability_index_present_route_address()
     test_existing_industries_stable_after_expansion()
     test_manual_fallback_unaffected()
-    print("✅ 行业扩展 + M8 索引增强测试通过")
+    test_software_build_for_domain_not_misrouted()
+    test_software_build_app_not_content()
+    test_genuine_domain_work_still_routed_to_domain()
+    test_software_build_does_not_break_game_routing()
+    test_search_capability_multi_dimension_kept()
+    test_search_capability_capability_term_in_matched()
+    test_capability_index_tags_all_mapped_for_domain_units()
+    print("✅ 行业扩展 + M8 索引增强 + 评审回归测试通过")

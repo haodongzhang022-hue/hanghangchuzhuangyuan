@@ -185,10 +185,10 @@ class Registry:
         返回 list[dict]，每项：
           {
             unit_id, industry, entry_ref,
-            hit_kind,        # 命中维度: industry | capability | role
+            hit_kinds,       # 命中的所有维度: subset of {industry, capability, role}
             hit_roles,       # 命中该关键词的岗位列表
             hit_tags,        # 命中的能力标签
-            matched_terms,   # 实际命中的词（含行业别名）
+            matched_terms,   # 实际命中的词（含行业别名 + 能力标签）
           }
         """
         if not keyword or not keyword.strip():
@@ -196,7 +196,7 @@ class Registry:
         kw = keyword.strip()
         results = []
         for unit in self.units.values():
-            hit_kind = None
+            hit_kinds = []
             hit_roles = []
             hit_tags = []
             matched_terms = []
@@ -204,36 +204,64 @@ class Registry:
             if mode in ("any", "industry"):
                 for alias in unit.industry_alias:
                     if alias and kw in alias:
-                        hit_kind = "industry"
+                        if "industry" not in hit_kinds:
+                            hit_kinds.append("industry")
                         matched_terms.append(alias)
 
             if mode in ("any", "capability"):
                 for tag in unit.capability_tags:
                     if tag and kw in tag:
-                        hit_kind = "capability"
+                        if "capability" not in hit_kinds:
+                            hit_kinds.append("capability")
                         hit_tags.append(tag)
+                        # 能力维度命中的标签一并写入实际命中词
+                        matched_terms.append(tag)
 
             if mode in ("any", "role"):
                 for role in unit.roles:
                     role_kws = [w for w in role.get_keywords()
                                 if w and kw in w]
                     if role_kws:
-                        hit_kind = "role"
+                        if "role" not in hit_kinds:
+                            hit_kinds.append("role")
                         hit_roles.append(role.name)
                         matched_terms.extend(role_kws)
 
-            if hit_kind is None:
+            if not hit_kinds:
                 continue
             results.append({
                 "unit_id": unit.unit_id,
                 "industry": unit.industry,
                 "entry_ref": unit.entry_ref,
-                "hit_kind": hit_kind,
+                "hit_kinds": hit_kinds,
                 "hit_roles": sorted(set(hit_roles)),
                 "hit_tags": sorted(set(hit_tags)),
                 "matched_terms": sorted(set(matched_terms)),
             })
         return results
+
+    @staticmethod
+    def _capability_tag_hits_role(tag: str, role: Role) -> bool:
+        """判断一个能力标签是否由某岗位承接。
+        评审 warning③：除岗位关键词与标签互相包含外，还比对岗位 name / description，
+        减少因关键词措辞不完全一致导致的能力标签无承接岗位（提高 tag→role 命中率）。
+        """
+        if not tag:
+            return False
+        # 1) 岗位关键词 与 标签 互相包含（原规则）
+        for w in role.get_keywords():
+            if w and (w in tag or tag in w):
+                return True
+        # 2) 岗位名与标签语义包含（如 tag="预测分析" ↔ role name="data_scientist"? 不直接，
+        #    但 keyword 含预测模型；此处兜底岗位名本身是否含标签词根）
+        # 3) 岗位 description 中任一能力词与标签互相包含
+        for d in role.description.replace(",", " ").replace("，", " ").split():
+            if d and (d in tag or tag in d):
+                return True
+        # 4) 角色名中文/拼音与标签词根匹配兜底
+        if role.name and (role.name in tag or tag in role.name):
+            return True
+        return False
 
     def capability_index(self) -> List[dict]:
         """
@@ -247,10 +275,7 @@ class Registry:
             for tag in unit.capability_tags:
                 roles = []
                 for role in unit.roles:
-                    # 岗位关键词若与该能力标签语义相近即视为承接
-                    role_kws = [w for w in role.get_keywords()
-                                if w and (w in tag or tag in w)]
-                    if role_kws:
+                    if self._capability_tag_hits_role(tag, role):
                         roles.append(role.name)
                 tag_to_roles[tag] = roles
             index.append({

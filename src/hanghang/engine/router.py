@@ -26,6 +26,17 @@ class IntentRouter:
     # 歧义判定阈值：top2 达到 top1 此比例即判为歧义（相对分差）
     AMBIGUITY_RATIO_THRESHOLD = 0.65
 
+    # 软件产物名词（区分"纯业务域作业"与"构建软件"的关键信号）。
+    # 仅使用"产物名词"而非共享的开发动作词（如"开发"同时被 软件研发 与 游戏研发
+    # 注册，若用作改判信号会误伤"开发一款游戏"类诉求）。
+    # 联合判定：当文本命中此类产物名词、且候选单元是仅凭"业务领域名词"命中的
+    # 纯业务域单元时，说明用户是想"为某业务领域构建软件/系统/工具/代码/APP"，
+    # 业务名词只是软件的被构建对象 → 应改判给软件研发单元。
+    SOFTWARE_BUILD_TERMS: tuple = (
+        "软件", "系统", "工具", "代码", "应用", "程序",
+        "平台", "app", "APP", "App", "网页应用",
+    )
+
     def __init__(self, registry: Optional[Registry] = None):
         self.registry = registry or Registry()
 
@@ -68,13 +79,29 @@ class IntentRouter:
                 fallback_reason="未命中任何行业单元"
             )
 
+        # 修复（评审 critical）：软件产物构建意图联合判定。
+        # 当用户诉求是"为某业务领域构建软件/系统/工具/APP/代码"时，业务领域名词
+        # （如 合同/文案/数据分析）仅是软件的被构建对象，不应把诉求判给纯业务域单元
+        # （否则 "开发一个合同管理系统" 会被误判为 法律咨询）。
+        # 此时若文本含"软件产物名词"，且当前最佳单元是仅凭业务名词命中的纯业务域单元，
+        # 则改判为软件工程诉求（决定性跳过歧义回落）。
+        software_override = False
+        sw_unit_id = self._software_engineering_unit_id(units)
+        if (sw_unit_id and sw_unit_id != best_unit_id
+                and best_score > 0
+                and self._is_software_build_intent(text)):
+            # 改判到软件研发单元，跳过后续"跨行业歧义"回落（业务名词仅为软件对象）
+            best_unit_id = sw_unit_id
+            best_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
+            software_override = True
+
         # 检查歧义：多个单元得分接近时需人工确认。
         # 规则：真正"跨行业冲突"必须满足——双方各自持有独立行业信号。
         # 若候选2的所有命中词均已被候选1命中（如泛化词"开发"在多个单元
         # 注册中重复出现），则仅属共享泛化词造成的伪歧义，不应回落人工。
         sorted_scores = sorted(unit_scores.items(),
                                key=lambda kv: (-kv[1]["score"], kv[0]))
-        if len(sorted_scores) >= 2:
+        if not software_override and len(sorted_scores) >= 2:
             top1, top2 = sorted_scores[0], sorted_scores[1]
             top1_score = top1[1]["score"]
             top2_score = top2[1]["score"]
@@ -106,15 +133,26 @@ class IntentRouter:
         matched_roles = self._identify_roles(text, unit)
 
         if not matched_roles:
-            # 行业命中但岗位未命中 → 路由到单元默认入口
-            return RouteResult(
-                unit_id=unit.unit_id, industry=unit.industry,
-                roles=[], confidence=0.4,
-                matched_keywords={}, needs_manual=False,
-                fallback_reason="仅行业命中"
-            )
+            # 软件构建诉求：即使未命中具体开发关键词（如"做一个文案类APP"），
+            # 也明确落到软件研发单元的 developer（承接软件落地）岗位，而非仅"行业命中"。
+            if software_override:
+                dev = next((r for r in unit.roles if r.name == "developer"), None)
+                if dev is not None:
+                    matched_roles = [dev]
+            if not matched_roles:
+                # 行业命中但岗位未命中 → 路由到单元默认入口
+                return RouteResult(
+                    unit_id=unit.unit_id, industry=unit.industry,
+                    roles=[], confidence=0.4,
+                    matched_keywords={}, needs_manual=False,
+                    fallback_reason="仅行业命中"
+                )
 
         confidence = self._calc_confidence(text, unit, matched_roles)
+
+        # 软件构建诉求已做决定性改判，且已明确落到具体岗位 → 视为可自动路由（不再回落人工）。
+        if software_override and matched_roles:
+            confidence = max(confidence, 0.6)
 
         return RouteResult(
             unit_id=unit.unit_id,
@@ -215,6 +253,23 @@ class IntentRouter:
         if role_name in self.DEFAULT_ROLE_PRIORITY:
             return self.DEFAULT_ROLE_PRIORITY.index(role_name)
         return len(self.DEFAULT_ROLE_PRIORITY)
+
+    def _software_engineering_unit_id(self, units: List[IndustryUnit]) -> str:
+        """定位"软件研发"工程单元（跨行业通用能力层的软件落地基座）。"""
+        for u in units:
+            if u.industry and "软件" in u.industry:
+                return u.unit_id
+        # 兜底：岗位含 developer 的单元视作软件工程承载
+        for u in units:
+            if any(r.name == "developer" for r in u.roles):
+                return u.unit_id
+        return ""
+
+    def _is_software_build_intent(self, text: str) -> bool:
+        """判断文本是否表达"构建软件/系统/工具/代码/APP"的开发诉求。"""
+        if not text:
+            return False
+        return any(term and term in text for term in self.SOFTWARE_BUILD_TERMS)
 
     def _match_any(self, text: str, keywords: List[str]) -> bool:
         for kw in keywords:

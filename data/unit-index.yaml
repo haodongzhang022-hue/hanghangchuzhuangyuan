@@ -74,7 +74,7 @@ units:
         handoff: relay
         composite: true
         description: "诉讼代理 法律意见 应诉 起草起诉状"
-        keywords: [诉讼代理, 法律意见, 打官司, 应诉, 起草起诉状, 法律咨询]
+        keywords: [诉讼代理, 法律意见, 打官司, 应诉, 起草起诉状, 法律咨询, 企业法务, 知识产权保护]
       - name: contract_advisor
         prefix: "[合同]"
         handoff: relay
@@ -100,13 +100,13 @@ units:
         handoff: relay
         composite: true
         description: "品牌文案 广告文案 卖点文案"
-        keywords: [写文案, 品牌文案, 广告文案, 文案策划, 卖点文案, 营销文案, 文案, 短视频脚本]
+        keywords: [写文案, 品牌文案, 广告文案, 文案策划, 卖点文案, 营销文案, 文案, 短视频脚本, 品牌内容]
       - name: media_operator
         prefix: "[新媒体]"
         handoff: relay
         composite: true
         description: "公众号运营 短视频运营 账号运营"
-        keywords: [新媒体运营, 公众号, 公众号运营, 短视频, 短视频运营, 账号运营, 自媒体, 粉丝运营]
+        keywords: [新媒体运营, 公众号, 公众号运营, 短视频, 短视频运营, 账号运营, 自媒体, 粉丝运营, 内容运营]
       - name: content_editor
         prefix: "[编辑]"
         handoff: relay
@@ -126,13 +126,13 @@ units:
         handoff: relay
         composite: true
         description: "数据分析 数据报表 商业分析 数据可视化"
-        keywords: [数据分析, 数据报表, 商业分析, 数据可视化, 经营分析, 报表分析]
+        keywords: [数据分析, 数据报表, 商业分析, 数据可视化, 经营分析, 报表分析, 报表设计, 商业洞察]
       - name: data_scientist
         prefix: "[数科]"
         handoff: relay
         composite: true
         description: "数据挖掘 机器学习建模 特征工程 预测模型"
-        keywords: [数据挖掘, 机器学习建模, 特征工程, 预测模型, 算法建模]
+        keywords: [数据挖掘, 机器学习建模, 特征工程, 预测模型, 算法建模, 预测分析]
       - name: bi_engineer
         prefix: "[BI]"
         handoff: relay

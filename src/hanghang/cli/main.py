@@ -109,7 +109,7 @@ def cmd_search(args):
         if m["hit_tags"]:
             detail.append("能力=" + ",".join(m["hit_tags"]))
         route = f"route@{m['entry_ref']}" if m["entry_ref"] else "本仓集中(待回填)"
-        print(f"  - {m['unit_id']} [{m['industry']}] 命中维度={m['hit_kind']} "
+        print(f"  - {m['unit_id']} [{m['industry']}] 命中维度={'/'.join(m['hit_kinds'])} "
               f"{' '.join(detail) if detail else ''} | {route}")
         if m["matched_terms"]:
             print(f"      命中词: {m['matched_terms']}")
