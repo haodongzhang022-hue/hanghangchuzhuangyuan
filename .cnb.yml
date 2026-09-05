@@ -1,0 +1,259 @@
+# ============================================================
+# 行行出状元 · 通用能力层 · 自动评审闭环流水线
+# 仓库：hanghangchuzhuangyuan（通用能力层）
+#
+# 核心机制（同步自 dongjiagoushi / youxikaifaxilieagent 的自动评审闭环）：
+#   - pull_request 事件 → 测试信号灯 + NPC 代码审查 + 评审修复闭环
+#   - pull_request.mergeable → 评审门禁检查 + 自动合并
+#   - failStages → 失败自动唤起修复角色
+#   - pull_request.changes_requested → 人工打回时自动修复
+#   - pull_request.comment@npc → 人类手动兜底
+#   - main.push → 全量回归 + 知识库更新
+#   - issue.open/update → 事件自动处理
+#
+# 角色定义见 .cnb/settings.yml
+# 评审闭环规则见 docs/评审修复闭环护栏.md
+# ============================================================
+
+# ---- NPC 镜像复用锚点 ----
+.npc_default: &npc_default
+  docker:
+    image: cnbcool/default-npc:latest
+
+# ---- 兜底分支（仓库级事件都在此处理）----
+$:
+  # ========================================================
+  # 主评审闭环：PR 提交/更新 → 测试 → NPC 代码审查 → 修复闭环
+  # ========================================================
+  pull_request:
+    - name: review-fix-loop
+      runner:
+        cpus: 2
+      docker:
+        image: python:3.11
+      stages:
+        - name: 测试信号灯
+          script: |
+            set -e
+            echo "==== 自动化测试（Python 单元测试） ===="
+            pip install -q -r requirements.txt
+            python3 - <<'PY'
+            import os, sys, subprocess
+            tests_dir = 'tests'
+            failed = []
+            for f in sorted(os.listdir(tests_dir)):
+                if f.startswith('test_') and f.endswith('.py'):
+                    print(f"\n==== 运行: {f} ====")
+                    rc = subprocess.call([sys.executable, os.path.join(tests_dir, f)])
+                    if rc != 0:
+                        failed.append(f)
+                        print(f"  ❌ {f} 失败")
+                    else:
+                        print(f"  ✅ {f} 通过")
+            if failed:
+                print(f"\n失败测试: {failed}")
+                sys.exit(1)
+            print("\n✅ 全部测试通过")
+            PY
+            # CLI 冒烟测试
+            echo ""
+            echo "==== CLI 冒烟测试 ===="
+            python3 src/hanghang/cli/main.py route "架构设计方案" | grep -q "architect" && echo "  ✅ 路由冒烟通过" || { echo "  ❌ 路由冒烟失败"; exit 1; }
+            python3 src/hanghang/cli/main.py route "帮我点个外卖" | grep -q "人工" && echo "  ✅ 回落冒烟通过" || { echo "  ❌ 回落冒烟失败"; exit 1; }
+    - name: npc-code-review
+      <<: *npc_default
+      stages:
+        - name: NPC 代码审查
+          type: npc:go
+          options:
+            role: 代码审查员
+            systemPrompt: |
+              你是本仓库（hanghangchuzhuangyuan · 通用能力层路由编排系统）的资深代码审查员。
+              你的职责**只有两条**：**读代码 + 给意见**。
+              【权限边界声明】你是评审者（监督者），仅拥有只读审查权限：
+              - 你有权：读取代码、审查质量/架构/Bug/安全，输出审查结论，标记 approved / changes_requested；
+              - 你无权：推送（push）、合并（merge）、关闭（close）、修改代码、打标签；
+              - **本系统设计不允许 push**：评审闭环通过打标签驱动，任何 NPC **不得尝试 push**；
+              - 若评审发现问题需要修复：**不得自己动手**，在评论中明确召唤本仓库 **CodeBuddy** 处理。
+            userPrompt: |
+              请审查本次 PR 的代码变更，重点检查：
+              1. 是否符合通用能力层架构设计（M1-M8 模块：路由/注册表/前缀/会话编排/交接/复合装配/指标/能力索引）；
+              2. 路由逻辑是否正确（行业识别→岗位识别→复合装配→回落人工）；
+              3. 稳定前缀约束是否保持（一会话一行业）；
+              4. 是否存在 Bug、安全漏洞或资源泄漏；
+              5. 是否包含自动化测试且测试通过。
+              给出"通过 / 需修改"结论及具体修改点。评审结论输出到 PR 评论。
+
+  # ========================================================
+  # PR 可合并 → 自动合并（先做评审门禁）
+  # ========================================================
+  pull_request.mergeable:
+    - name: merge-gate
+      runner:
+        cpus: 2
+      docker:
+        image: python:3.11
+      stages:
+        - name: 测试再次确认
+          script: |
+            set -e
+            echo "==== 合并前测试确认 ===="
+            pip install -q -r requirements.txt
+            python3 - <<'PY'
+            import os, sys, subprocess
+            tests_dir = 'tests'
+            failed = []
+            for f in sorted(os.listdir(tests_dir)):
+                if f.startswith('test_') and f.endswith('.py'):
+                    rc = subprocess.call([sys.executable, os.path.join(tests_dir, f)])
+                    if rc != 0:
+                        failed.append(f)
+            if failed:
+                print(f"失败测试: {failed}")
+                sys.exit(1)
+            print("✅ 全部测试通过")
+            PY
+        - name: 自动合并
+          # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
+          # 避免与 changes_requested 的 auto-fix 竞态误合。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]'
+          type: git:auto-merge
+          options:
+            mergeType: squash
+            removeSourceBranch: true
+
+  # ========================================================
+  # 人工评审打回 → 自动修复
+  # ========================================================
+  pull_request.changes_requested:
+    - name: auto-fix
+      <<: *npc_default
+      stages:
+        - name: CodeBuddy 自动修复
+          type: npc:go
+          options:
+            role: CodeBuddy
+            systemPrompt: |
+              你是本仓库（hanghangchuzhuangyuan · 通用能力层）的代码修复 Agent。
+              收到评审打回后默认直接修改代码并提交，遵循"评审修复闭环护栏"：
+              - 默认直接改：评审指出的问题（尤其 bug）默认直接修复，不反复询问；
+              - 最大 5 轮护栏：同一 PR 的评审→修复来回最多 5 次，达到上限仍无法
+                解决则停止自动修复，在 PR 评论中反馈人类；
+              - 每修一个评审点，尽量固化成测试断言，防止回退；
+              - 禁止尝试 push。
+            userPrompt: |
+              本次 PR 被评审打回（changes requested）。请作为代码修复 Agent 执行：
+              1. 读取评审意见与行级评论；
+              2. 默认直接修复评审指出的问题（Bug 优先，再质量/性能/架构）；
+              3. 为每个修复点补充测试断言，确保持续生效不回退；
+              4. 在 PR 源分支提交修复代码；
+              5. 在 PR 评论中说明修复内容。
+
+  # ========================================================
+  # 人类评论 @CodeBuddy（手动兜底）
+  # ========================================================
+  pull_request.comment@npc:
+    - name: npc-manual-invoke
+      runner:
+        cpus: 2
+      <<: *npc_default
+      stages:
+        - name: CodeBuddy 按 @ 指令处理
+          if: |
+            [ -z "${CNB_BUILD_USER_NPC_NAME:-}" ] && [ "${CNB_BUILD_USER:-}" != "cnb" ]
+          type: npc:go
+          options:
+            role: CodeBuddy
+            systemPrompt: |
+              你是本仓库（hanghangchuzhuangyuan · 通用能力层）的代码处理 Agent。
+              人类在 PR 评论中 @你，请按指令处理。
+            userPrompt: |
+              人类在评论中 @CodeBuddy 发起了指令。请按评论内容执行：
+              1. 若指令是要求修复代码问题：直接修复并提交；
+              2. 若指令是询问/探讨：直接给出分析与结论，不修改代码；
+              3. 若指令是要求新增功能/配置：按指令实现并提交。
+
+  # ========================================================
+  # Issue 事件处理
+  # ========================================================
+  issue.open:
+    - name: issue-open-label
+      runner:
+        cpus: 1
+      docker:
+        image: python:3.11
+      stages:
+        - name: issue-open-auto-label
+          script: |
+            echo "[auto] Issue #issue open"
+            echo "[auto] 可在此自动打标/派发"
+  issue.update:
+    - name: issue-update-notify
+      runner:
+        cpus: 1
+      docker:
+        image: python:3.11
+      stages:
+        - name: issue-update
+          script: |
+            echo "[auto] Issue #issue update"
+  issue.comment@npc:
+    - name: issue-npc-reply
+      runner:
+        cpus: 2
+      <<: *npc_default
+      stages:
+        - name: CodeBuddy 回应
+          type: npc:go
+          options:
+            role: CodeBuddy
+            systemPrompt: |
+              你是本仓库（hanghangchuzhuangyuan · 通用能力层路由编排系统）的 CodeBuddy 助手。
+              当被 @ 召唤时，请响应并帮助处理。
+            userPrompt: |
+              收到 Issue 评论召唤。请根据评论内容给出回应或处理。
+
+# ========================================================
+# main 分支 push 事件（PR 合并后或直接 push main）
+# ========================================================
+main:
+  push:
+    - name: full-regression
+      docker:
+        image: python:3.11
+      stages:
+        - name: 全量回归测试
+          script: |
+            set -e
+            echo "==== 全量回归测试 ===="
+            pip install -q -r requirements.txt
+            python3 - <<'PY'
+            import os, sys, subprocess
+            tests_dir = 'tests'
+            failed = []
+            for f in sorted(os.listdir(tests_dir)):
+                if f.startswith('test_') and f.endswith('.py'):
+                    print(f"\n==== 运行: {f} ====")
+                    rc = subprocess.call([sys.executable, os.path.join(tests_dir, f)])
+                    if rc != 0:
+                        failed.append(f)
+                        print(f"  ❌ {f} 失败")
+                    else:
+                        print(f"  ✅ {f} 通过")
+            if failed:
+                print(f"\n失败测试: {failed}")
+                sys.exit(1)
+            print("\n✅ 全部测试通过")
+            PY
+    - name: build-knowledge-base
+      stages:
+        - name: knowledge update
+          type: knowledge:update
+          options:
+            include: "**/*.md"
+            exclude:
+              - "poc/**"
+            chunkSize: 1500
+            embeddingModel: hunyuan
+            issueSyncEnabled: true
+            ignoreProcessFailures: true

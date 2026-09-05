@@ -1,6 +1,7 @@
 """M2 行业/岗位注册表 & M8 跨行业能力索引"""
 from __future__ import annotations
 
+import logging
 import os
 import glob
 from typing import Dict, List, Optional
@@ -45,7 +46,7 @@ class Registry:
             with open(path, "r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh)
         except Exception as e:
-            print(f"[Registry] WARN: 跳过文件 {path}: {e}")
+            logging.warning(f"跳过文件 {path}: {e}")
             return
         if not data:
             return
