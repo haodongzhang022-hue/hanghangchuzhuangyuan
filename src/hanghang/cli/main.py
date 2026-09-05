@@ -133,36 +133,40 @@ def cmd_cross_unit(args):
     router = IntentRouter(registry)
     planner = CompositePlanner(registry)
 
-    result = router.route(args.text)
-    print(f"路由结果: unit={result.unit_id or 'N/A'}")
+    # 先检测是否存在"真跨行业"诉求（各单元持有独立信号）
+    candidates = router.cross_unit_candidates(args.text)
 
-    if result.needs_manual:
-        print(f"需人工确认: {result.fallback_reason}")
-        return
+    # 仅命中一个（含伪歧义：如共享泛化词"开发"）→ 走正常单行业路由
+    if len(candidates) <= 1:
+        result = router.route(args.text)
+        print(f"路由结果: unit={result.unit_id or 'N/A'}")
 
-    unit = registry.get_unit(result.unit_id) if result.unit_id else None
-    if not unit:
-        print("无可用单元")
-        return
+        if result.needs_manual:
+            print(f"需人工确认: {result.fallback_reason}")
+            return
 
-    # 检查是否命中多个行业
-    unit_scores = router._score_units(args.text, registry.all_units())
-    hits = [(uid, sc["score"]) for uid, sc in unit_scores.items() if sc["score"] > 0]
+        unit = registry.get_unit(result.unit_id) if result.unit_id else None
+        if not unit:
+            print("无可用单元")
+            return
 
-    if len(hits) <= 1:
         plan = planner.plan(args.text)
         print(f"单行业路由: {plan.get('mode', '')} — {plan.get('message', '')}")
         return
 
-    # 多行业命中 → 触发交接
-    top_units = sorted(hits, key=lambda x: x[1], reverse=True)
-    print(f"检测到 {len(hits)} 个行业单元命中:")
-    for uid, score in top_units:
+    # 真跨行业诉求（≥2 个独立行业信号命中）→ 触发交接编排
+    unit_scores = router._score_units(args.text, registry.all_units())
+    hits = [(uid, sc["score"]) for uid, sc in unit_scores.items()
+            if uid in candidates and sc["score"] > 0]
+    hits.sort(key=lambda x: x[1], reverse=True)
+
+    print(f"检测到 {len(hits)} 个行业单元独立命中:")
+    for uid, score in hits:
         u = registry.get_unit(uid)
         print(f"  - {uid} [{u.industry if u else ''}] score={score}")
 
-    source = registry.get_unit(top_units[0][0])
-    target = registry.get_unit(top_units[1][0])
+    source = registry.get_unit(hits[0][0])
+    target = registry.get_unit(hits[1][0])
     if source and target:
         plan = planner.plan_cross_unit(args.text, source.unit_id, target.unit_id)
         print(f"\n跨单元交接: {plan.get('message', '')}")

@@ -256,6 +256,103 @@ def test_register_version_unified():
     assert sw.register_version in ("1.0", "1.1"), f"unexpected version: {sw.register_version}"
 
 
+# ============================================================
+# 第二轮评审修复的回归测试
+# ============================================================
+
+def test_generic_word_no_false_ambiguity():
+    """评审问题②修复：泛化词导致的伪歧义不应触发人工回落
+
+    "开发一个网页应用" 中只有泛化词"开发"同时命中 developer 和 game_dev，
+    两单元得分相同但无独立行业信号差异 → 应路由到软件研发而非判歧义。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    r = router.route("开发一个网页应用")
+    assert r.needs_manual is False, \
+        f"泛化词伪歧义不应回落人工, got reason={r.fallback_reason}"
+    assert r.is_ambiguous is False, "不应标记为歧义"
+    assert r.unit_id == "dongjiagoushi", \
+        f"无游戏特征时软件研发应命中, got unit={r.unit_id}"
+    assert "developer" in r.roles, f"应有 developer 岗位, got {r.roles}"
+
+
+def test_true_ambiguity_still_detected():
+    """评审问题②修复：真跨行业冲突仍需判歧义（不因泛化词过滤而误放行）
+
+    "开发一款游戏需求" 同时有游戏行业别名(游戏)和软件产品角色(需求)的
+    独立行业信号 → 必须保持歧义回落人工。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    r = router.route("开发一款游戏需求")
+    assert r.needs_manual is True, \
+        f"真跨行业冲突应判歧义, got unit={r.unit_id}, reason={r.fallback_reason}"
+    assert r.is_ambiguous is True, "应标记为 ambiguous"
+
+
+def test_cross_unit_candidates_detection():
+    """评审问题①修复：cross_unit_candidates 应识别真跨行业单元"""
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 真跨行业：软件+游戏独立信号 → 应返回 2 个单元
+    cands = router.cross_unit_candidates("需要软件架构设计并做游戏关卡策划")
+    assert len(cands) >= 2, f"expected >=2 candidates, got {cands}"
+    assert "dongjiagoushi" in cands
+    assert "game-dev-unit" in cands
+
+    # 泛化词伪歧义：应只返回 1 个单元
+    cands2 = router.cross_unit_candidates("开发一个网页应用")
+    assert len(cands2) == 1, f"expected 1 candidate, got {cands2}"
+    assert cands2[0] == "dongjiagoushi"
+
+    # 明确游戏诉求：只命中 game-dev-unit
+    cands3 = router.cross_unit_candidates("开发一个手机游戏")
+    assert len(cands3) == 1, f"expected 1 candidate, got {cands3}"
+    assert cands3[0] == "game-dev-unit"
+
+    # 空输入
+    assert router.cross_unit_candidates("") == []
+
+
+def test_cross_unit_cli_detects_multi_industry():
+    """评审问题①修复：cross-unit CLI 应能识别跨行业并触发交接编排
+
+    旧实现：先 route() 遇 needs_manual 即 return → 交接分支永不可达。
+    新实现：先 cross_unit_candidates 检测多行业独立信号 → 直接编排交接。
+    """
+    import subprocess
+    import tempfile
+
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # ① cross_unit_candidates 能识别真跨行业诉求（≥2 单元独立信号）
+    cands = router.cross_unit_candidates("需要软件架构设计并做游戏关卡策划")
+    assert len(cands) >= 2, f"expected >=2 cross-unit candidates, got {cands}"
+
+    # ② 伪歧义（共享泛化词）只返回单单元，不应触发 cross-unit
+    cands_pseudo = router.cross_unit_candidates("开发一个网页应用")
+    assert len(cands_pseudo) == 1
+
+    # ③ plan_cross_unit 能真正创建交接卡（M5 交接编排可到达）
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bus = HandoffBus(data_dir=tmpdir)
+        planner = CompositePlanner(reg, handoff_bus=bus)
+        plan = planner.plan_cross_unit(
+            "需要软件架构设计并做游戏关卡策划",
+            source_unit_id="dongjiagoushi",
+            target_unit_id="game-dev-unit",
+        )
+        assert plan["mode"] == "cross_unit_handoff"
+        assert plan["handoff_card_id"] is not None
+        card = bus.get(plan["handoff_card_id"])
+        assert card is not None
+        assert "架构设计" in card.intent and "关卡" in card.intent
+
 if __name__ == "__main__":
     test_role_keywords_from_yaml()
     test_role_keywords_from_description()
@@ -271,4 +368,9 @@ if __name__ == "__main__":
     test_game_route_gets_role_not_empty()
     test_cross_industry_ambiguity_detection()
     test_register_version_unified()
+    # 第二轮评审修复回归
+    test_generic_word_no_false_ambiguity()
+    test_true_ambiguity_still_detected()
+    test_cross_unit_candidates_detection()
+    test_cross_unit_cli_detects_multi_industry()
     print("✅ 数据驱动+复合边界+交接集成测试通过")

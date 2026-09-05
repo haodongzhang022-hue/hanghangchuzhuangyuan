@@ -65,23 +65,30 @@ class IntentRouter:
             )
 
         # 检查歧义：多个单元得分接近时需人工确认。
-        # 修复：去掉 top1 < 1.5 的硬性门槛，改用相对分差比例判定，
-        # 使真正跨行业的冲突（如同时命中多个行业信号）能触发人工回落。
+        # 规则：真正"跨行业冲突"必须满足——双方各自持有独立行业信号。
+        # 若候选2的所有命中词均已被候选1命中（如泛化词"开发"在多个单元
+        # 注册中重复出现），则仅属共享泛化词造成的伪歧义，不应回落人工。
         sorted_scores = sorted(unit_scores.items(),
                                key=lambda kv: kv[1]["score"], reverse=True)
         if len(sorted_scores) >= 2:
             top1, top2 = sorted_scores[0], sorted_scores[1]
             top1_score = top1[1]["score"]
             top2_score = top2[1]["score"]
-            # 两个单元都有正分，且 top2 达到 top1 的一定比例 → 判歧义
             if (top1_score > 0 and top2_score > 0
                     and top2_score / top1_score >= self.AMBIGUITY_RATIO_THRESHOLD):
-                unit_ids = [t[0] for t in sorted_scores[:2]]
-                return RouteResult(
-                    unit_id="", industry="", roles=[],
-                    confidence=0.2, is_ambiguous=True, needs_manual=True,
-                    fallback_reason=f"行业归属存在歧义: {unit_ids}"
-                )
+                # 泛化共享词过滤：候选2若无独立命中词（其词集⊆候选1），
+                # 说明二者仅因同一泛化词(如"开发")撞分 → 非真歧义
+                top1_terms = set(top1[1].get("matched_terms", []))
+                top2_terms = set(top2[1].get("matched_terms", []))
+                if not (top2_terms - top1_terms):
+                    pass  # 伪歧义：继续走正常路由，不做人工回落
+                else:
+                    unit_ids = [t[0] for t in sorted_scores[:2]]
+                    return RouteResult(
+                        unit_id="", industry="", roles=[],
+                        confidence=0.2, is_ambiguous=True, needs_manual=True,
+                        fallback_reason=f"行业归属存在歧义: {unit_ids}"
+                    )
 
         unit = self.registry.get_unit(best_unit_id)
         if not unit:
@@ -110,9 +117,38 @@ class IntentRouter:
             industry=unit.industry,
             roles=[r.name for r in matched_roles],
             confidence=confidence,
-            matched_keywords={r.name: self._match_kw(text, unit, r) for r in matched_roles},
+            matched_keywords={r.name: self._match_kw(text, r) for r in matched_roles},
             needs_manual=confidence < 0.4,
         )
+
+
+    def cross_unit_candidates(self, text: str):
+        """
+        检测文本是否命中多个"具有独立信号"的行业单元（真跨行业诉求）。
+        返回按得分降序的单元列表；若仅有伪歧义（共享泛化词）则返回空/单元素。
+        """
+        units = self.registry.all_units()
+        if not units or not text or not text.strip():
+            return []
+
+        unit_scores = self._score_units(text, units)
+        hits = [(uid, sc) for uid, sc in unit_scores.items() if sc["score"] > 0]
+        hits.sort(key=lambda kv: kv[1]["score"], reverse=True)
+
+        if len(hits) < 2:
+            return [hits[0][0]] if hits else []
+
+        top1_uid, top1_info = hits[0]
+        top2_uid, top2_info = hits[1]
+
+        # 与歧义判定一致：若候选2的命中词 ⊆ 候选1，则属泛化伪歧义 → 非真跨行业
+        top1_terms = set(top1_info.get("matched_terms", []))
+        top2_terms = set(top2_info.get("matched_terms", []))
+        if not (top2_terms - top1_terms):
+            return [top1_uid]
+
+        # 真跨行业：返回所有有正分的候选（≥2个），供 cross-unit 编排
+        return [uid for uid, _ in hits]
 
     def _score_units(self, text: str, units: List[IndustryUnit]) -> Dict[str, dict]:
         """
@@ -123,18 +159,21 @@ class IntentRouter:
         for unit in units:
             score = 0.0
             matched_signals = []
+            matched_terms: List[str] = []  # 实际命中的词（用于歧义时区分泛化共享）
 
             # 1. 行业别名直接命中（强信号，2.0）
             for alias in unit.industry_alias:
                 if alias and alias in text:
                     score += 2.0
                     matched_signals.append(f"alias:{alias}")
+                    matched_terms.append(alias)
 
             # 2. capability_tags 命中（中信号，1.0）
             for tag in unit.capability_tags:
                 if tag and tag in text:
                     score += 1.0
                     matched_signals.append(f"tag:{tag}")
+                    matched_terms.append(tag)
 
             # 3. 单元内岗位关键词命中（强信号，1.5/岗位）
             for role in unit.roles:
@@ -142,11 +181,13 @@ class IntentRouter:
                     if kw and kw in text:
                         score += 1.5
                         matched_signals.append(f"role:{role.name}:{kw}")
+                        matched_terms.append(kw)
                         break  # 每岗位只计一次
 
             scores[unit.unit_id] = {
                 "score": round(score, 2),
                 "signals": matched_signals,
+                "matched_terms": matched_terms,
                 "unit": unit,
             }
         return scores
@@ -177,7 +218,7 @@ class IntentRouter:
                 return True
         return False
 
-    def _match_kw(self, text: str, unit: IndustryUnit, role: Role) -> List[str]:
+    def _match_kw(self, text: str, role: Role) -> List[str]:
         """返回文本中命中该角色的关键词"""
         return [kw for kw in role.get_keywords() if kw and kw in text]
 
@@ -203,7 +244,7 @@ class IntentRouter:
 
         # 岗位层面信号（每岗位可叠加）
         for r in roles:
-            kws = self._match_kw(text, unit, r)
+            kws = self._match_kw(text, r)
             if kws:
                 base += 0.1 * min(len(kws), 3)
 
