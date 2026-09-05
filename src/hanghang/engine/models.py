@@ -47,10 +47,6 @@ class IndustryUnit:
                 return r
         return None
 
-    def all_role_keywords(self) -> Dict[str, List[str]]:
-        """获取本单元全部岗位的关键词映射"""
-        return {r.name: r.get_keywords() for r in self.roles}
-
 
 @dataclass
 class RouteResult:

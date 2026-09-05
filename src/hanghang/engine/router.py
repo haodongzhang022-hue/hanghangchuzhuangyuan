@@ -16,20 +16,6 @@ class IntentRouter:
     动态读取每个岗位的触发关键词（role.keywords / role.description）。
     """
 
-    # 兜底全局岗位关键词：仅当单元注册声明未提供岗位关键词时使用。
-    # 新增行业/岗位时优先在注册数据中声明，不修改此代码。
-    DEFAULT_ROLE_KEYWORDS: Dict[str, List[str]] = {
-        "architect": ["架构设计", "架构方案", "架构师", "做架构", "总体设计",
-                      "技术方案", "系统设计", "方案设计"],
-        "developer": ["开发", "编码", "实现", "写代码", "落地", "编程", "写程序"],
-        "reviewer":  ["评审", "审查", "复核", "走查", "检视", "代码审查"],
-        "product":   ["产品", "需求", "规划", "排期", "产品方案", "竞品分析", "需求分析"],
-        "secretary": ["编排", "记录", "秘书", "汇总", "会议纪要", "组织协调"],
-        "game_planner": ["玩法", "数值策划", "策划", "游戏设计", "关卡"],
-        "level_designer": ["关卡设计", "地图设计", "场景布置"],
-        "game_dev": ["游戏开发", "UE开发", "unity开发", "引擎开发", "游戏引擎"],
-    }
-
     # 默认岗位优先级（用于复合仲裁的依赖序）
     # 各单元也可通过复合 boundary 覆盖此顺序。
     DEFAULT_ROLE_PRIORITY: List[str] = [
@@ -37,20 +23,11 @@ class IntentRouter:
         "game_planner", "level_designer", "game_dev",
     ]
 
+    # 歧义判定阈值：top2 达到 top1 此比例即判为歧义（相对分差）
+    AMBIGUITY_RATIO_THRESHOLD = 0.65
+
     def __init__(self, registry: Optional[Registry] = None):
         self.registry = registry or Registry()
-
-    def _role_keywords(self, unit: IndustryUnit, role_name: str) -> List[str]:
-        """
-        获取某单元中某岗位的全部触发关键词。
-        优先从单元注册数据读取，找不到时回落到全局默认词典。
-        """
-        role = unit.role_by_name(role_name) if unit else None
-        if role:
-            kws = role.get_keywords()
-            if kws:
-                return kws
-        return list(self.DEFAULT_ROLE_KEYWORDS.get(role_name, [role_name]))
 
     def route(self, text: str) -> RouteResult:
         """对用户意图做多级路由判定"""
@@ -78,26 +55,27 @@ class IntentRouter:
             if unit_scores else ""
         best_score = unit_scores.get(best_unit_id, {}).get("score", 0.0)
 
-        # 如果最高分单元没有命中（0分），且没有角色命中 → 人工确认
+        # 最高分单元得分<=0（无任何信号命中），此时无明确行业归属 → 人工确认
+        # 修复：不再做悬空 global_role_hits 扫描后跳过，而是直接判人工回落
         if not best_unit_id or best_score <= 0:
-            # 全局角色词扫描作为最后兜底
-            global_role_hits = self._collect_default_role_hits(text)
-            if not global_role_hits:
-                return RouteResult(
-                    unit_id="", industry="", roles=[],
-                    confidence=0.0, needs_manual=True,
-                    fallback_reason="未命中任何行业单元"
-                )
+            return RouteResult(
+                unit_id="", industry="", roles=[],
+                confidence=0.0, needs_manual=True,
+                fallback_reason="未命中任何行业单元"
+            )
 
-        # 检查歧义：多个单元得分接近
+        # 检查歧义：多个单元得分接近时需人工确认。
+        # 修复：去掉 top1 < 1.5 的硬性门槛，改用相对分差比例判定，
+        # 使真正跨行业的冲突（如同时命中多个行业信号）能触发人工回落。
         sorted_scores = sorted(unit_scores.items(),
                                key=lambda kv: kv[1]["score"], reverse=True)
         if len(sorted_scores) >= 2:
             top1, top2 = sorted_scores[0], sorted_scores[1]
-            # 若前两单元均得分 > 0 且差距极小（<30%），判为歧义需人工确认
-            if (top1[1]["score"] > 0 and top2[1]["score"] > 0
-                    and top1[1]["score"] - top2[1]["score"] < 0.5
-                    and top1[1]["score"] < 1.5):
+            top1_score = top1[1]["score"]
+            top2_score = top2[1]["score"]
+            # 两个单元都有正分，且 top2 达到 top1 的一定比例 → 判歧义
+            if (top1_score > 0 and top2_score > 0
+                    and top2_score / top1_score >= self.AMBIGUITY_RATIO_THRESHOLD):
                 unit_ids = [t[0] for t in sorted_scores[:2]]
                 return RouteResult(
                     unit_id="", industry="", roles=[],
@@ -172,15 +150,6 @@ class IntentRouter:
                 "unit": unit,
             }
         return scores
-
-    def _collect_default_role_hits(self, text: str) -> Dict[str, List[str]]:
-        """兜底扫描：用默认岗位词典找出文本中命中的岗位词（不依赖单元上下文）"""
-        hits = {}
-        for role_name, keywords in self.DEFAULT_ROLE_KEYWORDS.items():
-            matched = [kw for kw in keywords if kw and kw in text]
-            if matched:
-                hits[role_name] = matched
-        return hits
 
     def _identify_roles(self, text: str, unit: IndustryUnit) -> List[Role]:
         """识别文本对应单元内的哪些岗位被命中（可能多个=复合）

@@ -202,6 +202,60 @@ def test_m8_search_by_keyword_list():
     assert "dongjiagoushi" in unit_ids
 
 
+# ============================================================
+# 以下为评审闭环修复的回归测试
+# ============================================================
+
+def test_game_dev_bare_keyword_develop():
+    """评审问题1修复：game_dev 岗位必须包含裸词"开发"
+    否则 "开发一款手机游戏" 命中行业却返回空岗位。
+    """
+    reg = Registry()
+    unit = reg.get_unit("game-dev-unit")
+    assert unit is not None
+    game_dev = unit.role_by_name("game_dev")
+    assert game_dev is not None
+    # 裸词"开发"必须存在于 game_dev 的关键词中
+    assert "开发" in game_dev.get_keywords()
+
+
+def test_game_route_gets_role_not_empty():
+    """评审问题1修复："开发一款手机游戏" 命中行业且应有具体岗位"""
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    r = router.route("开发一款手机游戏")
+    assert r.unit_id == "game-dev-unit", f"expected game-dev-unit, got {r.unit_id}"
+    assert "game_dev" in r.roles, f"expected game_dev in roles, got {r.roles}"
+    assert r.fallback_reason != "仅行业命中"
+
+
+def test_cross_industry_ambiguity_detection():
+    """评审问题1修复：真正的跨行业冲突应触发歧义人工回落
+
+    "开发一款游戏需求" 同时触及软件(开发/需求)和游戏(游戏)两行业，
+    且分数接近时不应盲目选边，应判歧义让人工确认。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    r = router.route("开发一款游戏需求")
+    # 跨行业歧义场景：不选任意单元，而是回落人工
+    assert r.needs_manual is True, f"expected manual fallback, got unit={r.unit_id}"
+    assert r.is_ambiguous is True, "expected ambiguous flag"
+
+
+def test_register_version_unified():
+    """评审问题4修复：register_version 应统一为一致版本号"""
+    reg = Registry()
+    sw = reg.get_unit("dongjiagoushi")
+    game = reg.get_unit("game-dev-unit")
+    assert sw is not None and game is not None
+    assert sw.register_version == game.register_version
+    # 应等于 register-spec 文档中声明的版本号
+    assert sw.register_version in ("1.0", "1.1"), f"unexpected version: {sw.register_version}"
+
+
 if __name__ == "__main__":
     test_role_keywords_from_yaml()
     test_role_keywords_from_description()
@@ -212,4 +266,9 @@ if __name__ == "__main__":
     test_handoff_auto_create_for_incompatible_roles()
     test_cross_unit_handoff_creation()
     test_m8_search_by_keyword_list()
+    # 评审闭环修复回归
+    test_game_dev_bare_keyword_develop()
+    test_game_route_gets_role_not_empty()
+    test_cross_industry_ambiguity_detection()
+    test_register_version_unified()
     print("✅ 数据驱动+复合边界+交接集成测试通过")

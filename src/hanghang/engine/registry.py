@@ -58,7 +58,7 @@ class Registry:
         # 格式1: 单单元文件 (含 unit_id 顶层)
         if "unit_id" in data:
             unit = self._parse_unit(data)
-            self.units[unit.unit_id] = unit
+            self._register_unit(unit, path)
             return
 
         # 格式2: unit-index.yaml（含 units 列表）
@@ -66,7 +66,7 @@ class Registry:
             for item in data["units"]:
                 if "unit_id" in item:
                     unit = self._parse_unit(item)
-                    self.units[unit.unit_id] = unit
+                    self._register_unit(unit, path)
 
     def _parse_unit(self, data: dict) -> IndustryUnit:
         """从 dict 解析一个 IndustryUnit"""
@@ -107,10 +107,26 @@ class Registry:
             industry=str(data.get("industry", "")),
             industry_alias=[str(a) for a in data.get("industry_alias", [])],
             roles=roles,
-            entry_ref=str(data.get("entry_ref", "")),
+            entry_ref=str(data.get("entry_ref", "") or data.get("repo_ref", "")),
             capability_tags=[str(t) for t in data.get("capability_tags", [])],
             register_version=str(data.get("register_version", "1.0")),
         )
+
+    def _register_unit(self, unit: IndustryUnit, source_path: str):
+        """注册单元；若重复定义且内容不一致则警告（防止静默分叉）"""
+        existing = self.units.get(unit.unit_id)
+        if existing is not None:
+            # 内容一致（同 version/industry/aliases/roles）则后加载覆盖是幂等操作，不告警
+            if (existing.industry != unit.industry
+                    or existing.industry_alias != unit.industry_alias
+                    or existing.register_version != unit.register_version
+                    or [r.name for r in existing.roles] != [r.name for r in unit.roles]):
+                logging.warning(
+                    f"单元 {unit.unit_id} 被多文件重复定义且内容不一致: "
+                    f"{source_path} 覆盖先前定义（industry/aliases/roles/version 存在差异，"
+                    f"请核对数据同步）"
+                )
+        self.units[unit.unit_id] = unit
 
     def get_unit(self, unit_id: str) -> Optional[IndustryUnit]:
         return self.units.get(unit_id)
