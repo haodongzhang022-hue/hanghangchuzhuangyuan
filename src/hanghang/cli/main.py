@@ -26,8 +26,10 @@ def cmd_route(args):
     for unit in registry.all_units():
         prefixes.register_unit(unit)
 
+    # 仅路由一次：route() 结果既用于展示，也交由 plan_from_result 编排，
+    # 避免与 planner.plan()（内部会再次 route）重复做意图识别。
     result = router.route(args.text)
-    plan = planner.plan(args.text)
+    plan = planner.plan_from_result(result, args.text)
 
     # 记录指标
     metrics.record_route(
@@ -60,10 +62,14 @@ def cmd_route(args):
         print(f"稳定前缀集: {plan['session_prefix_set']}")
     if "execution_order" in plan:
         print(f"执行顺序: {plan['execution_order']}")
+    if "boundary" in plan:
+        print(f"复合边界规则: {plan['boundary']}")
+    if "handoff_card_id" in plan and plan["handoff_card_id"]:
+        print(f"交接卡ID: {plan['handoff_card_id']}")
     print("=" * 50)
 
 
-def cmd_list_units(args):
+def cmd_units(args):
     """列出已注册行业单元"""
     registry = Registry()
     prefixes = PrefixArchive()
@@ -87,6 +93,18 @@ def cmd_metrics(args):
     print(f"岗位命中: {s['role_hits']}")
 
 
+def cmd_search(args):
+    """M8 跨行业能力索引搜索"""
+    registry = Registry()
+    matches = registry.search_by_keyword(args.keyword)
+    if not matches:
+        print(f"未找到与 '{args.keyword}' 匹配的行业单元")
+        return
+    print(f"关键词 '{args.keyword}' 匹配到 {len(matches)} 个行业单元:")
+    for u in matches:
+        print(f"  - {u.unit_id} [{u.industry}] tags={u.capability_tags}")
+
+
 def cmd_create_handoff(args):
     """创建跨单元交接卡"""
     bus = HandoffBus()
@@ -98,6 +116,7 @@ def cmd_create_handoff(args):
     )
     print(f"交接卡已创建: {card.source_unit} → {card.target_unit}")
     print(f"意图: {card.intent}")
+    print(f"ID: {card.id}")
 
 
 def cmd_list_handoffs(args):
@@ -108,6 +127,54 @@ def cmd_list_handoffs(args):
         print("无待处理交接卡")
     for c in pending:
         print(f"  {c.source_unit} → {c.target_unit}: {c.intent} (status={c.status})")
+
+
+def cmd_cross_unit(args):
+    """跨单元交接编排：输入一句话意图，检测是否涉及多个行业单元"""
+    registry = Registry()
+    router = IntentRouter(registry)
+    planner = CompositePlanner(registry)
+
+    # 先检测是否存在"真跨行业"诉求（各单元持有独立信号）
+    candidates = router.cross_unit_candidates(args.text)
+
+    # 仅命中一个（含伪歧义：如共享泛化词"开发"）→ 走正常单行业路由
+    if len(candidates) <= 1:
+        result = router.route(args.text)
+        print(f"路由结果: unit={result.unit_id or 'N/A'}")
+
+        if result.needs_manual:
+            print(f"需人工确认: {result.fallback_reason}")
+            return
+
+        unit = registry.get_unit(result.unit_id) if result.unit_id else None
+        if not unit:
+            print("无可用单元")
+            return
+
+        # 复用上面已算好的 route 结果，避免 planner.plan() 二次识别同一意图
+        plan = planner.plan_from_result(result, args.text)
+        print(f"单行业路由: {plan.get('mode', '')} — {plan.get('message', '')}")
+        return
+
+    # 真跨行业诉求（≥2 个独立行业信号命中）→ 触发交接编排
+    unit_scores = router._score_units(args.text, registry.all_units())
+    hits = [(uid, sc["score"]) for uid, sc in unit_scores.items()
+            if uid in candidates and sc["score"] > 0]
+    hits.sort(key=lambda x: x[1], reverse=True)
+
+    print(f"检测到 {len(hits)} 个行业单元独立命中:")
+    for uid, score in hits:
+        u = registry.get_unit(uid)
+        print(f"  - {uid} [{u.industry if u else ''}] score={score}")
+
+    source = registry.get_unit(hits[0][0])
+    target = registry.get_unit(hits[1][0])
+    if source and target:
+        plan = planner.plan_cross_unit(args.text, source.unit_id, target.unit_id)
+        print(f"\n跨单元交接: {plan.get('message', '')}")
+        if plan.get("handoff_card_id"):
+            print(f"交接卡ID: {plan['handoff_card_id']}")
 
 
 def build_parser():
@@ -121,10 +188,14 @@ def build_parser():
     r.set_defaults(func=cmd_route)
 
     l = sub.add_parser("units", help="列出已注册行业单元")
-    l.set_defaults(func=cmd_list_units)
+    l.set_defaults(func=cmd_units)
 
     m = sub.add_parser("metrics", help="查看运行指标")
     m.set_defaults(func=cmd_metrics)
+
+    s = sub.add_parser("search", help="按关键词搜索行业能力索引")
+    s.add_argument("keyword", help="搜索关键词")
+    s.set_defaults(func=cmd_search)
 
     h = sub.add_parser("handoff", help="创建交接卡")
     h.add_argument("--source", required=True, help="源单元")
@@ -135,6 +206,10 @@ def build_parser():
 
     hp = sub.add_parser("handoffs", help="列出待处理交接卡")
     hp.set_defaults(func=cmd_list_handoffs)
+
+    x = sub.add_parser("cross-unit", help="检测跨行业诉求并编排交接")
+    x.add_argument("text", help="用户意图文本")
+    x.set_defaults(func=cmd_cross_unit)
 
     return p
 
