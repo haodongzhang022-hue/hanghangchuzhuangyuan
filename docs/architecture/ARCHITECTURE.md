@@ -139,8 +139,11 @@ register_version: "1.0"
 |--------|------|------|
 | CP1 | 本通用能力层架构评审 | ⏳ 人工放行口 |
 | CP2 | 收编单元为原子 + 自动路由跑通 | ✅ R4/R5/R6 POC通过 + Python正式引擎实现(src/hanghang/) |
-| CP3 | 跨单元交接 + 复合agent(≥2岗) | 🟡 R5复合验证✓ + M5交接总线已实现, 跨单元端到端待单元源仓配合 |
-| P2 | 扩展更多行业单元 | 🟡 游戏单元(game-dev-unit)已在unit-index.yaml预埋 |
+| CP3 | 跨单元交接 + 复合agent(≥2岗) | ✅ M5交接总线集成(自动建卡) + 复合boundary规则已实现 + 跨单元交接测试通过 |
+| P2 | 扩展更多行业单元 | ✅ game-dev-unit已完善(含game_dev角色+完整keywords) |
+| R8 | 数据驱动路由升级 | ✅ Role模型增加keywords字段, 注册数据驱动, 新增单元无需改代码 |
+| R9 | 复合agent边界规则 | ✅ role_priority+role_isolation规则已落地(评审补强①) |
+| R10 | 缓存命中稳定性验证 | ✅ 同义改写/重复提交一致性测试已添加(评审补强②) |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`

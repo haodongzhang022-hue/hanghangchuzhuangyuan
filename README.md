@@ -12,6 +12,19 @@ L1 通用能力层  = 本仓库：识别路由(M1) / 注册表(M2) / 前缀档�
 L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 ```
 
+## 数据驱动设计（核心亮点）
+
+**新增行业单元只需更新注册数据，无需修改代码。**
+
+各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册：
+
+| 单元 | 行业 | 岗位 |
+|------|------|------|
+| dongjiagoushi | 软件研发 | secretary / architect / developer / reviewer / product |
+| game-dev-unit | 游戏研发 | game_planner / level_designer / game_dev |
+
+新增单元时只需在 `data/unit-index.yaml` 或 `data/industry-register.yaml` 中追加声明。
+
 ## 快速开始
 
 ### 安装依赖
@@ -32,6 +45,12 @@ python3 src/hanghang/cli/main.py route "帮我点个外卖"
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
 
+# 按关键词搜索行业能力索引（M8）
+python3 src/hanghang/cli/main.py search "关卡"
+
+# 检测跨行业诉求并自动编排交接（M5）
+python3 src/hanghang/cli/main.py cross-unit "需要软件架构设计并做游戏关卡策划"
+
 # 查看运行指标
 python3 src/hanghang/cli/main.py metrics
 
@@ -41,9 +60,14 @@ python3 src/hanghang/cli/main.py handoff --source dongjiagoushi --target game-de
 
 ### 运行测试
 ```bash
-python3 tests/test_router.py
-python3 tests/test_registry.py
-python3 tests/test_handoff.py
+python3 tests/test_router.py        # 路由引擎
+python3 tests/test_registry.py      # 注册表与元数据
+python3 tests/test_handoff.py       # 交接总线
+python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动集成
+python3 tests/test_review.py        # 评审机制
+
+# 或全部一键
+python3 scripts/run_all_tests.py
 ```
 
 ## 数据文件
@@ -52,6 +76,16 @@ python3 tests/test_handoff.py
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
 - `data/prefix-archive.json` — 稳定前缀档案（M3，自动生成）
 - `data/metrics.json` — 运行指标（M7，自动生成）
+
+## 复合装配的边界规则（评审补强① 已落实）
+
+同一行业多岗位复合时，自动按**依赖序**排列（如 `product → architect → developer → reviewer`）。
+岗位间通过交接卡传递产物，不互相污染记忆（`role_isolation: handoff_card_only`）。
+
+```
+产品规划 → 架构方案 → 编码实现 → 评审
+（前一岗位产物作为下一岗位输入，各自session独立）
+```
 
 ## 文档索引
 
@@ -86,14 +120,6 @@ PR 提交 → 测试信号灯 → NPC 代码审查 → 需修改？→ CodeBuddy
 | `pull_request.changes_requested` | CodeBuddy 自动修复 |
 | `pull_request.comment@npc` | 手动 @CodeBuddy 兜底 |
 | `main.push` | 全量回归 + 知识库更新 |
-
-### 运行全部测试
-
-```bash
-python3 scripts/run_all_tests.py
-# 或变更感知测试
-bash scripts/change-aware-test.sh
-```
 
 ### 评审相关文件
 

@@ -16,6 +16,9 @@ class Registry:
     M2 注册表：
     加载 industry-register.yaml 文件，维护行业单元注册。
     单文件 = 一个行业单元。
+
+    数据驱动设计：各单元的岗位关键词（keywords）由注册声明自身提供，
+    路由引擎从本注册表动态读取，无需修改代码即可新增行业单元。
     """
 
     def __init__(self, search_paths: Optional[List[str]] = None):
@@ -34,11 +37,12 @@ class Registry:
                 files.extend(glob.glob(os.path.join(sp, pattern)))
             files.extend(glob.glob(os.path.join(sp, "**", pattern), recursive=True))
 
-        # 优先 industry-register.yaml（单元自身声明），再 unit-index.yaml（索引视图）
         seen = set()
         for f in sorted(files):
-            self._load_file(f)
+            if f in seen:
+                continue
             seen.add(f)
+            self._load_file(f)
 
     def _load_file(self, path: str):
         """解析一个 YAML 文件到单元注册"""
@@ -69,22 +73,42 @@ class Registry:
         roles = []
         for r in data.get("roles", []):
             if isinstance(r, dict):
-                roles.append(Role(
-                    name=r.get("name", ""),
-                    prefix=r.get("prefix", ""),
-                    handoff=r.get("handoff", "relay"),
-                    composite=r.get("composite", True),
-                    description=r.get("description", ""),
-                ))
+                # 兼容 roles 为 dict 对象与 roles 为 name 字符串两种写法
+                role_name = str(r.get("name", ""))
+                if not role_name and isinstance(r.get("role"), str):
+                    role_name = r["role"]
+                # 解析 keywords：显式 keywords 列表 > 单字符串 keywords > description
+                keywords = []
+                kw_val = r.get("keywords", [])
+                if isinstance(kw_val, list):
+                    keywords = [str(k) for k in kw_val if k]
+                elif isinstance(kw_val, str):
+                    keywords = [w.strip() for w in kw_val.replace(",", " ")
+                                .replace("，", " ").split() if w.strip()]
+
+                # 兼容 roles 仅含 name 字符串列表的情况
+                role = Role(
+                    name=role_name,
+                    prefix=str(r.get("prefix", f"[{role_name}]")),
+                    handoff=str(r.get("handoff", "relay")),
+                    composite=bool(r.get("composite", True)),
+                    description=str(r.get("description", "")),
+                    keywords=keywords,
+                )
+                roles.append(role)
             elif isinstance(r, str):
-                roles.append(Role(name=r, prefix=f"[{r}]"))
+                roles.append(Role(
+                    name=r,
+                    prefix=f"[{r}]",
+                    keywords=[r],
+                ))
         return IndustryUnit(
             unit_id=str(data.get("unit_id", "")),
             industry=str(data.get("industry", "")),
-            industry_alias=list(data.get("industry_alias", [])),
+            industry_alias=[str(a) for a in data.get("industry_alias", [])],
             roles=roles,
             entry_ref=str(data.get("entry_ref", "")),
-            capability_tags=list(data.get("capability_tags", [])),
+            capability_tags=[str(t) for t in data.get("capability_tags", [])],
             register_version=str(data.get("register_version", "1.0")),
         )
 
@@ -94,12 +118,15 @@ class Registry:
     def all_units(self) -> List[IndustryUnit]:
         return list(self.units.values())
 
-    def search_by_keyword(self, keyword: str) -> Optional[IndustryUnit]:
-        """M8 跨行业能力索引检索"""
+    def search_by_keyword(self, keyword: str) -> List[IndustryUnit]:
+        """M8 跨行业能力索引检索：返回所有匹配关键词的单元列表"""
+        matches = []
         for unit in self.units.values():
-            if keyword in unit.industry_alias or keyword in unit.capability_tags:
-                return unit
-        return None
+            if (keyword in unit.industry_alias or
+                    keyword in unit.capability_tags or
+                    any(keyword in r.get_keywords() for r in unit.roles)):
+                matches.append(unit)
+        return matches
 
     def summary(self) -> str:
         lines = [f"注册单元数: {len(self.units)}"]

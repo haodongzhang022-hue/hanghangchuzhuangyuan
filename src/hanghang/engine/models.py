@@ -13,6 +13,21 @@ class Role:
     handoff: str = "relay"      # relay | direct
     composite: bool = True
     description: str = ""
+    keywords: List[str] = field(default_factory=list)  # 岗位触发关键词（单元自带，数据驱动）
+
+    def get_keywords(self) -> List[str]:
+        """
+        获取该岗位的全部触发关键词。
+        优先级：显式 keywords > description 拆分 > name 本身。
+        """
+        kws = list(self.keywords)
+        if self.description and not kws:
+            # description 中的空格分词作为隐式关键词
+            kws.extend([w.strip() for w in self.description.replace(",", " ")
+                        .replace("，", " ").split() if w.strip()])
+        if not kws:
+            kws.append(self.name)
+        return kws
 
 
 @dataclass
@@ -31,6 +46,10 @@ class IndustryUnit:
             if r.name == name:
                 return r
         return None
+
+    def all_role_keywords(self) -> Dict[str, List[str]]:
+        """获取本单元全部岗位的关键词映射"""
+        return {r.name: r.get_keywords() for r in self.roles}
 
 
 @dataclass

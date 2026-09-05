@@ -17,10 +17,18 @@ roles:                         # 单位内可路由岗位
     prefix: "[稳定前缀]"
     handoff: relay|direct      # 交接协议
     composite: true|false      # 是否可被复合装配
+    keywords: [岗位触发词]     # 供路由识别（数据驱动，无需改代码）
 entry_ref: 单位仓库地址
 capability_tags: [跨界检索关键词]
 register_version: 版本号
 ```
+
+## 数据驱动字段说明
+
+`keywords` 是岗位的**触发关键词**，供 M1 意图路由引擎识别。
+- 各岗位应声明 3~8 个中文触发词（如架构师声明: `[架构设计, 架构方案, 架构师, 做架构, 技术方案]`）
+- 新增行业单元时，只需按此规范提供注册数据即可接入，**无需修改路由引擎代码**
+- 若某岗位未声明 keywords，引擎会自动从 `description` 字段中分词作为兜底
 
 ## 稳定前缀规则（核心约束）
 1. **一个 session = 一个行业单位 = 一套前缀**，中途不得切换行业。
@@ -34,14 +42,19 @@ unit_id: dongjiagoushi
 industry: 软件研发
 industry_alias: [研发, 架构师, 软件开发, dev]
 roles:
-  - {name: secretary, prefix: "[秘书]",  handoff: relay, composite: true}
-  - {name: architect, prefix: "[架构]",  handoff: relay, composite: true}
-  - {name: developer, prefix: "[开发]",  handoff: relay, composite: true}
-  - {name: product,   prefix: "[产品]",  handoff: relay, composite: true}
-  - {name: reviewer,  prefix: "[评审]",  handoff: relay, composite: true}
+  - {name: secretary, prefix: "[秘书]",  handoff: relay, composite: true,
+     keywords: [秘书, 编排, 记录, 汇总, 会议纪要]}
+  - {name: architect, prefix: "[架构]",  handoff: relay, composite: true,
+     keywords: [架构设计, 架构方案, 架构师, 做架构, 总体设计]}
+  - {name: developer, prefix: "[开发]",  handoff: relay, composite: true,
+     keywords: [开发, 编码, 实现, 写代码, 落地, 编程]}
+  - {name: product,   prefix: "[产品]",  handoff: relay, composite: true,
+     keywords: [产品, 需求, 规划, 排期]}
+  - {name: reviewer,  prefix: "[评审]",  handoff: relay, composite: true,
+     keywords: [评审, 审查, 复核, 走查, 检视]}
 entry_ref: "https://cnb.cool/dongdongxiaozu/dongjiagoushi"
 capability_tags: [架构设计, 编码实现, 协作编排, 接力交接, 经验记忆]
-register_version: "1.0"
+register_version: "1.1"
 ```
 
 ## 验收标准（单位接入后须达标）
@@ -49,3 +62,4 @@ register_version: "1.0"
 - 前缀稳定：单会话内岗位前缀零突变。
 - 交接成功：跨行业/跨岗位交接卡能闭合。
 - 复合可用：可装配 ≥2 岗位同会话运行。
+- 数据驱动：新增行业只需注册数据即可被路由（无需改代码）。

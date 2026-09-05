@@ -1,32 +1,37 @@
 unit_id: dongjiagoushi
 industry: 软件研发
-industry_alias: [研发, 架构师, 软件开发, dev, 架构]
+industry_alias: [研发, 架构师, 软件开发, dev, 架构, 软件]
 roles:
   - name: secretary
     prefix: "[秘书]"
     handoff: relay
     composite: true
-    description: "编排记录 汇总会议纪要 组织协调"
+    description: "编排记录 汇总 组织协调"
+    keywords: [秘书, 编排, 记录, 汇总, 会议纪要, 组织协调, 分配, 派发, 调度]
   - name: architect
     prefix: "[架构]"
     handoff: relay
     composite: true
     description: "架构设计 架构方案 总体设计 技术方案 系统设计"
+    keywords: [架构设计, 架构方案, 架构师, 做架构, 总体设计, 技术方案, 系统设计, 方案设计, 架构]
   - name: developer
     prefix: "[开发]"
     handoff: relay
     composite: true
     description: "开发 编码 实现 写代码 落地 编程"
-  - name: product
-    prefix: "[产品]"
-    handoff: relay
-    composite: true
-    description: "产品 需求 规划 排期"
+    keywords: [开发, 编码, 实现, 写代码, 落地, 编程, 写程序, 部署]
   - name: reviewer
     prefix: "[评审]"
     handoff: relay
     composite: true
     description: "评审 审查 复核 走查 检视"
+    keywords: [评审, 审查, 复核, 走查, 检视, 代码审查, 复审]
+  - name: product
+    prefix: "[产品]"
+    handoff: relay
+    composite: true
+    description: "产品 需求 规划 排期"
+    keywords: [产品, 需求, 规划, 排期, 产品方案, 需求分析, 竞品分析]
 entry_ref: "https://cnb.cool/dongdongxiaozu/dongjiagoushi"
 capability_tags: [架构设计, 编码实现, 协作编排, 接力交接, 经验记忆]
 register_version: "1.0"

@@ -2,22 +2,63 @@ units:
   - unit_id: dongjiagoushi
     repo_ref: "https://cnb.cool/dongdongxiaozu/dongjiagoushi"
     industry: 软件研发
-    industry_alias: [研发, 架构师, 软件开发, dev, 架构]
+    industry_alias: [研发, 架构师, 软件开发, dev, 架构, 软件]
     capability_tags: [架构设计, 编码实现, 协作编排, 接力交接, 经验记忆]
     register_version: "1.0"
     roles:
-      - {name: architect, prefix: "[架构]", handoff: relay, composite: true, description: "架构设计 架构方案 总体设计"}
-      - {name: developer, prefix: "[开发]", handoff: relay, composite: true, description: "开发 编码 实现 写代码"}
-      - {name: reviewer, prefix: "[评审]", handoff: relay, composite: true, description: "评审 审查 复核"}
-      - {name: product, prefix: "[产品]", handoff: relay, composite: true, description: "产品 需求 规划"}
-      - {name: secretary, prefix: "[秘书]", handoff: relay, composite: true, description: "编排记录 汇总"}
+      - name: secretary
+        prefix: "[秘书]"
+        handoff: relay
+        composite: true
+        description: "编排记录 汇总 组织协调"
+        keywords: [秘书, 编排, 记录, 汇总, 会议纪要, 组织协调, 分配, 派发, 调度]
+      - name: architect
+        prefix: "[架构]"
+        handoff: relay
+        composite: true
+        description: "架构设计 架构方案 总体设计 技术方案 系统设计"
+        keywords: [架构设计, 架构方案, 架构师, 做架构, 总体设计, 技术方案, 系统设计, 方案设计, 架构]
+      - name: developer
+        prefix: "[开发]"
+        handoff: relay
+        composite: true
+        description: "开发 编码 实现 写代码 落地 编程"
+        keywords: [开发, 编码, 实现, 写代码, 落地, 编程, 写程序, 部署]
+      - name: reviewer
+        prefix: "[评审]"
+        handoff: relay
+        composite: true
+        description: "评审 审查 复核 走查 检视"
+        keywords: [评审, 审查, 复核, 走查, 检视, 代码审查, 复审]
+      - name: product
+        prefix: "[产品]"
+        handoff: relay
+        composite: true
+        description: "产品 需求 规划 排期"
+        keywords: [产品, 需求, 规划, 排期, 产品方案, 需求分析, 竞品分析]
 
   - unit_id: game-dev-unit
     repo_ref: "https://cnb.cool/dongdongxiaozu/game-dev"
     industry: 游戏研发
-    industry_alias: [游戏, 玩法, 数值策划, 关卡设计, 游戏开发]
-    capability_tags: [玩法设计, 数值平衡, 关卡策划, 游戏引擎, UE引擎]
+    industry_alias: [游戏, 玩法, 数值策划, 关卡设计, 游戏开发, 游戏研发]
+    capability_tags: [玩法设计, 数值平衡, 关卡策划, 游戏引擎, UE引擎, 关卡]
     register_version: "1.0"
     roles:
-      - {name: game_planner, prefix: "[策划]", handoff: relay, composite: true, description: "玩法 数值 策划 游戏设计"}
-      - {name: level_designer, prefix: "[关卡]", handoff: relay, composite: true, description: "关卡设计 地图设计 场景布置"}
+      - name: game_planner
+        prefix: "[策划]"
+        handoff: relay
+        composite: true
+        description: "玩法设计 数值策划 游戏策划 游戏设计"
+        keywords: [玩法, 数值策划, 策划, 游戏设计, 游戏策划, 关卡, 数值, 游戏玩法]
+      - name: level_designer
+        prefix: "[关卡]"
+        handoff: relay
+        composite: true
+        description: "关卡设计 地图设计 场景布置 关卡制作"
+        keywords: [关卡设计, 地图设计, 场景布置, 关卡制作, 关卡]
+      - name: game_dev
+        prefix: "[游戏开发]"
+        handoff: relay
+        composite: true
+        description: "游戏引擎开发 UE开发 Unity开发 客户端开发 游戏开发"
+        keywords: [游戏开发, UE开发, Unity开发, 引擎开发, 客户端开发, 游戏引擎, UE引擎, 游戏编程]
