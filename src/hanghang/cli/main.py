@@ -26,8 +26,10 @@ def cmd_route(args):
     for unit in registry.all_units():
         prefixes.register_unit(unit)
 
+    # 仅路由一次：route() 结果既用于展示，也交由 plan_from_result 编排，
+    # 避免与 planner.plan()（内部会再次 route）重复做意图识别。
     result = router.route(args.text)
-    plan = planner.plan(args.text)
+    plan = planner.plan_from_result(result, args.text)
 
     # 记录指标
     metrics.record_route(
@@ -150,7 +152,8 @@ def cmd_cross_unit(args):
             print("无可用单元")
             return
 
-        plan = planner.plan(args.text)
+        # 复用上面已算好的 route 结果，避免 planner.plan() 二次识别同一意图
+        plan = planner.plan_from_result(result, args.text)
         print(f"单行业路由: {plan.get('mode', '')} — {plan.get('message', '')}")
         return
 

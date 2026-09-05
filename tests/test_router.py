@@ -58,13 +58,24 @@ def test_manual_fallback():
 
 
 def test_game_unit_routing():
-    """游戏行业单元路由"""
+    """游戏行业单元路由：关卡设计属 level_designer 专属岗
+
+    game_planner 关键词不再含裸词"关卡"，避免"关卡"与 level_designer
+    重叠导致仅谈关卡设计就被误复合装配 game_planner。
+    """
     reg = setup_registry()
     router = IntentRouter(reg)
+    # 仅"关卡设计"类诉求 → 只命中 level_designer（不再误拉 game_planner）
     r = router.route("做一个吃鸡游戏的关卡设计")
     assert r.unit_id == "game-dev-unit"
-    assert "game_planner" in r.roles
     assert "level_designer" in r.roles
+    assert "game_planner" not in r.roles, f"不应误复合 game_planner: {r.roles}"
+
+    # 含策划与关卡的复合诉求 → game_planner + level_designer 均命中
+    r2 = router.route("做玩法数值策划并设计关卡地图")
+    assert r2.unit_id == "game-dev-unit"
+    assert "game_planner" in r2.roles
+    assert "level_designer" in r2.roles
 
 
 def test_software_dev_composite():

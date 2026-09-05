@@ -50,9 +50,13 @@ class IntentRouter:
         # 计算每个单元的信号评分
         unit_scores = self._score_units(text, units)
 
-        # 找到最高分单元
-        best_unit_id = max(unit_scores, key=lambda u: unit_scores[u]["score"]) \
-            if unit_scores else ""
+        # 找到最高分单元（确定性 tie-break：同分时按 unit_id 字典序取小，
+        # 不依赖注册文件加载/遍历顺序，保证路由归属稳定可复现）
+        ranked_units = sorted(
+            unit_scores.items(),
+            key=lambda kv: (-kv[1]["score"], kv[0]),
+        )
+        best_unit_id = ranked_units[0][0] if ranked_units else ""
         best_score = unit_scores.get(best_unit_id, {}).get("score", 0.0)
 
         # 最高分单元得分<=0（无任何信号命中），此时无明确行业归属 → 人工确认
@@ -69,7 +73,7 @@ class IntentRouter:
         # 若候选2的所有命中词均已被候选1命中（如泛化词"开发"在多个单元
         # 注册中重复出现），则仅属共享泛化词造成的伪歧义，不应回落人工。
         sorted_scores = sorted(unit_scores.items(),
-                               key=lambda kv: kv[1]["score"], reverse=True)
+                               key=lambda kv: (-kv[1]["score"], kv[0]))
         if len(sorted_scores) >= 2:
             top1, top2 = sorted_scores[0], sorted_scores[1]
             top1_score = top1[1]["score"]
@@ -286,10 +290,17 @@ class CompositePlanner:
                 self.handoff_bus = None
 
     def plan(self, text: str) -> dict:
-        """根据路由结果决定会话编排方案"""
+        """根据路由结果决定会话编排方案（内部路由一次后交 plan_from_result）"""
         router = IntentRouter(self.registry)
         result = router.route(text)
+        return self.plan_from_result(result, text)
 
+    def plan_from_result(self, result: "RouteResult", text: str) -> dict:
+        """由已算好的路由结果决定会话编排方案。
+
+        与 plan() 的区别：本方法不再重复做意图路由，直接基于传入的
+        RouteResult 编排，避免同一意图被 route 两次（消除重复识别）。
+        """
         if result.needs_manual:
             return {
                 "mode": "manual",
@@ -380,8 +391,6 @@ class CompositePlanner:
         当一个意图命中了两个不同行业的单元时，
         自动创建交接卡，将任务拆分到各自的新 session 处理。
         """
-        from .models import HandoffCard
-
         source = self.registry.get_unit(source_unit_id)
         target = self.registry.get_unit(target_unit_id)
         if not source or not target:

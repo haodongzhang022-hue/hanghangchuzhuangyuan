@@ -374,3 +374,113 @@ if __name__ == "__main__":
     test_cross_unit_candidates_detection()
     test_cross_unit_cli_detects_multi_industry()
     print("✅ 数据驱动+复合边界+交接集成测试通过")
+
+
+# ============================================================
+# 第三轮评审修复的回归测试
+# ============================================================
+
+def test_tie_break_deterministic():
+    """评审问题①修复：同分命中需确定性 tie-break
+
+    "开发一个网页应用" 中"开发"同时命中 dongjiagoushi.developer 与
+    game-dev-unit.game_dev（单角色命中各 1.5，同分）。路由归属不得依赖
+    注册/遍历顺序，应按确定性规则（同分取 unit_id 字典序较小者）稳定命中
+    dongjiagoushi。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 10 次重复路由结果应唯一且确定为 dongjiagoushi
+    results = {router.route("开发一个网页应用").unit_id for _ in range(10)}
+    assert results == {"dongjiagoushi"}, f"同分 tie-break 结果不稳定: {results}"
+
+    r = router.route("开发一个网页应用")
+    assert r.needs_manual is False, f"伪歧义不应回落人工: {r.fallback_reason}"
+    assert r.unit_id == "dongjiagoushi"
+
+
+def test_registry_dup_detect_keywords_diff():
+    """评审问题②修复：重复定义一致性校验须覆盖 keywords/description
+
+    两个来源对同一 unit_id 给出相同岗位名但不同 keywords 时，应判定为
+    内容不一致（告警），不能仅因岗位名相同就当幂等覆盖（防静默分叉）。
+    """
+    import tempfile
+    import yaml
+    from hanghang.engine.registry import Registry
+
+    base = {
+        "unit_id": "dup-check",
+        "industry": "一致性测试",
+        "industry_alias": ["一致", "测试"],
+        "register_version": "1.1",
+        "capability_tags": ["一致能力"],
+        "roles": [
+            {"name": "r1", "prefix": "[R1]", "description": "关键词A", "keywords": ["词A"]},
+        ],
+    }
+    # 岗位名同为 r1，但 keywords 不同
+    variant = {
+        **base,
+        "roles": [
+            {"name": "r1", "prefix": "[R1]", "description": "关键词B", "keywords": ["词B"]},
+        ],
+    }
+
+    u_a = Registry._parse_unit(Registry(), base)
+    u_b = Registry._parse_unit(Registry(), variant)
+    # 两单元 roles 名相同、但 keywords/description 不同 → 判不一致
+    assert not Registry._unit_equal(Registry(), u_a, u_b), \
+        "岗位 keywords/description 不同的重复定义应判为不一致"
+
+    # 完全一致的重复定义应判为一致（幂等覆盖，不告警）
+    u_c = Registry._parse_unit(Registry(), dict(base))
+    assert Registry._unit_equal(Registry(), u_a, u_c), "完全一致的重复定义应判为一致"
+
+
+def test_game_level_designer_no_false_composite():
+    """评审问题③修复：game_planner 不含裸词"关卡"，关卡设计不误复合
+
+    移除 game_planner 关键词中的"关卡"后，纯关卡设计诉求只命中
+    level_designer（关卡设计专属岗），不再把 game_planner 误拉进来复合。
+    """
+    reg = Registry()
+    unit = reg.get_unit("game-dev-unit")
+    gp = unit.role_by_name("game_planner")
+    # game_planner 关键词中不得再有与 level_designer 重叠的裸词"关卡"
+    assert "关卡" not in gp.get_keywords(), "game_planner 不应包含泛词'关卡'"
+
+    router = IntentRouter(reg)
+    r = router.route("设计一个吃鸡的关卡地图")
+    assert r.unit_id == "game-dev-unit"
+    assert "level_designer" in r.roles
+    assert "game_planner" not in r.roles, \
+        f"纯关卡设计不应误复合 game_planner: {r.roles}"
+
+
+if __name__ == "__main__":
+    test_role_keywords_from_yaml()
+    test_role_keywords_from_description()
+    test_data_driven_add_new_unit_without_code_change()
+    test_synonym_routing_same_result()
+    test_repeated_route_same_result()
+    test_composite_boundary_rule()
+    test_handoff_auto_create_for_incompatible_roles()
+    test_cross_unit_handoff_creation()
+    test_m8_search_by_keyword_list()
+    # 评审闭环修复回归
+    test_game_dev_bare_keyword_develop()
+    test_game_route_gets_role_not_empty()
+    test_cross_industry_ambiguity_detection()
+    test_register_version_unified()
+    # 第二轮评审修复回归
+    test_generic_word_no_false_ambiguity()
+    test_true_ambiguity_still_detected()
+    test_cross_unit_candidates_detection()
+    test_cross_unit_cli_detects_multi_industry()
+    # 第三轮评审修复回归
+    test_tie_break_deterministic()
+    test_registry_dup_detect_keywords_diff()
+    test_game_level_designer_no_false_composite()
+    print("✅ 数据驱动+复合边界+交接集成测试通过")

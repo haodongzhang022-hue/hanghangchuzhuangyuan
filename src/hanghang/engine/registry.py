@@ -112,19 +112,44 @@ class Registry:
             register_version=str(data.get("register_version", "1.0")),
         )
 
+    @staticmethod
+    def _role_sig(role: Role) -> tuple:
+        """生成一个岗位的规范化签名，用于重复定义一致性比对。
+        覆盖 name/prefix/handoff/composite/description/keywords，
+        避免仅比对岗位名而遗漏 keywords/description 的静默分叉。
+        """
+        return (
+            role.name,
+            role.prefix,
+            role.handoff,
+            role.composite,
+            role.description,
+            tuple(sorted(role.keywords)),
+        )
+
+    def _unit_equal(self, a: IndustryUnit, b: IndustryUnit) -> bool:
+        """两个单元定义是否完全一致（industry/aliases/version/capability/roles）"""
+        if (a.industry != b.industry
+                or a.industry_alias != b.industry_alias
+                or a.register_version != b.register_version
+                or a.capability_tags != b.capability_tags
+                or a.entry_ref != b.entry_ref):
+            return False
+        a_roles = {self._role_sig(r) for r in a.roles}
+        b_roles = {self._role_sig(r) for r in b.roles}
+        return a_roles == b_roles
+
     def _register_unit(self, unit: IndustryUnit, source_path: str):
         """注册单元；若重复定义且内容不一致则警告（防止静默分叉）"""
         existing = self.units.get(unit.unit_id)
         if existing is not None:
-            # 内容一致（同 version/industry/aliases/roles）则后加载覆盖是幂等操作，不告警
-            if (existing.industry != unit.industry
-                    or existing.industry_alias != unit.industry_alias
-                    or existing.register_version != unit.register_version
-                    or [r.name for r in existing.roles] != [r.name for r in unit.roles]):
+            # 内容完全一致则后加载覆盖是幂等操作，不告警；
+            # 覆盖 industry/aliases/version/capability/roles(keywords/description) 全字段比对
+            if not self._unit_equal(existing, unit):
                 logging.warning(
                     f"单元 {unit.unit_id} 被多文件重复定义且内容不一致: "
-                    f"{source_path} 覆盖先前定义（industry/aliases/roles/version 存在差异，"
-                    f"请核对数据同步）"
+                    f"{source_path} 覆盖先前定义（industry/aliases/version/capability/"
+                    f"roles(keywords/description) 存在差异，请核对数据同步）"
                 )
         self.units[unit.unit_id] = unit
 

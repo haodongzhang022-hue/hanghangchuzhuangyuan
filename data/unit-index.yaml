@@ -49,7 +49,7 @@ units:
         handoff: relay
         composite: true
         description: "玩法设计 数值策划 游戏策划 游戏设计"
-        keywords: [玩法, 数值策划, 策划, 游戏设计, 游戏策划, 关卡, 数值, 游戏玩法]
+        keywords: [玩法, 数值策划, 策划, 游戏设计, 游戏策划, 数值, 游戏玩法]
       - name: level_designer
         prefix: "[关卡]"
         handoff: relay
