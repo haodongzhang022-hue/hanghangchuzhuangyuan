@@ -169,6 +169,102 @@ class Registry:
                 matches.append(unit)
         return matches
 
+    def search_capability(self, keyword: str,
+                          mode: str = "any") -> List[dict]:
+        """
+        M8 跨行业能力索引增强检索：
+        在"知道哪个单元有该能力"之上，进一步精确到 该单元内
+        由哪个岗位/哪个能力标签承接，并给出可路由入口地址。
+
+        mode:
+          - any:        任一维度命中即返回（行业别名/能力标签/岗位关键词/能力描述）
+          - industry:   仅按 行业别名 命中
+          - capability: 仅按 capability_tags 命中
+          - role:       仅按 岗位关键词/岗位描述 命中
+
+        返回 list[dict]，每项：
+          {
+            unit_id, industry, entry_ref,
+            hit_kind,        # 命中维度: industry | capability | role
+            hit_roles,       # 命中该关键词的岗位列表
+            hit_tags,        # 命中的能力标签
+            matched_terms,   # 实际命中的词（含行业别名）
+          }
+        """
+        if not keyword or not keyword.strip():
+            return []
+        kw = keyword.strip()
+        results = []
+        for unit in self.units.values():
+            hit_kind = None
+            hit_roles = []
+            hit_tags = []
+            matched_terms = []
+
+            if mode in ("any", "industry"):
+                for alias in unit.industry_alias:
+                    if alias and kw in alias:
+                        hit_kind = "industry"
+                        matched_terms.append(alias)
+
+            if mode in ("any", "capability"):
+                for tag in unit.capability_tags:
+                    if tag and kw in tag:
+                        hit_kind = "capability"
+                        hit_tags.append(tag)
+
+            if mode in ("any", "role"):
+                for role in unit.roles:
+                    role_kws = [w for w in role.get_keywords()
+                                if w and kw in w]
+                    if role_kws:
+                        hit_kind = "role"
+                        hit_roles.append(role.name)
+                        matched_terms.extend(role_kws)
+
+            if hit_kind is None:
+                continue
+            results.append({
+                "unit_id": unit.unit_id,
+                "industry": unit.industry,
+                "entry_ref": unit.entry_ref,
+                "hit_kind": hit_kind,
+                "hit_roles": sorted(set(hit_roles)),
+                "hit_tags": sorted(set(hit_tags)),
+                "matched_terms": sorted(set(matched_terms)),
+            })
+        return results
+
+    def capability_index(self) -> List[dict]:
+        """
+        M8 能力索引全量导出：供上层做能力编排/可视化面板聚合。
+        返回每个单元的可路由能力清单（能力标签 → 对应岗位）。
+        """
+        index = []
+        for unit in self.units.values():
+            # 能力标签 → 承接岗位 映射
+            tag_to_roles = {}
+            for tag in unit.capability_tags:
+                roles = []
+                for role in unit.roles:
+                    # 岗位关键词若与该能力标签语义相近即视为承接
+                    role_kws = [w for w in role.get_keywords()
+                                if w and (w in tag or tag in w)]
+                    if role_kws:
+                        roles.append(role.name)
+                tag_to_roles[tag] = roles
+            index.append({
+                "unit_id": unit.unit_id,
+                "industry": unit.industry,
+                "entry_ref": unit.entry_ref,
+                "capability_tags": unit.capability_tags,
+                "tag_to_roles": tag_to_roles,
+                "roles": [{"name": r.name, "prefix": r.prefix,
+                           "composite": r.composite, "handoff": r.handoff}
+                          for r in unit.roles],
+            })
+        return index
+
     def summary(self) -> str:
         lines = [f"注册单元数: {len(self.units)}"]
         for uid, u in self.units.items():

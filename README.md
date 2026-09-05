@@ -22,6 +22,11 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 |------|------|------|
 | dongjiagoushi | 软件研发 | secretary / architect / developer / reviewer / product |
 | game-dev-unit | 游戏研发 | game_planner / level_designer / game_dev |
+| legal-services | 法律咨询 | legal_counsel / contract_advisor / compliance_advisor |
+| content-creation | 内容创作 | copywriter / media_operator / content_editor |
+| data-analytics | 数据分析 | data_analyst / data_scientist / bi_engineer |
+
+> 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 
 新增单元时只需在 `data/unit-index.yaml` 或 `data/industry-register.yaml` 中追加声明。
 
@@ -45,8 +50,12 @@ python3 src/hanghang/cli/main.py route "帮我点个外卖"
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
 
-# 按关键词搜索行业能力索引（M8）
-python3 src/hanghang/cli/main.py search "关卡"
+# 按关键词多维搜索行业能力索引（M8，可加 --mode 指定 industry/capability/role 维度）
+python3 src/hanghang/cli/main.py search "合同"
+python3 src/hanghang/cli/main.py search "数据" --mode role
+
+# 导出全量跨行业能力索引（含 能力标签→承接岗位 映射，供可视化聚合）
+python3 src/hanghang/cli/main.py index
 
 # 检测跨行业诉求并自动编排交接（M5）
 python3 src/hanghang/cli/main.py cross-unit "需要软件架构设计并做游戏关卡策划"
@@ -65,6 +74,7 @@ python3 tests/test_registry.py      # 注册表与元数据
 python3 tests/test_handoff.py       # 交接总线
 python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动集成
 python3 tests/test_review.py        # 评审机制
+python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
 
 # 或全部一键
 python3 scripts/run_all_tests.py

@@ -144,6 +144,8 @@ register_version: "1.0"
 | R8 | 数据驱动路由升级 | ✅ Role模型增加keywords字段, 注册数据驱动, 新增单元无需改代码 |
 | R9 | 复合agent边界规则 | ✅ role_priority+role_isolation规则已落地(评审补强①) |
 | R10 | 缓存命中稳定性验证 | ✅ 同义改写/重复提交一致性测试已添加(评审补强②) |
+| R11 | 行业横向扩展(3→5) | ✅ 新增 法律咨询/内容创作/数据分析 三单元, 纯数据驱动无改代码, 验证"行行出状元"广度覆盖 |
+| R12 | M8 能力索引增强 | ✅ search_capability 多维检索(any/industry/capability/role) + capability_index 全量导出 + CLI `search --mode`/`index` |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
