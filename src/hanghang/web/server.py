@@ -252,7 +252,7 @@ class HanghangHandler(BaseHTTPRequestHandler):
         """
         reg = self._get_registry()
         router = IntentRouter(reg)
-        planner = CompositePlanner(reg)
+        planner = CompositePlanner(reg, handoff_bus=self._get_handoffs())
         prefixes = self._get_prefixes()
 
         result = router.route(text)

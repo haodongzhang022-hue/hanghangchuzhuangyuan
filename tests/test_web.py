@@ -254,6 +254,95 @@ class TestWebAPI:
         # 不应使用 str(e) 直接拼入错误响应
         assert '_json_response(self, 500, {"error": str(e)})' not in source
 
+    # ---- 交接卡缓存一致性回归测试 ----
+    def test_composite_planner_uses_cached_handoff_bus(self):
+        """回归：_do_route 中 CompositePlanner 应注入模块级缓存 handoff_bus。
+
+        原问题：CompositePlanner(reg) 未注入交接总线时，内部自建独立 HandoffBus，
+        导致 (1) GET /api/route 命中 handoff_required 分支时创建交接卡写盘，
+        (2) 交接卡写入自建实例，/api/handoffs 读取模块级缓存 → 交接卡不可见（缓存不一致）。
+        本测试通过 mock CompositePlanner 验证其收到的是缓存 handoff_bus 实例。
+        """
+        import hanghang.web.server as web_server
+        from unittest import mock
+
+        cached_bus = web_server._get_cached_handoffs()
+
+        with mock.patch.object(web_server, 'CompositePlanner') as mock_planner:
+            mock_planner.return_value.plan_from_result.return_value = {
+                "mode": "direct", "unit_id": "test", "message": "ok"
+            }
+            # 触发一次 GET 路由请求（会调用 _do_route）
+            self._get("/api/route?text=" + urllib.parse.quote("帮我做个网站"))
+
+            assert mock_planner.called, "CompositePlanner 应被调用"
+            call_args = mock_planner.call_args
+            kwargs = call_args[1] if len(call_args) > 1 else {}
+            injected_bus = kwargs.get("handoff_bus")
+            assert injected_bus is cached_bus, (
+                f"CompositePlanner 应注入缓存 handoff_bus，实际收到 {injected_bus}"
+            )
+
+    def test_handoff_card_shared_instance_consistency(self):
+        """回归：交接卡应通过同一缓存总线实例读写，保证 /api/handoffs 可见。
+
+        构造含 composite:false 岗位的场景，验证交接卡写入缓存总线后，
+        同一缓存总线的 list_pending 能读到该卡（信息对称）。
+        """
+        import tempfile
+        from hanghang.engine import CompositePlanner, HandoffBus
+        from hanghang.engine.registry import Registry
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+
+            # 构造 composite:false 岗位触发 handoff_required
+            test_data = {
+                "unit_id": "test-unit-x",
+                "industry": "测试行业",
+                "industry_alias": ["测试行业X"],
+                "roles": [
+                    {"name": "role_a", "prefix": "[A]", "composite": True,
+                     "keywords": ["岗位A"]},
+                    {"name": "role_b", "prefix": "[B]", "composite": False,
+                     "keywords": ["岗位B"]},
+                ],
+            }
+            test_file = os.path.join(tmpdir, "industry-register-test.yaml")
+            with open(test_file, "w", encoding="utf-8") as f:
+                yaml.dump(test_data, f, allow_unicode=True)
+
+            reg = Registry(search_paths=[tmpdir])
+            planner = CompositePlanner(reg, handoff_bus=bus)
+            plan = planner.plan("我需要做岗位A并且做岗位B")
+
+            assert plan["mode"] == "handoff_required", \
+                f"预期 handoff_required，实际 {plan['mode']}"
+            assert plan["handoff_card_id"] is not None
+
+            # 关键断言：交接卡通过同一 bus 实例创建 → list_pending 可见
+            pending = bus.list_pending()
+            card_ids = [c.id for c in pending]
+            assert plan["handoff_card_id"] in card_ids, (
+                f"交接卡 {plan['handoff_card_id']} 应在同一 bus 的 list_pending 中可见"
+            )
+
+    def test_do_route_source_injects_handoff_bus(self):
+        """源码检查：_do_route 中 CompositePlanner 必须注入 handoff_bus。"""
+        import re
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            source = f.read()
+        assert 'handoff_bus=self._get_handoffs()' in source, (
+            "_do_route 中 CompositePlanner 应注入缓存 handoff_bus"
+        )
+        # 不应存在未注入 handoff_bus 的裸 CompositePlanner(reg) 调用
+        bare_calls = re.findall(
+            r'CompositePlanner\s*\(\s*reg\s*\)', source)
+        assert not bare_calls, f"存在未注入 handoff_bus 的调用: {bare_calls}"
+
 
 def run_tests():
     t = TestWebAPI()
@@ -277,3 +366,4 @@ def run_tests():
 
 if __name__ == "__main__":
     run_tests()
+
