@@ -12,6 +12,11 @@ from hanghang.engine import (
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
 )
+from hanghang.cli.state_commands import (
+    cmd_state_init, cmd_state_add, cmd_state_show,
+    cmd_state_compact, cmd_state_update, cmd_state_fold,
+    cmd_state_submit, cmd_state_list,
+)
 
 
 def cmd_route(args):
@@ -243,6 +248,55 @@ def build_parser():
     x.add_argument("text", help="用户意图文本")
     x.set_defaults(func=cmd_cross_unit)
 
+    # ---- M9 状态管理子命令 ----
+    st = sub.add_parser("state", help="M9 状态管理：任务状态卡/折叠/层级提交")
+    state_sub = st.add_subparsers(dest="state_cmd")
+
+    si = state_sub.add_parser("init", help="初始化一张 StateCard")
+    si.add_argument("--session", required=True, help="会话ID")
+    si.add_argument("--objective", default="", help="总体目标")
+    si.add_argument("--unit", default="", help="行业单元ID")
+    si.add_argument("--role", default="secretary", help="维护者坑位名")
+    si.set_defaults(func=cmd_state_init)
+
+    sa = state_sub.add_parser("add", help="向 StateCard 添加任务")
+    sa.add_argument("--session", required=True, help="会话ID")
+    sa.add_argument("--title", required=True, help="任务标题")
+    sa.add_argument("--objective", default="", help="任务目标")
+    sa.add_argument("--files", default="", help="涉及文件，逗号分隔")
+    sa.add_argument("--tools", default="", help="调取工具，逗号分隔")
+    sa.add_argument("--type", default="normal",
+                    choices=["normal", "deliverable"], help="任务类型")
+    sa.set_defaults(func=cmd_state_add)
+
+    ss = state_sub.add_parser("show", help="查看 StateCard 导航/渲染层")
+    ss.add_argument("--session", required=True, help="会话ID")
+    ss.set_defaults(func=cmd_state_show)
+
+    sc = state_sub.add_parser("compact", help="生成压缩上下文")
+    sc.add_argument("--session", required=True, help="会话ID")
+    sc.set_defaults(func=cmd_state_compact)
+
+    su = state_sub.add_parser("update", help="更新任务状态")
+    su.add_argument("--session", required=True, help="会话ID")
+    su.add_argument("--task", required=True, help="任务编号")
+    su.add_argument("--state", required=True,
+                    choices=["todo", "in_progress", "done", "blocked", "failed"],
+                    help="目标状态")
+    su.set_defaults(func=cmd_state_update)
+
+    sf = state_sub.add_parser("fold", help="应用折叠策略")
+    sf.add_argument("--session", required=True, help="会话ID")
+    sf.set_defaults(func=cmd_state_fold)
+
+    sm = state_sub.add_parser("submit", help="向上级提交汇总状态")
+    sm.add_argument("--session", required=True, help="会话ID")
+    sm.add_argument("--upstream", default="", help="上级会话ID")
+    sm.set_defaults(func=cmd_state_submit)
+
+    sl = state_sub.add_parser("list", help="列出所有 StateCard")
+    sl.set_defaults(func=cmd_state_list)
+
     return p
 
 
@@ -251,6 +305,11 @@ def main():
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
+        sys.exit(1)
+    # state 子命令需要检查二级命令
+    if args.command == "state" and not getattr(args, "state_cmd", None):
+        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list")
+        print("示例: python3 src/hanghang/cli/main.py state init --session demo")
         sys.exit(1)
     args.func(args)
 
