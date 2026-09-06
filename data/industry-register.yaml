@@ -1,37 +1,127 @@
 unit_id: dongjiagoushi
 industry: 软件研发
-industry_alias: [研发, 架构师, 软件开发, dev, 架构, 软件]
+industry_alias:
+- 研发
+- 架构师
+- 软件开发
+- dev
+- 架构
+- 软件
+- 程序员
+- 编程
+- Web开发
+- 网站建设
 roles:
-  - name: secretary
-    prefix: "[秘书]"
-    handoff: relay
-    composite: true
-    description: "编排记录 汇总 组织协调"
-    keywords: [秘书, 编排, 记录, 汇总, 会议纪要, 组织协调, 分配, 派发, 调度]
-  - name: architect
-    prefix: "[架构]"
-    handoff: relay
-    composite: true
-    description: "架构设计 架构方案 总体设计 技术方案 系统设计"
-    keywords: [架构设计, 架构方案, 架构师, 做架构, 总体设计, 技术方案, 系统设计, 方案设计, 架构]
-  - name: developer
-    prefix: "[开发]"
-    handoff: relay
-    composite: true
-    description: "开发 编码 实现 写代码 落地 编程"
-    keywords: [开发, 编码, 实现, 写代码, 落地, 编程, 写程序, 部署]
-  - name: reviewer
-    prefix: "[评审]"
-    handoff: relay
-    composite: true
-    description: "评审 审查 复核 走查 检视"
-    keywords: [评审, 审查, 复核, 走查, 检视, 代码审查, 复审]
-  - name: product
-    prefix: "[产品]"
-    handoff: relay
-    composite: true
-    description: "产品 需求 规划 排期"
-    keywords: [产品, 需求, 规划, 排期, 产品方案, 需求分析, 竞品分析]
-entry_ref: "https://cnb.cool/dongdongxiaozu/dongjiagoushi"
-capability_tags: [架构设计, 编码实现, 协作编排, 接力交接, 经验记忆]
-register_version: "1.1"
+- name: secretary
+  prefix: '[秘书]'
+  handoff: relay
+  composite: true
+  description: 编排记录 汇总 组织协调
+  keywords:
+  - 秘书
+  - 编排
+  - 记录
+  - 汇总
+  - 会议纪要
+  - 组织协调
+  - 分配
+  - 派发
+  - 调度
+- name: architect
+  prefix: '[架构]'
+  handoff: relay
+  composite: true
+  description: 架构设计 架构方案 总体设计 技术方案 系统设计
+  keywords:
+  - 架构设计
+  - 架构方案
+  - 架构师
+  - 做架构
+  - 总体设计
+  - 技术方案
+  - 系统设计
+  - 方案设计
+  - 架构
+- name: developer
+  prefix: '[开发]'
+  handoff: relay
+  composite: true
+  description: 开发 编码 实现 写代码 落地 编程 网站开发 前端开发 后端开发 小程序开发
+  keywords:
+  - 开发
+  - 编码
+  - 实现
+  - 写代码
+  - 落地
+  - 编程
+  - 写程序
+  - 部署
+  - 网站开发
+  - 爬虫
+  - 做网页
+  - 网页设计
+  - CRM
+  - ERP
+  - 接口开发
+  - API开发
+  - 做APP
+  - 做个网站
+  - 做个小程序
+  - 搭建网站
+  - 代码
+  - 程序
+  - 做个网页
+  - 搭个网站
+  - 搭个前端
+  - 做个前端
+  - 做个后端
+  - 搭个后端
+  - 做个官网
+  - 前端开发
+  - 后端开发
+  - 小程序开发
+  - 建个网站
+  - 建网站
+  - 搭建网页
+  - 搭个网页
+  - 搭个官网
+  - 搭小程序
+- name: reviewer
+  prefix: '[评审]'
+  handoff: relay
+  composite: true
+  description: 评审 审查 复核 走查 检视
+  keywords:
+  - 评审
+  - 审查
+  - 复核
+  - 走查
+  - 检视
+  - 代码审查
+  - 复审
+- name: product
+  prefix: '[产品]'
+  handoff: relay
+  composite: true
+  description: 产品 需求 规划 排期
+  keywords:
+  - 产品
+  - 需求
+  - 规划
+  - 排期
+  - 产品方案
+  - 需求分析
+  - 竞品分析
+entry_ref: https://cnb.cool/dongdongxiaozu/dongjiagoushi
+capability_tags:
+- 架构设计
+- 编码实现
+- 协作编排
+- 接力交接
+- 经验记忆
+- 网站建设
+- Web开发
+- 小程序开发
+- 应用开发
+- 软件开发
+register_version: '1.1'

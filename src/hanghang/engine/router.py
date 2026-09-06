@@ -43,6 +43,9 @@ class IntentRouter:
     SOFTWARE_BUILD_TERMS: tuple = (
         "软件", "系统", "工具", "代码", "应用", "程序",
         "平台", "app", "APP", "App", "网页应用",
+        "网站", "网页", "官网", "小程序", "前端", "后端",
+        "爬虫", "CRM", "ERP", "管理系统",
+        "网站系统", "电商网站", "企业网站",
     )
 
     # 明确"构建/开发"动作词（评审第 6 轮 critical 修复）。
@@ -57,6 +60,7 @@ class IntentRouter:
         "开发一个", "开发一套", "开发一款", "研发一个", "构建一个",
         "做一个", "做个", "做一套", "做一款", "写一个", "写个",
         "编一个", "建一个", "建个", "实现一个", "落地一个",
+        "搭个", "搭一个", "设计一个",
     )
 
     # 产物名词之后紧跟的"非软件构建标的"领域专属词（评审第 6 轮 critical 修复）。
@@ -81,6 +85,20 @@ class IntentRouter:
         "文案", "推文", "稿", "文章", "公众号", "短视频", "脚本", "营销", "运营", "润色", "排版",
         # 数据分析：报表/看板/分析/洞察/可视化
         "报表", "看板", "分析", "洞察", "可视化", "经营", "预测", "挖掘",
+    )
+
+    # 具体型软件产物名词（评审第 5 轮 warning 修复）。
+    # 当用户使用"构建动词+具体产物名词"表达软件构建诉求时（如"帮我做个电商网站"、
+    # "帮我做一个合同管理系统"），构建目标已具体到可辨识的软件类型（网站/系统/小程序等），
+    # 即便软件研发单元自身关键词未命中（sw_own_score=0）、且存在竞争域名信号
+    # （any_domain_hit=True），也应视为明确的软件构建意图 → 自动放行无需人工。
+    # 反之仅命中泛化产物（如"做一个文案类APP"只含 APP/软件/工具），构建目标不够具体，
+    # 维持保守回落人工，防止弱信号静默路由。
+    SPECIFIC_PRODUCT_TERMS: tuple = (
+        "网站", "网页", "官网", "小程序", "前端", "后端",
+        "系统", "管理系统", "网站系统", "网页应用",
+        "爬虫", "CRM", "ERP",
+        "电商网站", "企业网站",
     )
 
     def __init__(self, registry: Optional[Registry] = None):
@@ -116,32 +134,48 @@ class IntentRouter:
         best_unit_id = ranked_units[0][0] if ranked_units else ""
         best_score = unit_scores.get(best_unit_id, {}).get("score", 0.0)
 
-        # 最高分单元得分<=0（无任何信号命中），此时无明确行业归属 → 人工确认
-        # 修复：不再做悬空 global_role_hits 扫描后跳过，而是直接判人工回落
-        if not best_unit_id or best_score <= 0:
-            return RouteResult(
-                unit_id="", industry="", roles=[],
-                confidence=0.0, needs_manual=True,
-                fallback_reason="未命中任何行业单元"
-            )
-
-        # 修复（评审 critical）：软件产物构建意图联合判定。
+        # 先检测软件构建意图（用于判定纯软件构建请求，即使无业务域信号命中也能路由）。
+        # 评审 critical：软件产物构建意图联合判定。
         # 当用户诉求是"为某业务领域构建软件/系统/工具/APP/代码"时，业务领域名词
         # （如 合同/文案/数据分析）仅是软件的被构建对象，不应把诉求判给纯业务域单元
         # （否则 "开发一个合同管理系统" 会被误判为 法律咨询）。
-        # 此时若文本含"软件产物名词"，且当前最佳单元是仅凭业务名词命中的纯业务域单元，
-        # 则改判为软件工程诉求（决定性跳过歧义回落）。
         software_override = False
         sw_own_score = 0.0  # 软件研发单元自身的信号得分（仅凭 override 之外的真实软件信号）
         sw_unit_id = self._software_engineering_unit_id(units)
-        if (sw_unit_id and sw_unit_id != best_unit_id
-                and best_score > 0
-                and self._is_software_build_intent(text)):
-            # 改判到软件研发单元，跳过后续"跨行业歧义"回落（业务名词仅为软件对象）
-            sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
-            best_unit_id = sw_unit_id
-            best_score = sw_own_score
-            software_override = True
+        is_sw_build_intent = self._is_software_build_intent(text)
+        any_domain_hit = any(sc.get("score", 0) > 0 for sc in unit_scores.values())
+
+        # 无任何行业信号命中时：若为明确软件构建意图（如"帮我做个官网"/"帮我搭个网站"），
+        # 仍应路由到软件研发单元（其制品词已从行业别名收敛，岗位关键词未必能命中所有变体表达）
+        if not best_unit_id or best_score <= 0:
+            if sw_unit_id and is_sw_build_intent:
+                best_unit_id = sw_unit_id
+                best_score = 0.0
+                software_override = True
+            else:
+                return RouteResult(
+                    unit_id="", industry="", roles=[],
+                    confidence=0.0, needs_manual=True,
+                    fallback_reason="未命中任何行业单元"
+                )
+        elif sw_unit_id and is_sw_build_intent:
+            if sw_unit_id != best_unit_id:
+                # 最佳单元不是软件研发，但文本是"为某业务领域构建软件"：
+                # 业务名词仅是软件被构建对象，改判到软件研发单元
+                sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
+                best_unit_id = sw_unit_id
+                best_score = sw_own_score
+                software_override = True
+            else:
+                # 最佳单元已经是软件研发，但业务单元（如法律/营销）同步命中：
+                # 需跳过歧义回落——业务名词仅是软件构建目标（如"写合同管理系统代码"），
+                # 不应因业务侧同分而触发人工歧义确认。
+                # 评审 info：本分支（sw==best）下软件研发即为最佳单元且确有真实命中
+                # （如"帮我做个网站"命中 developer 的"做个网站"复合词），须如实记录
+                # 其自身信号得分 sw_own_score，否则后续置信度抬升护栏
+                # （sw_own_score>0 → 抬至 0.6）永不满足，实测仅停在 0.4。
+                sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
+                software_override = True
 
         # 检查歧义：多个单元得分接近时需人工确认。
         # 规则：真正"跨行业冲突"必须满足——双方各自持有独立行业信号。
@@ -203,9 +237,20 @@ class IntentRouter:
         # 文本未命中任何软件侧别名/能力/开发关键词，如"做一个文案类APP"这类只表达
         # "做一个软件"但未指明具体开发任务的弱信号诉求），不得仅凭 override 用 0 分
         # 覆盖 best_score 后仍强制抬到 0.6 静默自动放行，而应显著降置信 / 回落人工。
-        # 仅当软件研发单元自身有真实软件开发信号（sw_own_score>0，如命中了"开发"等
-        # 岗位关键词）时，才可抬升置信度以可自动路由（不再回落人工）。
-        if software_override and matched_roles and sw_own_score > 0:
+        # 仅当以下任一条件满足时，方可抬升置信度自动放行：
+        #   - 软件研发单元自身有真实软件开发信号（sw_own_score>0，如命中了"开发"等岗位关键词）
+        #   - 无任何行业单元命中信号（any_domain_hit=False）：此时无竞争领域，纯软件
+        #     构建意图（含构建动词+软件产物名词）应直接自动路由，如"帮我做个公司官网"、
+        #     "帮我搭个网站" 等——这些请求的制品词已从行业别名收敛，但仍属明确软件开发。
+        #   - 文本含具体型产物名词（SPECIFIC_PRODUCT_TERMS，如 网站/系统/小程序/官网），
+        #     构建目标已明确到具体软件类型（评审第5轮修复）：如"帮我做个电商网站"虽触发
+        #     e-commerce 域名信号且软件单元自身关键词未命中，但"电商网站"是明确构建目标
+        #     → 自动放行，与"开发一个电商网站"行为保持一致。
+        has_specific_product = any(
+            t and t in text for t in self.SPECIFIC_PRODUCT_TERMS)
+
+        if software_override and matched_roles and (
+                sw_own_score > 0 or not any_domain_hit or has_specific_product):
             confidence = max(confidence, 0.6)
 
         return RouteResult(

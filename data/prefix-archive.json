@@ -118,5 +118,81 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "e-commerce": {
+    "unit_id": "e-commerce",
+    "industry": "电子商务",
+    "role_prefixes": {
+      "store_manager": {
+        "prefix": "[店长]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "ecom_marketer": {
+        "prefix": "[电商推广]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "customer_service": {
+        "prefix": "[客服]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "finance-accounting": {
+    "unit_id": "finance-accounting",
+    "industry": "财务会计",
+    "role_prefixes": {
+      "accountant": {
+        "prefix": "[会计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "tax_advisor": {
+        "prefix": "[税务]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "finance_analyst": {
+        "prefix": "[财务分析]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "payroll_processor": {
+        "prefix": "[薪酬]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "marketing": {
+    "unit_id": "marketing",
+    "industry": "市场营销",
+    "role_prefixes": {
+      "market_researcher": {
+        "prefix": "[调研]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "brand_planner": {
+        "prefix": "[品牌策划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "campaign_planner": {
+        "prefix": "[活动策划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "pr_manager": {
+        "prefix": "[公关]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }
