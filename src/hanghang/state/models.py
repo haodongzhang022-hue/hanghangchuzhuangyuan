@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dc_fields
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 
 class TaskState(str, Enum):
@@ -86,7 +86,18 @@ class TaskRecord:
 
     @classmethod
     def from_dict(cls, data: dict) -> "TaskRecord":
-        return cls(**data)
+        """从字典重建，字段级容错：
+        - 缺少字段 → 使用默认值
+        - 多余未知字段 → 忽略
+        """
+        if not isinstance(data, dict):
+            return cls(task_id="", title="")
+        known = {f.name for f in dc_fields(cls)}
+        clean = {k: v for k, v in data.items() if k in known}
+        # 保证必填字段有值
+        clean.setdefault("task_id", "")
+        clean.setdefault("title", "")
+        return cls(**clean)
 
 
 @dataclass
@@ -216,7 +227,35 @@ class StateCard:
 
     @classmethod
     def from_dict(cls, data: dict) -> "StateCard":
-        tasks = [TaskRecord.from_dict(t) for t in data.get("tasks", [])]
-        data = dict(data)
-        data["tasks"] = tasks
-        return cls(**data)
+        """从字典重建，字段级容错：
+        - 缺少字段 → 使用默认值
+        - 多余未知字段 → 忽略
+        - 损坏的任务数据 → 跳过该任务而非整卡静默丢失
+        """
+        if not isinstance(data, dict):
+            return cls(session_id="")
+
+        # 已知字段白名单
+        known = {f.name for f in dc_fields(cls)}
+        clean = {}
+        for k, v in data.items():
+            if k in known:
+                clean[k] = v
+
+        # tasks 字段单独处理：逐条容错恢复
+        raw_tasks = data.get("tasks", [])
+        task_list = []
+        if isinstance(raw_tasks, list):
+            for raw_t in raw_tasks:
+                # 仅处理 dict 类型；损坏数据直接跳过
+                if not isinstance(raw_t, dict):
+                    continue
+                try:
+                    task_list.append(TaskRecord.from_dict(raw_t))
+                except Exception:
+                    continue  # 损坏的任务记录跳过，不拖垮整卡
+
+        clean["tasks"] = task_list
+        # session_id 必填，缺失则置空串（上层由 StateManager 负责校验）
+        clean.setdefault("session_id", "")
+        return cls(**clean)

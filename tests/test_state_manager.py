@@ -92,7 +92,7 @@ def test_fold_engine_default_folding():
         engine = FoldEngine("sess-3")
         card = mgr.get_card("sess-3")
         card = engine.auto_fold_policy(card)
-        mgr._save(card)
+        mgr.save_card(card)
 
         # 验证：交付任务 + 当前执行任务展开，其他折叠
         expanded = mgr.get_expanded_tasks("sess-3")
@@ -125,7 +125,7 @@ def test_compact_context_no_full_content():
         engine = FoldEngine("sess-4")
         card = mgr.get_card("sess-4")
         card = engine.auto_fold_policy(card)
-        mgr._save(card)
+        mgr.save_card(card)
 
         ctx = engine.compact_context(card)
         # 展开的任务应携带要素信息
@@ -194,6 +194,80 @@ def test_fold_content_with_content_meta():
     assert card.tasks[0].content_ref is not None
 
 
+
+
+def test_session_id_path_traversal_guard():
+    """安全：非法 session_id 不得越出 data/state/ 目录"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+
+        # 非法字符应被拒绝
+        for bad in ["../evil", "../../etc/passwd", "a/b", "a\\b", ".", ".."]:
+            # create_card 应抛 ValueError
+            try:
+                mgr.create_card(session_id=bad, objective="x")
+                assert False, f"session_id={bad!r} 应被拒绝"
+            except ValueError:
+                pass  # 预期异常
+
+        # get_card 对非法 session_id 返回 None（不抛异常）
+        assert mgr.get_card("../evil") is None
+        assert mgr.delete_card("../evil") is False
+
+        # 验证 tmpdir 中没有越界文件
+        files = os.listdir(tmpdir)
+        assert all(f.endswith(".json") for f in files if f != "submissions.jsonl")
+        # 且没有写入到父目录
+        parent_files = os.listdir(os.path.dirname(tmpdir))
+        for f in parent_files:
+            assert "evil" not in f and "passwd" not in f
+
+
+def test_from_dict_forward_compatibility():
+    """前向兼容：from_dict 遇到未知字段/缺字段不应崩溃"""
+    # 缺少字段（旧数据没有新字段）
+    card = StateCard.from_dict({
+        "session_id": "old-card",
+        "objective": "旧卡",
+    })
+    assert card.session_id == "old-card"
+    assert card.objective == "旧卡"
+    assert card.tasks == []
+
+    # 包含未知新字段（未来版本字段）也应能解析
+    card2 = StateCard.from_dict({
+        "session_id": "future-card",
+        "objective": "未来卡",
+        "some_future_field": "value",
+        "tasks": [
+            {"task_id": "t1", "title": "任务1", "some_new_field": "x"},
+            {"task_id": "t2"},  # 缺少 title，应使用默认值
+            "not-a-dict",  # 损坏数据，应跳过
+        ],
+    })
+    assert card2.session_id == "future-card"
+    assert len(card2.tasks) == 2  # 两条有效任务被恢复
+    assert card2.tasks[0].title == "任务1"
+    assert card2.tasks[1].title == ""  # 缺失 title 用默认值
+    assert card2.tasks[1].task_id == "t2"
+
+    # 非 dict 输入也不应崩溃
+    task = TaskRecord.from_dict(None)
+    assert task.task_id == ""
+    assert task.title == ""
+
+
+def test_save_card_public_api():
+    """公开 save_card 方法可用"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+        card = mgr.create_card("sess-7", objective="公开API测试")
+        # 直接再保存一次
+        mgr.save_card(card)
+        fetched = mgr.get_card("sess-7")
+        assert fetched is not None
+        assert fetched.objective == "公开API测试"
+
 if __name__ == "__main__":
     test_create_and_get_state_card()
     test_add_and_update_task()
@@ -201,4 +275,7 @@ if __name__ == "__main__":
     test_compact_context_no_full_content()
     test_hierarchy_submit()
     test_fold_content_with_content_meta()
+    test_session_id_path_traversal_guard()
+    test_from_dict_forward_compatibility()
+    test_save_card_public_api()
     print("✅ M9 状态管理层测试全部通过")

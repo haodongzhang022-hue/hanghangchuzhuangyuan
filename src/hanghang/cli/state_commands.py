@@ -80,13 +80,10 @@ def cmd_state_update(args):
 def cmd_state_fold(args):
     """执行折叠策略"""
     mgr = StateManager()
-    card = mgr.get_card(args.session)
+    card = mgr.apply_fold_policy(args.session)
     if card is None:
         print(f"会话 {args.session} 不存在 StateCard")
         return
-    engine = FoldEngine(card.session_id)
-    card = engine.auto_fold_policy(card)
-    mgr._save(card)
     print(f"已应用折叠策略，当前展开任务:")
     for t in mgr.get_expanded_tasks(args.session):
         print(f"  #{t.task_id} {t.title} [{t.state}]")

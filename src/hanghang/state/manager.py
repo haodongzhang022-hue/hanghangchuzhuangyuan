@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from typing import Dict, List, Optional
 
 from .models import StateCard, TaskRecord, TaskState, FoldState
+
+# session_id 白名单：仅允许字母/数字/下划线/短横线
+_SESSION_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]+$')
 
 
 class StateManager:
@@ -28,6 +32,7 @@ class StateManager:
                     unit_id: str = "", role_name: str = "secretary",
                     **kwargs) -> StateCard:
         """创建一张新的 StateCard"""
+        self._validate_session_id(session_id)
         card = StateCard(
             session_id=session_id,
             unit_id=unit_id,
@@ -35,11 +40,13 @@ class StateManager:
             objective=objective,
             **kwargs,
         )
-        self._save(card)
+        self.save_card(card)
         return card
 
     def get_card(self, session_id: str) -> Optional[StateCard]:
         """按会话ID读取 StateCard"""
+        if not self._is_valid_session_id(session_id):
+            return None
         path = self._card_path(session_id)
         if not os.path.exists(path):
             return None
@@ -60,6 +67,8 @@ class StateManager:
 
     def delete_card(self, session_id: str) -> bool:
         """删除一张 StateCard"""
+        if not self._is_valid_session_id(session_id):
+            return False
         path = self._card_path(session_id)
         if os.path.exists(path):
             os.remove(path)
@@ -105,7 +114,7 @@ class StateManager:
             content_ref=content_ref,
             **kwargs,
         )
-        self._save(card)
+        self.save_card(card)
         return task
 
     def update_task_state(self, session_id: str, task_id: str,
@@ -116,7 +125,7 @@ class StateManager:
             return False
         ok = card.update_task(task_id, state=state)
         if ok:
-            self._save(card)
+            self.save_card(card)
         return ok
 
     def update_task_fields(self, session_id: str, task_id: str,
@@ -127,7 +136,7 @@ class StateManager:
             return False
         ok = card.update_task(task_id, **fields)
         if ok:
-            self._save(card)
+            self.save_card(card)
         return ok
 
     def fold_task(self, session_id: str, task_id: str) -> bool:
@@ -181,7 +190,7 @@ class StateManager:
         if card is None:
             return False
         card.upstream = upstream_session
-        self._save(card)
+        self.save_card(card)
         return True
 
     def add_downstream(self, session_id: str, downstream_session: str) -> bool:
@@ -191,12 +200,48 @@ class StateManager:
             return False
         if downstream_session not in card.downstream:
             card.downstream.append(downstream_session)
-        self._save(card)
+        self.save_card(card)
         return True
+
+    # ---- 公开持久化接口 ----
+
+    def save_card(self, card: StateCard) -> None:
+        """将 StateCard 持久化到磁盘（供 CLI 等外部调用）"""
+        self._validate_session_id(card.session_id)
+        self._save(card)
+
+    def apply_fold_policy(self, session_id: str,
+                          current_task_id: str = None) -> Optional[StateCard]:
+        """公开的折叠策略入口：对指定 session 执行自动折叠并持久化"""
+        from .fold_engine import FoldEngine
+        card = self.get_card(session_id)
+        if card is None:
+            return None
+        engine = FoldEngine(card.session_id)
+        card = engine.auto_fold_policy(card, current_task_id=current_task_id)
+        self.save_card(card)
+        return card
 
     # ---- 内部 ----
 
+    @staticmethod
+    def _is_valid_session_id(session_id: str) -> bool:
+        """校验 session_id 是否合法（仅 [A-Za-z0-9_-]）"""
+        if not isinstance(session_id, str) or not session_id:
+            return False
+        return bool(_SESSION_ID_PATTERN.match(session_id))
+
+    @classmethod
+    def _validate_session_id(cls, session_id: str) -> None:
+        """校验 session_id，非法则抛 ValueError"""
+        if not cls._is_valid_session_id(session_id):
+            raise ValueError(
+                f"非法 session_id: {session_id!r}。仅允许字母/数字/下划线/短横线 "
+                f"([A-Za-z0-9_-])，防止路径穿越。"
+            )
+
     def _card_path(self, session_id: str) -> str:
+        self._validate_session_id(session_id)
         return os.path.join(self.data_dir, f"{session_id}.json")
 
     def _save(self, card: StateCard):
