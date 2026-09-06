@@ -65,7 +65,7 @@ units:
   - unit_id: legal-services
     repo_ref: ""
     industry: 法律咨询
-    industry_alias: [法律, 律师, 法务, 诉讼, 打官司, 知识产权, 劳动仲裁, 合同, 劳动合同, 劳动纠纷, 知识产权保护]
+    industry_alias: [法律, 律师, 法务, 诉讼, 打官司, 知识产权, 劳动仲裁, 合同, 劳动合同, 劳动纠纷, 知识产权保护, 著作权, 软件著作权]
     capability_tags: [合同审查, 法律意见, 诉讼代理, 企业法务, 知识产权保护, 合规审查]
     register_version: "1.1"
     roles:
@@ -74,7 +74,7 @@ units:
         handoff: relay
         composite: true
         description: "诉讼代理 法律意见 应诉 起草起诉状"
-        keywords: [诉讼代理, 法律意见, 打官司, 应诉, 起草起诉状, 法律咨询, 企业法务, 知识产权保护]
+        keywords: [诉讼代理, 法律意见, 打官司, 应诉, 起草起诉状, 法律咨询, 企业法务, 知识产权保护, 著作权登记, 知识产权登记, 版权登记, 专利登记, 商标注册]
       - name: contract_advisor
         prefix: "[合同]"
         handoff: relay

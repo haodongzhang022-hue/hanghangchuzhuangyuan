@@ -45,6 +45,30 @@ class IntentRouter:
         "平台", "app", "APP", "App", "网页应用",
     )
 
+    # 明确"构建/开发"动作词（评审第 6 轮 critical 修复）。
+    # 改判必须同时满足【存在明确构建动词】，否则以下副词/非构建用法会被误吞：
+    #   - "系统的学一下法律"/"我要系统的掌握法律知识"：这里的"系统"=系统地（副词），
+    #     不是软件产物 → 不能改判软件研发；
+    #   - "软件产品要怎么推广"：这是软件营销/内容诉求（推广），并非"要做一个软件"。
+    # 故：仅当文本出现明确的软件"构建/开发"动作词、且该动作指向软件产物名词时，
+    # 才判定为"为某业务领域构建软件"的开发诉求。
+    SOFTWARE_BUILD_VERBS: tuple = (
+        "开发", "研发", "构建", "搭建", "制作", "打造", "建设", "编码",
+        "开发一个", "开发一套", "开发一款", "研发一个", "构建一个",
+        "做一个", "做个", "做一套", "做一款", "写一个", "写个",
+        "编一个", "建一个", "建个", "实现一个", "落地一个",
+    )
+
+    # 产物名词之后紧跟的"非软件构建标的"领域专属词（评审第 6 轮 critical 修复）。
+    # 当软件产物名词（如"软件"）后紧跟这些词时，产物名词只是该业务对象的修饰/标的，
+    # 用户真实诉求属于对应专业业务（法律/著作权登记等），不应改判为软件研发。
+    # 例："做个软件著作权登记"中"软件"后紧跟"著作权登记"，属法律登记业务。
+    SOFTWARE_NOT_BUILD_TAILS: tuple = (
+        "著作权", "版权", "知识产权", "专利", "商标",
+        "登记", "注册", "维权", "许可", "授权", "合同", "合规",
+        "行业", "产品方案", "市场", "营销", "推广",
+    )
+
     # 业务域交付物/专业作业名词（对应各纯业务域单元的真实作业产出）。
     # 当这类名词出现在软件产物名词【之后】时，说明产物名词只是该业务作业的
     # 修饰语 / 手段 / 标的，而非用户要"构建"的软件对象 → 不判软件构建。
@@ -108,13 +132,15 @@ class IntentRouter:
         # 此时若文本含"软件产物名词"，且当前最佳单元是仅凭业务名词命中的纯业务域单元，
         # 则改判为软件工程诉求（决定性跳过歧义回落）。
         software_override = False
+        sw_own_score = 0.0  # 软件研发单元自身的信号得分（仅凭 override 之外的真实软件信号）
         sw_unit_id = self._software_engineering_unit_id(units)
         if (sw_unit_id and sw_unit_id != best_unit_id
                 and best_score > 0
                 and self._is_software_build_intent(text)):
             # 改判到软件研发单元，跳过后续"跨行业歧义"回落（业务名词仅为软件对象）
+            sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
             best_unit_id = sw_unit_id
-            best_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
+            best_score = sw_own_score
             software_override = True
 
         # 检查歧义：多个单元得分接近时需人工确认。
@@ -172,8 +198,14 @@ class IntentRouter:
 
         confidence = self._calc_confidence(text, unit, matched_roles)
 
-        # 软件构建诉求已做决定性改判，且已明确落到具体岗位 → 视为可自动路由（不再回落人工）。
-        if software_override and matched_roles:
+        # 软件构建诉求已做决定性改判，且已明确落到具体岗位。
+        # 评审 warning ②：若软件研发单元自身信号得分为 0（即除 override 改判外，
+        # 文本未命中任何软件侧别名/能力/开发关键词，如"做一个文案类APP"这类只表达
+        # "做一个软件"但未指明具体开发任务的弱信号诉求），不得仅凭 override 用 0 分
+        # 覆盖 best_score 后仍强制抬到 0.6 静默自动放行，而应显著降置信 / 回落人工。
+        # 仅当软件研发单元自身有真实软件开发信号（sw_own_score>0，如命中了"开发"等
+        # 岗位关键词）时，才可抬升置信度以可自动路由（不再回落人工）。
+        if software_override and matched_roles and sw_own_score > 0:
             confidence = max(confidence, 0.6)
 
         return RouteResult(
@@ -290,30 +322,97 @@ class IntentRouter:
     def _is_software_build_intent(self, text: str) -> bool:
         """判断文本是否表达"为某业务领域构建软件/系统/工具/代码/APP"的开发诉求。
 
-        相较第四轮仅凭产物名词命中的改判，本实现额外要求产物名词是"构建目标"：
-        若产物名词之后仍紧跟业务交付物/专业作业名词（如"APP推广文案""数据分析
-        工具出报表""软件采购合同""系统性的经营分析"），则产物名词只是业务作业的
-        修饰/手段/标的，用户真实诉求属于该业务域作业，不应改判到软件研发。
+        本实现是多次评审收敛后的稳健判定，需【同时】满足：
+        1. 存在明确的"构建/开发"动作词（评审 critical ①）：
+           排除副词用法 —— "系统的学一下法律/我要系统的掌握法律知识" 中"系统"
+           =系统地（副词），并非软件产物；"软件产品要怎么推广" 是营销/内容诉求，
+           这些均不含构建动词，不得改判软件研发。
+        2. 命中软件产物名词，且该产物名词是句子的"软件构建目标"：
+           - 产物名词之后若仍紧跟业务交付物/专业作业名词（如"APP推广文案"
+             "数据分析工具出报表""软件采购合同""系统性的经营分析"），说明产物
+             名词只是业务作业的修饰/手段/标的 → 不判软件构建。
+           - 产物名词之后紧跟"非构建标的"领域专属词（著作权/登记/版权等，如
+             "做个软件著作权登记"）→ 属法律等专业业务，不判软件构建。
+           - 排除副词/所属修饰：产物名词后紧跟"地/的/化/性"等表副词、形容词化
+             （如"系统地""平台化地""系统性"），该处产物名词非软件对象。
+        任一位置满足即判软件构建（含所有产物名词出现的全部位置）。
         """
         if not text:
             return False
-        # 命中任一软件产物名词，且该产物名词之后不再出现业务交付物名词
+        # 1) 必须出现明确构建/开发动作词
+        if not self._has_build_verb(text):
+            return False
+        # 2) 产物名词需在某处作为软件构建目标（遍历所有产物名词的全部出现位置）
         for term in self.SOFTWARE_BUILD_TERMS:
             if not term or term not in text:
                 continue
-            pos = text.index(term)
-            tail = text[pos + len(term):]
-            if not self._has_domain_deliverable(tail):
+            start = 0
+            while True:
+                pos = text.find(term, start)
+                if pos < 0:
+                    break
+                after = pos + len(term)
+                # 副词/所属修饰：产物名词后紧跟 地/的/化/性 → 非软件对象，跳过该处
+                if after < len(text) and text[after] in ("地", "的", "化", "性"):
+                    start = after
+                    continue
+                tail = text[after:]
+                # 非构建标的（法律/著作权/登记…）：产物名词是专业业务标的 → 不判构建
+                if self._tail_begins_non_build(tail):
+                    start = after
+                    continue
+                # 产物名词之后仍有业务交付物名词 → 修饰/手段，非构建目标
+                if not self._has_domain_deliverable(tail):
+                    return True
+                start = after
+        return False
+
+    def _has_build_verb(self, text: str) -> bool:
+        """文本是否含明确的软件"构建/开发"动作词。"""
+        return any(v and v in text for v in self.SOFTWARE_BUILD_VERBS)
+
+    def _tail_begins_non_build(self, tail: str) -> bool:
+        """产物名词之后的 tail 是否以"非软件构建标的"专业领域词开头。"""
+        for tok in self.SOFTWARE_NOT_BUILD_TAILS:
+            if tok and tail.startswith(tok):
                 return True
         return False
 
     @staticmethod
     def _has_domain_deliverable(tail: str) -> bool:
-        """判断产物名词之后(tail)是否仍出现业务域交付物/专业作业名词。"""
+        """判断产物名词之后(tail)是否仍出现业务域交付物/专业作业名词。
+
+        评审 warning ④：DOMAIN_DELIVERABLE_TERMS 含单字/短词（审/稿/营…），
+        直接做整串子串匹配可能对含该字的更长词（如"审核系统"里的"审"）过度拦截，
+        从而误杀合法的软件构建诉求。故对【单字】词项做"独立成词"判断：仅当该字在
+        tail 中作为相对独立词元出现（不被夹在两侧均为汉字的长词中间）时才视为命中，
+        复合词项（>=2 字）仍按子串匹配。
+        """
         if not tail:
             return False
-        return any(dd and dd in tail for dd in
-                   IntentRouter.DOMAIN_DELIVERABLE_TERMS)
+        for dd in IntentRouter.DOMAIN_DELIVERABLE_TERMS:
+            if not dd:
+                continue
+            if len(dd) == 1:
+                if IntentRouter._single_char_standalone(dd, tail):
+                    return True
+            else:
+                if dd in tail:
+                    return True
+        return False
+
+    @staticmethod
+    def _single_char_standalone(ch: str, tail: str) -> bool:
+        """单字业务词是否在 tail 中以独立词元出现（未被两侧汉字夹成更长词的一部分）。"""
+        idx = tail.find(ch)
+        while idx != -1:
+            prev_han = idx > 0 and '一' <= tail[idx - 1] <= '鿿'
+            next_han = idx + 1 < len(tail) and '一' <= tail[idx + 1] <= '鿿'
+            # 两侧均被汉字夹住（如"审"在"审核"中间位置被两汉字夹）→ 属长词一部分，非独立词元
+            if not (prev_han and next_han):
+                return True
+            idx = tail.find(ch, idx + 1)
+        return False
 
     def _match_any(self, text: str, keywords: List[str]) -> bool:
         for kw in keywords:

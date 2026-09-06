@@ -350,6 +350,64 @@ def test_capability_index_tags_all_mapped_for_domain_units():
             assert roles, f"{uid} 的能力标签 {tag} 无承接岗位"
 
 
+# ============================================================
+# 评审闭环回归（第 6 轮）：软件构建联合判定收敛
+#   critical①：改判须同时满足"存在明确构建动词"，排除副词/所属/法律著作权等
+#     通用领域用法 —— "系统的学一下法律""软件产品要怎么推广"等不得被误判软件研发。
+#   warning②：软件单元自身正分信号为 0 时不得强制抬置信到 0.6 静默放行。
+#   warning③：法律单元补充著作权/登记类承接（"软件著作权登记"归法律）。
+# ============================================================
+
+def test_adverb_system_not_routed_to_software_dev():
+    """critical①：副词"系统/系统地"用法不得被误判为软件构建到 developer。
+    "系统的学一下法律"中"系统"=系统地（副词），应归法律咨询而非软件研发。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    for text in ("系统的学一下法律", "我要系统的掌握法律知识"):
+        r = router.route(text)
+        assert r.unit_id != "dongjiagoushi",                f"{text} 副词'系统'被误判为软件研发 -> {r.unit_id}"
+        assert "developer" not in r.roles,                  f"{text} 不得落 developer"
+        # "系统"在此是"法律"的副词修饰，真实归属法律行业
+        assert r.unit_id == "legal-services",               f"{text} -> {r.unit_id}"
+
+
+def test_software_product_promo_not_silently_auto_dev():
+    """critical①："软件产品要怎么推广"是软件营销/内容诉求，不应被当作
+    "构建软件"的开发诉求静默路由（不得经软件构建 override 落 developer）。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    # 不得被改判为 developer 类软件构建作业
+    r = router.route("软件产品要怎么推广")
+    assert "developer" not in r.roles,                       "软件产品推广诉求不得静默落 developer"
+
+
+def test_software_copyright_registration_goes_to_legal():
+    """warning③："做个软件著作权登记"属法律业务（著作权登记），应归法律咨询，
+    而非软件研发；同时不因 override 被改判到软件单元。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("做个软件著作权登记")
+    assert r.unit_id == "legal-services",                    f"著作权登记被误判 -> {r.unit_id}"
+    assert r.unit_id != "dongjiagoushi"
+    assert not router._is_software_build_intent("做个软件著作权登记")
+
+
+def test_weak_signal_build_not_silently_auto_route():
+    """warning②：软件单元自身无正分信号（仅"做一个软件"弱表达）时不得强制抬置信到
+    0.6 静默放行；应显著降置信/回落人工（但仍保留 developer 识别供下游参考）。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    # "做一个文案类APP" 无具体开发关键词 → 软件单元信号为 0 → 需人工确认
+    r = router.route("做一个文案类APP")
+    assert r.unit_id == "dongjiagoushi"
+    assert r.confidence < 0.6,                                "弱信号软件构建不得抬到 0.6 静默放行"
+    # 有真实开发信号（如"开发"）的诉求仍可自动路由
+    r2 = router.route("帮我开发一个合同管理系统")
+    assert r2.unit_id == "dongjiagoushi"
+    assert r2.confidence >= 0.6
+    assert r2.needs_manual is False
+
+
 if __name__ == "__main__":
     test_five_industries_registered()
     test_legal_consultant_route()
@@ -373,4 +431,8 @@ if __name__ == "__main__":
     test_search_capability_multi_dimension_kept()
     test_search_capability_capability_term_in_matched()
     test_capability_index_tags_all_mapped_for_domain_units()
+    test_adverb_system_not_routed_to_software_dev()
+    test_software_product_promo_not_silently_auto_dev()
+    test_software_copyright_registration_goes_to_legal()
+    test_weak_signal_build_not_silently_auto_route()
     print("✅ 行业扩展 + M8 索引增强 + 评审回归测试通过")
