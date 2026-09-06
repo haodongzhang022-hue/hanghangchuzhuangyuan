@@ -87,6 +87,20 @@ class IntentRouter:
         "报表", "看板", "分析", "洞察", "可视化", "经营", "预测", "挖掘",
     )
 
+    # 具体型软件产物名词（评审第 5 轮 warning 修复）。
+    # 当用户使用"构建动词+具体产物名词"表达软件构建诉求时（如"帮我做个电商网站"、
+    # "帮我做一个合同管理系统"），构建目标已具体到可辨识的软件类型（网站/系统/小程序等），
+    # 即便软件研发单元自身关键词未命中（sw_own_score=0）、且存在竞争域名信号
+    # （any_domain_hit=True），也应视为明确的软件构建意图 → 自动放行无需人工。
+    # 反之仅命中泛化产物（如"做一个文案类APP"只含 APP/软件/工具），构建目标不够具体，
+    # 维持保守回落人工，防止弱信号静默路由。
+    SPECIFIC_PRODUCT_TERMS: tuple = (
+        "网站", "网页", "官网", "小程序", "前端", "后端",
+        "系统", "管理系统", "网站系统", "网页应用",
+        "爬虫", "CRM", "ERP",
+        "电商网站", "企业网站",
+    )
+
     def __init__(self, registry: Optional[Registry] = None):
         self.registry = registry or Registry()
 
@@ -228,8 +242,15 @@ class IntentRouter:
         #   - 无任何行业单元命中信号（any_domain_hit=False）：此时无竞争领域，纯软件
         #     构建意图（含构建动词+软件产物名词）应直接自动路由，如"帮我做个公司官网"、
         #     "帮我搭个网站" 等——这些请求的制品词已从行业别名收敛，但仍属明确软件开发。
+        #   - 文本含具体型产物名词（SPECIFIC_PRODUCT_TERMS，如 网站/系统/小程序/官网），
+        #     构建目标已明确到具体软件类型（评审第5轮修复）：如"帮我做个电商网站"虽触发
+        #     e-commerce 域名信号且软件单元自身关键词未命中，但"电商网站"是明确构建目标
+        #     → 自动放行，与"开发一个电商网站"行为保持一致。
+        has_specific_product = any(
+            t and t in text for t in self.SPECIFIC_PRODUCT_TERMS)
+
         if software_override and matched_roles and (
-                sw_own_score > 0 or not any_domain_hit):
+                sw_own_score > 0 or not any_domain_hit or has_specific_product):
             confidence = max(confidence, 0.6)
 
         return RouteResult(

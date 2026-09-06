@@ -318,3 +318,52 @@ if __name__ == "__main__":
     test_software_build_intent_still_routes()
     test_blog_content_jobs_not_swallowed_by_software()
     print("✅ 负向路由回归测试全部通过")
+
+
+def test_domain_qualified_generic_verb_auto_route():
+    """域名限定+通用构建动词的软件构建意图应自动放行（评审第5轮warning修复）。
+
+    背景：'帮我做个电商网站'/'帮我做一个合同管理系统'含域名限定（电商/合同）
+    + 通用构建动词（做个/做一个）+ 具体产物名词（网站/系统），但软件研发单元
+    自身关键词未命中（sw_own_score=0），且业务域名有竞争信号（any_domain_hit=True），
+    导致 conf=0.3 回落人工——与"开发一个电商网站"（conf=0.6 自动放行）行为不一致。
+    修复：当软件构建意图命中"具体型产物名词"（网站/系统/小程序等）时，即使软件
+    单元自身信号为 0，也视为明确构建诉求 → 自动放行 conf>=0.6。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 域名限定 + 通用构建动词 → 应自动放行（与"开发一个XXX"行为一致）
+    auto_cases = [
+        "帮我做个电商网站",
+        "帮我做一个电商网站",
+        "帮我做一个合同管理系统",
+        "帮我做一个数据分析系统",
+        "帮我搭一个内容管理平台",
+        "帮我做个公司官网",
+        "帮我搭个企业网站",
+    ]
+    for text in auto_cases:
+        r = router.route(text)
+        assert r.unit_id == "dongjiagoushi", \
+            f"[{text}] 应路由到 dongjiagoushi，实际 unit={r.unit_id}"
+        assert r.confidence >= 0.6, \
+            f"[{text}] 具体产物构建意图应 conf>=0.6，实际 conf={r.confidence}"
+        assert not r.needs_manual, \
+            f"[{text}] 具体产物构建意图不应回落人工"
+
+    # 泛化产物名词（APP/工具等）+ 域名限定 → 仍保守回落人工（弱信号保护）
+    manual_cases = [
+        "做一个文案类APP",
+    ]
+    for text in manual_cases:
+        r = router.route(text)
+        assert r.unit_id == "dongjiagoushi", \
+            f"[{text}] 应路由到 dongjiagoushi，实际 unit={r.unit_id}"
+        assert r.confidence < 0.6, \
+            f"[{text}] 泛化产物弱信号不应抬到 0.6，实际 conf={r.confidence}"
+
+
+if __name__ == "__main__":
+    test_domain_qualified_generic_verb_auto_route()
+    print("✅ 域名限定+通用构建动词回归测试通过")
