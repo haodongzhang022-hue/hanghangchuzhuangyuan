@@ -60,6 +60,7 @@ class IntentRouter:
         "开发一个", "开发一套", "开发一款", "研发一个", "构建一个",
         "做一个", "做个", "做一套", "做一款", "写一个", "写个",
         "编一个", "建一个", "建个", "实现一个", "落地一个",
+        "搭个", "搭一个", "写一篇", "设计一个",
     )
 
     # 产物名词之后紧跟的"非软件构建标的"领域专属词（评审第 6 轮 critical 修复）。
@@ -119,26 +120,31 @@ class IntentRouter:
         best_unit_id = ranked_units[0][0] if ranked_units else ""
         best_score = unit_scores.get(best_unit_id, {}).get("score", 0.0)
 
-        # 最高分单元得分<=0（无任何信号命中），此时无明确行业归属 → 人工确认
-        # 修复：不再做悬空 global_role_hits 扫描后跳过，而是直接判人工回落
-        if not best_unit_id or best_score <= 0:
-            return RouteResult(
-                unit_id="", industry="", roles=[],
-                confidence=0.0, needs_manual=True,
-                fallback_reason="未命中任何行业单元"
-            )
-
-        # 修复（评审 critical）：软件产物构建意图联合判定。
+        # 先检测软件构建意图（用于判定纯软件构建请求，即使无业务域信号命中也能路由）。
+        # 评审 critical：软件产物构建意图联合判定。
         # 当用户诉求是"为某业务领域构建软件/系统/工具/APP/代码"时，业务领域名词
         # （如 合同/文案/数据分析）仅是软件的被构建对象，不应把诉求判给纯业务域单元
         # （否则 "开发一个合同管理系统" 会被误判为 法律咨询）。
-        # 此时若文本含"软件产物名词"，且当前最佳单元是仅凭业务名词命中的纯业务域单元，
-        # 则改判为软件工程诉求（决定性跳过歧义回落）。
         software_override = False
         sw_own_score = 0.0  # 软件研发单元自身的信号得分（仅凭 override 之外的真实软件信号）
         sw_unit_id = self._software_engineering_unit_id(units)
         is_sw_build_intent = self._is_software_build_intent(text)
-        if sw_unit_id and best_score > 0 and is_sw_build_intent:
+        any_domain_hit = any(sc.get("score", 0) > 0 for sc in unit_scores.values())
+
+        # 无任何行业信号命中时：若为明确软件构建意图（如"帮我做个官网"/"帮我搭个网站"），
+        # 仍应路由到软件研发单元（其制品词已从行业别名收敛，岗位关键词未必能命中所有变体表达）
+        if not best_unit_id or best_score <= 0:
+            if sw_unit_id and is_sw_build_intent:
+                best_unit_id = sw_unit_id
+                best_score = 0.0
+                software_override = True
+            else:
+                return RouteResult(
+                    unit_id="", industry="", roles=[],
+                    confidence=0.0, needs_manual=True,
+                    fallback_reason="未命中任何行业单元"
+                )
+        elif sw_unit_id and is_sw_build_intent:
             if sw_unit_id != best_unit_id:
                 # 最佳单元不是软件研发，但文本是"为某业务领域构建软件"：
                 # 业务名词仅是软件被构建对象，改判到软件研发单元
@@ -212,9 +218,13 @@ class IntentRouter:
         # 文本未命中任何软件侧别名/能力/开发关键词，如"做一个文案类APP"这类只表达
         # "做一个软件"但未指明具体开发任务的弱信号诉求），不得仅凭 override 用 0 分
         # 覆盖 best_score 后仍强制抬到 0.6 静默自动放行，而应显著降置信 / 回落人工。
-        # 仅当软件研发单元自身有真实软件开发信号（sw_own_score>0，如命中了"开发"等
-        # 岗位关键词）时，才可抬升置信度以可自动路由（不再回落人工）。
-        if software_override and matched_roles and sw_own_score > 0:
+        # 仅当以下任一条件满足时，方可抬升置信度自动放行：
+        #   - 软件研发单元自身有真实软件开发信号（sw_own_score>0，如命中了"开发"等岗位关键词）
+        #   - 无任何行业单元命中信号（any_domain_hit=False）：此时无竞争领域，纯软件
+        #     构建意图（含构建动词+软件产物名词）应直接自动路由，如"帮我做个公司官网"、
+        #     "帮我搭个网站" 等——这些请求的制品词已从行业别名收敛，但仍属明确软件开发。
+        if software_override and matched_roles and (
+                sw_own_score > 0 or not any_domain_hit):
             confidence = max(confidence, 0.6)
 
         return RouteResult(

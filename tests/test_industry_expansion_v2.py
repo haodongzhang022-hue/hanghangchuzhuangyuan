@@ -202,3 +202,73 @@ if __name__ == "__main__":
     test_marketing_composite()
     test_cross_unit_software_to_ecommerce()
     print("✅ 行业扩展第二期测试全部通过")
+
+
+# ============================================================
+# 五、负向路由回归（评审 critical 修复）
+# 软件制品名词（网站/小程序/网页/前端等）不得劫持行业识别：
+# 带"网站/网页/小程序"的业务域作业必须路由到对应行业，而非软件研发。
+# ============================================================
+
+def test_web_jobs_not_swallowed_by_software():
+    """含网页制品词的业务域作业不得被误路由到软件研发"""
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    cases = [
+        # marketing（网站推广/SEO 属营销作业）
+        ("帮我的网站做SEO优化和推广", "marketing"),
+        ("帮我写网站推广策划方案", "marketing"),
+        ("帮我做网站的SEO", "marketing"),
+        # content（网页翻译/编辑属内容创作作业）
+        ("帮我翻译这个网页内容", "content-creation"),
+        ("帮我做网页内容编辑和排版", "content-creation"),
+        # legal（网站版权/用户协议审查属法律作业）
+        ("帮我审核这个网站版权风险", "legal-services"),
+        ("帮我审查网站的用户协议", "legal-services"),
+        # data-analytics（网站流量/运营数据分析属数据分析作业）
+        ("帮我分析一下网站运营数据", "data-analytics"),
+        ("帮我做网站的用户行为分析", "data-analytics"),
+        ("帮我分析网站流量数据", "data-analytics"),
+        # e-commerce（电商网站运营属电商作业）
+        ("帮我做电商网站运营", "e-commerce"),
+    ]
+    for text, expected_unit in cases:
+        r = router.route(text)
+        # 不得静默落到软件研发
+        assert not (r.unit_id == "dongjiagoushi" and not r.needs_manual), \
+            f"[{text}] 被误路由到软件研发(unit={r.unit_id}, manual={r.needs_manual})"
+        # 若非歧义，应路由到预期业务单元
+        if not r.needs_manual:
+            assert r.unit_id == expected_unit, \
+                f"[{text}] 应路由到 {expected_unit}，实际 unit={r.unit_id}"
+        # 置信度不足时回落人工（可接受），但不允许自动路由到软件研发
+
+
+def test_software_build_intent_still_routes():
+    """修复后，明确的软件构建意图（含构建动词）仍路由软件研发"""
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    cases = [
+        "帮我做个网站",
+        "帮我做个公司官网",
+        "帮我做个小程序",
+        "帮我做个网页",
+        "帮我搭个前端页面",
+        "帮我写个爬虫程序",
+        "帮我做一个CRM系统",
+    ]
+    for text in cases:
+        r = router.route(text)
+        assert r.unit_id == "dongjiagoushi", \
+            f"[{text}] 应路由到 dongjiagoushi，实际 unit={r.unit_id}"
+        assert not r.needs_manual, \
+            f"[{text}] 软件构建意图不应回落人工"
+        assert "developer" in r.roles
+
+
+if __name__ == "__main__":
+    test_web_jobs_not_swallowed_by_software()
+    test_software_build_intent_still_routes()
+    print("✅ 负向路由回归测试全部通过")
