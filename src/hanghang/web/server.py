@@ -24,7 +24,7 @@ import json
 import os
 import sys
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, Optional
 
 # 保证可从 src 或仓库根直接运行
@@ -56,7 +56,13 @@ _engine_cache: Dict[str, object] = {}
 
 
 def _init_engines():
-    """初始化引擎缓存（首次调用触发，含前缀档案一次注册 + 持久化）。"""
+    """初始化引擎缓存（首次调用触发，含前缀档案一次注册 + 持久化）。
+
+    将 Registry/PrefixArchive/MetricsCollector/HandoffBus 统一缓存为模块级
+    单例，避免每次 GET 请求重建实例而触发目录/文件副作用（如 makedirs、
+    重写 prefix-archive.json）。POST 状态变更与 GET 读取共用同一实例，保持
+    内存与磁盘语义一致。
+    """
     if "initialized" in _engine_cache:
         return
     registry = Registry()
@@ -66,6 +72,8 @@ def _init_engines():
         pa.register_unit(unit)
     _engine_cache["registry"] = registry
     _engine_cache["prefixes"] = pa
+    _engine_cache["metrics"] = MetricsCollector()
+    _engine_cache["handoffs"] = HandoffBus()
     _engine_cache["initialized"] = True
 
 
@@ -77,6 +85,16 @@ def _get_cached_registry() -> Registry:
 def _get_cached_prefixes() -> PrefixArchive:
     _init_engines()
     return _engine_cache["prefixes"]  # type: ignore
+
+
+def _get_cached_metrics() -> MetricsCollector:
+    _init_engines()
+    return _engine_cache["metrics"]  # type: ignore
+
+
+def _get_cached_handoffs() -> HandoffBus:
+    _init_engines()
+    return _engine_cache["handoffs"]  # type: ignore
 
 
 def _apply_cors(handler):
@@ -139,6 +157,14 @@ class HanghangHandler(BaseHTTPRequestHandler):
     def _get_prefixes(self) -> PrefixArchive:
         """获取稳定前缀档案（模块级缓存，首次注册已持久化，后续只读复用）。"""
         return _get_cached_prefixes()
+
+    def _get_metrics(self) -> MetricsCollector:
+        """获取 M7 指标采集器（模块级缓存实例，避免 GET 每次重建触发目录副作用）。"""
+        return _get_cached_metrics()
+
+    def _get_handoffs(self) -> HandoffBus:
+        """获取 M5 交接总线（模块级缓存实例，避免 GET 每次重建触发目录副作用）。"""
+        return _get_cached_handoffs()
 
     # ---- 路由 ----
     def do_GET(self):
@@ -232,7 +258,7 @@ class HanghangHandler(BaseHTTPRequestHandler):
         result = router.route(text)
         plan = planner.plan_from_result(result, text)
         if record_metrics:
-            metrics = MetricsCollector()
+            metrics = self._get_metrics()
             metrics.record_route(
                 mode=plan.get("mode", "manual"),
                 unit_id=plan.get("unit_id", ""),
@@ -324,13 +350,13 @@ class HanghangHandler(BaseHTTPRequestHandler):
         })
 
     def _api_metrics(self):
-        """GET /api/metrics — M7 运行指标"""
-        metrics = MetricsCollector()
+        """GET /api/metrics — M7 运行指标（模块级缓存实例，只读无目录副作用）"""
+        metrics = self._get_metrics()
         _json_response(self, 200, {"metrics": metrics.get_summary()})
 
     def _api_handoffs(self):
-        """GET /api/handoffs — M5 待处理交接卡"""
-        bus = HandoffBus()
+        """GET /api/handoffs — M5 待处理交接卡（模块级缓存实例）"""
+        bus = self._get_handoffs()
         pending = bus.list_pending()
         cards = [{
             "id": c.id,
@@ -387,8 +413,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-class HanghangHTTPServer(HTTPServer):
-    """行行出状元 HTTP 服务器（带 allow_reuse_address）"""
+class HanghangHTTPServer(ThreadingHTTPServer):
+    """行行出状元 HTTP 服务器（多线程 + 端口复用）"""
     allow_reuse_address = True
     daemon_threads = True
 
