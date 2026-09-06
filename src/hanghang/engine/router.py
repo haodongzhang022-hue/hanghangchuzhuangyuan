@@ -32,9 +32,31 @@ class IntentRouter:
     # 联合判定：当文本命中此类产物名词、且候选单元是仅凭"业务领域名词"命中的
     # 纯业务域单元时，说明用户是想"为某业务领域构建软件/系统/工具/代码/APP"，
     # 业务名词只是软件的被构建对象 → 应改判给软件研发单元。
+    #
+    # 评审补强（第 5 轮）：产物名词在真实业务域作业中同样高频出现（如"写一篇
+    # APP推广文案""用数据分析工具出报表""审软件采购合同""做系统性经营分析"），
+    # 仅凭"文本含产物名词"即改判会把大量正当业务作业静默卷进软件研发。
+    # 因此改判须满足【产物名词是句子的软件构建目标】：
+    #   产物名词之后不得再出现"业务交付物/专业作业"名词 —— 若其后仍紧跟
+    # 业务交付名词，说明产物名词只是修饰语/手段，用户真实诉求是业务作业本身，
+    # 应路由到对应业务域单元而非软件研发（见 DOMAIN_DELIVERABLE_TERMS）。
     SOFTWARE_BUILD_TERMS: tuple = (
         "软件", "系统", "工具", "代码", "应用", "程序",
         "平台", "app", "APP", "App", "网页应用",
+    )
+
+    # 业务域交付物/专业作业名词（对应各纯业务域单元的真实作业产出）。
+    # 当这类名词出现在软件产物名词【之后】时，说明产物名词只是该业务作业的
+    # 修饰语 / 手段 / 标的，而非用户要"构建"的软件对象 → 不判软件构建。
+    # 反向场景（构建软件诉求中业务名词作软件主题、位于产物名词之前）不受影响，
+    # 例如"开发一个数据分析工具"中"数据分析"在"工具"之前，仍正确判软件构建。
+    DOMAIN_DELIVERABLE_TERMS: tuple = (
+        # 法律咨询：审/起草合同、法律意见、合规、风险
+        "审", "审查", "起草", "合同", "法务", "合规", "风险", "意见", "诉讼", "应诉",
+        # 内容创作：文案/推文/稿件/运营/脚本
+        "文案", "推文", "稿", "文章", "公众号", "短视频", "脚本", "营销", "运营", "润色", "排版",
+        # 数据分析：报表/看板/分析/洞察/可视化
+        "报表", "看板", "分析", "洞察", "可视化", "经营", "预测", "挖掘",
     )
 
     def __init__(self, registry: Optional[Registry] = None):
@@ -266,10 +288,32 @@ class IntentRouter:
         return ""
 
     def _is_software_build_intent(self, text: str) -> bool:
-        """判断文本是否表达"构建软件/系统/工具/代码/APP"的开发诉求。"""
+        """判断文本是否表达"为某业务领域构建软件/系统/工具/代码/APP"的开发诉求。
+
+        相较第四轮仅凭产物名词命中的改判，本实现额外要求产物名词是"构建目标"：
+        若产物名词之后仍紧跟业务交付物/专业作业名词（如"APP推广文案""数据分析
+        工具出报表""软件采购合同""系统性的经营分析"），则产物名词只是业务作业的
+        修饰/手段/标的，用户真实诉求属于该业务域作业，不应改判到软件研发。
+        """
         if not text:
             return False
-        return any(term and term in text for term in self.SOFTWARE_BUILD_TERMS)
+        # 命中任一软件产物名词，且该产物名词之后不再出现业务交付物名词
+        for term in self.SOFTWARE_BUILD_TERMS:
+            if not term or term not in text:
+                continue
+            pos = text.index(term)
+            tail = text[pos + len(term):]
+            if not self._has_domain_deliverable(tail):
+                return True
+        return False
+
+    @staticmethod
+    def _has_domain_deliverable(tail: str) -> bool:
+        """判断产物名词之后(tail)是否仍出现业务域交付物/专业作业名词。"""
+        if not tail:
+            return False
+        return any(dd and dd in tail for dd in
+                   IntentRouter.DOMAIN_DELIVERABLE_TERMS)
 
     def _match_any(self, text: str, keywords: List[str]) -> bool:
         for kw in keywords:

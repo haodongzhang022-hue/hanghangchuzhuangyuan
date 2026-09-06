@@ -275,6 +275,54 @@ def test_software_build_does_not_break_game_routing():
     assert r2.needs_manual is True and r2.is_ambiguous is True
 
 
+# ============================================================
+# 评审闭环回归（第 5 轮）：软件构建改判不得误吞正当业务域作业
+# 根因：仅凭"文本含软件产物名词"即改判到软件研发，会把真实业务域作业
+#   （写APP推广文案 / 做报表 / 审软件合同 / 做系统性经营分析）静默卷走。
+# 修复：产物名词须是句子的"软件构建目标"；若其后仍紧跟业务交付物名词，
+#   则产物名词只是修饰/手段，应路由到对应业务域单元，不判软件构建。
+# ============================================================
+
+def test_build_override_does_not_swallow_domain_jobs():
+    """软件产物联合判定不误吞业务域作业：产物名词仅是修饰/手段时仍归业务域"""
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 内容创作：产物名词(APP/软件)修饰其后的"文案"作业 → 仍归内容创作
+    assert router.route("写一篇APP上线推广的营销文案").unit_id == "content-creation",         "APP是文案主题，用户诉求是写文案，不应改判软件"
+    assert router.route("写一个APP的功能清单文案").unit_id == "content-creation"
+    # 数据分析：工具/平台作为手段/数据来源，用户诉求是做报表/分析 → 归数据分析
+    assert router.route("做一份大数据平台的数据看板报表").unit_id == "data-analytics"
+    assert router.route("用数据分析工具分析销售数据出报表").unit_id == "data-analytics"
+    assert router.route("做一份系统性的经营分析").unit_id == "data-analytics"
+    # 法律咨询：审/起草软件相关合同 → 归法律咨询
+    assert router.route("帮我审一下这个软件采购合同的风险").unit_id == "legal-services"
+
+
+def test_build_override_keeps_software_build_intents():
+    """产物名词确为软件构建目标（位于句末、其后无业务交付名词）时仍改判软件"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    for text in ("帮我开发一个合同管理系统", "开发一个数据分析工具",
+                 "做一个文案类APP", "写一个合同管理功能的代码"):
+        r = router.route(text)
+        assert r.unit_id == "dongjiagoushi", f"{text} -> {r.unit_id}"
+        assert "developer" in r.roles
+
+
+def test_software_product_brand_copy_surfaces_ambiguity():
+    """'给软件产品写品牌文案'横跨软件(产品对象)与内容(写文案)两行业 →
+    应回落人工确认，而非被静默改判到软件研发（评审核心关切）"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("给公司的软件产品写品牌文案")
+    # 不静默落到软件研发
+    assert r.unit_id != "dongjiagoushi" or r.needs_manual,         "软件产品相关文案不应被静默吞到软件研发"
+    # 该句确属跨行业歧义时，应回落人工而非自动放行
+    if r.needs_manual is False:
+        assert r.unit_id == "content-creation", f"got {r.unit_id}"
+
+
 def test_search_capability_multi_dimension_kept():
     """warning①：多维命中的维度不因后匹配覆盖而丢失（hit_kinds 全量保留）"""
     reg = Registry()
@@ -319,6 +367,9 @@ if __name__ == "__main__":
     test_software_build_app_not_content()
     test_genuine_domain_work_still_routed_to_domain()
     test_software_build_does_not_break_game_routing()
+    test_build_override_does_not_swallow_domain_jobs()
+    test_build_override_keeps_software_build_intents()
+    test_software_product_brand_copy_surfaces_ambiguity()
     test_search_capability_multi_dimension_kept()
     test_search_capability_capability_term_in_matched()
     test_capability_index_tags_all_mapped_for_domain_units()
