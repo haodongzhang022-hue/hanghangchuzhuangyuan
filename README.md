@@ -16,7 +16,7 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 
 **新增行业单元只需更新注册数据，无需修改代码。**
 
-各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册：
+各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（8个行业单元）：
 
 | 单元 | 行业 | 岗位 |
 |------|------|------|
@@ -25,6 +25,9 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 | legal-services | 法律咨询 | legal_counsel / contract_advisor / compliance_advisor |
 | content-creation | 内容创作 | copywriter / media_operator / content_editor |
 | data-analytics | 数据分析 | data_analyst / data_scientist / bi_engineer |
+| e-commerce | 电子商务 | store_manager / ecom_marketer / customer_service |
+| finance-accounting | 财务会计 | accountant / tax_advisor / finance_analyst / payroll_processor |
+| marketing | 市场营销 | market_researcher / brand_planner / campaign_planner / pr_manager |
 
 > 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 

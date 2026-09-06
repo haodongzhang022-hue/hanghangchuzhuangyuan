@@ -43,6 +43,9 @@ class IntentRouter:
     SOFTWARE_BUILD_TERMS: tuple = (
         "软件", "系统", "工具", "代码", "应用", "程序",
         "平台", "app", "APP", "App", "网页应用",
+        "网站", "网页", "官网", "小程序", "前端", "后端",
+        "爬虫", "博客", "CRM", "ERP", "管理系统",
+        "网站系统", "电商网站", "企业网站",
     )
 
     # 明确"构建/开发"动作词（评审第 6 轮 critical 修复）。
@@ -134,14 +137,20 @@ class IntentRouter:
         software_override = False
         sw_own_score = 0.0  # 软件研发单元自身的信号得分（仅凭 override 之外的真实软件信号）
         sw_unit_id = self._software_engineering_unit_id(units)
-        if (sw_unit_id and sw_unit_id != best_unit_id
-                and best_score > 0
-                and self._is_software_build_intent(text)):
-            # 改判到软件研发单元，跳过后续"跨行业歧义"回落（业务名词仅为软件对象）
-            sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
-            best_unit_id = sw_unit_id
-            best_score = sw_own_score
-            software_override = True
+        is_sw_build_intent = self._is_software_build_intent(text)
+        if sw_unit_id and best_score > 0 and is_sw_build_intent:
+            if sw_unit_id != best_unit_id:
+                # 最佳单元不是软件研发，但文本是"为某业务领域构建软件"：
+                # 业务名词仅是软件被构建对象，改判到软件研发单元
+                sw_own_score = unit_scores.get(sw_unit_id, {}).get("score", 0.0)
+                best_unit_id = sw_unit_id
+                best_score = sw_own_score
+                software_override = True
+            else:
+                # 最佳单元已经是软件研发，但业务单元（如法律/营销）同步命中：
+                # 需跳过歧义回落——业务名词仅是软件构建目标（如"写合同管理系统代码"），
+                # 不应因业务侧同分而触发人工歧义确认
+                software_override = True
 
         # 检查歧义：多个单元得分接近时需人工确认。
         # 规则：真正"跨行业冲突"必须满足——双方各自持有独立行业信号。
