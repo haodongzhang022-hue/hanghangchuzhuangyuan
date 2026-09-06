@@ -84,7 +84,7 @@ python3 scripts/run_all_tests.py
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
-- `data/prefix-archive.json` — 稳定前缀档案（M3，自动生成）
+- `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 
 ## 复合装配的边界规则（评审补强① 已落实）

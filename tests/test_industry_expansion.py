@@ -407,6 +407,56 @@ def test_weak_signal_build_not_silently_auto_route():
     assert r2.confidence >= 0.6
     assert r2.needs_manual is False
 
+# ============================================================
+# 评审第 7 轮（通过后）非阻塞改进验证
+#   info①: prefix-archive.json 已纳入版本控制，含全部5单元
+#   info②: data-analytics 补充"分析报告/数据报告"通用业务词提升领域召回
+# ============================================================
+
+def test_data_analytics_analysis_report_recall():
+    """评审 info②：'做一份软件使用分析报告' 应路由到 data-analytics，
+    而非被'软件'别名强信号误导到 软件研发(dongjiagoushi)。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("做一份软件使用分析报告")
+    assert r.unit_id == "data-analytics", f"got {r.unit_id}"
+    assert "data_analyst" in r.roles, f"got roles={r.roles}"
+
+
+def test_data_analytics_data_report_recall():
+    """data-analytics 补充 '数据报告' 后，'出一份数据报告' 应被召回"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    r = router.route("帮我出一份数据报告")
+    assert r.unit_id == "data-analytics", f"got {r.unit_id}"
+
+
+def test_data_analytics_generic_terms_no_overreach():
+    """通用业务词补充不应过度泛化：'写一份工作报告'/'我需要一份报告'
+    等非数据分析场景不应被静默路由到 data-analytics。"""
+    reg = Registry()
+    router = IntentRouter(reg)
+    # 无明确"数据分析/分析报告/数据报告"等业务词时不应自动路由到 data-analytics
+    for text in ("写一份工作报告", "我需要一份报告", "写报告", "帮我做一份项目进度报告"):
+        r = router.route(text)
+        assert r.unit_id != "data-analytics" or r.needs_manual, \
+            f"{text} 不应被静默路由到 data-analytics"
+
+
+def test_prefix_archive_file_in_git():
+    """评审 info①：data/prefix-archive.json 已纳入版本控制，含全部5个单元"""
+    archive_path = os.path.join(
+        os.path.dirname(__file__), "../data/prefix-archive.json")
+    assert os.path.exists(archive_path), \
+        f"prefix-archive.json 不存在: {archive_path}"
+    import json
+    with open(archive_path, "r", encoding="utf-8") as f:
+        archive = json.load(f)
+    expected_units = {"dongjiagoushi", "game-dev-unit", "legal-services",
+                      "content-creation", "data-analytics"}
+    assert expected_units <= set(archive.keys()), \
+        f"prefix-archive.json 缺少单元: {expected_units - set(archive.keys())}"
+
 
 if __name__ == "__main__":
     test_five_industries_registered()
@@ -435,4 +485,8 @@ if __name__ == "__main__":
     test_software_product_promo_not_silently_auto_dev()
     test_software_copyright_registration_goes_to_legal()
     test_weak_signal_build_not_silently_auto_route()
+    test_data_analytics_analysis_report_recall()
+    test_data_analytics_data_report_recall()
+    test_data_analytics_generic_terms_no_overreach()
+    test_prefix_archive_file_in_git()
     print("✅ 行业扩展 + M8 索引增强 + 评审回归测试通过")
