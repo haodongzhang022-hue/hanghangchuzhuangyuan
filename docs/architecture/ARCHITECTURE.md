@@ -62,7 +62,7 @@ flowchart TB
 | M6 | 复合agent装配器 | 动态叠加 ≥2 岗位为复合 agent + 跨界加能力 | 岗位组合 | 复合上下文 | 各单元 | **HIGH-上下文冲突** |
 | M7 | 能力/指标观测台 | 统计切换/交接/复合并发/人工介入率 | 运行日志 | 指标 | 全部 | 低 |
 | M8 | 跨行业能力索引 | 索引各单元能力入口供编排检索 | 注册表+日志 | 可检索索引 | M2 | 低 |
-| M9 | 状态管理层 | 任务状态卡+折叠索引+层级向上提交 | 任务/对话原文 | StateCard+渲染层 | M2/M5 | MED-折叠边界 |
+| M9 | 状态管理层 | 任务状态卡+折叠索引+层级提交+秘书长多级树 | 任务/对话原文 | StateCard+渲染层+树拓扑 | M2/M5 | MED-折叠边界 |
 
 ---
 
@@ -181,3 +181,5 @@ register_version: "1.0"
 > 📊 **架构·总师** | 待 CP1 人工评审放行后进入开发。
 > 📝 **CodeBuddy** | 2026-09-05: 已将 POC 升级为正式 Python 实现，包含 M1-M8 核心引擎代码。
 > 📝 **CodeBuddy** | 2026-09-06: 新增 M9 状态管理层(StateCard/StateManager/FoldEngine/HierarchySubmitter)，实现任务状态机+折叠索引+层级向上提交，秘书分工机制落地。
+>
+> 📝 **CodeBuddy** | 2026-09-07: M9 增强版——新增 SecretaryTree/SecretaryTreeNode 秘书长多级树拓扑（多级注册/关系/rollup/渲染），HierarchySubmitter 支持 submit_chain_up 逐级向上提交。M9 接入主执行链路：CompositePlanner 自动创建 StateCard，HandoffBus auto_state_card 自动关联。新增 POC 量化验证脚本 poc/state_m9_benchmark.py。

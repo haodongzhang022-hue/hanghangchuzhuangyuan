@@ -69,7 +69,7 @@ python3 src/hanghang/cli/main.py metrics
 # 创建跨单元交接卡
 python3 src/hanghang/cli/main.py handoff --source dongjiagoushi --target game-dev-unit --intent "需要游戏单元提供策划支持"
 
-# M9 状态管理（StateCard/折叠/层级提交）
+# M9 状态管理（StateCard/折叠/层级提交/秘书长多级树）
 python3 src/hanghang/cli/main.py state init --session demo --objective "实现状态管理"
 python3 src/hanghang/cli/main.py state add --session demo --title "设计数据模型" --files "models.py"
 python3 src/hanghang/cli/main.py state add --session demo --title "实现折叠引擎" --files "fold_engine.py"
@@ -79,6 +79,17 @@ python3 src/hanghang/cli/main.py state fold --session demo
 python3 src/hanghang/cli/main.py state show --session demo
 python3 src/hanghang/cli/main.py state compact --session demo
 python3 src/hanghang/cli/main.py state submit --session demo --upstream parent
+
+# M9 秘书长多级树（多级拓扑管理）
+python3 src/hanghang/cli/main.py tree init --name project --display "秘书长" --objective "全局管理"
+python3 src/hanghang/cli/main.py tree register --name project --session sub-a --display "秘书A" --parent project
+python3 src/hanghang/cli/main.py tree register --name project --session leaf-1 --role developer --parent sub-a
+python3 src/hanghang/cli/main.py tree show --name project          # 渲染树导航视图
+python3 src/hanghang/cli/main.py tree rollup --name project        # 逐级向上汇总
+python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf-1
+
+# M9 POC 量化验证（状态管理 vs 全量历史对比）
+python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
 
 ### 运行测试
@@ -90,6 +101,7 @@ python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动
 python3 tests/test_review.py        # 评审机制
 python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
 python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/层级提交）
+python3 tests/test_state_tree.py       # M9 秘书长多级树 + 主链路集成
 
 # 或全部一键
 python3 scripts/run_all_tests.py

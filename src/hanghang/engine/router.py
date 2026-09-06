@@ -532,6 +532,44 @@ class CompositePlanner:
             except Exception:
                 self.handoff_bus = None
 
+    def _ensure_state_card(self, text: str, unit_id: str,
+                           role_names: List[str]) -> Optional[str]:
+        """
+        M9 集成：为一次路由编排自动创建/获取 StateCard。
+        返回 StateCard 的 session_id；失败返回 None（不阻断路由主流程）。
+        """
+        try:
+            import hashlib
+            from ..state.manager import StateManager
+            sm = StateManager()
+            # 用稳定 hash 生成 session_id，同一意图多次路由复用同一卡
+            hash_hex = hashlib.md5(
+                f"{unit_id}-{','.join(sorted(role_names))}-{text[:100]}".encode()
+            ).hexdigest()[:12]
+            session_id = f"rt-{unit_id[:8]}-{hash_hex}"
+            card = sm.get_or_create(
+                session_id=session_id,
+                objective=text[:200],
+                unit_id=unit_id,
+                role_name=role_names[0] if role_names else "secretary",
+            )
+            # 为每个命中岗位添加路由任务
+            for rname in role_names:
+                # 若该岗位任务尚未添加则添加
+                exists = any(
+                    t.title == f"route:{rname}" for t in card.tasks
+                )
+                if not exists:
+                    sm.add_task(
+                        session_id=session_id,
+                        title=f"route:{rname}",
+                        objective=f"{text[:100]} → {rname}",
+                        task_type="normal",
+                    )
+            return session_id
+        except Exception:
+            return None
+
     def plan(self, text: str) -> dict:
         """根据路由结果决定会话编排方案（内部路由一次后交 plan_from_result）"""
         router = IntentRouter(self.registry)
@@ -569,6 +607,8 @@ class CompositePlanner:
         if len(hit_roles) == 1:
             # 单直连
             role = hit_roles[0]
+            # M9 集成：自动创建 StateCard（不阻断主流程）
+            state_sid = self._ensure_state_card(text, unit.unit_id, [role.name])
             return {
                 "mode": "direct",
                 "unit_id": unit.unit_id,
@@ -576,6 +616,7 @@ class CompositePlanner:
                 "role": role.name,
                 "role_prefix": role.prefix,
                 "session_prefix": role.prefix,
+                "state_card_id": state_sid,
                 "message": f"单直连 → {unit.unit_id}@{role.name}",
             }
 
@@ -586,12 +627,15 @@ class CompositePlanner:
             ordered = sorted(hit_roles, key=lambda r: self.COMPOSITE_ORDER.get(r.name, 99))
             ordered_names = [r.name for r in ordered]
             prefixes = [r.prefix for r in ordered]
+            # M9 集成：自动创建 StateCard（不阻断主流程）
+            state_sid = self._ensure_state_card(text, unit.unit_id, ordered_names)
             return {
                 "mode": "composite",
                 "unit_id": unit.unit_id,
                 "industry": unit.industry,
                 "roles": ordered_names,
                 "session_prefix_set": prefixes,
+                "state_card_id": state_sid,
                 "message": f"复合装配: {unit.unit_id} 同session并装岗位 {ordered_names}",
                 "execution_order": ordered_names,
                 # boundary 规则：岗位间仅经交接卡传递产物，不互相污染记忆
@@ -613,6 +657,7 @@ class CompositePlanner:
                         target_unit=unit.unit_id,
                         intent=text,
                         context=f"角色 {[r.name for r in hit_roles]} 含不可复合岗位，需要交接接力",
+                        auto_state_card=True,
                     )
                     msg += f" [交接卡已自动创建: {card.id}]"
                 except Exception:
@@ -640,6 +685,7 @@ class CompositePlanner:
             return {"mode": "error", "message": "交接目标单元不存在"}
 
         card = None
+        state_sid = None
         if self.handoff_bus:
             card = self.handoff_bus.create_handoff(
                 source_unit=source_unit_id,
@@ -649,12 +695,15 @@ class CompositePlanner:
                     f"跨行业复合诉求，拆分到 {source.industry} 和 "
                     f"{target.industry} 各自的新 session 执行"
                 ),
+                auto_state_card=True,
             )
+            state_sid = card.state_card_id if card else None
 
         return {
             "mode": "cross_unit_handoff",
             "source_unit": source_unit_id,
             "target_unit": target_unit_id,
+            "state_card_id": state_sid,
             "message": (
                 f"跨行业复合: {source.unit_id}({source.industry}) → "
                 f"{target.unit_id}({target.industry}) 需拆新session分别执行"

@@ -79,5 +79,6 @@ class HandoffCard:
     intent: str
     context: str = ""
     status: str = "created"  # created | in_progress | done | failed
+    state_card_id: Optional[str] = None  # 关联 M9 StateCard 会话ID（M9 接入主链路）
     created_at: Optional[str] = None
     id: Optional[str] = None  # 运行时生成的唯一ID
