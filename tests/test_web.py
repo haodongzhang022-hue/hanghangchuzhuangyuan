@@ -1,6 +1,7 @@
 """Web 可视化聚合面板 API 测试"""
 import json
 import os
+import socket
 import sys
 import threading
 import time
@@ -342,6 +343,40 @@ class TestWebAPI:
         bare_calls = re.findall(
             r'CompositePlanner\s*\(\s*reg\s*\)', source)
         assert not bare_calls, f"存在未注入 handoff_bus 的调用: {bare_calls}"
+
+
+    def _raw_get(self, path: str):
+        """用原始 socket 发 GET，绕过 urllib 对 .. 的路径归一化。"""
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            conn.request("GET", path)
+            resp = conn.getresponse()
+            body = resp.read()
+            return resp.status, body
+        finally:
+            conn.close()
+
+    def test_static_serves_index_within_dir(self):
+        """正常静态资源应可访问（回归防护，确保未破坏 /static/）。"""
+        code, body = self._raw_get("/static/index.html")
+        assert code == 200
+        assert b"<!DOCTYPE html>" in body or b"<html" in body
+
+    def test_static_blocks_traversal_double_slash(self):
+        """/static//../../etc/passwd 应被 403 拒绝（Critical 目录穿越）。"""
+        code, _ = self._raw_get("/static//../../etc/passwd")
+        assert code == 403, f"目录穿越未被拦截: {code}"
+
+    def test_static_blocks_traversal_encoded_dotdot(self):
+        """URL 编码的 %2e%2e 穿越应被 403 拒绝。"""
+        code, _ = self._raw_get("/static/%2e%2e/%2e%2e/etc/passwd")
+        assert code == 403, f"编码穿越未被拦截: {code}"
+
+    def test_static_blocks_absolute_path_escape(self):
+        """多级 .. 逃逸出静态目录应被 403 拒绝。"""
+        code, _ = self._raw_get("/static/../../../../etc/passwd")
+        assert code == 403, f"多级穿越未被拦截: {code}"
 
 
 def run_tests():

@@ -388,12 +388,16 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
     def _serve_static(self, path: str):
         """服务 /static/ 下的静态文件"""
-        rel = path.replace("/static/", "", 1)
+        # 先做一次 URL 解码，避免 %2e%2e（编码的 ..）绕过 normpath 判定
+        rel = urllib.parse.unquote(path.replace("/static/", "", 1))
         safe = os.path.normpath(rel)
-        if safe.startswith(".."):
+        # 白名单判定：realpath 会解析 .. 与符号链接，折叠后必须仍位于静态目录内，
+        # 否则拒绝访问（彻底封堵 /static//../../etc/passwd 等绝对路径/穿越攻击）
+        base = os.path.realpath(DEFAULT_STATIC_DIR)
+        full = os.path.realpath(os.path.join(DEFAULT_STATIC_DIR, safe))
+        if not (full == base or full.startswith(base + os.sep)):
             _json_response(self, 403, {"error": "禁止访问"})
             return
-        full = os.path.join(DEFAULT_STATIC_DIR, safe)
         if not os.path.isfile(full):
             _json_response(self, 404, {"error": f"文件不存在: {path}"})
             return
