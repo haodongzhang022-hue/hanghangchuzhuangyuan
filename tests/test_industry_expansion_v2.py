@@ -268,7 +268,53 @@ def test_software_build_intent_still_routes():
         assert "developer" in r.roles
 
 
+def test_blog_content_jobs_not_swallowed_by_software():
+    """博客/技术博客类【内容创作】作业不得被误路由到软件研发（评审第4轮 warning）。
+
+    背景：'博客'曾被收入 SOFTWARE_BUILD_TERMS + '写一篇'收入构建动词，导致
+    '帮我写一篇(技术)博客'这类内容创作诉求被静默路由到软件研发（conf 0.6）。
+    修复：从软件产物名词/构建动词撤下'博客'与'写一篇'，并为内容创作补充博客写作
+    信号，使博客类内容作业正确归 content-creation；软件侧博客开发诉求不受影响。
+    """
+    reg = Registry()
+    router = IntentRouter(reg)
+
+    # 1) 博客类【内容创作】作业 → content-creation（不得静默落到软件研发）
+    content_cases = [
+        "帮我写一篇技术博客",
+        "帮我写篇博客文章",
+        "帮我写技术文章",
+        "帮我写一篇前端技术博客",
+        "帮我撰写一篇技术博客",
+    ]
+    for text in content_cases:
+        r = router.route(text)
+        assert not (r.unit_id == "dongjiagoushi" and not r.needs_manual), \
+            f"[{text}] 博客内容作业被误路由到软件研发(unit={r.unit_id}, manual={r.needs_manual})"
+        # 命中内容创作信号时归 copywriter，否则回落人工（但绝不自动落软件研发）
+        if not r.needs_manual:
+            assert r.unit_id == "content-creation", \
+                f"[{text}] 应路由到 content-creation，实际 unit={r.unit_id}"
+            assert "copywriter" in r.roles
+
+    # 2) 软件侧【博客/网站开发】诉求仍应自动路由 dongjiagoushi（防 content 抢判回归）
+    software_cases = [
+        "帮我搭一个博客网站",
+        "帮我做个博客系统",
+        "帮我搭建个人博客网站",
+        "帮我做个网站",
+    ]
+    for text in software_cases:
+        r = router.route(text)
+        assert r.unit_id == "dongjiagoushi", \
+            f"[{text}] 软件博客/网站开发应路由 dongjiagoushi，实际 unit={r.unit_id}"
+        assert not r.needs_manual, \
+            f"[{text}] 软件博客/网站开发不应回落人工"
+        assert "developer" in r.roles
+
+
 if __name__ == "__main__":
     test_web_jobs_not_swallowed_by_software()
     test_software_build_intent_still_routes()
+    test_blog_content_jobs_not_swallowed_by_software()
     print("✅ 负向路由回归测试全部通过")

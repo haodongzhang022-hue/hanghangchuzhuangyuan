@@ -296,7 +296,7 @@ units:
     prefix: '[文案]'
     handoff: relay
     composite: true
-    description: 品牌文案 广告文案 卖点文案
+    description: 品牌文案 广告文案 卖点文案 技术博客 博客文章
     keywords:
     - 写文案
     - 品牌文案
@@ -308,6 +308,11 @@ units:
     - 短视频脚本
     - 品牌内容
     - 写文章
+    - 写博客
+    - 技术博客
+    - 博客文章
+    - 技术文章
+    - 撰写博客
     - 写稿
     - 翻译
     - 网页文案
