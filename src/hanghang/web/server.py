@@ -247,8 +247,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
     def _do_route(self, text: str, record_metrics: bool = False) -> dict:
         """意图路由（统一逻辑，供 GET/POST 调用）。
 
-        GET 请求为只读语义（幂等），不记录运行指标；
-        POST 请求可改状态，由调用方通过 record_metrics=True 显式要求记录。
+        GET 请求为只读语义（幂等）：
+          - 不记录运行指标；
+          - 命中 handoff_required 分支时不自动创建交接卡（无写盘副作用）。
+        POST 请求可改状态：
+          - 由调用方通过 record_metrics=True 显式要求记录指标；
+          - handoff_required 分支自动创建交接卡（状态变更路径）。
         """
         reg = self._get_registry()
         router = IntentRouter(reg)
@@ -256,13 +260,18 @@ class HanghangHandler(BaseHTTPRequestHandler):
         prefixes = self._get_prefixes()
 
         result = router.route(text)
-        plan = planner.plan_from_result(result, text)
+        # GET(只读/测试观测) 不建交接卡；POST(状态变更) 自动建卡接力。
+        # record_metrics=True 仅用于 POST（状态变更）；False 对应 GET（只读）。
+        plan = planner.plan_from_result(result, text, create_handoff=record_metrics)
         if record_metrics:
             metrics = self._get_metrics()
+            # 岗位维度取 result.roles（路由结果恒有 roles 字段）：
+            # plan 仅在 composite/handoff_required 分支含 roles，direct 分支仅含单 role
+            # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
             metrics.record_route(
                 mode=plan.get("mode", "manual"),
-                unit_id=plan.get("unit_id", ""),
-                roles=plan.get("roles", []),
+                unit_id=plan.get("unit_id", "") or result.unit_id,
+                roles=result.roles,
             )
 
         # 前缀档案（从缓存实例读取，只读）

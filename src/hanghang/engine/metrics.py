@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from typing import Dict, List
 
@@ -18,6 +19,10 @@ class MetricsCollector:
             os.getcwd(), "data", "metrics.json")
         os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
         self._metrics = self._load()
+        # 线程锁：Web server 以 ThreadingHTTPServer 多线程复用模块级单例，
+        # 并发 POST /api/route 会并行进入 record_route 做读-改-写并落盘，
+        # 不加锁会丢更新 / 文件交错写。加锁串行化保证线程安全。
+        self._lock = threading.Lock()
 
     def _load(self) -> dict:
         if os.path.exists(self.data_file):
@@ -43,43 +48,45 @@ class MetricsCollector:
 
     def record_route(self, mode: str, unit_id: str = "",
                      roles: List[str] = None) -> None:
-        """记录一次路由事件"""
-        m = self._metrics
-        m["total_routes"] += 1
-        if mode == "direct":
-            m["direct_routes"] += 1
-        elif mode == "composite":
-            m["composite_routes"] += 1
-        elif mode == "manual":
-            m["manual_confirmations"] += 1
-        elif mode == "handoff_required":
-            m["handoffs"] += 1
+        """记录一次路由事件（线程安全）"""
+        with self._lock:
+            m = self._metrics
+            m["total_routes"] += 1
+            if mode == "direct":
+                m["direct_routes"] += 1
+            elif mode == "composite":
+                m["composite_routes"] += 1
+            elif mode == "manual":
+                m["manual_confirmations"] += 1
+            elif mode == "handoff_required":
+                m["handoffs"] += 1
 
-        if unit_id:
-            m["unit_hits"][unit_id] = m["unit_hits"].get(unit_id, 0) + 1
-        for r in (roles or []):
-            m["role_hits"][r] = m["role_hits"].get(r, 0) + 1
+            if unit_id:
+                m["unit_hits"][unit_id] = m["unit_hits"].get(unit_id, 0) + 1
+            for r in (roles or []):
+                m["role_hits"][r] = m["role_hits"].get(r, 0) + 1
 
-        # 计算成功率（直接+复合=自动成功）
-        auto = m["direct_routes"] + m["composite_routes"]
-        total = m["total_routes"]
-        m["success_rate"] = round(auto / total, 3) if total > 0 else 1.0
-        m["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        self._save()
+            # 计算成功率（直接+复合=自动成功）
+            auto = m["direct_routes"] + m["composite_routes"]
+            total = m["total_routes"]
+            m["success_rate"] = round(auto / total, 3) if total > 0 else 1.0
+            m["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            self._save()
 
     def get_summary(self) -> dict:
-        """返回指标摘要"""
-        m = self._metrics
-        return {
-            "total_routes": m["total_routes"],
-            "auto_success_rate": m["success_rate"],
-            "direct_routes": m["direct_routes"],
-            "composite_routes": m["composite_routes"],
-            "handoffs": m["handoffs"],
-            "manual_confirmations": m["manual_confirmations"],
-            "unit_hits": m["unit_hits"],
-            "role_hits": m["role_hits"],
-        }
+        """返回指标摘要（线程安全）"""
+        with self._lock:
+            m = self._metrics
+            return {
+                "total_routes": m["total_routes"],
+                "auto_success_rate": m["success_rate"],
+                "direct_routes": m["direct_routes"],
+                "composite_routes": m["composite_routes"],
+                "handoffs": m["handoffs"],
+                "manual_confirmations": m["manual_confirmations"],
+                "unit_hits": m["unit_hits"],
+                "role_hits": m["role_hits"],
+            }
 
     def _save(self):
         with open(self.data_file, "w", encoding="utf-8") as f:

@@ -538,11 +538,18 @@ class CompositePlanner:
         result = router.route(text)
         return self.plan_from_result(result, text)
 
-    def plan_from_result(self, result: "RouteResult", text: str) -> dict:
+    def plan_from_result(self, result: "RouteResult", text: str,
+                         create_handoff: bool = True) -> dict:
         """由已算好的路由结果决定会话编排方案。
 
         与 plan() 的区别：本方法不再重复做意图路由，直接基于传入的
         RouteResult 编排，避免同一意图被 route 两次（消除重复识别）。
+
+        参数:
+            create_handoff: 命中「需拆 session 经交接」分支时是否自动创建交接卡。
+                默认 True 保持历史/CLI 行为（自动建卡接力）。
+                Web 只读路径（GET /api/route）应传 False：GET 仅做路由观测，
+                不应触发交接卡写盘副作用，保持 GET 幂等/只读语义。
         """
         if result.needs_manual:
             return {
@@ -603,10 +610,10 @@ class CompositePlanner:
             }
         else:
             # 含不可复合岗位 → 需拆 session 走交接
-            # M5：自动创建交接卡（而非仅提示）
+            # M5：默认自动创建交接卡（而非仅提示）；Web 只读路径（GET）不建卡。
             msg = "命中岗位含不可复合项，需拆新session经 M5 交接卡接力"
             card = None
-            if self.handoff_bus:
+            if create_handoff and self.handoff_bus:
                 try:
                     card = self.handoff_bus.create_handoff(
                         source_unit=unit.unit_id,

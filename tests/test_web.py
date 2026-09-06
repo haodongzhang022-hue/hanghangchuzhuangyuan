@@ -379,6 +379,148 @@ class TestWebAPI:
         assert code == 403, f"多级穿越未被拦截: {code}"
 
 
+
+    # ---- 评审加固：GET 只读不建交接卡 + 指标岗位维度 + 并发线程安全 ----
+    def test_get_route_does_not_create_handoff_card(self):
+        """评审#1：GET /api/route 命中 handoff_required 分支也不应建交接卡(写盘)。
+
+        GET 是只读/测试观测语义，plan_from_result 传 create_handoff=False，
+        即使触发 handoff_required 也只返回提示、不写卡。默认(CLI/POST)仍自动建卡。
+        """
+        import tempfile
+        from hanghang.engine import (IntentRouter, CompositePlanner,
+                                     HandoffBus, Registry)
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+            # composite:True + composite:False 触发 handoff_required
+            test_data = {
+                "unit_id": "test-gho",
+                "industry": "测试行业",
+                "industry_alias": ["测试行业G"],
+                "roles": [
+                    {"name": "role_x", "prefix": "[X]", "composite": True,
+                     "keywords": ["需求X"]},
+                    {"name": "role_y", "prefix": "[Y]", "composite": False,
+                     "keywords": ["需求Y"]},
+                ],
+            }
+            tf = os.path.join(tmpdir, "industry-register-test.yaml")
+            with open(tf, "w", encoding="utf-8") as f:
+                yaml.dump(test_data, f, allow_unicode=True)
+            reg = Registry(search_paths=[tmpdir])
+            planner = CompositePlanner(reg, handoff_bus=bus)
+            router = IntentRouter(reg)
+            result = router.route("我要做需求X和需求Y")
+
+            # 只读路径 create_handoff=False：返回 handoff_required 但不落卡
+            plan_ro = planner.plan_from_result(result, "我要做需求X和需求Y",
+                                               create_handoff=False)
+            assert plan_ro["mode"] == "handoff_required"
+            # 不写卡：无交接卡被创建
+            assert len(bus.list_pending()) == 0
+
+            # 状态变更路径(默认 create_handoff=True)：自动建卡
+            plan_rw = planner.plan_from_result(result, "我要做需求X和需求Y")
+            assert plan_rw["mode"] == "handoff_required"
+            assert plan_rw["handoff_card_id"] is not None
+            assert len(bus.list_pending()) >= 1
+
+    def test_web_route_get_passes_create_handoff_read_only(self):
+        """源码检查：Web GET 只读路径必须传 create_handoff 关闭自动建卡。"""
+        import re
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            src = f.read()
+        # _do_route 中 create_handoff 应按 record_metrics(仅POST为True)联动
+        assert "create_handoff=record_metrics" in src,             "GET(record_metrics=False) 应传 create_handoff=False 保持只读"
+
+    def test_post_route_direct_records_role_hits(self):
+        """评审#3：direct 模式记录指标时岗位维度取 result.roles，不得低估。
+
+        旧实现取 plan.roles，而 direct 分支的 plan 无 roles 键(仅有单 role)
+        → role_hits 空。修复后 direct 路由应如实累加岗位命中。
+        """
+        # 先读取当前 role_hits
+        _, m0 = self._get("/api/metrics")
+        before = m0["metrics"]["role_hits"].get("contract_advisor", 0)
+
+        # POST 一条 direct 意图（命中 legal-services 的 contract_advisor 单岗位）
+        body = json.dumps({"text": "帮我审一份采购合同"}).encode("utf-8")
+        req = urllib.request.Request(
+            self.base_url + "/api/route",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            data = json.loads(resp.read().decode("utf-8"))
+        assert data["plan"]["mode"] == "direct"
+
+        _, m1 = self._get("/api/metrics")
+        assert m1["metrics"]["role_hits"].get("contract_advisor", 0) == before + 1, (
+            "direct 路由的岗位命中应被记录到 role_hits"
+        )
+
+    def test_metrics_concurrent_updates_no_loss(self):
+        """评审#2：MetricsCollector 并发记录不丢更新（线程安全）。"""
+        from hanghang.engine.metrics import MetricsCollector
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            m = MetricsCollector(data_file=os.path.join(tmpdir, "m.json"))
+            N = 40
+            threads = []
+            results = []
+            def worker():
+                for _ in range(10):
+                    m.record_route(mode="direct", unit_id="u", roles=["r"])
+            for _ in range(N):
+                t = threading.Thread(target=worker)
+                threads.append(t)
+                t.start()
+            for t in threads:
+                t.join()
+            summary = m.get_summary()
+            # 40 线程 x 10 次 = 400 次，全部计入
+            assert summary["total_routes"] == N * 10,                 f"并发丢更新: total_routes={summary['total_routes']} 预期 {N*10}"
+            assert summary["role_hits"].get("r") == N * 10
+
+    def test_handoff_concurrent_creation_no_corruption(self):
+        """评审#2：HandoffBus 并发创建交接卡不产生文件交错/损坏。
+
+        用不同的 source_unit 使 card_id 各异（避免同秒同 id 相互覆盖），
+        验证多线程并发 create_handoff 落盘的每张卡均可完整读回、结构完好。
+        """
+        from hanghang.engine.handoff import HandoffBus
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+            N = 30
+            threads = []
+            for i in range(N):
+                t = threading.Thread(
+                    target=lambda k=i: bus.create_handoff(f"src-{k}", "dst", "任务"))
+                threads.append(t)
+                t.start()
+            for t in threads:
+                t.join()
+            # 全部成功落盘且均可解析
+            nfiles = len([f for f in os.listdir(bus.data_dir) if f.endswith(".json")])
+            assert nfiles == N, f"并发交接卡数量异常: {nfiles} 预期 {N}"
+            # 每张卡都能读回且结构完好
+            for f in os.listdir(bus.data_dir):
+                if f.endswith(".json"):
+                    card = bus.get(f[:-5])
+                    assert card is not None
+                    assert card.target_unit == "dst"
+                    assert card.status == "created"
+
+
 def run_tests():
     t = TestWebAPI()
     t.setup_class()

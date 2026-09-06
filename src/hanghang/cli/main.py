@@ -35,11 +35,13 @@ def cmd_route(args):
     result = router.route(args.text)
     plan = planner.plan_from_result(result, args.text)
 
-    # 记录指标
+    # 记录指标：岗位维度取 result.roles（路由结果恒有 roles 字段）。
+    # plan 仅在 composite/handoff_required 分支含 roles；direct 分支仅含单 role
+    # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
     metrics.record_route(
         mode=plan.get("mode", "manual"),
-        unit_id=plan.get("unit_id", ""),
-        roles=plan.get("roles", []),
+        unit_id=plan.get("unit_id", "") or result.unit_id,
+        roles=result.roles,
     )
 
     print("=" * 50)
