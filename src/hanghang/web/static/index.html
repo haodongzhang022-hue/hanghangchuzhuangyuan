@@ -274,8 +274,8 @@ async function doRoute() {
       `意图: ${escapeHtml(data.intent)}`,
       ``,
       `── 路由结果 ──`,
-      `  单元: ${rr.unit_id || "N/A"}  [${rr.industry || "N/A"}]`,
-      `  岗位: ${(rr.roles || []).join(", ") || "无（仅行业命中）"}`,
+      `  单元: ${escapeHtml(rr.unit_id || "N/A")}  [${escapeHtml(rr.industry || "N/A")}]`,
+      `  岗位: ${(rr.roles || []).map(escapeHtml).join(", ") || "无（仅行业命中）"}`,
       `  置信度: ${rr.confidence}  ${badgeFromNeeds(rr.needs_manual)}`,
       rr.is_ambiguous ? `  ⚠️ 歧义: ${escapeHtml(rr.fallback_reason)}` : "",
       ``,
@@ -340,7 +340,7 @@ async function loadIndex() {
       if (!tagRows) {
         html += `<tr><td>${escapeHtml(u.unit_id)}</td><td>${escapeHtml(u.industry)}</td>
           <td>${(u.capability_tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("")}</td>
-          <td>${(u.roles || []).map(r => r.name).join(", ")}</td></tr>`;
+          <td>${(u.roles || []).map(r => escapeHtml(r.name)).join(", ")}</td></tr>`;
       } else {
         html += tagRows;
       }

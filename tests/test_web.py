@@ -10,7 +10,7 @@ import urllib.parse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
-from hanghang.web.server import HanghangHTTPServer
+from hanghang.web.server import HanghangHTTPServer, MAX_BODY_SIZE
 
 
 class TestWebAPI:
@@ -119,6 +119,70 @@ class TestWebAPI:
             assert resp.status == 200
             body = resp.read().decode("utf-8")
             assert "行行出状元" in body
+
+    # ---- 安全与幂等性测试 ----
+    def test_get_route_is_read_only(self):
+        """GET /api/route 只读，不应记录运行指标"""
+        # 先读取当前指标
+        code0, m0 = self._get("/api/metrics")
+        assert code0 == 200
+        total_before = m0["metrics"]["total_routes"]
+
+        # GET 路由调用
+        code, _ = self._get(
+            "/api/route?text=" + urllib.parse.quote("帮我写一份商业计划书"))
+        assert code == 200
+
+        # 指标不应增加
+        _, m1 = self._get("/api/metrics")
+        assert m1["metrics"]["total_routes"] == total_before
+
+    def test_post_route_records_metrics(self):
+        """POST /api/route 应记录运行指标"""
+        # 先读取当前指标
+        code0, m0 = self._get("/api/metrics")
+        total_before = m0["metrics"]["total_routes"]
+
+        body = json.dumps({"text": "帮我开发一个电商平台"}).encode("utf-8")
+        req = urllib.request.Request(
+            self.base_url + "/api/route",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+
+        # 指标应 +1
+        _, m1 = self._get("/api/metrics")
+        assert m1["metrics"]["total_routes"] == total_before + 1
+
+    def test_route_post_body_size_limit(self):
+        """POST body 超过 1MB 应返回 413"""
+        huge = {"text": "a" * (MAX_BODY_SIZE + 1)}
+        body = json.dumps(huge).encode("utf-8")
+        req = urllib.request.Request(
+            self.base_url + "/api/route",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req) as resp:
+                assert False, f"预期 413，实际 {resp.status}"
+        except urllib.error.HTTPError as e:
+            assert e.code == 413
+            data = json.loads(e.read().decode("utf-8"))
+            assert "请求体过大" in data.get("error", "")
+
+    def test_prefixes_has_all_units(self):
+        """GET /api/prefixes 应包含全部注册单元（非冗余多次注册）"""
+        code, data = self._get("/api/prefixes")
+        assert code == 200
+        # 应包含至少8个行业单元
+        assert data["units"] >= 8
+        # 数据应为完整档案而非空
+        assert len(data["archive"]) >= 8
 
 
 def run_tests():

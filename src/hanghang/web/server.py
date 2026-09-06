@@ -41,13 +41,34 @@ from hanghang.engine import (  # noqa: E402
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_STATIC_DIR = os.path.join(_HERE, "static")
 
+# POST 请求体最大字节数（1MB）
+MAX_BODY_SIZE = 1024 * 1024
+
+
+def _apply_cors(handler):
+    """按请求来源添加受限 CORS 头。
+
+    前端页面与 API 由同一 server 提供（同源请求），不需要 CORS。
+    仅当存在 Origin 头且来源为回环地址(localhost/127.0.0.1/::1)时
+    才放行跨域访问；非回环来源一律不设 Access-Control-Allow-Origin，
+    浏览器将自动拦截跨域响应（纵深防御）。
+    """
+    origin = handler.headers.get("Origin", "")
+    if not origin:
+        return  # 同源请求无需 CORS
+    parsed = urllib.parse.urlparse(origin)
+    hostname = parsed.hostname or ""
+    if hostname in ("localhost", "127.0.0.1", "::1"):
+        handler.send_header("Access-Control-Allow-Origin", origin)
+        handler.send_header("Vary", "Origin")
+
 
 def _json_response(handler, code: int, payload: dict):
     body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     handler.send_response(code)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
     handler.send_header("Content-Length", str(len(body)))
-    handler.send_header("Access-Control-Allow-Origin", "*")
+    _apply_cors(handler)
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -138,6 +159,15 @@ class HanghangHandler(BaseHTTPRequestHandler):
         else:
             _json_response(self, 404, {"error": f"未找到: {path}"})
 
+    def do_OPTIONS(self):
+        """处理 CORS 预检请求（仅回环来源放行）"""
+        self.send_response(204)
+        _apply_cors(self)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     # ---- API 实现 ----
     def _api_units(self):
         """行业单元总览"""
@@ -168,21 +198,26 @@ class HanghangHandler(BaseHTTPRequestHandler):
             "units": units,
         })
 
-    def _do_route(self, text: str) -> dict:
-        """意图路由（统一逻辑，供 GET/POST 调用）"""
+    def _do_route(self, text: str, record_metrics: bool = False) -> dict:
+        """意图路由（统一逻辑，供 GET/POST 调用）。
+
+        GET 请求为只读语义（幂等），不记录运行指标；
+        POST 请求可改状态，由调用方通过 record_metrics=True 显式要求记录。
+        """
         reg = self._get_registry()
         router = IntentRouter(reg)
         planner = CompositePlanner(reg)
-        metrics = self._get_metrics()
         prefixes = self._get_prefixes(reg)
 
         result = router.route(text)
         plan = planner.plan_from_result(result, text)
-        metrics.record_route(
-            mode=plan.get("mode", "manual"),
-            unit_id=plan.get("unit_id", ""),
-            roles=plan.get("roles", []),
-        )
+        if record_metrics:
+            metrics = self._get_metrics()
+            metrics.record_route(
+                mode=plan.get("mode", "manual"),
+                unit_id=plan.get("unit_id", ""),
+                roles=plan.get("roles", []),
+            )
 
         # 前缀档案
         unit_prefixes = []
@@ -208,17 +243,23 @@ class HanghangHandler(BaseHTTPRequestHandler):
         }
 
     def _api_route(self):
-        """GET /api/route?text=..."""
+        """GET /api/route?text=...（只读，不记录指标）"""
         text = _query_param(self, "text", "")
         if not text:
             _json_response(self, 400, {"error": "缺少 text 参数"})
             return
-        _json_response(self, 200, self._do_route(text))
+        _json_response(self, 200, self._do_route(text, record_metrics=False))
 
     def _api_route_post(self):
-        """POST /api/route body={"text": "..."}"""
+        """POST /api/route body={"text": "..."}（状态变更，记录指标）"""
         try:
             length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            length = 0
+        if length > MAX_BODY_SIZE:
+            _json_response(self, 413, {"error": "请求体过大（最大 1MB）"})
+            return
+        try:
             body_raw = self.rfile.read(length).decode("utf-8") if length else "{}"
             body = json.loads(body_raw) if body_raw else {}
         except Exception:
@@ -227,7 +268,7 @@ class HanghangHandler(BaseHTTPRequestHandler):
         if not text:
             _json_response(self, 400, {"error": "缺少 text 字段"})
             return
-        _json_response(self, 200, self._do_route(text))
+        _json_response(self, 200, self._do_route(text, record_metrics=True))
 
     def _api_search(self):
         """GET /api/search?kw=..&mode=.."""
@@ -275,23 +316,9 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
     def _api_prefixes(self):
         """GET /api/prefixes — M3 稳定前缀档案"""
-        pa = self._get_prefixes()
-        archive = {}
-        # 从文件读取
-        if os.path.exists(pa.archive_file):
-            try:
-                with open(pa.archive_file, "r", encoding="utf-8") as f:
-                    archive = json.load(f)
-            except Exception:
-                archive = {}
-        # 若为空则按当前注册表补充
-        if not archive:
-            reg = self._get_registry()
-            for unit in reg.all_units():
-                pa.register_unit(unit)
-            if os.path.exists(pa.archive_file):
-                with open(pa.archive_file, "r", encoding="utf-8") as f:
-                    archive = json.load(f)
+        reg = self._get_registry()
+        pa = self._get_prefixes(reg)  # 内部已注册全部单元并回写文件
+        archive = pa._archive  # PrefixArchive 构造即从文件加载，注册后包含全量档案
         _json_response(self, 200, {"units": len(archive), "archive": archive})
 
     def _serve_index(self):
