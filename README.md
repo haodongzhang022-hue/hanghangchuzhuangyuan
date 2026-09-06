@@ -8,7 +8,7 @@
 L2 人类端点    = 仅入口(意图确认) + 出口(复核)
 L1 通用能力层  = 本仓库：识别路由(M1) / 注册表(M2) / 前缀档案(M3)
                / 会话编排(M4) / 交接总线(M5) / 复合装配(M6)
-               / 指标观测(M7) / 能力索引(M8)
+               / 指标观测(M7) / 能力索引(M8) / 状态管理(M9)
 L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 ```
 
@@ -68,6 +68,17 @@ python3 src/hanghang/cli/main.py metrics
 
 # 创建跨单元交接卡
 python3 src/hanghang/cli/main.py handoff --source dongjiagoushi --target game-dev-unit --intent "需要游戏单元提供策划支持"
+
+# M9 状态管理（StateCard/折叠/层级提交）
+python3 src/hanghang/cli/main.py state init --session demo --objective "实现状态管理"
+python3 src/hanghang/cli/main.py state add --session demo --title "设计数据模型" --files "models.py"
+python3 src/hanghang/cli/main.py state add --session demo --title "实现折叠引擎" --files "fold_engine.py"
+python3 src/hanghang/cli/main.py state add --session demo --title "交付完整模块" --type deliverable
+python3 src/hanghang/cli/main.py state update --session demo --task demo-0001 --state done
+python3 src/hanghang/cli/main.py state fold --session demo
+python3 src/hanghang/cli/main.py state show --session demo
+python3 src/hanghang/cli/main.py state compact --session demo
+python3 src/hanghang/cli/main.py state submit --session demo --upstream parent
 ```
 
 ### Web 可视化控制台
@@ -83,6 +94,10 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 ```
 
 浏览器打开 `http://localhost:8080/` 即可访问控制台页面。
+
+> **安全提示**：默认仅监听 `127.0.0.1`（回环）。服务含状态变更接口
+> （`POST /api/route` 记录运行指标、可写交接/指标数据）。若以
+> `--host 0.0.0.0` 显式对外暴露，需置于认证/网关之后，避免未授权访问。
 
 页面聚合展示：
 - **行业单元总览** — 8个行业/岗位/能力/入口
@@ -117,6 +132,7 @@ python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动
 python3 tests/test_review.py        # 评审机制
 python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
 python3 tests/test_web.py             # Web 可视化面板 API
+python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/层级提交）
 
 # 或全部一键
 python3 scripts/run_all_tests.py
@@ -128,6 +144,7 @@ python3 scripts/run_all_tests.py
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
+- `data/state/` — 状态卡 JSON（M9，自动生成）
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
