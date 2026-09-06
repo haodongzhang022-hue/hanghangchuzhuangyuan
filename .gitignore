@@ -9,5 +9,4 @@ build/
 dist/
 # 运行期自动生成的数据文件
 data/metrics.json
-data/prefix-archive.json
 data/handoffs/

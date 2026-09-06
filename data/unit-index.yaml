@@ -62,3 +62,80 @@ units:
         composite: true
         description: "游戏引擎开发 UE开发 Unity开发 客户端开发 游戏开发"
         keywords: [游戏开发, UE开发, Unity开发, 引擎开发, 客户端开发, 游戏引擎, UE引擎, 游戏编程, 开发]
+  - unit_id: legal-services
+    repo_ref: ""
+    industry: 法律咨询
+    industry_alias: [法律, 律师, 法务, 诉讼, 打官司, 知识产权, 劳动仲裁, 合同, 劳动合同, 劳动纠纷, 知识产权保护, 著作权, 软件著作权]
+    capability_tags: [合同审查, 法律意见, 诉讼代理, 企业法务, 知识产权保护, 合规审查]
+    register_version: "1.1"
+    roles:
+      - name: legal_counsel
+        prefix: "[律师]"
+        handoff: relay
+        composite: true
+        description: "诉讼代理 法律意见 应诉 起草起诉状"
+        keywords: [诉讼代理, 法律意见, 打官司, 应诉, 起草起诉状, 法律咨询, 企业法务, 知识产权保护, 著作权登记, 知识产权登记, 版权登记, 专利登记, 商标注册]
+      - name: contract_advisor
+        prefix: "[合同]"
+        handoff: relay
+        composite: true
+        description: "合同审查 合同条款 起草合同"
+        keywords: [合同审查, 审合同, 合同条款, 起草合同, 审查合同, 劳动合同, 合同, 买卖合同, 租赁合同, 审查劳动合同]
+      - name: compliance_advisor
+        prefix: "[合规]"
+        handoff: relay
+        composite: true
+        description: "合规审查 法规遵从 政策合规"
+        keywords: [合规审查, 法规遵从, 政策合规, 反垄断合规, 数据合规]
+
+  - unit_id: content-creation
+    repo_ref: ""
+    industry: 内容创作
+    industry_alias: [内容创作, 新媒体, 文案, 自媒体, 短视频, 公众号, 内容运营]
+    capability_tags: [文案策划, 内容运营, 短视频脚本, 新媒体运营, 品牌内容, 图文编辑]
+    register_version: "1.1"
+    roles:
+      - name: copywriter
+        prefix: "[文案]"
+        handoff: relay
+        composite: true
+        description: "品牌文案 广告文案 卖点文案"
+        keywords: [写文案, 品牌文案, 广告文案, 文案策划, 卖点文案, 营销文案, 文案, 短视频脚本, 品牌内容]
+      - name: media_operator
+        prefix: "[新媒体]"
+        handoff: relay
+        composite: true
+        description: "公众号运营 短视频运营 账号运营"
+        keywords: [新媒体运营, 公众号, 公众号运营, 短视频, 短视频运营, 账号运营, 自媒体, 粉丝运营, 内容运营]
+      - name: content_editor
+        prefix: "[编辑]"
+        handoff: relay
+        composite: true
+        description: "稿件审校 内容排版 文章润色"
+        keywords: [内容编辑, 稿件审校, 内容排版, 文章润色, 图文编辑, 审校, 润色]
+
+  - unit_id: data-analytics
+    repo_ref: ""
+    industry: 数据分析
+    industry_alias: [数据分析, 数据挖掘, 大数据, 商业分析, 数据报表, 经营分析, 数据洞察, 分析报告, 数据报告]
+    capability_tags: [数据分析, 报表设计, 商业洞察, 数据可视化, 经营分析, 预测分析]
+    register_version: "1.1"
+    roles:
+      - name: data_analyst
+        prefix: "[数分]"
+        handoff: relay
+        composite: true
+        description: "数据分析 数据报表 商业分析 数据可视化"
+        keywords: [数据分析, 数据报表, 商业分析, 数据可视化, 经营分析, 报表分析, 报表设计, 商业洞察, 分析报告, 数据报告]
+      - name: data_scientist
+        prefix: "[数科]"
+        handoff: relay
+        composite: true
+        description: "数据挖掘 机器学习建模 特征工程 预测模型"
+        keywords: [数据挖掘, 机器学习建模, 特征工程, 预测模型, 算法建模, 预测分析]
+      - name: bi_engineer
+        prefix: "[BI]"
+        handoff: relay
+        composite: true
+        description: "数据仓库 ETL BI报表 数据管道"
+        keywords: [数据仓库, ETL, BI报表, 数据管道, 看板报表, 数据报告]

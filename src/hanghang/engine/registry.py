@@ -169,6 +169,127 @@ class Registry:
                 matches.append(unit)
         return matches
 
+    def search_capability(self, keyword: str,
+                          mode: str = "any") -> List[dict]:
+        """
+        M8 跨行业能力索引增强检索：
+        在"知道哪个单元有该能力"之上，进一步精确到 该单元内
+        由哪个岗位/哪个能力标签承接，并给出可路由入口地址。
+
+        mode:
+          - any:        任一维度命中即返回（行业别名/能力标签/岗位关键词/能力描述）
+          - industry:   仅按 行业别名 命中
+          - capability: 仅按 capability_tags 命中
+          - role:       仅按 岗位关键词/岗位描述 命中
+
+        返回 list[dict]，每项：
+          {
+            unit_id, industry, entry_ref,
+            hit_kinds,       # 命中的所有维度: subset of {industry, capability, role}
+            hit_roles,       # 命中该关键词的岗位列表
+            hit_tags,        # 命中的能力标签
+            matched_terms,   # 实际命中的词（含行业别名 + 能力标签）
+          }
+        """
+        if not keyword or not keyword.strip():
+            return []
+        kw = keyword.strip()
+        results = []
+        for unit in self.units.values():
+            hit_kinds = []
+            hit_roles = []
+            hit_tags = []
+            matched_terms = []
+
+            if mode in ("any", "industry"):
+                for alias in unit.industry_alias:
+                    if alias and kw in alias:
+                        if "industry" not in hit_kinds:
+                            hit_kinds.append("industry")
+                        matched_terms.append(alias)
+
+            if mode in ("any", "capability"):
+                for tag in unit.capability_tags:
+                    if tag and kw in tag:
+                        if "capability" not in hit_kinds:
+                            hit_kinds.append("capability")
+                        hit_tags.append(tag)
+                        # 能力维度命中的标签一并写入实际命中词
+                        matched_terms.append(tag)
+
+            if mode in ("any", "role"):
+                for role in unit.roles:
+                    role_kws = [w for w in role.get_keywords()
+                                if w and kw in w]
+                    if role_kws:
+                        if "role" not in hit_kinds:
+                            hit_kinds.append("role")
+                        hit_roles.append(role.name)
+                        matched_terms.extend(role_kws)
+
+            if not hit_kinds:
+                continue
+            results.append({
+                "unit_id": unit.unit_id,
+                "industry": unit.industry,
+                "entry_ref": unit.entry_ref,
+                "hit_kinds": hit_kinds,
+                "hit_roles": sorted(set(hit_roles)),
+                "hit_tags": sorted(set(hit_tags)),
+                "matched_terms": sorted(set(matched_terms)),
+            })
+        return results
+
+    @staticmethod
+    def _capability_tag_hits_role(tag: str, role: Role) -> bool:
+        """判断一个能力标签是否由某岗位承接。
+        评审 warning③：除岗位关键词与标签互相包含外，还比对岗位 name / description，
+        减少因关键词措辞不完全一致导致的能力标签无承接岗位（提高 tag→role 命中率）。
+        """
+        if not tag:
+            return False
+        # 1) 岗位关键词 与 标签 互相包含（原规则）
+        for w in role.get_keywords():
+            if w and (w in tag or tag in w):
+                return True
+        # 2) 岗位名与标签语义包含（如 tag="预测分析" ↔ role name="data_scientist"? 不直接，
+        #    但 keyword 含预测模型；此处兜底岗位名本身是否含标签词根）
+        # 3) 岗位 description 中任一能力词与标签互相包含
+        for d in role.description.replace(",", " ").replace("，", " ").split():
+            if d and (d in tag or tag in d):
+                return True
+        # 4) 角色名中文/拼音与标签词根匹配兜底
+        if role.name and (role.name in tag or tag in role.name):
+            return True
+        return False
+
+    def capability_index(self) -> List[dict]:
+        """
+        M8 能力索引全量导出：供上层做能力编排/可视化面板聚合。
+        返回每个单元的可路由能力清单（能力标签 → 对应岗位）。
+        """
+        index = []
+        for unit in self.units.values():
+            # 能力标签 → 承接岗位 映射
+            tag_to_roles = {}
+            for tag in unit.capability_tags:
+                roles = []
+                for role in unit.roles:
+                    if self._capability_tag_hits_role(tag, role):
+                        roles.append(role.name)
+                tag_to_roles[tag] = roles
+            index.append({
+                "unit_id": unit.unit_id,
+                "industry": unit.industry,
+                "entry_ref": unit.entry_ref,
+                "capability_tags": unit.capability_tags,
+                "tag_to_roles": tag_to_roles,
+                "roles": [{"name": r.name, "prefix": r.prefix,
+                           "composite": r.composite, "handoff": r.handoff}
+                          for r in unit.roles],
+            })
+        return index
+
     def summary(self) -> str:
         lines = [f"注册单元数: {len(self.units)}"]
         for uid, u in self.units.items():

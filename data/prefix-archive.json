@@ -1,0 +1,122 @@
+{
+  "dongjiagoushi": {
+    "unit_id": "dongjiagoushi",
+    "industry": "软件研发",
+    "role_prefixes": {
+      "secretary": {
+        "prefix": "[秘书]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "architect": {
+        "prefix": "[架构]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "developer": {
+        "prefix": "[开发]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "reviewer": {
+        "prefix": "[评审]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "product": {
+        "prefix": "[产品]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "game-dev-unit": {
+    "unit_id": "game-dev-unit",
+    "industry": "游戏研发",
+    "role_prefixes": {
+      "game_planner": {
+        "prefix": "[策划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "level_designer": {
+        "prefix": "[关卡]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "game_dev": {
+        "prefix": "[游戏开发]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "legal-services": {
+    "unit_id": "legal-services",
+    "industry": "法律咨询",
+    "role_prefixes": {
+      "legal_counsel": {
+        "prefix": "[律师]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "contract_advisor": {
+        "prefix": "[合同]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "compliance_advisor": {
+        "prefix": "[合规]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "content-creation": {
+    "unit_id": "content-creation",
+    "industry": "内容创作",
+    "role_prefixes": {
+      "copywriter": {
+        "prefix": "[文案]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "media_operator": {
+        "prefix": "[新媒体]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "content_editor": {
+        "prefix": "[编辑]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "data-analytics": {
+    "unit_id": "data-analytics",
+    "industry": "数据分析",
+    "role_prefixes": {
+      "data_analyst": {
+        "prefix": "[数分]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "data_scientist": {
+        "prefix": "[数科]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bi_engineer": {
+        "prefix": "[BI]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  }
+}

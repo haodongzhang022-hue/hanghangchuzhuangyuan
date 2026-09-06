@@ -94,15 +94,41 @@ def cmd_metrics(args):
 
 
 def cmd_search(args):
-    """M8 跨行业能力索引搜索"""
+    """M8 跨行业能力索引多维搜索"""
     registry = Registry()
-    matches = registry.search_by_keyword(args.keyword)
+    mode = getattr(args, "mode", "any") or "any"
+    matches = registry.search_capability(args.keyword, mode=mode)
     if not matches:
-        print(f"未找到与 '{args.keyword}' 匹配的行业单元")
+        print(f"未找到与 '{args.keyword}' 匹配的行业能力 [{mode} 维度]")
         return
-    print(f"关键词 '{args.keyword}' 匹配到 {len(matches)} 个行业单元:")
-    for u in matches:
-        print(f"  - {u.unit_id} [{u.industry}] tags={u.capability_tags}")
+    print(f"关键词 '{args.keyword}' 匹配 {len(matches)} 个行业能力 [{mode} 维度]:")
+    for m in matches:
+        detail = []
+        if m["hit_roles"]:
+            detail.append("岗位=" + ",".join(m["hit_roles"]))
+        if m["hit_tags"]:
+            detail.append("能力=" + ",".join(m["hit_tags"]))
+        route = f"route@{m['entry_ref']}" if m["entry_ref"] else "本仓集中(待回填)"
+        print(f"  - {m['unit_id']} [{m['industry']}] 命中维度={'/'.join(m['hit_kinds'])} "
+              f"{' '.join(detail) if detail else ''} | {route}")
+        if m["matched_terms"]:
+            print(f"      命中词: {m['matched_terms']}")
+
+
+def cmd_index(args):
+    """M8 全量能力索引导出（供上层编排/可视化聚合）"""
+    registry = Registry()
+    index = registry.capability_index()
+    print(f"能力索引共 {len(index)} 个行业单元:")
+    for item in index:
+        print(f"\n■ {item['unit_id']} [{item['industry']}]"
+              f"{'  entry=' + item['entry_ref'] if item['entry_ref'] else '  本仓集中(待回填)'}")
+        print("  能力标签:", ", ".join(item["capability_tags"]))
+        role_lines = []
+        for role in item["roles"]:
+            flag = "复合" if role["composite"] else "不可复合"
+            role_lines.append(f"{role['prefix']}{role['name']}({flag})")
+        print("  岗位:", ", ".join(role_lines))
 
 
 def cmd_create_handoff(args):
@@ -193,9 +219,15 @@ def build_parser():
     m = sub.add_parser("metrics", help="查看运行指标")
     m.set_defaults(func=cmd_metrics)
 
-    s = sub.add_parser("search", help="按关键词搜索行业能力索引")
+    s = sub.add_parser("search", help="按关键词多维搜索行业能力索引")
     s.add_argument("keyword", help="搜索关键词")
+    s.add_argument("--mode", default="any",
+                   choices=["any", "industry", "capability", "role"],
+                   help="检索维度(默认any: 行业/能力/岗位全部)")
     s.set_defaults(func=cmd_search)
+
+    ci = sub.add_parser("index", help="导出全量跨行业能力索引")
+    ci.set_defaults(func=cmd_index)
 
     h = sub.add_parser("handoff", help="创建交接卡")
     h.add_argument("--source", required=True, help="源单元")
