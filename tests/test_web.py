@@ -184,6 +184,76 @@ class TestWebAPI:
         # 数据应为完整档案而非空
         assert len(data["archive"]) >= 8
 
+    # ---- GET 只读语义：不写 prefix-archive.json 文件 ----
+    def test_get_requests_do_not_write_prefix_archive(self):
+        """GET /api/prefixes 与 GET /api/route 不应写 prefix-archive.json。
+
+        评审指出：旧实现中每次 GET 都会重建 PrefixArchive 并 register_unit，
+        register_unit 内部每次都会写文件 → 违反 GET 只读/幂等语义。
+        本测试断言多次 GET 请求前后 prefix-archive.json 文件 mtime 不变。
+        """
+        import hanghang.web.server as web_server
+        from hanghang.engine.prefix import PrefixArchive
+
+        # 先确保引擎已初始化（server setup 时已触发一次注册持久化）
+        web_server._init_engines()
+        archive_file = os.path.join(os.getcwd(), "data", "prefix-archive.json")
+        assert os.path.exists(archive_file)
+
+        # 记录 GET 前的 mtime
+        mtime_before = os.stat(archive_file).st_mtime
+        time.sleep(0.01)  # 保证 mtime 粒度区分
+
+        # 多次 GET 请求
+        for _ in range(3):
+            _, _ = self._get("/api/prefixes")
+            _, _ = self._get(
+                "/api/route?text=" + urllib.parse.quote("帮我设计一个系统架构"))
+            _, _ = self._get("/api/units")
+
+        time.sleep(0.01)
+        mtime_after = os.stat(archive_file).st_mtime
+
+        assert mtime_before == mtime_after, (
+            f"GET 请求不应写 prefix-archive.json: "
+            f"mtime 从 {mtime_before} 变为 {mtime_after}"
+        )
+
+    # ---- PrefixArchive.register_unit persist=False 不写盘 ----
+    def test_register_unit_persist_false_no_file_write(self):
+        """PrefixArchive.register_unit(persist=False) 不写磁盘。"""
+        import tempfile
+        from hanghang.engine.prefix import PrefixArchive
+        from hanghang.engine.registry import Registry
+
+        tmp_dir = tempfile.mkdtemp()
+        tmp_file = os.path.join(tmp_dir, "test-archive.json")
+        pa = PrefixArchive(archive_file=tmp_file)
+        reg = Registry()
+
+        # persist=False 不应创建文件
+        for unit in reg.all_units():
+            pa.register_unit(unit, persist=False)
+        assert not os.path.exists(tmp_file), "persist=False 不应创建文件"
+
+        # persist=True 应创建文件
+        for unit in reg.all_units():
+            pa.register_unit(unit, persist=True)
+        assert os.path.exists(tmp_file), "persist=True 应创建文件"
+
+    # ---- 500 不泄露内部异常细节 ----
+    def test_error_response_hides_internal_path(self):
+        """500 错误响应不应直接回显内部异常消息（如文件路径）。"""
+        # 直接检查 server.py 源码：500 处理不应使用 str(e) 回显内部信息
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            source = f.read()
+        # 500 应返回通用错误信息
+        assert '"内部服务错误"' in source
+        # 不应使用 str(e) 直接拼入错误响应
+        assert '_json_response(self, 500, {"error": str(e)})' not in source
+
 
 def run_tests():
     t = TestWebAPI()

@@ -44,6 +44,40 @@ DEFAULT_STATIC_DIR = os.path.join(_HERE, "static")
 # POST 请求体最大字节数（1MB）
 MAX_BODY_SIZE = 1024 * 1024
 
+# ---------------------------------------------------------------------------
+# 模块级引擎缓存
+#
+# Web server 仅做「聚合 + 可视化」，引擎模块（Registry/PrefixArchive）在进程
+# 生命周期内数据不变。若每次请求都重新实例化并 register_unit，会反复重写
+# data/prefix-archive.json —— GET 只读路径必须避免该副作用。
+# 因此此处做模块级单例缓存：首次创建时注册一次（含持久化），后续直接复用。
+# ---------------------------------------------------------------------------
+_engine_cache: Dict[str, object] = {}
+
+
+def _init_engines():
+    """初始化引擎缓存（首次调用触发，含前缀档案一次注册 + 持久化）。"""
+    if "initialized" in _engine_cache:
+        return
+    registry = Registry()
+    pa = PrefixArchive()
+    # 注册全部单元到前缀档案。默认 persist=True，首次启动时写入一次。
+    for unit in registry.all_units():
+        pa.register_unit(unit)
+    _engine_cache["registry"] = registry
+    _engine_cache["prefixes"] = pa
+    _engine_cache["initialized"] = True
+
+
+def _get_cached_registry() -> Registry:
+    _init_engines()
+    return _engine_cache["registry"]  # type: ignore
+
+
+def _get_cached_prefixes() -> PrefixArchive:
+    _init_engines()
+    return _engine_cache["prefixes"]  # type: ignore
+
 
 def _apply_cors(handler):
     """按请求来源添加受限 CORS 头。
@@ -99,27 +133,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
         sys.stderr.write(f"[hanghang-web] {self.address_string()} {fmt % args}\n")
 
     def _get_registry(self) -> Registry:
-        return Registry()
+        """获取注册表（模块级缓存，避免每次请求重读磁盘）。"""
+        return _get_cached_registry()
 
-    def _get_router(self) -> IntentRouter:
-        return IntentRouter(self._get_registry())
-
-    def _get_planner(self, registry=None) -> CompositePlanner:
-        reg = registry or self._get_registry()
-        return CompositePlanner(reg)
-
-    def _get_metrics(self) -> MetricsCollector:
-        return MetricsCollector()
-
-    def _get_prefixes(self, registry=None) -> PrefixArchive:
-        pa = PrefixArchive()
-        reg = registry or self._get_registry()
-        for unit in reg.all_units():
-            pa.register_unit(unit)
-        return pa
-
-    def _get_handoffs(self) -> HandoffBus:
-        return HandoffBus()
+    def _get_prefixes(self) -> PrefixArchive:
+        """获取稳定前缀档案（模块级缓存，首次注册已持久化，后续只读复用）。"""
+        return _get_cached_prefixes()
 
     # ---- 路由 ----
     def do_GET(self):
@@ -149,7 +168,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001
             import traceback
             traceback.print_exc()
-            _json_response(self, 500, {"error": str(e)})
+            # 500 不直接回显异常消息（避免泄露路径/内部细节）
+            _json_response(self, 500, {"error": "内部服务错误"})
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -207,19 +227,19 @@ class HanghangHandler(BaseHTTPRequestHandler):
         reg = self._get_registry()
         router = IntentRouter(reg)
         planner = CompositePlanner(reg)
-        prefixes = self._get_prefixes(reg)
+        prefixes = self._get_prefixes()
 
         result = router.route(text)
         plan = planner.plan_from_result(result, text)
         if record_metrics:
-            metrics = self._get_metrics()
+            metrics = MetricsCollector()
             metrics.record_route(
                 mode=plan.get("mode", "manual"),
                 unit_id=plan.get("unit_id", ""),
                 roles=plan.get("roles", []),
             )
 
-        # 前缀档案
+        # 前缀档案（从缓存实例读取，只读）
         unit_prefixes = []
         if result.unit_id:
             up = prefixes.get_unit_prefixes(result.unit_id)
@@ -257,7 +277,15 @@ class HanghangHandler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             length = 0
         if length > MAX_BODY_SIZE:
+            # 先读取/丢弃已到达的部分 body，避免客户端 broken pipe
+            # （客户端可能在收到响应前继续写数据）
+            if length > 0:
+                try:
+                    self.rfile.read(min(length, 64 * 1024))
+                except Exception:
+                    pass
             _json_response(self, 413, {"error": "请求体过大（最大 1MB）"})
+            self.close_connection = True
             return
         try:
             body_raw = self.rfile.read(length).decode("utf-8") if length else "{}"
@@ -297,12 +325,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
     def _api_metrics(self):
         """GET /api/metrics — M7 运行指标"""
-        metrics = self._get_metrics()
+        metrics = MetricsCollector()
         _json_response(self, 200, {"metrics": metrics.get_summary()})
 
     def _api_handoffs(self):
         """GET /api/handoffs — M5 待处理交接卡"""
-        bus = self._get_handoffs()
+        bus = HandoffBus()
         pending = bus.list_pending()
         cards = [{
             "id": c.id,
@@ -315,10 +343,9 @@ class HanghangHandler(BaseHTTPRequestHandler):
         _json_response(self, 200, {"total": len(cards), "cards": cards})
 
     def _api_prefixes(self):
-        """GET /api/prefixes — M3 稳定前缀档案"""
-        reg = self._get_registry()
-        pa = self._get_prefixes(reg)  # 内部已注册全部单元并回写文件
-        archive = pa._archive  # PrefixArchive 构造即从文件加载，注册后包含全量档案
+        """GET /api/prefixes — M3 稳定前缀档案（只读）"""
+        pa = self._get_prefixes()
+        archive = pa.get_archive()  # 通过公开方法读取，不暴露私有字段
         _json_response(self, 200, {"units": len(archive), "archive": archive})
 
     def _serve_index(self):
@@ -383,6 +410,7 @@ def _inline_default_index() -> str:
 
 def serve_forever(host: str = "127.0.0.1", port: int = 8080):
     """启动 HTTP 服务"""
+    _init_engines()  # 启动时先初始化缓存（含首次前缀档案注册 + 持久化）
     server = HanghangHTTPServer(host, port)
     print(f"行行出状元 · 通用能力层控制台已启动")
     print(f"  页面入口: http://{host}:{port}/")
