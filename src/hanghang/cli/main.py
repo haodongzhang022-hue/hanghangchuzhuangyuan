@@ -13,7 +13,6 @@ from hanghang.engine import (
     MetricsCollector, PrefixArchive,
 )
 
-
 def cmd_route(args):
     """意图路由命令"""
     registry = Registry()
@@ -203,6 +202,15 @@ def cmd_cross_unit(args):
             print(f"交接卡ID: {plan['handoff_card_id']}")
 
 
+# 延迟导入 serve（避免启动时 import http.server 影响 CLI 速度）
+def cmd_serve(args):
+    """启动 Web 可视化控制台"""
+    from hanghang.web.server import serve_forever
+    host = getattr(args, "host", "127.0.0.1")
+    port = getattr(args, "port", 8080)
+    serve_forever(host, port)
+
+
 def build_parser():
     p = argparse.ArgumentParser(
         prog="hanghang",
@@ -242,6 +250,12 @@ def build_parser():
     x = sub.add_parser("cross-unit", help="检测跨行业诉求并编排交接")
     x.add_argument("text", help="用户意图文本")
     x.set_defaults(func=cmd_cross_unit)
+
+
+    srv = sub.add_parser("serve", help="启动 Web 可视化聚合控制台")
+    srv.add_argument("--host", default="127.0.0.1", help="监听地址(默认127.0.0.1)")
+    srv.add_argument("--port", type=int, default=8080, help="监听端口(默认8080)")
+    srv.set_defaults(func=cmd_serve)
 
     return p
 

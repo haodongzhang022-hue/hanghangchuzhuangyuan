@@ -70,6 +70,44 @@ python3 src/hanghang/cli/main.py metrics
 python3 src/hanghang/cli/main.py handoff --source dongjiagoushi --target game-dev-unit --intent "需要游戏单元提供策划支持"
 ```
 
+### Web 可视化控制台
+
+启动 Web 可视化聚合面板（页面交互形态入口，纯 Python 标准库实现，无额外依赖）：
+
+```bash
+# 方式一：通过 CLI 启动
+python3 src/hanghang/cli/main.py serve --port 8080
+
+# 方式二：直接运行模块
+python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
+```
+
+浏览器打开 `http://localhost:8080/` 即可访问控制台页面。
+
+页面聚合展示：
+- **行业单元总览** — 8个行业/岗位/能力/入口
+- **路由测试** — 输入一句话意图即时路由（含自动识别/复合装配/回落人工判定）
+- **能力检索** — M8 跨行业能力多维搜索
+- **能力索引** — 全量能力标签 → 承接岗位映射
+- **运行指标** — M7 自动成功率/复合使用率/人工介入率
+- **前缀档案** — M3 各行业稳定前缀
+- **交接卡** — M5 待处理交接卡
+
+也提供 REST API（供其它形态调用 / 前端页面消费）：
+
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| `/api/units` | GET | 行业单元总览 |
+| `/api/route?text=...` | GET | 意图路由识别 |
+| `/api/route` | POST | 意图路由识别（JSON body） |
+| `/api/search?kw=..&mode=..` | GET | 能力索引搜索 |
+| `/api/index` | GET | 全量能力索引 |
+| `/api/metrics` | GET | 运行指标 |
+| `/api/handoffs` | GET | 待处理交接卡 |
+| `/api/prefixes` | GET | 稳定前缀档案 |
+
+> 设计原则：前端/页面只做「聚合 + 可视化」，底层能力通过 REST API 与 CLI 双形态暴露，为将来多调用形态（生态整合）预留。
+
 ### 运行测试
 ```bash
 python3 tests/test_router.py        # 路由引擎
@@ -78,6 +116,7 @@ python3 tests/test_handoff.py       # 交接总线
 python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动集成
 python3 tests/test_review.py        # 评审机制
 python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
+python3 tests/test_web.py             # Web 可视化面板 API
 
 # 或全部一键
 python3 scripts/run_all_tests.py

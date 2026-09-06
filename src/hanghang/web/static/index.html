@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>行行出状元 · 通用能力控制台</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+       background: var(--bg); color: var(--text); }
+.topbar { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff;
+          padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.topbar h1 { font-size: 20px; font-weight: 600; }
+.topbar .sub { font-size: 13px; opacity: .8; margin-top: 2px; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+             padding: 16px; text-align: center; }
+.stat-card .num { font-size: 28px; font-weight: 700; color: var(--primary); }
+.stat-card .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+           padding: 20px; margin-bottom: 20px; }
+.section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px;
+              padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.section h2 span { color: var(--primary); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+.unit-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+             margin-bottom: 10px; background: #fafbfc; }
+.unit-card h3 { font-size: 15px; font-weight: 600; }
+.unit-card h3 .ind { color: var(--primary); }
+.unit-card .meta { font-size: 12px; color: var(--muted); margin: 4px 0; }
+.role-chip { display: inline-block; background: #eff6ff; color: #1d4ed8;
+             border: 1px solid #bfdbfe; border-radius: 20px; padding: 2px 10px;
+             font-size: 12px; margin: 2px 2px; }
+.tag-chip { display: inline-block; background: #f0fdf4; color: #166534;
+            border: 1px solid #bbf7d0; border-radius: 4px; padding: 2px 6px;
+            font-size: 11px; margin: 2px 2px; }
+.search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.search-row input[type=text] { flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+                 border-radius: 6px; font-size: 14px; }
+.search-row select { padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+.btn { padding: 10px 20px; background: var(--primary); color: #fff; border: none;
+       border-radius: 6px; font-size: 14px; cursor: pointer; }
+.btn:hover { opacity: .9; }
+.btn-secondary { background: #4b5563; }
+.route-result { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;
+                padding: 12px; margin-top: 8px; font-family: "SF Mono", Consolas, monospace;
+                font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+th { background: #f8fafc; font-weight: 600; color: #374151; }
+.badge { display: inline-block; border-radius: 12px; padding: 2px 8px; font-size: 11px;
+         font-weight: 500; }
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-yellow { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+.tab { padding: 8px 16px; cursor: pointer; font-size: 14px; color: var(--muted);
+       border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.loading { color: var(--muted); text-align: center; padding: 20px; }
+.error-box { color: var(--danger); background: #fee2e2; border-radius: 6px;
+             padding: 10px; margin: 8px 0; font-size: 13px; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>行行出状元 · 通用能力控制台</h1>
+  <div class="sub">跨行业/跨岗位路由编排总层 · 自动识别 · 无需切换模式</div>
+</div>
+
+<div class="container">
+  <!-- 统计概览 -->
+  <div class="stats" id="stats"></div>
+
+  <!-- 标签页导航 -->
+  <div class="tabs">
+    <div class="tab active" data-tab="route">路由测试</div>
+    <div class="tab" data-tab="units">行业单元</div>
+    <div class="tab" data-tab="search">能力检索</div>
+    <div class="tab" data-tab="index">能力索引</div>
+    <div class="tab" data-tab="metrics">运行指标</div>
+    <div class="tab" data-tab="prefixes">前缀档案</div>
+    <div class="tab" data-tab="handoffs">交接卡</div>
+  </div>
+
+  <!-- Tab 1: 路由测试 -->
+  <div class="tab-content active" id="tab-route">
+    <div class="section">
+      <h2>意图路由测试 <span>M1·自动识别行业→岗位</span></h2>
+      <div class="search-row">
+        <input type="text" id="route-input" placeholder='输入一句话意图，如："既要架构设计又要落地开发"' onkeydown="if(event.key==='Enter')doRoute()">
+        <select id="route-source">
+          <option value="">—</option>
+        </select>
+        <button class="btn" onclick="doRoute()">路由</button>
+      </div>
+      <div id="route-result-box"></div>
+    </div>
+  </div>
+
+  <!-- Tab 2: 行业单元 -->
+  <div class="tab-content" id="tab-units">
+    <div class="section">
+      <h2>行业单元总览 <span>共 <span id="unit-count">-</span> 个</span></h2>
+      <div id="units-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 3: 能力检索 -->
+  <div class="tab-content" id="tab-search">
+    <div class="section">
+      <h2>跨行业能力检索 <span>M8</span></h2>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder='输入能力关键词，如："合同"、"数据分析"' onkeydown="if(event.key==='Enter')doSearch()">
+        <select id="search-mode">
+          <option value="any">全部维度</option>
+          <option value="industry">行业</option>
+          <option value="capability">能力标签</option>
+          <option value="role">岗位</option>
+        </select>
+        <button class="btn" onclick="doSearch()">搜索</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+
+  <!-- Tab 4: 能力索引 -->
+  <div class="tab-content" id="tab-index">
+    <div class="section">
+      <h2>全量能力索引 <span>能力标签 → 承接岗位</span></h2>
+      <div id="index-table"></div>
+    </div>
+  </div>
+
+  <!-- Tab 5: 指标 -->
+  <div class="tab-content" id="tab-metrics">
+    <div class="section">
+      <h2>运行指标 <span>M7</span></h2>
+      <div id="metrics-content"></div>
+    </div>
+  </div>
+
+  <!-- Tab 6: 前缀档案 -->
+  <div class="tab-content" id="tab-prefixes">
+    <div class="section">
+      <h2>稳定前缀档案 <span>M3 · 一会话一行业</span></h2>
+      <div id="prefixes-content"></div>
+    </div>
+  </div>
+
+  <!-- Tab 7: 交接卡 -->
+  <div class="tab-content" id="tab-handoffs">
+    <div class="section">
+      <h2>待处理交接卡 <span>M5</span></h2>
+      <div id="handoffs-content"></div>
+    </div>
+  </div>
+
+  <footer>行行出状元 · hanghangchuzhuangyuan · 通用能力层控制台</footer>
+</div>
+
+<script>
+// ---------- 工具 ----------
+async function api(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+function escapeHtml(s) {
+  if (s === undefined || s === null) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function badgeFromNeeds(needsManual) {
+  return needsManual
+    ? '<span class="badge badge-yellow">需人工确认</span>'
+    : '<span class="badge badge-green">自动路由</span>';
+}
+
+// ---------- 标签页 ----------
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("tab-" + t.dataset.tab).classList.add("active");
+    const loaders = {
+      "units": loadUnits, "search": () => {}, "index": loadIndex,
+      "metrics": loadMetrics, "prefixes": loadPrefixes, "handoffs": loadHandoffs,
+    };
+    const fn = loaders[t.dataset.tab];
+    if (fn) fn();
+  });
+});
+
+// ---------- 统计 ----------
+async function loadStats() {
+  try {
+    const [units, metrics] = await Promise.all([api("/api/units"), api("/api/metrics")]);
+    const m = metrics.metrics || {};
+    const cards = [
+      { num: units.total, label: "行业单元" },
+      { num: m.total_routes || 0, label: "累计路由" },
+      { num: (m.auto_success_rate !== undefined ? Math.round(m.auto_success_rate * 100) : 0) + "%", label: "自动成功率" },
+      { num: m.composite_routes || 0, label: "复合装配" },
+      { num: m.handoffs || 0, label: "交接卡片" },
+      { num: m.manual_confirmations || 0, label: "人工介入" },
+    ];
+    document.getElementById("stats").innerHTML = cards.map(c =>
+      `<div class="stat-card"><div class="num">${c.num}</div><div class="label">${c.label}</div></div>`
+    ).join("");
+  } catch (e) {
+    document.getElementById("stats").innerHTML = `<div class="error-box">统计加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 行业单元 ----------
+async function loadUnits() {
+  const box = document.getElementById("units-list");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const d = await api("/api/units");
+    document.getElementById("unit-count").textContent = d.total;
+    let html = "";
+    for (const u of d.units) {
+      html += `<div class="unit-card">
+        <h3><span class="ind">■</span> ${escapeHtml(u.industry)} <span style="font-size:12px;color:var(--muted)">(${escapeHtml(u.unit_id)})</span></h3>
+        <div class="meta">别名: ${escapeHtml((u.industry_alias || []).join(" / ")) || "-"}</div>
+        <div class="meta">入口: ${u.entry_ref ? escapeHtml(u.entry_ref) : '<span class="badge badge-blue">本仓集中</span>'}</div>
+        <div class="meta">能力标签: ${(u.capability_tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("")}</div>
+        <div style="margin-top:6px">岗位:
+          ${(u.roles || []).map(r => `<span class="role-chip">${escapeHtml(r.prefix)}${escapeHtml(r.name)}${r.composite ? "" : " · 不可复合"}</span>`).join("")}
+        </div>
+      </div>`;
+    }
+    box.innerHTML = html || '<div class="error-box">无注册单元</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 路由测试 ----------
+async function doRoute() {
+  const input = document.getElementById("route-input");
+  const text = input.value.trim();
+  if (!text) return;
+  const box = document.getElementById("route-result-box");
+  box.innerHTML = '<div class="route-result">路由中...</div>';
+  try {
+    const data = await api("/api/route?text=" + encodeURIComponent(text));
+    const rr = data.route_result;
+    const plan = data.plan;
+    const html = [
+      `意图: ${escapeHtml(data.intent)}`,
+      ``,
+      `── 路由结果 ──`,
+      `  单元: ${rr.unit_id || "N/A"}  [${rr.industry || "N/A"}]`,
+      `  岗位: ${(rr.roles || []).join(", ") || "无（仅行业命中）"}`,
+      `  置信度: ${rr.confidence}  ${badgeFromNeeds(rr.needs_manual)}`,
+      rr.is_ambiguous ? `  ⚠️ 歧义: ${escapeHtml(rr.fallback_reason)}` : "",
+      ``,
+      `── 编排计划 ──`,
+      `  模式: ${escapeHtml(plan.mode)}`,
+      `  ${escapeHtml(plan.message || "")}`,
+      plan.execution_order ? `  执行顺序: ${escapeHtml(plan.execution_order.join(" → "))}` : "",
+      plan.session_prefix ? `  会话前缀: ${escapeHtml(plan.session_prefix)}` : "",
+      plan.session_prefix_set ? `  稳定前缀集: ${escapeHtml(plan.session_prefix_set.join(", "))}` : "",
+      plan.handoff_card_id ? `  交接卡: ${escapeHtml(plan.handoff_card_id)}` : "",
+      data.unit_prefixes && data.unit_prefixes.length ? `  M3 前缀: ${escapeHtml(data.unit_prefixes.join(", "))}` : "",
+    ].filter(l => l !== undefined).join("\n");
+    box.innerHTML = `<div class="route-result">${html}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">路由失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 能力检索 ----------
+async function doSearch() {
+  const kw = document.getElementById("search-input").value.trim();
+  const mode = document.getElementById("search-mode").value;
+  if (!kw) return;
+  const box = document.getElementById("search-results");
+  box.innerHTML = '<div class="loading">搜索中...</div>';
+  try {
+    const d = await api(`/api/search?kw=${encodeURIComponent(kw)}&mode=${mode}`);
+    if (d.total === 0) {
+      box.innerHTML = '<div class="route-result">未找到匹配的行业能力</div>';
+      return;
+    }
+    let html = `<div style="font-size:13px;margin-bottom:8px">关键词 <b>${escapeHtml(kw)}</b> 匹配 ${d.total} 个结果：</div>`;
+    for (const r of d.results) {
+      html += `<div class="unit-card">
+        <h3>${escapeHtml(r.unit_id)} <span style="font-size:12px;color:var(--muted)">[${escapeHtml(r.industry)}]</span></h3>
+        <div class="meta">命中维度: ${escapeHtml((r.hit_kinds || []).join("/"))}</div>
+        ${r.hit_roles && r.hit_roles.length ? `<div class="meta">承接岗位: ${r.hit_roles.map(escapeHtml).join(", ")}</div>` : ""}
+        ${r.matched_terms && r.matched_terms.length ? `<div class="meta">命中词: ${r.matched_terms.map(escapeHtml).join(" / ")}</div>` : ""}
+        <div class="meta">入口: ${r.entry_ref ? escapeHtml(r.entry_ref) : "本仓集中"}</div>
+      </div>`;
+    }
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">搜索失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 能力索引 ----------
+async function loadIndex() {
+  const box = document.getElementById("index-table");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const d = await api("/api/index");
+    let html = "<table><thead><tr><th>行业单元</th><th>行业</th><th>能力标签</th><th>承接岗位</th></tr></thead><tbody>";
+    for (const u of d.index) {
+      const tagRows = Object.entries(u.tag_to_roles || {}).map(([tag, roles]) =>
+        `<tr><td>${escapeHtml(u.unit_id)}</td><td>${escapeHtml(u.industry)}</td>
+         <td><span class="tag-chip">${escapeHtml(tag)}</span></td>
+         <td>${(roles || []).map(escapeHtml).join(", ") || "—"}</td></tr>`
+      ).join("");
+      // 无 tag_to_roles 的兜底（直接一行展示 capability_tags）
+      if (!tagRows) {
+        html += `<tr><td>${escapeHtml(u.unit_id)}</td><td>${escapeHtml(u.industry)}</td>
+          <td>${(u.capability_tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("")}</td>
+          <td>${(u.roles || []).map(r => r.name).join(", ")}</td></tr>`;
+      } else {
+        html += tagRows;
+      }
+    }
+    box.innerHTML = html + "</tbody></table>";
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 指标 ----------
+async function loadMetrics() {
+  const box = document.getElementById("metrics-content");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const d = await api("/api/metrics");
+    const m = d.metrics || {};
+    let html = `<table><tbody>
+      <tr><td>累计路由</td><td>${m.total_routes || 0}</td></tr>
+      <tr><td>自动成功率</td><td>${m.auto_success_rate !== undefined ? (m.auto_success_rate * 100).toFixed(1) + "%" : "-"}</td></tr>
+      <tr><td>单直连</td><td>${m.direct_routes || 0}</td></tr>
+      <tr><td>复合装配</td><td>${m.composite_routes || 0}</td></tr>
+      <tr><td>交接</td><td>${m.handoffs || 0}</td></tr>
+      <tr><td>人工介入</td><td>${m.manual_confirmations || 0}</td></tr>
+    </tbody></table>`;
+    const uh = m.unit_hits || {};
+    const unitKeys = Object.keys(uh);
+    if (unitKeys.length) {
+      html += "<h3 style='font-size:14px;margin:14px 0 8px'>单元命中分布</h3><table><tbody>";
+      for (const k of unitKeys) {
+        html += `<tr><td>${escapeHtml(k)}</td><td>${uh[k]} 次</td></tr>`;
+      }
+      html += "</tbody></table>";
+    }
+    const rh = m.role_hits || {};
+    const roleKeys = Object.keys(rh);
+    if (roleKeys.length) {
+      html += "<h3 style='font-size:14px;margin:14px 0 8px'>岗位命中分布</h3><table><tbody>";
+      for (const k of roleKeys) {
+        html += `<tr><td>${escapeHtml(k)}</td><td>${rh[k]} 次</td></tr>`;
+      }
+      html += "</tbody></table>";
+    }
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 前缀档案 ----------
+async function loadPrefixes() {
+  const box = document.getElementById("prefixes-content");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const d = await api("/api/prefixes");
+    const archive = d.archive || {};
+    let html = "";
+    for (const uid of Object.keys(archive)) {
+      const entry = archive[uid];
+      const rp = entry.role_prefixes || {};
+      const roles = Object.keys(rp).map(name =>
+        `<span class="role-chip">${escapeHtml(rp[name].prefix)}${escapeHtml(name)}</span>`
+      ).join("");
+      html += `<div class="unit-card">
+        <h3>${escapeHtml(uid)} <span style="font-size:12px;color:var(--muted)">[${escapeHtml(entry.industry || "")}]</span></h3>
+        <div style="margin-top:4px">${roles || "—"}</div>
+        <div class="meta">规则: ${escapeHtml(entry.rule || "")}</div>
+      </div>`;
+    }
+    box.innerHTML = html || '<div class="error-box">无前缀档案</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 交接卡 ----------
+async function loadHandoffs() {
+  const box = document.getElementById("handoffs-content");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const d = await api("/api/handoffs");
+    if (d.total === 0) {
+      box.innerHTML = '<div class="route-result">暂无待处理交接卡</div>';
+      return;
+    }
+    let html = `<table><thead><tr><th>ID</th><th>源→目标</th><th>意图</th><th>状态</th><th>创建时间</th></tr></thead><tbody>`;
+    for (const c of d.cards) {
+      const st = c.status === "done" ? "green" : c.status === "failed" ? "red" : "yellow";
+      html += `<tr><td>${escapeHtml(c.id)}</td>
+        <td>${escapeHtml(c.source_unit)} → ${escapeHtml(c.target_unit)}</td>
+        <td>${escapeHtml(c.intent)}</td>
+        <td><span class="badge badge-${st}">${escapeHtml(c.status)}</span></td>
+        <td>${escapeHtml(c.created_at || "")}</td></tr>`;
+    }
+    box.innerHTML = html + "</tbody></table>";
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// 页面加载
+loadStats();
+loadUnits();
+</script>
+</body>
+</html>

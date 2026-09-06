@@ -146,6 +146,8 @@ register_version: "1.0"
 | R10 | 缓存命中稳定性验证 | ✅ 同义改写/重复提交一致性测试已添加(评审补强②) |
 | R11 | 行业横向扩展(3→5) | ✅ 新增 法律咨询/内容创作/数据分析 三单元, 纯数据驱动无改代码, 验证"行行出状元"广度覆盖 |
 | R12 | M8 能力索引增强 | ✅ search_capability 多维检索(any/industry/capability/role) + capability_index 全量导出 + CLI `search --mode`/`index` |
+| R13 | Web API Server | ✅ src/hanghang/web/server.py 提供 REST API 全端点，聚合暴露 M1-M8 能力 |
+| R14 | Web 聚合可视化面板 | ✅ static/index.html 单页控制台（路由测试/行业单元/能力检索/指标/前缀/交接卡） |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
