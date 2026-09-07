@@ -521,7 +521,10 @@ async function loadState() {
 }
 
 async function loadSessionResume(sidEnc, btn) {
-  const sid = decodeURIComponent(sidEnc);
+  // OCI-review#3：decodeURIComponent 置于 try-catch 内，非法编码时不抛未捕获异常
+  let sid;
+  try { sid = decodeURIComponent(sidEnc); }
+  catch (e) { sid = sidEnc; }
   const host = btn.closest(".unit-card").querySelector(".resume-box");
   if (host.style.display !== "none") { host.style.display = "none"; btn.textContent = "续传锚点"; return; }
   host.style.display = "block";
