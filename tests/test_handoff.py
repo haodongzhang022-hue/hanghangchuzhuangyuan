@@ -58,17 +58,9 @@ def test_list_pending():
         assert len(pending2) == 1
 
 
-if __name__ == "__main__":
-    test_create_and_get_handoff()
-    test_update_status()
-    test_list_pending()
-    print("✅ 交接总线测试通过")
-
-
 def test_handoff_id_no_second_collision():
     """P1 回归：同秒同 source/target 多次创建，交接卡 ID 必须唯一（不互相覆盖）。"""
     import threading
-    import time
 
     with tempfile.TemporaryDirectory() as tmpdir:
         bus = HandoffBus(data_dir=tmpdir)
@@ -119,3 +111,31 @@ def test_handoff_id_uniqueness_same_second():
             ids.append(card.id)
 
         assert len(set(ids)) == 20, f"ID 存在重复: {len(set(ids))} != 20"
+
+
+if __name__ == "__main__":
+    _tests = [
+        test_create_and_get_handoff,
+        test_update_status,
+        test_list_pending,
+        test_handoff_id_no_second_collision,
+        test_handoff_id_uniqueness_same_second,
+    ]
+    passed = 0
+    failed = []
+    for t in _tests:
+        try:
+            t()
+            print(f"  ✅ {t.__name__}")
+            passed += 1
+        except Exception as e:
+            print(f"  ❌ {t.__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            failed.append(t.__name__)
+
+    print(f"\n通过 {passed}/{len(_tests)} 个测试")
+    if failed:
+        print(f"失败: {failed}")
+        sys.exit(1)
+    print("✅ 交接总线测试全部通过")
