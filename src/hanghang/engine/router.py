@@ -577,7 +577,8 @@ class CompositePlanner:
         return self.plan_from_result(result, text)
 
     def plan_from_result(self, result: "RouteResult", text: str,
-                         create_handoff: bool = True) -> dict:
+                         create_handoff: bool = True,
+                         persist_state: bool = True) -> dict:
         """由已算好的路由结果决定会话编排方案。
 
         与 plan() 的区别：本方法不再重复做意图路由，直接基于传入的
@@ -588,6 +589,10 @@ class CompositePlanner:
                 默认 True 保持历史/CLI 行为（自动建卡接力）。
                 Web 只读路径（GET /api/route）应传 False：GET 仅做路由观测，
                 不应触发交接卡写盘副作用，保持 GET 幂等/只读语义。
+            persist_state: 是否在 direct/composite 分支创建/更新 M9 StateCard。
+                默认 True 保持历史/CLI 行为。
+                Web 只读路径（GET /api/route）应传 False：GET 不应触发
+                StateCard 落盘副作用，保持 GET 幂等/只读语义。
         """
         if result.needs_manual:
             return {
@@ -614,8 +619,11 @@ class CompositePlanner:
         if len(hit_roles) == 1:
             # 单直连
             role = hit_roles[0]
-            # M9 集成：自动创建 StateCard（不阻断主流程）
-            state_sid = self._ensure_state_card(text, unit.unit_id, [role.name])
+            # M9 集成：自动创建 StateCard（不阻断主流程）。
+            # persist_state=False（Web GET 只读路径）时不建卡。
+            state_sid = None
+            if persist_state:
+                state_sid = self._ensure_state_card(text, unit.unit_id, [role.name])
             return {
                 "mode": "direct",
                 "unit_id": unit.unit_id,
@@ -634,8 +642,11 @@ class CompositePlanner:
             ordered = sorted(hit_roles, key=lambda r: self.COMPOSITE_ORDER.get(r.name, 99))
             ordered_names = [r.name for r in ordered]
             prefixes = [r.prefix for r in ordered]
-            # M9 集成：自动创建 StateCard（不阻断主流程）
-            state_sid = self._ensure_state_card(text, unit.unit_id, ordered_names)
+            # M9 集成：自动创建 StateCard（不阻断主流程）。
+            # persist_state=False（Web GET 只读路径）时不建卡。
+            state_sid = None
+            if persist_state:
+                state_sid = self._ensure_state_card(text, unit.unit_id, ordered_names)
             return {
                 "mode": "composite",
                 "unit_id": unit.unit_id,
@@ -664,7 +675,7 @@ class CompositePlanner:
                         target_unit=unit.unit_id,
                         intent=text,
                         context=f"角色 {[r.name for r in hit_roles]} 含不可复合岗位，需要交接接力",
-                        auto_state_card=True,
+                        auto_state_card=persist_state,
                     )
                     msg += f" [交接卡已自动创建: {card.id}]"
                 except Exception:

@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, Optional
@@ -53,6 +54,7 @@ MAX_BODY_SIZE = 1024 * 1024
 # 因此此处做模块级单例缓存：首次创建时注册一次（含持久化），后续直接复用。
 # ---------------------------------------------------------------------------
 _engine_cache: Dict[str, object] = {}
+_engine_lock = threading.Lock()
 
 
 def _init_engines():
@@ -62,19 +64,26 @@ def _init_engines():
     单例，避免每次 GET 请求重建实例而触发目录/文件副作用（如 makedirs、
     重写 prefix-archive.json）。POST 状态变更与 GET 读取共用同一实例，保持
     内存与磁盘语义一致。
+
+    线程安全：多线程冷启动时（handler 并发首次请求）仅允许一个线程执行
+    初始化，其余线程等待锁后直接返回缓存结果，避免重复注册/重复写盘。
     """
     if "initialized" in _engine_cache:
         return
-    registry = Registry()
-    pa = PrefixArchive()
-    # 注册全部单元到前缀档案。默认 persist=True，首次启动时写入一次。
-    for unit in registry.all_units():
-        pa.register_unit(unit)
-    _engine_cache["registry"] = registry
-    _engine_cache["prefixes"] = pa
-    _engine_cache["metrics"] = MetricsCollector()
-    _engine_cache["handoffs"] = HandoffBus()
-    _engine_cache["initialized"] = True
+    with _engine_lock:
+        # double-check：等待锁期间可能已被其它线程完成初始化
+        if "initialized" in _engine_cache:
+            return
+        registry = Registry()
+        pa = PrefixArchive()
+        # 注册全部单元到前缀档案。默认 persist=True，首次启动时写入一次。
+        for unit in registry.all_units():
+            pa.register_unit(unit)
+        _engine_cache["registry"] = registry
+        _engine_cache["prefixes"] = pa
+        _engine_cache["metrics"] = MetricsCollector()
+        _engine_cache["handoffs"] = HandoffBus()
+        _engine_cache["initialized"] = True
 
 
 def _get_cached_registry() -> Registry:
@@ -249,10 +258,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
         GET 请求为只读语义（幂等）：
           - 不记录运行指标；
-          - 命中 handoff_required 分支时不自动创建交接卡（无写盘副作用）。
+          - 命中 handoff_required 分支时不自动创建交接卡（无写盘副作用）；
+          - 不创建 M9 StateCard（无写盘副作用）。
         POST 请求可改状态：
           - 由调用方通过 record_metrics=True 显式要求记录指标；
-          - handoff_required 分支自动创建交接卡（状态变更路径）。
+          - handoff_required 分支自动创建交接卡（状态变更路径）；
+          - direct/composite 分支自动创建 M9 StateCard（状态变更路径）。
         """
         reg = self._get_registry()
         router = IntentRouter(reg)
@@ -260,9 +271,13 @@ class HanghangHandler(BaseHTTPRequestHandler):
         prefixes = self._get_prefixes()
 
         result = router.route(text)
-        # GET(只读/测试观测) 不建交接卡；POST(状态变更) 自动建卡接力。
+        # GET(只读/测试观测) 不建交接卡/不建 StateCard；POST(状态变更) 自动建卡接力。
         # record_metrics=True 仅用于 POST（状态变更）；False 对应 GET（只读）。
-        plan = planner.plan_from_result(result, text, create_handoff=record_metrics)
+        plan = planner.plan_from_result(
+            result, text,
+            create_handoff=record_metrics,
+            persist_state=record_metrics,
+        )
         if record_metrics:
             metrics = self._get_metrics()
             # 岗位维度取 result.roles（路由结果恒有 roles 字段）：

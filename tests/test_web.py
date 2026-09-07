@@ -427,6 +427,129 @@ class TestWebAPI:
             assert plan_rw["handoff_card_id"] is not None
             assert len(bus.list_pending()) >= 1
 
+    def test_persist_state_false_no_state_card_created(self):
+        """评审：persist_state=False 时 direct/composite 分支不创建 M9 StateCard。
+
+        验证 GET 只读路径不会经 _ensure_state_card 写入 data/state/*.json。
+        使用 mock 拦截 _ensure_state_card，确认 persist_state=False 时不触发调用。
+        """
+        import tempfile
+        from unittest import mock
+        from hanghang.engine import (IntentRouter, CompositePlanner,
+                                     HandoffBus, Registry)
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+            # 构造 single-role 单元触发 direct 分支
+            test_data = {
+                "unit_id": "test-nostate",
+                "industry": "测试行业NS",
+                "industry_alias": ["测试行业NS"],
+                "roles": [
+                    {"name": "role_solo", "prefix": "[S]", "composite": True,
+                     "keywords": ["独立需求"]},
+                ],
+            }
+            tf = os.path.join(tmpdir, "industry-register-test-ns.yaml")
+            with open(tf, "w", encoding="utf-8") as f:
+                yaml.dump(test_data, f, allow_unicode=True)
+            reg = Registry(search_paths=[tmpdir])
+            planner = CompositePlanner(reg, handoff_bus=bus)
+            router = IntentRouter(reg)
+            result = router.route("我要做独立需求")
+
+            # 默认 persist_state=True（状态变更路径）：应调用 _ensure_state_card
+            with mock.patch.object(planner, "_ensure_state_card",
+                                   return_value="fake-sid") as mock_ensure:
+                plan = planner.plan_from_result(result, "我要做独立需求")
+                assert plan["mode"] == "direct"
+                assert plan["state_card_id"] == "fake-sid"
+                mock_ensure.assert_called_once()
+
+            # persist_state=False（GET 只读路径）：不应调用 _ensure_state_card
+            with mock.patch.object(planner, "_ensure_state_card",
+                                   return_value="should-not-be-called") as mock_ensure2:
+                plan_ro = planner.plan_from_result(
+                    result, "我要做独立需求", persist_state=False)
+                assert plan_ro["mode"] == "direct"
+                assert plan_ro["state_card_id"] is None
+                mock_ensure2.assert_not_called()
+
+    def test_persist_state_false_no_state_file_written(self):
+        """评审：persist_state=False 时直接验证磁盘无 state 文件新增。
+
+        使用临时 cwd 和数据文件，GET 只读路径不触发任何 data/state/ 写入。
+        """
+        import tempfile
+        from hanghang.engine import (IntentRouter, CompositePlanner,
+                                     HandoffBus, Registry)
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # 在 tmpdir 下建 data 目录和 state 目录
+            data_dir = os.path.join(tmpdir, "data")
+            state_dir = os.path.join(data_dir, "state")
+            os.makedirs(state_dir, exist_ok=True)
+
+            # 构造一个触发 direct 分支的单元文件
+            test_data = {
+                "unit_id": "test-nsf",
+                "industry": "测试行业NSF",
+                "industry_alias": ["测试行业NSF"],
+                "roles": [
+                    {"name": "role_f", "prefix": "[F]", "composite": True,
+                     "keywords": ["独立文件需求"]},
+                ],
+            }
+            tf = os.path.join(data_dir, "industry-register-test-nsf.yaml")
+            with open(tf, "w", encoding="utf-8") as f:
+                yaml.dump(test_data, f, allow_unicode=True)
+
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+            reg = Registry(search_paths=[data_dir])
+            planner = CompositePlanner(reg, handoff_bus=bus)
+            router = IntentRouter(reg)
+            result = router.route("我要做独立文件需求")
+
+            # 记录当前 state 目录文件数
+            files_before = set(os.listdir(state_dir))
+
+            # persist_state=False：不创建 state 卡文件
+            plan_ro = planner.plan_from_result(
+                result, "我要做独立文件需求", persist_state=False)
+            assert plan_ro["mode"] == "direct"
+            assert plan_ro["state_card_id"] is None
+
+            files_after = set(os.listdir(state_dir))
+            assert files_after == files_before, (
+                f"persist_state=False 不应新增 state 文件: "
+                f"{files_after - files_before}"
+            )
+
+    def test_web_route_get_passes_persist_state_read_only(self):
+        """源码检查：Web GET 只读路径必须传 persist_state=False 关闭 StateCard。"""
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            src = f.read()
+        # _do_route 中 persist_state 应按 record_metrics(仅POST为True)联动
+        assert "persist_state=record_metrics" in src, (
+            "GET(record_metrics=False) 应传 persist_state=False 保持只读"
+        )
+
+    def test_init_engines_thread_safe(self):
+        """评审：_init_engines() 惰性初始化需线程安全（双检查锁）。"""
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            src = f.read()
+        # 应有 import threading
+        assert "import threading" in src, "应导入 threading"
+        # _init_engines 应使用锁进行 double-check
+        assert "_engine_lock" in src, "应定义 _engine_lock"
+        assert "with _engine_lock:" in src, "应使用 with _engine_lock 保护初始化"
+
     def test_web_route_get_passes_create_handoff_read_only(self):
         """源码检查：Web GET 只读路径必须传 create_handoff 关闭自动建卡。"""
         import re
