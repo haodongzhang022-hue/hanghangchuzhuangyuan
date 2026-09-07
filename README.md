@@ -186,13 +186,46 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 ### 运行测试
 
 **推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
+> 前置：先安装依赖 `pip install -r requirements.txt`（变更感知内核 `ca-plan.py` 依赖
+> `pyyaml`，CI 由 `.cnb.yml` 兜底安装；本地直跑前也需先装，否则会 `ModuleNotFoundError`）。
 ```bash
-bash scripts/change-aware-test.sh            # 自动按 git 变更选测试
-bash scripts/change-aware-test.sh --dry-run  # 只看会跑哪些，不执行
-bash scripts/change-aware-test.sh --all      # 强制全量
+bash scripts/change-aware-test.sh                # 自动按 git 变更选测试
+bash scripts/change-aware-test.sh --dry-run      # 只看会跑哪些，不执行
+bash scripts/change-aware-test.sh --all          # 强制全量（main 合并门禁/发布兜底）
+bash scripts/change-aware-test.sh --no-cache     # 忽略结果缓存，强制重跑本次选中用例
+bash scripts/change-aware-test.sh --purge-cache  # 清空结果缓存
 ```
 
-**全量回归**（main 合并门禁 / 发布前兜底）：
+> **通用增量测试机制（v4）**：`scripts/change-aware-test.sh` + `scripts/ca-plan.py` 是一套
+> **仓库/语言无关**的变更感知测试基建（python 内核，与仓库/CI 的 python 生态天然同源，
+> 复制到任意仓库 `scripts/` 即用，无需额外 node 运行时）——
+>
+> 1. **自动依赖推断选测试（公交攒批）**：不再人肉维护“源码→测试”硬编码映射表。
+>    内核静态解析每个测试文件 import/require 的本地模块，反向建立依赖索引；
+>    源码变更 → 只跑「引用它」的那批测试；测试文件变更 → 只跑它；一批一次跑完。
+> 2. **结果指纹缓存防重复全量**：覆盖指纹 = hash(测试文件 + 其 import 的源码)。
+>    源码与测试均未变化且上次已 PASS → 命中缓存跳过，沿用上次结果，不再重复全跑；
+>    任一变化指纹即变、必然重跑，不会漏测。
+> 3. **基建/CI 文件不误触发**：`scripts/`、`.cnb.yml`、锁文件等工具变更若无可对应测试
+>    则视为“非业务变更”，不会因脚本自身改动而强行全量回归。
+> 4. **纯文档变更自动跳过**；未知源码变更仍保守全量兜底，绝不全靠缓存漏测。
+> 5. **工具自身改动也自校验（防回退）**：`ca-plan.py` 依赖推断内核若失效会静默放行缺陷，
+>    故每次 CI 都会跑 `python3 scripts/ca-plan-selfcheck.py`——用固定 fixture 断言
+>    “改动 `engine/router.py` 等核心文件必须选中 `test_router` 等直测文件”。
+>    复制内核到他仓改 import 解析时，此护栏可即时暴露“漏选/回退”。
+>    （`.ca-plan.json` 为瞬时落盘文件，已加入 `.gitignore`，异常崩溃残留不入库。）
+>
+> 可选配置 `ca-test.conf`（或环境变量 `CA_*`）可覆盖源码根 / 测试 glob / 静态映射，
+> 为无 import 的 bash 脚本测试等提供兜底规则。缓存目录默认 `.testcache`，
+> 流水线通过 `CA_CACHE_DIR`（兼容 `HH_TEST_CACHE_DIR`）+ `cache:` 卷持久化跨流水线复用。
+
+**测试覆盖与冗余审计**（校准：哪些源码缺鉴定、哪些用例高度重复）：
+```bash
+python3 scripts/audit-tests.py        # 全仓覆盖矩阵 + 冗余/缺口报告
+python3 scripts/audit-tests.py --by-file
+```
+
+**全量回归**（main 合并门禁 / 发布前兜底，绕过缓存全跑）：
 ```bash
 python3 scripts/run_all_tests.py
 ```
