@@ -21,6 +21,8 @@
 #
 # 外部配置键（ca-test.conf 或环境变量，均带 CA_ 前缀）：
 #   CA_SRC_GLOB     源码根/glob （默认 src/ lib/ packages/ core/ engine/ app/）
+#   CA_BEHAVIOR_GLOB 行为数据根/glob（默认 data/ cli/）：其下 yaml/json 属路由行为
+#                     配置，改动触发数据驱动回归，绝不按纯基建 0 测试放行
 #   CA_TEST_GLOB    测试文件 glob（默认自动识别 test_* / *.test / *.spec 等）
 #   CA_MAP_FILE     可选静态映射：为无 import 的脚本测试(bash)提供 "路径|测试1,测试2"
 #   CA_SKIP_EXTRA   额外跳过"非触发"路径，逗号分隔（默认 docs/,README.md,.md,...）
@@ -51,6 +53,7 @@ done
 
 # ---------- 配置（conf 文件 + 环境变量覆盖） ----------
 SRC_GLOB="src/ lib/ packages/ core/ engine/ app/"
+BEHAVIOR_GLOB="data/ cli/"
 TEST_GLOB=""; MAP_FILE=""
 SKIP_EXTRA="docs/,README.md,.md,poc/,examples/,.github/,CHANGELOG.md"
 CACHE_DIR="${CA_CACHE_DIR:-${HH_TEST_CACHE_DIR:-${REPO_ROOT}/.testcache}}"
@@ -61,7 +64,8 @@ if [ -n "$CONF_FILE" ] && [ -f "$CONF_FILE" ]; then
     line="${line%%#*}"; [ -z "${line// }" ] && continue
     k="${line%%=*}"; v="${line#*=}"; v="${v%\"}"; v="${v#\"}"
     case "$k" in
-      CA_SRC_GLOB) SRC_GLOB="$v" ;; CA_TEST_GLOB) TEST_GLOB="$v" ;;
+      CA_SRC_GLOB) SRC_GLOB="$v" ;; CA_BEHAVIOR_GLOB) BEHAVIOR_GLOB="$v" ;;
+      CA_TEST_GLOB) TEST_GLOB="$v" ;;
       CA_MAP_FILE) MAP_FILE="$v" ;; CA_SKIP_EXTRA) SKIP_EXTRA="$v" ;;
       CA_CACHE_DIR) CACHE_DIR="$v" ;;
       CA_PY_CMD) PY_CMD="$v" ;; CA_NODE_CMD) NODE_CMD="$v" ;; CA_BASH_CMD) BASH_CMD="$v" ;;
@@ -69,6 +73,7 @@ if [ -n "$CONF_FILE" ] && [ -f "$CONF_FILE" ]; then
   done < "$CONF_FILE"
 fi
 [ -n "${CA_SRC_GLOB:-}" ] && SRC_GLOB="$CA_SRC_GLOB"
+[ -n "${CA_BEHAVIOR_GLOB:-}" ] && BEHAVIOR_GLOB="$CA_BEHAVIOR_GLOB"
 [ -n "${CA_TEST_GLOB:-}" ] && TEST_GLOB="$CA_TEST_GLOB"
 [ -n "${CA_MAP_FILE:-}" ] && MAP_FILE="$CA_MAP_FILE"
 [ -n "${CA_CACHE_DIR:-}" ] && CACHE_DIR="$CA_CACHE_DIR"
@@ -104,6 +109,7 @@ plan_args=()
 [ "$NO_CACHE" = "true" ] && plan_args+=( --no-cache )
 [ -n "$BASE_SHA" ] && plan_args+=( "--base=$BASE_SHA" )
 [ -n "$SRC_GLOB" ] && plan_args+=( "--src=$SRC_GLOB" )
+[ -n "$BEHAVIOR_GLOB" ] && plan_args+=( "--behavior=$BEHAVIOR_GLOB" )
 [ -n "$TEST_GLOB" ] && plan_args+=( "--testglob=$TEST_GLOB" )
 [ -n "$MAP_FILE" ] && plan_args+=( "--map=$MAP_FILE" )
 [ -n "$SKIP_EXTRA" ] && plan_args+=( "--skip=$SKIP_EXTRA" )

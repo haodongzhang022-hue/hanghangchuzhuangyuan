@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # 通用变更感知测试选择内核（Generic CA planner）v4 - Python 移植
-# 输入: --all / --base=SHA / --src=... / --testglob=... / --map=... / --skip=... / --cachedir=... / --no-cache
+# 输入: --all / --base=SHA / --src=... / --behavior=... / --testglob=... / --map=... / --skip=... / --cachedir=... / --no-cache
+#       --behavior: 行为数据根（默认 data/ cli/），其下 yaml/json 属路由/配置驱动行为，
+#                    改动触发数据驱动回归全量兜底（杜绝门禁 0 测试假绿）。
 # 输出(stdout): 执行计划 JSON [[testFile,"run"|"skip",key],...]；日志走 stderr。
 # 说明: 本内核与 python 测试生态天然同源（仓库/CI 均为 python），
 #       与同目录 change-aware-test.sh 配套使用，取代原 node(ca-plan.mjs) 依赖。
@@ -30,6 +32,8 @@ FORCE_ALL = _flag("all")
 NO_CACHE = _flag("no-cache")
 BASE_SHA = _get("base")
 SRC_GLOB = _get("src", "src/ lib/ packages/ core/ engine/ app/")
+# 行为数据根：其下 yaml/json/数据 属"路由/配置驱动行为"，改动绝不能当纯基建放行。
+BEHAVIOR_GLOB = _get("behavior", "data/ cli/")
 TEST_GLOB = _get("testglob")
 MAP_FILE = _get("map")
 SKIP_EXTRA = _get("skip", "docs/,README.md,.md,poc/,examples/,.github/,CHANGELOG.md")
@@ -130,6 +134,7 @@ def find_tests():
 # 的再导出，落到 Registry 实际定义所在的子模块（registry.py / router.py），
 # 从而改动引擎子模块时能选中直测它的测试（修复 v2 MAP 以来的测试安全性回退）。
 SRC_ROOTS = [s.rstrip("/") for s in SRC_GLOB.split() if s]
+BEHAVIOR_ROOTS = [s.rstrip("/") for s in BEHAVIOR_GLOB.split() if s]
 _EXTS = [".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".jsx", ".tsx", ".json"]
 # 各语言包目录入口文件名（__init__.py / index.js ...）
 _PKG_INIT = {".py": "__init__", ".js": "index", ".mjs": "index",
@@ -490,6 +495,12 @@ else:
         if not hit:
             is_tool = any(f.startswith(p) or f == p or "/" + p in f for p in CA_TOOL)
             base = f.split("/")[-1]
+            # 行为数据根（data/ cli/units.yaml 等路由/配置驱动数据）：其下 yaml/json 属
+            # "行为路由配置"，改动会改变路由/能力索引/行业扩展等行为，绝不能归入纯基建
+            # is_dot_cfg 而 0 测试放行——路由到数据驱动回归（保守全量兜底）。
+            in_behavior_root = any(
+                f == p or f.startswith(p + "/") for p in BEHAVIOR_ROOTS
+            )
             is_dot_cfg = (
                 re.match(r"^\.[\w.-]+$", base) is not None
                 or re.search(r"\.(?:yml|yaml|json|toml|ini|cfg|lock|md|markdown)$", base) is not None
@@ -500,7 +511,11 @@ else:
                 re.search(r"\.(?:py|js|mjs|cjs|ts|tsx|jsx|go|rs|java|c|cpp|h|hpp|cs|rb|php)$", base) is not None
                 or "." not in base
             )
-            if not (is_tool or is_dot_cfg) and (in_src_root or (looks_src and not is_tool)):
+            # 行为数据根变更：路由到数据驱动回归全量兜底（含 test_data_driven /
+            # test_router / test_registry / test_industry_expansion* 等），杜绝门禁假绿。
+            if in_behavior_root and not is_tool:
+                selected = set(test_files)
+            elif not (is_tool or is_dot_cfg) and (in_src_root or (looks_src and not is_tool)):
                 selected = set(test_files)
 
 
