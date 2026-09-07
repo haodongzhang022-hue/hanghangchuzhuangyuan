@@ -325,8 +325,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
     def _api_route_post(self):
         """POST /api/route body={"text": "..."}（状态变更，记录指标）"""
         # Content-Type 宽松校验：期望 application/json，但对缺失/宽松类型保持兼容。
-        # 仅当明确声明为非 JSON（如 text/plain、application/xml）时拒绝，
-        # 避免误伤未显式设置 Content-Type 的 curl 等客户端。
+        # 仅拒绝明确声明的非 JSON/非表单类型（如 application/xml）；text/*、+json
+        # 与缺失 Content-Type 均放行，避免误伤未显式设置的 curl 等客户端。
         ctype = (self.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
         if ctype and ctype != "application/json" \
                 and not ctype.endswith("+json") \

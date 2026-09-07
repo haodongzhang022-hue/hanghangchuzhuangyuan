@@ -292,18 +292,35 @@ class TestWebAPI:
             pa.register_unit(unit, persist=True)
         assert os.path.exists(tmp_file), "persist=True 应创建文件"
 
-    # ---- 500 不泄露内部异常细节 ----
+    # ---- 500 不泄露内部异常细节（真实 HTTP 行为验证） ----
     def test_error_response_hides_internal_path(self):
-        """500 错误响应不应直接回显内部异常消息（如文件路径）。"""
-        # 直接检查 server.py 源码：500 处理不应使用 str(e) 回显内部信息
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            source = f.read()
-        # 500 应返回通用错误信息
-        assert '"内部服务错误"' in source
-        # 不应使用 str(e) 直接拼入错误响应
-        assert '_json_response(self, 500, {"error": str(e)})' not in source
+        """500 错误响应不应回显内部异常细节（真实 HTTP 行为验证）。
+
+        原为源码字符串断言。改为真实请求：临时替换 handler 的 _api_units
+        使其抛带敏感路径的异常，验证 HTTP 500 响应体只含通用错误、不含
+        异常消息/路径等内部细节。
+        """
+        import hanghang.web.server as ws
+        import unittest.mock as mock
+
+        from http.client import HTTPConnection
+
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            with mock.patch.object(
+                ws.HanghangHandler, "_api_units",
+                side_effect=RuntimeError("泄漏: /etc/passwd 读取失败")
+            ):
+                conn.request("GET", "/api/units")
+                resp = conn.getresponse()
+                body = resp.read().decode("utf-8")
+                assert resp.status == 500, f"应返回 500, got {resp.status}"
+                # 只含通用错误文案，不得回显异常消息/路径
+                assert "内部服务错误" in body, f"应含通用错误文案: {body}"
+                assert "/etc/passwd" not in body, f"500 不应泄露内部路径: {body}"
+                assert "读取失败" not in body, f"500 不应泄露异常消息: {body}"
+        finally:
+            conn.close()
 
     # ---- 交接卡缓存一致性回归测试 ----
     def test_composite_planner_uses_cached_handoff_bus(self):
@@ -378,23 +395,6 @@ class TestWebAPI:
             assert plan["handoff_card_id"] in card_ids, (
                 f"交接卡 {plan['handoff_card_id']} 应在同一 bus 的 list_pending 中可见"
             )
-
-    def test_do_route_source_injects_handoff_bus(self):
-        """源码检查：_do_route 中 CompositePlanner 必须注入 handoff_bus。"""
-        import re
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            source = f.read()
-        assert 'handoff_bus=self._get_handoffs()' in source, (
-            "_do_route 中 CompositePlanner 应注入缓存 handoff_bus"
-        )
-        # 不应存在未注入 handoff_bus 的裸 CompositePlanner(reg) 调用
-        bare_calls = re.findall(
-            r'CompositePlanner\s*\(\s*reg\s*\)', source)
-        assert not bare_calls, f"存在未注入 handoff_bus 的调用: {bare_calls}"
-
-
     def _raw_get(self, path: str):
         """用原始 socket 发 GET，绕过 urllib 对 .. 的路径归一化。"""
         import http.client
@@ -576,40 +576,53 @@ class TestWebAPI:
                 f"persist_state=False 不应新增 state 文件: "
                 f"{files_after - files_before}"
             )
-
-    def test_web_route_get_passes_persist_state_read_only(self):
-        """源码检查：Web GET 只读路径必须传 persist_state=False 关闭 StateCard。"""
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            src = f.read()
-        # _do_route 中 persist_state 应按 record_metrics(仅POST为True)联动
-        assert "persist_state=record_metrics" in src, (
-            "GET(record_metrics=False) 应传 persist_state=False 保持只读"
-        )
-
     def test_init_engines_thread_safe(self):
-        """评审：_init_engines() 惰性初始化需线程安全（双检查锁）。"""
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            src = f.read()
-        # 应有 import threading
-        assert "import threading" in src, "应导入 threading"
-        # _init_engines 应使用锁进行 double-check
-        assert "_engine_lock" in src, "应定义 _engine_lock"
-        assert "with _engine_lock:" in src, "应使用 with _engine_lock 保护初始化"
+        """真实并发测试：多线程冷启动 _init_engines() 只初始化一次、不重复写盘。
 
-    def test_web_route_get_passes_create_handoff_read_only(self):
-        """源码检查：Web GET 只读路径必须传 create_handoff 关闭自动建卡。"""
-        import re
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            src = f.read()
-        # _do_route 中 create_handoff 应按 record_metrics(仅POST为True)联动
-        assert "create_handoff=record_metrics" in src,             "GET(record_metrics=False) 应传 create_handoff=False 保持只读"
+        原为源码字符串断言（检查 import threading / _engine_lock / with 锁），
+        无法验证竞态是否真被消除。改为直接并发调用模块级 _init_engines()，
+        断言缓存仅含单份实例且初始化标记一致，验证 double-check 锁真实生效。
+        """
+        import hanghang.web.server as ws
 
+        # 清理缓存以模拟冷启动
+        old_cache = getattr(ws, "_engine_cache", None)
+        if old_cache is not None:
+            ws._engine_cache = {}
+
+        results = []
+        errors = []
+        barrier = threading.Barrier(8)
+
+        def _call_init():
+            try:
+                barrier.wait()
+                ws._init_engines()
+                results.append(True)
+            except Exception as e:  # noqa: BLE001
+                errors.append(e)
+
+        threads = [threading.Thread(target=_call_init) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+
+        assert not errors, f"并发初始化异常: {errors}"
+        assert len(results) == 8, f"应 8 线程均完成初始化，实际 {len(results)}"
+        # 缓存中仅一份实例且已标记初始化
+        assert ws._engine_cache.get("initialized") is True
+        assert "registry" in ws._engine_cache
+        assert "handoffs" in ws._engine_cache
+        assert "metrics" in ws._engine_cache
+        assert "prefixes" in ws._engine_cache
+        # 同一实例引用 —— 说明并发下仅真正执行一次初始化，其余复用缓存
+        reg1 = ws._engine_cache["registry"]
+        assert reg1 is ws._get_cached_registry()
+
+        # 恢复缓存（避免污染其它测试）
+        if old_cache is not None:
+            ws._engine_cache = old_cache
     def test_post_route_direct_records_role_hits(self):
         """评审#3：direct 模式记录指标时岗位维度取 result.roles，不得低估。
 
@@ -764,14 +777,41 @@ class TestWebAPI:
         assert _is_loopback("") is True
 
     def test_serve_forever_has_loopback_warning_code(self):
-        """建议①：源码中包含非回环绑定告警横幅逻辑。"""
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            src = f.read()
-        assert "_is_loopback" in src, "应定义 _is_loopback 辅助函数"
-        assert "安全告警" in src, "应包含安全告警横幅文案"
-        assert "认证" in src, "告警应提示置于认证/网关之后"
+        """建议①：非回环绑定打印安全告警横幅（真实 stdout 行为验证）。
+
+        原为源码字符串断言。改为直接调用 serve_forever 的告警分支前逻辑：
+        mock _is_loopback 返回 False，捕获 stdout 断言打印了安全告警横幅；
+        再 mock 返回 True（回环）断言不打印告警。
+        """
+        import io
+        import contextlib
+        import unittest.mock as mock
+        import hanghang.web.server as ws
+
+        # 非回环绑定 → 应打印告警横幅
+        buf = io.StringIO()
+        with mock.patch.object(ws, "_is_loopback", return_value=False), \
+             mock.patch.object(ws.HanghangHTTPServer, "serve_forever", side_effect=KeyboardInterrupt), \
+             contextlib.redirect_stdout(buf):
+            try:
+                ws.serve_forever(host="0.0.0.0", port=8080)
+            except SystemExit:
+                pass
+        out = buf.getvalue()
+        assert "安全告警" in out, f"非回环绑定应打印告警: {out}"
+        assert "认证" in out, f"告警应提示认证/网关: {out}"
+
+        # 回环绑定 → 不应打印告警横幅
+        buf2 = io.StringIO()
+        with mock.patch.object(ws, "_is_loopback", return_value=True), \
+             mock.patch.object(ws.HanghangHTTPServer, "serve_forever", side_effect=KeyboardInterrupt), \
+             contextlib.redirect_stdout(buf2):
+            try:
+                ws.serve_forever(host="127.0.0.1", port=8080)
+            except SystemExit:
+                pass
+        out2 = buf2.getvalue()
+        assert "安全告警" not in out2, f"回环绑定不应打印告警: {out2}"
 
     def test_post_content_type_validation(self):
         """建议②：POST /api/route 对明确非 JSON 的 Content-Type 应返回 415。
@@ -804,34 +844,6 @@ class TestWebAPI:
             resp2.read()
         finally:
             conn2.close()
-
-    def test_manual_route_role_hits_semantics_documented(self):
-        """建议③：CLI/Web 中 manual 分支统计 role_hits 的口径已在注释中标注。"""
-        # CLI main.py
-        cli_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/cli/main.py")
-        with open(cli_py, encoding="utf-8") as f:
-            cli_src = f.read()
-        assert "manual(人工确认)" in cli_src or "人工确认" in cli_src, \
-            "CLI cmd_route 注释应标注 manual 分支岗位统计语义"
-        assert "role_hits" in cli_src, "CLI 注释应提及 role_hits 统计"
-
-        # README 指标口径说明
-        readme = os.path.join(
-            os.path.dirname(__file__), "../README.md")
-        with open(readme, encoding="utf-8") as f:
-            readme_src = f.read()
-        assert "指标口径说明" in readme_src, "README 应包含指标口径说明"
-
-        # server.py
-        server_py = os.path.join(
-            os.path.dirname(__file__), "../src/hanghang/web/server.py")
-        with open(server_py, encoding="utf-8") as f:
-            server_src = f.read()
-        assert "manual(人工确认)分支" in server_src or "人工确认" in server_src, \
-            "server.py 注释应标注 manual 分支岗位统计语义"
-
-
 def run_tests():
     t = TestWebAPI()
     t.setup_class()

@@ -145,22 +145,34 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 > 设计原则：前端/页面只做「聚合 + 可视化」，底层能力通过 REST API 与 CLI 双形态暴露，为将来多调用形态（生态整合）预留。
 
 ### 运行测试
-```bash
-python3 tests/test_router.py        # 路由引擎
-python3 tests/test_registry.py      # 注册表与元数据
-python3 tests/test_handoff.py       # 交接总线
-python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动集成
-python3 tests/test_review.py        # 评审机制
-python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
-python3 tests/test_web.py             # Web 可视化面板 API
-python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/层级提交）
-python3 tests/test_state_tree.py       # M9 秘书长多级树 + 主链路集成
-python3 tests/test_state_cli_e2e.py    # M9 × CLI 全链路联调回归
-python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
-python3 tests/test_context_m10.py  # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 
-# 或全部一键
+**推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
+```bash
+bash scripts/change-aware-test.sh            # 自动按 git 变更选测试
+bash scripts/change-aware-test.sh --dry-run  # 只看会跑哪些，不执行
+bash scripts/change-aware-test.sh --all      # 强制全量
+```
+
+**全量回归**（main 合并门禁 / 发布前兜底）：
+```bash
 python3 scripts/run_all_tests.py
+```
+
+亦可单跑某个测试文件：
+```bash
+python3 tests/test_web.py             # Web 可视化面板 API
+python3 tests/test_router.py          # 路由引擎
+python3 tests/test_registry.py        # 注册表与元数据
+python3 tests/test_handoff.py         # 交接总线
+python3 tests/test_data_driven.py     # 数据驱动 + 复合边界 + 交接自动集成
+python3 tests/test_review.py          # 评审机制
+python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
+python3 tests/test_batch_persist.py   # M9 批量/延迟落盘
+python3 tests/test_state_manager.py   # M9 状态管理层（StateCard/折叠/层级提交）
+python3 tests/test_state_tree.py      # M9 秘书长多级树 + 主链路集成
+python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
+python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
+python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 ```
 
 ## 数据文件
