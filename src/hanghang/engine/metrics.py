@@ -84,8 +84,8 @@ class MetricsCollector:
                 "composite_routes": m["composite_routes"],
                 "handoffs": m["handoffs"],
                 "manual_confirmations": m["manual_confirmations"],
-                "unit_hits": m["unit_hits"],
-                "role_hits": m["role_hits"],
+                "unit_hits": dict(m["unit_hits"]),  # 浅拷贝隔离外部引用，防并发修改
+                "role_hits": dict(m["role_hits"]),  # 浅拷贝隔离外部引用，防并发修改
             }
 
     def _save(self):

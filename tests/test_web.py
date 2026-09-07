@@ -643,6 +643,65 @@ class TestWebAPI:
                     assert card.target_unit == "dst"
                     assert card.status == "created"
 
+    def test_handoff_same_second_same_source_no_id_collision(self):
+        """P1 回归：同秒同 source/target 多次创建交接卡，ID 必须唯一（不互相覆盖）。
+
+        评审发现 card_id 用秒级时间戳 int(time.time()) 导致同秒碰撞覆盖丢卡，
+        已改为 time.time_ns() 纳秒级唯一标识。
+        """
+        from hanghang.engine.handoff import HandoffBus
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bus = HandoffBus(data_dir=os.path.join(tmpdir, "handoffs"))
+            # 快速连续创建 20 张同 source/target 的卡
+            cards = []
+            for i in range(20):
+                card = bus.create_handoff(
+                    "same-src", "same-dst",
+                    f"并发创建-{i}", "同秒同源快速创建，ID 不应碰撞")
+                cards.append(card)
+
+            ids = {c.id for c in cards}
+            assert len(ids) == 20, f"交接卡 ID 存在碰撞: 唯一数 {len(ids)} < 20"
+
+            # 所有卡都应在磁盘上可读回（未被覆盖）
+            for card in cards:
+                fetched = bus.get(card.id)
+                assert fetched is not None, f"交接卡 {card.id} 不存在（可能被覆盖）"
+                assert fetched.intent == card.intent
+
+    def test_metrics_get_summary_returns_copies(self):
+        """P2 回归：get_summary 返回内部 dict 的拷贝而非活引用。
+
+        评审发现 get_summary 锁内返回 unit_hits/role_hits 活引用，
+        锁释放后外部 json.dumps 期间若另一线程修改可能触发 RuntimeError。
+        """
+        from hanghang.engine.metrics import MetricsCollector
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            m = MetricsCollector(data_file=os.path.join(tmpdir, "m.json"))
+            m.record_route(mode="direct", unit_id="unit-a", roles=["role-1"])
+            m.record_route(mode="composite", unit_id="unit-b", roles=["role-2"])
+
+            summary1 = m.get_summary()
+            # 保存引用
+            unit_hits_ref = summary1["unit_hits"]
+            role_hits_ref = summary1["role_hits"]
+
+            # 修改内部 metrics（模拟并发 POST）
+            m.record_route(mode="direct", unit_id="unit-c", roles=["role-3"])
+
+            # 已取得的摘要引用不应受到影响（不是活引用）
+            assert "unit-c" not in unit_hits_ref,                 "get_summary 返回了活引用：后续修改污染了已取出的数据"
+            assert "role-3" not in role_hits_ref
+
+            # 新取摘要应包含全部更新
+            summary2 = m.get_summary()
+            assert "unit-c" in summary2["unit_hits"]
+            assert "role-3" in summary2["role_hits"]
+
 
 def run_tests():
     t = TestWebAPI()

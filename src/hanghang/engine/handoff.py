@@ -39,7 +39,8 @@ class HandoffBus:
         交接卡获得唯一会话ID，供下游秘书状态管理使用。
         """
         with self._lock:
-            card_id = f"{source_unit}-{target_unit}-{int(time.time())}"
+            # 用纳秒时间戳 + 自增序号保证同秒同源唯一（秒级时间戳碰撞会覆盖丢卡）
+            card_id = f"{source_unit}-{target_unit}-{time.time_ns()}"
             state_card_id = None
 
             # M9 集成：自动创建关联 StateCard
@@ -122,7 +123,7 @@ class HandoffBus:
 
     def _save(self, card: HandoffCard):
         if not card.id:
-            card.id = f"{card.source_unit}-{card.target_unit}-{int(time.time())}"
+            card.id = f"{card.source_unit}-{card.target_unit}-{time.time_ns()}"
         path = os.path.join(self.data_dir, f"{card.id}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({
