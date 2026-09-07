@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from typing import Dict, List, Optional
 
 from .models import IndustryUnit
@@ -106,5 +107,24 @@ class PrefixArchive:
             existing = None
         if existing == payload:
             return  # 无漂移，无需重写
-        with open(self.archive_file, "w", encoding="utf-8") as f:
-            f.write(payload)
+
+        # 原子落盘：同目录临时文件 + os.replace 原子替换。
+        # 临时文件与被替换文件同目录 → 同文件系统内 rename 是原子的，
+        # 读方永远只看到"完整旧内容"或"完整新内容"，消除并发写导致的
+        # 半写/截断/丢失更新中间态被读到的问题。
+        dirname = os.path.dirname(self.archive_file) or "."
+        fd, tmp_path = tempfile.mkstemp(
+            prefix=".prefix-archive-", suffix=".tmp", dir=dirname)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno())  # 确保数据真正落盘后再替换
+            os.replace(tmp_path, self.archive_file)
+        except BaseException:
+            # 任一环节失败：清理临时文件，目标文件保持原状，异常向上抛出
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
