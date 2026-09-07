@@ -123,8 +123,16 @@ else{
     if(!hit){
       // 基建/工具/CI 配置文件变更：若无对应测试则视为“非业务变更”，不兜底全量
       const isTool = CA_TOOL.some(p=> f.startsWith(p) || f===p || f.includes('/'+p));
-      const isCfgTop = /^\.?[\w.-]+\.(yml|yaml|json|toml|ini|cfg|lock)$/.test(f.split('/').pop());
-      if(!(isTool || isCfgTop)){ for(const tf of testFiles) selected.add(tf); }
+      const base=f.split('/').pop();
+      const isDotCfg = /^\.[\w.-]+$/.test(base)
+            || /\.(yml|yaml|json|toml|ini|cfg|lock|md|markdown)$/.test(base)
+            || /^(Makefile|Dockerfile|justfile|Procfile)$/.test(base);
+      const isCfgTop = isDotCfg;
+      const inSrcRoot = SRC_ROOTS.some(p=> f===p || f.startsWith(p));
+      const looksSrc = /\.(py|js|mjs|cjs|ts|tsx|jsx|go|rs|java|c|cpp|h|hpp|cs|rb|php)$/.test(base)
+            || base.indexOf('.')<0;
+      if(!(isTool || isCfgTop) && (inSrcRoot || (looksSrc && !isTool))){ for(const tf of testFiles) selected.add(tf); }
+
     }
   }
 }
