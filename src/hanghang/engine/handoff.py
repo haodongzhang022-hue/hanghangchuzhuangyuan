@@ -1,6 +1,7 @@
 """M5 跨单元交接总线"""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import threading
@@ -15,6 +16,9 @@ class HandoffBus:
     M5 跨单元交接总线：
     管理跨行业/跨岗位交接卡的生命周期。
     交接卡采用 JSON 格式存储，便于后续扩展为异步消息。
+
+    M9 集成：创建交接卡时若指定 auto_state_card=True，
+    自动为交接创建/关联一张 StateCard（M9 状态卡）。
     """
 
     def __init__(self, data_dir: Optional[str] = None):
@@ -27,16 +31,59 @@ class HandoffBus:
         self._lock = threading.RLock()
 
     def create_handoff(self, source_unit: str, target_unit: str,
-                       intent: str, context: str = "") -> HandoffCard:
-        """创建一张交接卡（线程安全）"""
+                       intent: str, context: str = "",
+                       auto_state_card: bool = False) -> HandoffCard:
+        """创建一张交接卡（线程安全）。
+
+        auto_state_card=True 时自动创建关联的 M9 StateCard，
+        交接卡获得唯一会话ID，供下游秘书状态管理使用。
+        """
         with self._lock:
             card_id = f"{source_unit}-{target_unit}-{int(time.time())}"
+            state_card_id = None
+
+            # M9 集成：自动创建关联 StateCard
+            if auto_state_card:
+                try:
+                    from ..state.manager import StateManager
+                    sm = StateManager()
+                    # 会话ID = 交接卡意图的简单哈希，保证稳定可检索
+                    hash_hex = hashlib.md5(
+                        f"{source_unit}-{target_unit}-{intent}".encode()
+                    ).hexdigest()[:12]
+                    state_card_id = f"ho-{source_unit[:8]}-{target_unit[:8]}-{hash_hex}"
+                    # 获取或创建 StateCard（同一稳定会话复用时沿用既有卡）
+                    sm.get_or_create(
+                        session_id=state_card_id,
+                        objective=intent,
+                        unit_id=target_unit,
+                        role_name="secretary",
+                    )
+                    # 向 StateCard 添加交接任务，但同一 StateCard 已存在同名任务时不重复堆积
+                    task_title = f"交接: {source_unit} -> {target_unit}"
+                    card_state = sm.get_card(state_card_id)
+                    exists = any(
+                        t.title == task_title for t in card_state.tasks
+                    ) if card_state else False
+                    if not exists:
+                        sm.add_task(
+                            session_id=state_card_id,
+                            title=task_title,
+                            objective=intent,
+                            task_type="deliverable",
+                            summary=context,
+                        )
+                except Exception:
+                    # StateCard 创建失败不阻断交接卡本身
+                    state_card_id = None
+
             card = HandoffCard(
                 id=card_id,
                 source_unit=source_unit,
                 target_unit=target_unit,
                 intent=intent,
                 context=context,
+                state_card_id=state_card_id,
                 created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
             )
             self._save(card)
@@ -85,5 +132,6 @@ class HandoffBus:
                 "intent": card.intent,
                 "context": card.context,
                 "status": card.status,
+                "state_card_id": card.state_card_id,
                 "created_at": card.created_at,
             }, f, ensure_ascii=False, indent=2)

@@ -16,6 +16,9 @@ from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
     cmd_state_submit, cmd_state_list,
+    cmd_tree_init, cmd_tree_register, cmd_tree_link,
+    cmd_tree_show, cmd_tree_rollup,
+    cmd_tree_submit_chain, cmd_tree_list,
 )
 
 def cmd_route(args):
@@ -312,6 +315,50 @@ def build_parser():
     sl = state_sub.add_parser("list", help="列出所有 StateCard")
     sl.set_defaults(func=cmd_state_list)
 
+    # ---- M9 秘书长多级树子命令 ----
+    stree = sub.add_parser("tree", help="M9 秘书长多级树：树拓扑管理/汇总/导航")
+    tree_sub = stree.add_subparsers(dest="tree_cmd")
+
+    ti = tree_sub.add_parser("init", help="初始化一棵秘书树")
+    ti.add_argument("--name", default="default", help="树名称")
+    ti.add_argument("--root", default="", help="根节点会话ID（默认用树名）")
+    ti.add_argument("--role", default="secretary", help="根角色")
+    ti.add_argument("--display", default="", help="根显示名")
+    ti.add_argument("--objective", default="", help="根目标")
+    ti.set_defaults(func=cmd_tree_init)
+
+    tr = tree_sub.add_parser("register", help="注册一个节点到树")
+    tr.add_argument("--name", default="default", help="树名称")
+    tr.add_argument("--session", required=True, help="节点会话ID")
+    tr.add_argument("--role", default="secretary", help="节点角色")
+    tr.add_argument("--display", default="", help="节点显示名")
+    tr.add_argument("--objective", default="", help="节点目标")
+    tr.add_argument("--parent", default="", help="父节点会话ID")
+    tr.set_defaults(func=cmd_tree_register)
+
+    tl = tree_sub.add_parser("link", help="建立父子关系")
+    tl.add_argument("--name", default="default", help="树名称")
+    tl.add_argument("--parent", required=True, help="父节点会话ID")
+    tl.add_argument("--child", required=True, help="子节点会话ID")
+    tl.set_defaults(func=cmd_tree_link)
+
+    ts = tree_sub.add_parser("show", help="渲染树导航视图")
+    ts.add_argument("--name", default="default", help="树名称")
+    ts.set_defaults(func=cmd_tree_show)
+
+    trp = tree_sub.add_parser("rollup", help="整棵树逐级汇总")
+    trp.add_argument("--name", default="default", help="树名称")
+    trp.set_defaults(func=cmd_tree_rollup)
+
+    tsc = tree_sub.add_parser("submit-chain", help="沿路径逐级向上提交")
+    tsc.add_argument("--name", default="default", help="树名称")
+    tsc.add_argument("--session", required=True, help="起始会话ID")
+    tsc.set_defaults(func=cmd_tree_submit_chain)
+
+    tlst = tree_sub.add_parser("list", help="列出所有节点")
+    tlst.add_argument("--name", default="default", help="树名称")
+    tlst.set_defaults(func=cmd_tree_list)
+
 
     return p
 
@@ -326,6 +373,10 @@ def main():
     if args.command == "state" and not getattr(args, "state_cmd", None):
         print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list")
         print("示例: python3 src/hanghang/cli/main.py state init --session demo")
+        sys.exit(1)
+    if args.command == "tree" and not getattr(args, "tree_cmd", None):
+        print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")
+        print("示例: python3 src/hanghang/cli/main.py tree init --name project")
         sys.exit(1)
     args.func(args)
 
