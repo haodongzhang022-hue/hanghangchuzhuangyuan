@@ -33,6 +33,8 @@ class CoverageTracker:
         self.data_dir = data_dir or self._find_data_dir()
         self.target_path = os.path.join(self.data_dir, "coverage-target.yaml")
         self.targets: List[dict] = []
+        self.version: str = "0.1"
+        self.updated_at: str = ""
         self._load_targets()
 
     # ------------------------------------------------------------------ load
@@ -47,13 +49,21 @@ class CoverageTracker:
         return os.path.abspath(cands[0])
 
     def _load_targets(self) -> None:
-        """读取目标全集清单 coverage-target.yaml。"""
+        """读取目标全集清单 coverage-target.yaml（一次性读盘并缓存元数据）。
+
+        文件缺失时优雅降级：targets 置空、元数据保持默认值，供 compute() 稳定
+        返回空覆盖(total=0/coverage=0)，与构造函数降级语义一致，避免后续抛
+        FileNotFoundError。
+        """
         if not os.path.exists(self.target_path):
             logging.warning(f"缺少目标全集清单: {self.target_path}")
             return
         with open(self.target_path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         self.targets = data.get("targets", [])
+        # 元数据缓存为实例属性，compute()/render_text() 直接复用，避免重复读盘
+        self.version = data.get("version", "0.1") or "0.1"
+        self.updated_at = data.get("updated_at", "") or ""
 
     # ------------------------------------------------------------- mapping
     def _registered_map(self) -> Dict[str, dict]:
@@ -128,8 +138,8 @@ class CoverageTracker:
         covered_industry_out = covered_industry
         pending = total - covered_industry_out
         return {
-            "version": self._meta("version", "0.1"),
-            "updated_at": self._meta("updated_at", ""),
+            "version": self.version,
+            "updated_at": self.updated_at,
             "total_industries": total,
             "covered_industries": covered_industry_out,
             "pending_industries": pending,
@@ -141,11 +151,6 @@ class CoverageTracker:
             "by_category": by_category,
             "rows": rows,
         }
-
-    def _meta(self, key: str, default: str = "") -> str:
-        with open(self.target_path, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
-        return data.get(key, default) or default
 
     # ------------------------------------------------------------ render
     def render_text(self) -> str:

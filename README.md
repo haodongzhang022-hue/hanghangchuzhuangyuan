@@ -263,7 +263,7 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
-- `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
+- `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）

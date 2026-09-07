@@ -2,7 +2,7 @@
 
 验证：
 1. coverage-target 目标全集清单可被正确加载与解析。
-2. 已注册 11 行业自动判为已覆盖(行业覆盖率>0)，行业覆盖率与岗位覆盖率能正常计算。
+2. 已注册 14 行业自动判为已覆盖(行业覆盖率>0)，行业覆盖率与岗位覆盖率能正常计算。
 3. pending 行业未被误判为已覆盖，且能列出缺口(gaps)。
 4. 数据驱动：新增/覆盖行业计数口径自洽(行业覆盖=已注册目标行业，岗位覆盖>=当前注册岗位)。
 """
@@ -28,7 +28,7 @@ def test_covered_industries_positive_and_consistent():
     t = CoverageTracker()
     reg = Registry()
     s = t.compute()
-    # 已覆盖行业数>0 且与注册单元数一致(11个均已纳入目标全集)
+    # 已覆盖行业数>0 且与注册单元数一致(14个均已纳入目标全集)
     assert s["covered_industries"] >= 1
     assert s["industry_coverage"] > 0
     # 全覆盖率不可能为100%(存在 pending 缺口)
