@@ -133,6 +133,14 @@ python3 src/hanghang/cli/main.py arb review --ticket ARB-xxx --decision keep_a -
 #       检测到冲突时走 M9+ 版本化仲裁：保存双方版本 → 字段级差异分析，
 #       非重叠自动合并、重叠则生成 ReviewTicket 待 arb review 审核。
 
+# M10 上下文装配（context: 三层隔离装配 / 规则表 / 缓存隔离校验）
+# 说明：M10 防提示词冗余——静态层(缓存键) / 会话态层 / 按规则注入层，三层物理隔离。
+python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjiagoushi --role developer --text "修改代码实现测试" --objective "装配演示"   # SLIB 会话级三层装配(前缀自动取)
+python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjiagoushi --static-prefix "[自定义]"   # 也可显式传静态前缀
+python3 src/hanghang/cli/main.py context rules --list                                        # 列出规则表(从 data/context-rules.yaml 动态加载)
+python3 src/hanghang/cli/main.py context rules --match "帮我修改代码实现测试"                  # 命中测试：返回需装配哪些上下文
+python3 src/hanghang/cli/main.py context validate --layer-a "[架构] | session_context_static=true" --session demo   # 缓存隔离校验(层A是否被动态内容污染)
+
 # M9 POC 量化验证（状态管理 vs 全量历史对比）
 python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
