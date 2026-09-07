@@ -395,20 +395,6 @@ def test_review_stale_guard_no_sm():
             assert raised, "无 StateManager 时 _guard_stale_review 也应检测到版本过期"
         finally:
             os.chdir(orig_cwd)
-if __name__ == "__main__":
-    test_diff_state_task_added()
-    test_diff_state_field_change()
-    test_diffs_overlap_detected()
-    test_diffs_no_overlap_non_conflicting()
-    test_auto_merge_non_overlapping()
-    test_review_ticket_pending_on_overlap()
-    test_review_keep_a()
-    test_review_keep_b()
-    test_list_pending_tickets()
-    test_ownership_guard_arbitrate_integration()
-    print("✅ 版本化冲突仲裁与审核测试全部通过")
-
-
 def _remove_task(card, task_id):
     """构造性工具：从 StateCard 上移除指定任务（供构造 B 删除任务场景）"""
     card.tasks = [t for t in card.tasks if t.task_id != task_id]
@@ -613,6 +599,52 @@ def test_review_merge_rejected_on_overlap():
         assert after.status == "pending"
         assert after.resolution == ""
 
+
+def test_no_capture_base_ticket_blocks_auto_merge():
+    """Bug修复: 无 capture_base 生成的票据必须禁止 auto_merge，
+    防止 base==A 时无法检测重叠导致静默丢数据"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+        mgr.create_card("sess-nocap", objective="无base仲裁")
+        mgr.add_task("sess-nocap", "Task 1", task_type="normal")
+        base = mgr.get_card("sess-nocap")
+        base.version = 0
+        mgr.save_card(base)
+
+        # Agent A commits first
+        guard_a = OwnershipGuard("sess-nocap", mgr, secretary="agent_a")
+        guard_a.claim()
+        guard_a.guarded_update_task_state("sess-nocap-0001", "done",
+                                          base_version=guard_a.version())
+        guard_a.release()
+
+        # Agent B attempts without capture_base → should get blocked ticket
+        guard_b = OwnershipGuard("sess-nocap", mgr, secretary="agent_b")
+        proposed = guard_b.build_proposed(
+            lambda c: c.update_task("sess-nocap-0001", state="blocked")
+        )
+        arb_dir = os.path.join(tmpdir, "arbitration")
+        ticket = guard_b.arbitrate_conflict(
+            base_version=0,
+            proposed_card=proposed,
+            reason="agent_b 无 base 快照的冲突",
+            data_dir=arb_dir,
+        )
+
+        # No capture_base → auto_merge_blocked=True → is_auto_mergeable=False
+        assert hasattr(ticket, 'id')
+        assert ticket.is_auto_mergeable == False,             "无 capture_base 的票据应禁止自动合并"
+        assert ticket.auto_merge_blocked == True
+
+        # 审核时执行 merge → 应被拒绝
+        arbiter = ConflictArbiter(data_dir=arb_dir, state_manager=mgr)
+        raised = False
+        try:
+            arbiter.review(ticket.id, "merge", resolver="reviewer-x")
+        except ValueError as e:
+            raised = True
+            assert "无法自动合并" in str(e) or "重叠" in str(e) or "自动合并" in str(e), str(e)
+        assert raised, "无 base 票据 review(merge) 应抛 ValueError 拒绝"
 if __name__ == "__main__":
     test_diff_state_task_added()
     test_diff_state_field_change()
@@ -632,4 +664,5 @@ if __name__ == "__main__":
     test_arbiter_session_id_path_traversal_guard()
     test_arbiter_ticket_id_path_traversal_guard()
     test_review_stale_guard_no_sm()
+    test_no_capture_base_ticket_blocks_auto_merge()
     print("✅ 版本化冲突仲裁与审核测试全部通过")

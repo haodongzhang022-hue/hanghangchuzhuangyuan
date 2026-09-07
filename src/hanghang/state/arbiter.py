@@ -268,6 +268,7 @@ class ReviewTicket:
     resolution_note: str = ""             # 处理详情
     created_at: str = ""
     updated_at: str = ""
+    auto_merge_blocked: bool = False      # True=禁止自动合并(无base无法精确分析时)
     id: Optional[str] = None
 
     def __post_init__(self):
@@ -291,8 +292,8 @@ class ReviewTicket:
 
     @property
     def is_auto_mergeable(self) -> bool:
-        """是否可自动合并（无重叠项）"""
-        return len(self.overlaps) == 0
+        """是否可自动合并（无重叠项且未被显式阻止）"""
+        return len(self.overlaps) == 0 and not self.auto_merge_blocked
 
     def to_dict(self) -> dict:
         return {
@@ -313,6 +314,7 @@ class ReviewTicket:
             "resolution_note": self.resolution_note,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "auto_merge_blocked": self.auto_merge_blocked,
             "is_auto_mergeable": self.is_auto_mergeable,
         }
 
@@ -335,6 +337,7 @@ class ReviewTicket:
             resolution_note=data.get("resolution_note", ""),
             created_at=data.get("created_at", ""),
             updated_at=data.get("updated_at", ""),
+            auto_merge_blocked=data.get("auto_merge_blocked", False),
             id=data.get("id"),
         )
 

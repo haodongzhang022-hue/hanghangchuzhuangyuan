@@ -395,6 +395,7 @@ class OwnershipGuard:
                 "无法确定是否与对方修改重叠，待人工/AI审核。"
             ),
             status="pending",
+            auto_merge_blocked=True,  # 无 base 无法精确判断重叠 → 禁止 merge 自动合并
         )
         arbiter._save_ticket(ticket)
         return ticket
