@@ -1,7 +1,7 @@
 # <行业名> · Agent 使用说明
 
-> 行业说明用于对接上层路由 Agent / 行业 Agent。复制本模板到 `docs/industries/<unit_id>/` 并填写。
-> 状态：`🟡 placeholder`（占位待补）
+> 行业说明用于对接上层路由 Agent / 行业 Agent。复制本模板到 `docs/industry/units/<unit_id>/` 并填写。
+> 状态：`🟡 placeholder`（已建目录占位，内容待补）
 
 ## 一、行业定位
 
