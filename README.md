@@ -187,12 +187,26 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 
 **推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
 ```bash
-bash scripts/change-aware-test.sh            # 自动按 git 变更选测试
-bash scripts/change-aware-test.sh --dry-run  # 只看会跑哪些，不执行
-bash scripts/change-aware-test.sh --all      # 强制全量
+bash scripts/change-aware-test.sh                # 自动按 git 变更选测试
+bash scripts/change-aware-test.sh --dry-run      # 只看会跑哪些，不执行
+bash scripts/change-aware-test.sh --all          # 强制全量（main 合并门禁/发布兜底）
+bash scripts/change-aware-test.sh --no-cache     # 忽略结果缓存，强制重跑本次选中用例
+bash scripts/change-aware-test.sh --purge-cache  # 清空结果缓存
 ```
 
-**全量回归**（main 合并门禁 / 发布前兜底）：
+> **防重复全量（v3 机制）**：`change-aware-test.sh` 内置**测试结果哈希缓存**——
+> 每个测试文件的覆盖指纹 = hash(测试文件 + 其 import 的 hanghang 源码)。
+> 只要覆盖的源码与测试都未变化且上次已 PASS，即命中缓存跳过，不再重复全跑；
+> 源码/测试任一变化指纹即变、必然重跑，不会漏测。缓存目录默认 `.testcache`，
+> 流水线中通过 `HH_TEST_CACHE_DIR` + `cache:` 卷持久化，跨 review 信号灯与合并门禁复用。
+
+**测试覆盖与冗余审计**（校准：哪些源码缺鉴定、哪些用例高度重复）：
+```bash
+python3 scripts/audit-tests.py        # 全仓覆盖矩阵 + 冗余/缺口报告
+python3 scripts/audit-tests.py --by-file
+```
+
+**全量回归**（main 合并门禁 / 发布前兜底，绕过缓存全跑）：
 ```bash
 python3 scripts/run_all_tests.py
 ```

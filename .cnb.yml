@@ -33,6 +33,10 @@ $:
         cpus: 2
       docker:
         image: python:3.11
+        volumes:
+          - cache:/root/.cnb-testcache:rw   # 变更感知结果缓存（跨 job/流水线复用，防重复全量）
+      env:
+        HH_TEST_CACHE_DIR: /root/.cnb-testcache
       stages:
         - name: 测试信号灯（变更感知 + CLI 冒烟）
           script: |
@@ -88,6 +92,10 @@ $:
         cpus: 2
       docker:
         image: python:3.11
+        volumes:
+          - cache:/root/.cnb-testcache:rw   # 与 review-fix-loop 共享同一结果缓存，避免重复全量
+      env:
+        HH_TEST_CACHE_DIR: /root/.cnb-testcache
       stages:
         - name: 测试再次确认（变更感知）
           script: |
