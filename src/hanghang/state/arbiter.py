@@ -685,10 +685,23 @@ class ConflictArbiter:
 
         若当前实时状态版本高于票据内快照版本（冲突后又有提交），直接以旧快照
         覆写会回退版本号并静默丢弃中间变更 → 抛错提示重新捕获冲突，不静默落盘。
+
+        无论是否注入了 StateManager，均尝试从磁盘读取当前最新状态进行比对。
         """
-        if not self.sm:
-            return
-        live = self.sm.get_card(ticket.session_id)
+        # 优先从 StateManager 读取；无 StateManager 时直接从磁盘读
+        live = None
+        if self.sm:
+            live = self.sm.get_card(ticket.session_id)
+        else:
+            data_dir = os.path.join(os.getcwd(), "data", "state")
+            path = os.path.join(data_dir, f"{ticket.session_id}.json")
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        live = StateCard.from_dict(json.load(f))
+                except Exception:
+                    pass
+
         if live is None:
             return
         ticket_top = max(int(ticket.version_a or 0),

@@ -210,7 +210,8 @@ def cmd_arb_show(args):
 def cmd_arb_review(args):
     """执行审核决策: keep_a / keep_b / merge / reject"""
     from hanghang.engine import ConflictArbiter
-    arbiter = ConflictArbiter()
+    mgr = StateManager()
+    arbiter = ConflictArbiter(state_manager=mgr)
     try:
         ticket = arbiter.review(
             ticket_id=args.ticket,

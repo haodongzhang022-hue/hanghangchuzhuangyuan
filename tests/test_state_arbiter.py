@@ -9,6 +9,7 @@
 - 票据持久化与查询
 - 与 OwnershipGuard 集成（arbitrate_conflict 流程）
 """
+import json
 import os
 import sys
 import tempfile
@@ -356,6 +357,44 @@ def test_arbiter_ticket_id_path_traversal_guard():
         path = arb._ticket_path("ARB-session_1-1234567890")
         assert "ARB-session_1-1234567890" in os.path.basename(path)
 
+
+def test_review_stale_guard_no_sm():
+    """版本回退防护: 即使无 StateManager 注入，也能从磁盘检测到陈旧票据"""
+    import tempfile as _tf
+    from hanghang.state.arbiter import ConflictArbiter, ReviewTicket as _RT
+
+    with _tf.TemporaryDirectory() as tmpdir:
+        # 将当前工作目录切到 tmpdir 以使用 cwd/data/state 回退路径
+        orig_cwd = os.getcwd()
+        os.chdir(tmpdir)
+        try:
+            # 在 cwd/data/state 下创建一张 version=5 的 state 文件
+            os.makedirs(os.path.join("data", "state"), exist_ok=True)
+            with open(os.path.join("data", "state", "stale-no-sm.json"), "w") as f:
+                json.dump({
+                    "session_id": "stale-no-sm", "version": 5,
+                    "tasks": [], "owner": None,
+                }, f)
+
+            # 构造一张 version_a=1 的票据
+            ticket = _RT(
+                session_id="stale-no-sm",
+                version_a=1, version_b=1,
+                card_a={"session_id": "stale-no-sm", "version": 1, "tasks": []},
+                card_b={"session_id": "stale-no-sm", "version": 1, "tasks": []},
+                base_card={"session_id": "stale-no-sm", "version": 0, "tasks": []},
+            )
+
+            arb = ConflictArbiter(data_dir=os.path.join(tmpdir, "arb"))
+            # 无 StateManager → 从磁盘读取到 v5，应抛 ValueError
+            raised = False
+            try:
+                arb._guard_stale_review(ticket)
+            except ValueError:
+                raised = True
+            assert raised, "无 StateManager 时 _guard_stale_review 也应检测到版本过期"
+        finally:
+            os.chdir(orig_cwd)
 if __name__ == "__main__":
     test_diff_state_task_added()
     test_diff_state_field_change()
@@ -592,4 +631,5 @@ if __name__ == "__main__":
     test_review_merge_rejected_on_overlap()
     test_arbiter_session_id_path_traversal_guard()
     test_arbiter_ticket_id_path_traversal_guard()
+    test_review_stale_guard_no_sm()
     print("✅ 版本化冲突仲裁与审核测试全部通过")

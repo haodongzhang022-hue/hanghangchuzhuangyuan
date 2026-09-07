@@ -99,6 +99,11 @@ if ticket.status == "pending":
 
 ### OwnershipGuard 集成
 
+> ⚠️ **注意**：`arbitrate_conflict()` 为手动 opt-in 公共 API。版本冲突捕获
+> 需要调用方在捕获到 `StateConflict` 时显式调用 `arbitrate_conflict()` 进入
+> 仲裁流程。该 API 不会自动接入 guarded 写路径，调用方须自行负责在冲突处
+> 转接仲裁入口。
+
 ```python
 from hanghang.engine import OwnershipGuard
 
