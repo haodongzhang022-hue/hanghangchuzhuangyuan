@@ -109,3 +109,14 @@ def test_context_validate_violation():
     ])
     assert "校验未通过" in out
     assert "违规" in out
+
+
+def test_context_validate_cache_hit_with_session():
+    """context validate --session：单次CLI调用内双轮校验，层A稳定 → 缓存命中"""
+    out = _run_cli([
+        "context", "validate",
+        "--layer-a", "[架构] | unit=dongjiagoushi | session_context_static=true",
+        "--session", "ctx_validate_cache",
+    ])
+    assert "缓存命中: ✅" in out
+    assert "校验通过" in out

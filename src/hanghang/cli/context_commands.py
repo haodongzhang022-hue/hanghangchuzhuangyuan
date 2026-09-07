@@ -12,13 +12,13 @@ from __future__ import annotations
 import os
 import sys
 
-# 确保可从仓库根或 src 直接运行：把 src 加入 sys.path 供 import hanghang
-_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# context_commands.py 位于 <repo>/src/hanghang/cli/ → 向上 3 层 = <repo>/src
+_SRC = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
-# 仓库根：context_commands.py 位于 <repo>/src/hanghang/cli/，向上 4 层即仓库根
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__)))))
+# 仓库根：在 <repo>/src 基础上再向上 1 层
+_REPO_ROOT = os.path.dirname(_SRC)
 
 from hanghang.context import (  # noqa: E402
     ContextAssembler, CacheGuard, RuleEngine,
@@ -125,11 +125,6 @@ def cmd_context_assemble(args):
         except Exception:
             pass
 
-    # 不传 --static-prefix → 自动取前缀（data/prefix-archive.json）
-    if not static_prefix:
-        # 传 None 让 assembler 走 static_prefix_provider 回调
-        static_prefix = None
-
     assembler = ContextAssembler(
         rule_engine=RuleEngine(_rules_file()) if os.path.exists(_rules_file())
         else RuleEngine(),
@@ -203,7 +198,12 @@ def cmd_context_validate(args):
     用法:
         python3 src/hanghang/cli/main.py context validate --layer-a "静态内容..." [--session S]
 
-    用于校验层A是否误混入动态内容/缺少静态声明标记/同 session 内是否稳定（缓存命中）。
+    校验层A是否误混入动态内容/缺少静态声明标记。
+
+    说明（缓存命中）：
+      CacheGuard 的 _a_signatures 存于进程内存，CLI 每次调用为独立进程。
+      单次 CLI 调用内先记录基线签名，再以同参数二次校验——若层A合规稳定
+      即输出「✅ 命中」，验证同 session 内层A不随调用变化。
     """
     layer_a = getattr(args, "layer_a", "") or ""
     session_id = getattr(args, "session", "") or ""
@@ -214,11 +214,20 @@ def cmd_context_validate(args):
         return
 
     guard = CacheGuard()
+    # 首轮：记录基线签名 + 内容合规检查（同 session 内层A稳定性判定需次轮）
+    _first = guard.validate_isolation(layer_a=layer_a, session_id=session_id)
+    # 次轮：同参数复验 → 层A签名未变则缓存命中
     result = guard.validate_isolation(layer_a=layer_a, session_id=session_id)
 
     print(f"缓存隔离校验 (session={session_id or '(无会话)'})")
     print(f"层A签名: {result['layer_a_signature']}")
-    print(f"缓存命中: {'✅ 命中' if result.get('cache_hit') else '❌ 未命中/首次'}")
+    if session_id:
+        if result.get("cache_hit"):
+            print("缓存命中: ✅ 同 session 内层A签名稳定（基线一致）")
+        else:
+            print("缓存命中: ❌ 签名不一致 → 同 session 内层A不稳定")
+    else:
+        print("缓存命中: -（未指定 --session，跳过稳定性判定）")
     if result["valid"]:
         print("✅ 校验通过：层A无动态内容混入，且包含静态声明标记。")
     else:

@@ -139,7 +139,7 @@ python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjia
 python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjiagoushi --static-prefix "[自定义]"   # 也可显式传静态前缀
 python3 src/hanghang/cli/main.py context rules --list                                        # 列出规则表(从 data/context-rules.yaml 动态加载)
 python3 src/hanghang/cli/main.py context rules --match "帮我修改代码实现测试"                  # 命中测试：返回需装配哪些上下文
-python3 src/hanghang/cli/main.py context validate --layer-a "[架构] | session_context_static=true" --session demo   # 缓存隔离校验(层A是否被动态内容污染)
+python3 src/hanghang/cli/main.py context validate --layer-a "[架构] | session_context_static=true" --session demo   # 缓存隔离校验(层A内容合规 + 同session签名稳定)
 
 # M9 POC 量化验证（状态管理 vs 全量历史对比）
 python3 poc/state_m9_benchmark.py --steps 50 --verbose

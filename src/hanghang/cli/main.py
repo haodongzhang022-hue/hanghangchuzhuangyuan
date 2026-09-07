@@ -582,7 +582,7 @@ def build_parser():
 
     cv = ctx_sub.add_parser("validate", help="缓存隔离校验（CacheGuard.validate_isolation）")
     cv.add_argument("--layer-a", default="", help="待校验的静态层(层A)文本")
-    cv.add_argument("--session", default="", help="会话ID（同 session 内层A应稳定→缓存命中）")
+    cv.add_argument("--session", default="", help="会话ID（同 session 内层A签名稳定→缓存命中，单次进程内自动双轮校验）")
     cv.set_defaults(func=cmd_context_validate)
 
     return p
