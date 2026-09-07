@@ -230,10 +230,18 @@ class FoldEngine:
                     })
         return results
 
-    def search_all_states(self, keyword: str) -> List[dict]:
-        """在所有 StateCard 中搜索任务内容（M8 集成便捷入口）"""
+    def search_all_states(self, keyword: str, data_dir: Optional[str] = None) -> List[dict]:
+        """在所有 StateCard 中搜索任务内容（M8 集成便捷入口）。
+
+        参数:
+        - keyword: 搜索关键词
+        - data_dir: 可选的状态数据目录。缺省时使用当前工作目录下的
+          默认 data/state 目录（与 CLI state search 一致）。
+
+        返回: [{session_id, task_id, title, state, fold, field_hit}]
+        """
         from .manager import StateManager
-        sm = StateManager()
+        sm = StateManager(data_dir=data_dir)
         cards = sm.list_cards()
         return self.search_tasks(cards, keyword)
 

@@ -292,9 +292,10 @@ def test_fold_search_tasks():
         assert len(results2) >= 1
         assert any(r["session_id"] == "sess-search-2" for r in results2)
 
-        # 跨会话搜索所有状态卡
-        results3 = engine.search_all_states("游戏")
+        # 跨会话搜索所有状态卡（便捷入口，指向同一数据目录）
+        results3 = engine.search_all_states("游戏", data_dir=tmpdir)
         assert len(results3) >= 1
+        assert any(r["session_id"] == "sess-search-2" for r in results3)
 
 
 def test_handoff_completeness_and_standard():
