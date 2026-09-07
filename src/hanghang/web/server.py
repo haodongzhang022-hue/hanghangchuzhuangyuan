@@ -12,6 +12,7 @@
 - GET /api/metrics          — 运行指标（M7）
 - GET /api/handoffs         — 待处理交接卡（M5）
 - GET /api/prefixes         — 稳定前缀档案（M3）
+- GET /api/state            — M9 状态卡聚合（编排/交接任务进度，只读）
 - POST /api/route           — 意图路由调用（JSON body）
 
 运行方式:
@@ -83,6 +84,10 @@ def _init_engines():
         _engine_cache["prefixes"] = pa
         _engine_cache["metrics"] = MetricsCollector()
         _engine_cache["handoffs"] = HandoffBus()
+        # M9 状态管理器：读取 data/state 下的 StateCard（路由自动落卡 + 交接关联卡）。
+        # GET /api/state 仅做只读聚合，绝不在此路径写入。
+        from hanghang.state.manager import StateManager
+        _engine_cache["state"] = StateManager()
         _engine_cache["initialized"] = True
 
 
@@ -104,6 +109,11 @@ def _get_cached_metrics() -> MetricsCollector:
 def _get_cached_handoffs() -> HandoffBus:
     _init_engines()
     return _engine_cache["handoffs"]  # type: ignore
+
+
+def _get_cached_state() -> "StateManager":
+    _init_engines()
+    return _engine_cache["state"]  # type: ignore
 
 
 def _apply_cors(handler):
@@ -175,6 +185,10 @@ class HanghangHandler(BaseHTTPRequestHandler):
         """获取 M5 交接总线（模块级缓存实例，避免 GET 每次重建触发目录副作用）。"""
         return _get_cached_handoffs()
 
+    def _get_state(self) -> "StateManager":
+        """获取 M9 状态管理器（模块级缓存实例，指向 data/state，GET 只读）。"""
+        return _get_cached_state()
+
     # ---- 路由 ----
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -196,6 +210,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 self._api_handoffs()
             elif path == "/api/prefixes":
                 self._api_prefixes()
+            elif path == "/api/state":
+                self._api_state()
             elif path.startswith("/static/"):
                 self._serve_static(path)
             else:
@@ -416,6 +432,76 @@ class HanghangHandler(BaseHTTPRequestHandler):
         pa = self._get_prefixes()
         archive = pa.get_archive()  # 通过公开方法读取，不暴露私有字段
         _json_response(self, 200, {"units": len(archive), "archive": archive})
+
+    def _api_state(self):
+        """GET /api/state — M9 状态卡聚合（编排/交接任务进度，只读）。
+
+        只读聚合 data/state 下各 StateCard：
+          - 路由自动落卡（session 以 rt- 开头）与交接关联卡（ho- 开头）分桶统计；
+          - 汇总任务进度（done/in_progress/blocked/todo）；
+          - 供 L2 出口复核端可视化"编排/交接进度"，不做任何写盘。
+        """
+        sm = self._get_state()
+        cards = sm.list_cards()  # 只读：遍历磁盘 JSON 重建，无写盘副作用
+        cards.sort(key=lambda c: c.created_at or "", reverse=True)
+
+        stats = {"total_cards": 0, "total_tasks": 0,
+                 "done_tasks": 0, "in_progress_tasks": 0,
+                 "blocked_tasks": 0, "todo_tasks": 0,
+                 "route_cards": 0, "handoff_cards": 0, "other_cards": 0}
+
+        per_unit = {}
+        items = []
+        for c in cards:
+            sid = c.session_id or ""
+            if sid.startswith("rt-"):
+                kind = "route"
+                stats["route_cards"] += 1
+            elif sid.startswith("ho-"):
+                kind = "handoff"
+                stats["handoff_cards"] += 1
+            else:
+                kind = "other"
+                stats["other_cards"] += 1
+
+            summary = c.summarize_for_upstream()
+            item = {
+                "session_id": sid,
+                "kind": kind,
+                "unit_id": c.unit_id or "",
+                "role_name": c.role_name or "",
+                "objective": c.objective or "",
+                "created_at": c.created_at or "",
+                "updated_at": c.updated_at or "",
+                "task_count": summary.get("task_count", 0),
+                "done_count": summary.get("done_count", 0),
+                "in_progress_count": summary.get("in_progress_count", 0),
+                "blocked_count": summary.get("blocked_count", 0),
+                "todo_count": max(0, summary.get("task_count", 0)
+                                  - summary.get("done_count", 0)
+                                  - summary.get("in_progress_count", 0)
+                                  - summary.get("blocked_count", 0)),
+                "tasks": summary.get("tasks", []),
+            }
+            stats["total_cards"] += 1
+            stats["total_tasks"] += item["task_count"]
+            stats["done_tasks"] += item["done_count"]
+            stats["in_progress_tasks"] += item["in_progress_count"]
+            stats["blocked_tasks"] += item["blocked_count"]
+            stats["todo_tasks"] += item["todo_count"]
+
+            uid = item["unit_id"] or "未标注单元"
+            pu = per_unit.setdefault(uid, {"cards": 0, "tasks": 0, "done": 0})
+            pu["cards"] += 1
+            pu["tasks"] += item["task_count"]
+            pu["done"] += item["done_count"]
+            items.append(item)
+
+        _json_response(self, 200, {
+            "stats": stats,
+            "per_unit": [{"unit_id": u, **v} for u, v in per_unit.items()],
+            "cards": items,
+        })
 
     def _serve_index(self):
         """返回单页 HTML 控制台"""

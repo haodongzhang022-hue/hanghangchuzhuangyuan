@@ -844,6 +844,93 @@ class TestWebAPI:
             resp2.read()
         finally:
             conn2.close()
+
+    # ---- GET /api/state M9 状态卡聚合（编排/交接任务进度）----
+    def test_state_api_structure(self):
+        """GET /api/state 返回 stats/per_unit/cards 结构"""
+        code, data = self._get("/api/state")
+        assert code == 200
+        assert set(data.keys()) == {"stats", "per_unit", "cards"}
+        st = data["stats"]
+        for k in ("total_cards", "total_tasks", "done_tasks", "route_cards",
+                  "handoff_cards", "other_cards"):
+            assert k in st, f"stats 缺字段 {k}"
+        assert st["total_cards"] == len(data["cards"])
+        # cards 元素字段完整性
+        if data["cards"]:
+            c = data["cards"][0]
+            for k in ("session_id", "kind", "unit_id", "objective",
+                      "task_count", "tasks"):
+                assert k in c, f"card 缺字段 {k}"
+
+    def test_state_api_kind_classification(self):
+        """状态卡按 kind 分类：route(rt-)/handoff(ho-)/other"""
+        code, data = self._get("/api/state")
+        assert code == 200
+        kinds = {}
+        for c in data["cards"]:
+            kinds[c["session_id"].split("-")[0]] = c["kind"]
+        # rt- 开头 → route；ho- 开头 → handoff
+        for sid, kind in kinds.items():
+            if sid == "rt":
+                assert kind == "route"
+            elif sid == "ho":
+                assert kind == "handoff"
+        # 统计与卡片分类一致
+        st = data["stats"]
+        route_cnt = sum(1 for c in data["cards"] if c["kind"] == "route")
+        handoff_cnt = sum(1 for c in data["cards"] if c["kind"] == "handoff")
+        assert route_cnt == st["route_cards"]
+        assert handoff_cnt == st["handoff_cards"]
+
+    def test_state_api_post_creates_route_card(self):
+        """POST 路由落 StateCard 后 /api/state 能读到该卡（编排进度可追踪）。
+
+        StateCard 的 session_id 由意图文本稳定 hash 生成（同一意图复用同一卡），
+        因此用一次全新意图文本可保证生成一张此前未存在的新卡。断言基于 POST
+        返回的 state_card_id 是否出现在 /api/state。
+        """
+        import uuid
+        # 唯一 token 保证每次运行的意图文本全新 → StateCard 必为新建
+        text = f"既要架构设计方案又要编码实现（回归唯一{uuid.uuid4().hex[:8]}）"
+
+        # 1) POST 前该卡不应存在
+        code_before, before = self._get("/api/state")
+        assert code_before == 200
+        n_before = before["stats"]["total_cards"]
+
+        # 2) POST 复合路由落 StateCard
+        body = json.dumps({"text": text}).encode("utf-8")
+        req = urllib.request.Request(
+            self.base_url + "/api/route", data=body,
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            posted = json.loads(resp.read().decode("utf-8"))
+        card_id = posted.get("plan", {}).get("state_card_id")
+        assert card_id, "POST 复合路由应返回 state_card_id"
+
+        # 3) 该唯一意图的卡在 POST 前不应存在（未与历史残留卡冲突）
+        before_sids = {c["session_id"] for c in before["cards"]}
+        assert card_id not in before_sids, "全新意图的卡在 POST 前不应存在"
+
+        # 4) POST 后 /api/state 能读到该新编排卡，且落多岗位任务
+        _, after = self._get("/api/state")
+        sids = {c["session_id"] for c in after["cards"]}
+        assert card_id in sids, f"POST 后 /api/state 应能读到新编排卡 {card_id}"
+        target = next((c for c in after["cards"] if c["session_id"] == card_id), None)
+        assert target is not None
+        assert target["task_count"] >= 2, "复合意图应在状态卡中落多个岗位任务"
+
+    def test_state_api_get_is_read_only(self):
+        """GET /api/state 只读，不应新增卡片/不改写数据"""
+        code0, before = self._get("/api/state")
+        n0 = before["stats"]["total_cards"]
+        for _ in range(3):
+            _, _ = self._get("/api/state")
+        _, after = self._get("/api/state")
+        assert after["stats"]["total_cards"] == n0,             "GET /api/state 不应产生新的 StateCard"
+
 def run_tests():
     t = TestWebAPI()
     t.setup_class()

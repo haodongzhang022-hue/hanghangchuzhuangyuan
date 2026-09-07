@@ -154,6 +154,7 @@ register_version: "1.0"
 | R12 | M8 能力索引增强 | ✅ search_capability 多维检索(any/industry/capability/role) + capability_index 全量导出 + CLI `search --mode`/`index` |
 | R13 | Web API Server | ✅ src/hanghang/web/server.py 提供 REST API 全端点，聚合暴露 M1-M8 能力 |
 | R14 | Web 聚合可视化面板 | ✅ static/index.html 单页控制台（路由测试/行业单元/能力检索/指标/前缀/交接卡） |
+| R15 | M9 编排/交接进度可视化 | ✅ GET /api/state 只读聚合 + 面板任务进度页，落 RFC-ECO-01 阶段3 |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
