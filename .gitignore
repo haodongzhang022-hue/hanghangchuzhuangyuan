@@ -21,3 +21,5 @@ data/state/*.owner.json
 data/state/content/
 # 变更感知测试结果缓存（可放 cache: 卷持久化，不入库）
 .testcache/
+# 变更感知瞬时计划落盘（立即 rm；异常残留不入库）
+.ca-plan.json

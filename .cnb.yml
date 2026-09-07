@@ -47,6 +47,9 @@ $:
             # 变更感知选择器基于 PR diff 精确选取受影响测试，
             # 不盲目对每个 commit 全量跑 180+ 用例。
             # main 合并后的全量回归由 main.push 事件兜底，不会漏测。
+            # 变更感知内核自校验：工具自身改动也会被护栏兜底（评审 #26 🟡2）。
+            # ca-plan 属于"基建"，不会触发业务回归；故独立固定 fixture 校验其穿透逻辑不回退。
+            python3 scripts/ca-plan-selfcheck.py
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""

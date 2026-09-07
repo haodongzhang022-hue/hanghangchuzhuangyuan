@@ -186,6 +186,8 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 ### 运行测试
 
 **推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
+> 前置：先安装依赖 `pip install -r requirements.txt`（变更感知内核 `ca-plan.py` 依赖
+> `pyyaml`，CI 由 `.cnb.yml` 兜底安装；本地直跑前也需先装，否则会 `ModuleNotFoundError`）。
 ```bash
 bash scripts/change-aware-test.sh                # 自动按 git 变更选测试
 bash scripts/change-aware-test.sh --dry-run      # 只看会跑哪些，不执行
@@ -207,6 +209,11 @@ bash scripts/change-aware-test.sh --purge-cache  # 清空结果缓存
 > 3. **基建/CI 文件不误触发**：`scripts/`、`.cnb.yml`、锁文件等工具变更若无可对应测试
 >    则视为“非业务变更”，不会因脚本自身改动而强行全量回归。
 > 4. **纯文档变更自动跳过**；未知源码变更仍保守全量兜底，绝不全靠缓存漏测。
+> 5. **工具自身改动也自校验（防回退）**：`ca-plan.py` 依赖推断内核若失效会静默放行缺陷，
+>    故每次 CI 都会跑 `python3 scripts/ca-plan-selfcheck.py`——用固定 fixture 断言
+>    “改动 `engine/router.py` 等核心文件必须选中 `test_router` 等直测文件”。
+>    复制内核到他仓改 import 解析时，此护栏可即时暴露“漏选/回退”。
+>    （`.ca-plan.json` 为瞬时落盘文件，已加入 `.gitignore`，异常崩溃残留不入库。）
 >
 > 可选配置 `ca-test.conf`（或环境变量 `CA_*`）可覆盖源码根 / 测试 glob / 静态映射，
 > 为无 import 的 bash 脚本测试等提供兜底规则。缓存目录默认 `.testcache`，

@@ -125,68 +125,272 @@ def find_tests():
 
 
 # ---- 依赖引用解析 ----
-SRC_ROOTS = [s for s in SRC_GLOB.split() if s]
-_PY_IMPORT = re.compile(
-    r"(?:^\s*from\s+)([A-Za-z_][\w.]*)(?=\s+import|\s*$)"
-    r"|(?:^\s*import\s+)([A-Za-z_][\w.]+)",
+# 自动依赖推断：把测试文件的 import 精确解析为"真正会被改动"的源码文件。
+# 对形如 "from hanghang.engine import Registry" 的【包面引用】，穿透包 __init__.py
+# 的再导出，落到 Registry 实际定义所在的子模块（registry.py / router.py），
+# 从而改动引擎子模块时能选中直测它的测试（修复 v2 MAP 以来的测试安全性回退）。
+SRC_ROOTS = [s.rstrip("/") for s in SRC_GLOB.split() if s]
+_EXTS = [".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".jsx", ".tsx", ".json"]
+# 各语言包目录入口文件名（__init__.py / index.js ...）
+_PKG_INIT = {".py": "__init__", ".js": "index", ".mjs": "index",
+             ".cjs": "index", ".ts": "index", ".mts": "index",
+             ".jsx": "index", ".tsx": "index"}
+# 兼容旧命名的扩展清单（含空串）
+exts = list(_EXTS) + [""]
+
+# from hanghang.engine import A, B as C, ( D, E )   —— 跨行括号
+_IMPORT_FROM = re.compile(
+    r"^\s*from\s+((?:\.)*[A-Za-z_][\w.]*)\s+import\s+(.+?)(?=\n|$)",
+    re.MULTILINE | re.DOTALL,
+)
+# import hanghang.engine  /  import hanghang.engine as eng
+_IMPORT_BARE = re.compile(
+    r"^\s*import\s+([A-Za-z_][\w.]+)(?:\s+as\s+[\w_]+)?",
     re.MULTILINE,
 )
+# JS/node 点相对导入
 _ES_IMPORT = re.compile(
     r"""(?:from\s+['"])(\.[^'"]*)|(?:import\s*\(\s*['"])(\.[^'"]*)|(?:require\s*\(\s*['"])(\.[^'"]*)"""
 )
 
 
+def _split_import_names(raw):
+    """把 'A, B as C, (D,E)' 拆为纯名字列表（去别名/括号/注释/星号）。"""
+    raw = re.sub(r"#.*", "", raw)
+    out = []
+    for part in raw.replace("(", " ").replace(")", " ").split(","):
+        toks = part.split()
+        if not toks or toks[0] in ("as", "*"):
+            continue
+        # 'X as Y' 取 X
+        out.append(toks[0])
+    return out
+
+
+def _locate_abs(mod):
+    """定位绝对模块（可多层点）到仓库源文件。
+
+    返回 (kind, rel)：
+      kind "file"    -> 单个源文件（.py / .js / ...）
+      kind "package" -> 该包的 __init__ 入口文件（供穿透再导出）
+    定位不到返回 None。
+    """
+    rp = mod.replace(".", "/")
+    for r in SRC_ROOTS:
+        base = os.path.join(r, rp)
+        for e in _EXTS:
+            if os.path.isfile(base + e):
+                return ("file", _rel(base + e))
+        if os.path.isdir(base):
+            for e in _EXTS:
+                entry = _PKG_INIT.get(e)
+                if not entry:
+                    continue
+                p = os.path.join(base, entry + e)
+                if os.path.isfile(p):
+                    return ("package", _rel(p))
+    return None
+
+
+def _rel_sub_from(pkg_dir_rel, sub):
+    """包 __init__ 内相对再导出（from .X import ...）按同目录定位到文件。"""
+    base = os.path.join(repo, pkg_dir_rel, sub.replace(".", "/"))
+    for e in _EXTS:
+        if os.path.isfile(base + e):
+            return ("file", _rel(base + e))
+    if os.path.isdir(base):
+        for e in _EXTS:
+            entry = _PKG_INIT.get(e)
+            if not entry:
+                continue
+            p = os.path.join(base, entry + e)
+            if os.path.isfile(p):
+                return ("package", _rel(p))
+    return None
+
+
+# ---- 包再导出穿透索引（缓存） ----
+_pkg_index_cache = {}
+
+
+def _pkg_surface(init_rel):
+    """解析包 __init__ 的完整再导出面。
+
+    返回 (files_set, name2file)：
+      files_set  : 该包直接+递归再导出的所有源文件（覆盖面，用于整包/兜底）
+      name2file  : {导出名 -> 最终定义所在的源文件}
+    结果按 init_rel 缓存（防环：解析中把占位先入缓存）。
+    """
+    if init_rel in _pkg_index_cache:
+        return _pkg_index_cache[init_rel]
+    # 占位防环
+    _pkg_index_cache[init_rel] = (set(), {})
+    files = set()
+    name2file = {}
+    ip = os.path.join(repo, init_rel)
+    pkg_dir_rel = os.path.dirname(init_rel)
+    if not os.path.isfile(ip):
+        _pkg_index_cache[init_rel] = (files, name2file)
+        return files, name2file
+    src = open(ip, encoding="utf-8", errors="replace").read()
+
+    def absorb(got, batch_names, want_subname2file):
+        """把一次 from 再导出的目标文件并入索引。"""
+        if not got:
+            return
+        kind, rel = got
+        if kind == "file":
+            files.add(rel)
+            for nm in batch_names:
+                name2file.setdefault(nm, rel)
+                want_subname2file.setdefault(nm, rel)
+            return
+        # 目标是子包：递归其再导出面
+        sf, nf = _pkg_surface(rel)
+        files.update(sf)
+        files.add(rel)
+        for nm in batch_names:
+            sub = nf.get(nm)
+            if sub:
+                name2file.setdefault(nm, sub)
+                want_subname2file.setdefault(nm, sub)
+            else:
+                # 该名不在子包精确导出里 → 把子包面全部兜底
+                for x in sf:
+                    files.add(x)
+                    want_subname2file.setdefault(nm, x)
+                name2file.setdefault(nm, rel)
+
+    dummy = {}
+    for fm in _IMPORT_FROM.finditer(src):
+        target = fm.group(1).strip()
+        batch = _split_import_names(fm.group(2))
+        if target.startswith("."):
+            # from .router import ... —— 相对再导出（本包 __init__ 常见形态）
+            absorb(_rel_sub_from(pkg_dir_rel, target.lstrip(".")), batch, dummy)
+        else:
+            absorb(_locate_abs(target), batch, dummy)
+    # __init__ 内裸 import（import hanghang.state as st）——整模块展开
+    for bm in _IMPORT_BARE.finditer(src):
+        target = bm.group(1).strip()
+        got = _locate_abs(target)
+        if got and got[0] == "package":
+            sf, nf = _pkg_surface(got[1])
+            files.update(sf)
+            files.add(got[1])
+            for nm, f in nf.items():
+                name2file.setdefault(nm, f)
+        elif got and got[0] == "file":
+            files.add(got[1])
+    _pkg_index_cache[init_rel] = (files, name2file)
+    return files, name2file
+
+
 def parse_refs(text):
-    # 保持模块在文件中首次出现顺序（与 node Set 插入序一致，保证指纹稳定）
+    """解析文本 import，返回结构化引用列表（保序去重）。
+
+    每项 (tag, mod, names)：
+      ("abs",  "hanghang.engine",  ["Registry","IntentRouter"])  包面 from 点名
+      ("all",  "hanghang.engine",  [])                            整模块 import
+      ("es",   "tests/helper",     [])                            点相对(node/helper)
+    """
     order = []
-    for m in _PY_IMPORT.finditer(text):
-        v = m.group(1) or m.group(2)
-        if v not in order:
-            order.append(v)
+    seen = set()
+
+    def push(tag, mod, names):
+        k = (tag, mod, tuple(sorted(names)))
+        if k in seen:
+            return
+        seen.add(k)
+        order.append((tag, mod, names))
+
+    for m in _IMPORT_FROM.finditer(text):
+        mod = m.group(1).strip()
+        if not mod:
+            continue
+        names = _split_import_names(m.group(2))
+        push("abs", mod, names)
+    for m in _IMPORT_BARE.finditer(text):
+        push("all", m.group(1).strip(), [])
     for m in _ES_IMPORT.finditer(text):
         v = m.group(1) or m.group(2) or m.group(3)
-        if v not in order:
-            order.append(v)
+        if v:
+            push("es", re.sub(r"^\.\.?/?", "", v), [])
     return order
 
 
 def resolve_file(mod):
-    exts = [".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".jsx", ".tsx", ".json", ""]
-    cand = []
+    """兼容旧接口：模块 -> 相对文件路径或 None（包返回其 __init__）。"""
     if mod.startswith("."):
         rp = re.sub(r"^\.\.?/?", "", mod)
         for d in ["tests", "test", "spec", "src", "lib", "local-agent", "packages"]:
             for e in exts:
-                cand.append(os.path.join(d, rp + e))
-    else:
-        rp = mod.replace(".", "/")
-        for r in SRC_ROOTS:
-            for e in exts:
-                cand.append(os.path.join(r, rp + e))
-
-    def exists(c):
-        return os.path.isfile(c)
-
-    for c in cand:
-        if exists(c):
-            return _rel(c)
-    for c in cand:
-        for e in exts:
-            ix = c + "/index" + e
-            if exists(ix):
-                return _rel(ix)
-    return None
+                if os.path.isfile(os.path.join(d, rp + e)):
+                    return _rel(os.path.join(d, rp + e))
+        return None
+    got = _locate_abs(mod)
+    return got[1] if got else None
 
 
 def covered_files(tf):
+    """返回测试文件直接/间接依赖的源码文件（相对路径），穿透包 __init__ 再导出。"""
     text = open(os.path.join(repo, tf), encoding="utf-8", errors="replace").read()
     files = []
-    for mod in parse_refs(text):
-        rf = resolve_file(mod)
-        if rf and rf not in files:
-            files.append(rf)
+    add = lambda rf: rf not in files and files.append(rf)
+    for tag, mod, names in parse_refs(text):
+        if tag == "es" or mod.startswith("."):
+            rf = resolve_file(mod.lstrip("."))
+            if rf:
+                add(rf)
+            continue
+        got = _locate_abs(mod)
+        if not got:
+            continue
+        kind, rel = got
+        if kind == "file":
+            add(rel)
+            continue
+        # 包：解析其再导出面
+        pkg_files, n2f = _pkg_surface(rel)
+        if tag == "all" or not names:
+            # 整模块/无可点名 -> 保守覆盖整个再导出面（含包入口自身文件）
+            add(rel)
+            for f in pkg_files:
+                add(f)
+            continue
+        # 点名：精确命中已匹配名字；未匹配名字走包面兜底，保证不漏
+        matched_any = False
+        for nm in names:
+            f = n2f.get(nm)
+            if f:
+                add(f)
+                matched_any = True
+        # 包入口本身：若测试 import 了包内再导出，包 __init__ 改动也应触发
+        add(rel)
+        if not matched_any:
+            # 测试点名一个都不在包导出里精确找到（可能是更深再导出/星号）-> 保守整面
+            for f in pkg_files:
+                add(f)
     return files
 
+# ---- 指纹缓存 ----
+def sha1(s):
+    return hashlib.sha1(s if isinstance(s, bytes) else s.encode()).hexdigest()
+
+
+def blob_hash(fp):
+    try:
+        with open(os.path.join(repo, fp), "rb") as fh:
+            return sha1(fh.read())
+    except Exception:
+        return "missing"
+
+
+def compute_key(tf):
+    parts = ["TF:" + blob_hash(tf)]
+    for sf in (test2src.get(tf) or []):
+        parts.append("|" + sf + ":" + blob_hash(sf))
+    return sha1("".join(parts))
 
 # ---- 依赖索引 ----
 test_files = find_tests()
@@ -219,6 +423,28 @@ if MAP_FILE:
             static_map.append([line[:idx].strip(), tests])
     except Exception:
         pass
+
+# ---- 缓存回写入口：--writecache --cachedir=... --files="t1 t2 ..." ----
+if _flag("writecache"):
+    files = [x for x in _get("files", "").split() if x]
+    cdir = _get("cachedir", os.path.join(repo, ".testcache"))
+    os.makedirs(cdir, exist_ok=True)
+    cfp = os.path.join(cdir, "results.json")
+    wcache = {}
+    if os.path.exists(cfp):
+        try:
+            wcache = json.load(open(cfp, encoding="utf-8"))
+        except Exception:
+            wcache = {}
+    for tf in files:
+        # 与主计划共用同一 compute_key（依赖推断/指纹与运行路径完全一致，
+        # 确保回写后可被再次命中，不产生 key 漂移）。
+        wcache[tf] = {"key": compute_key(tf), "result": "pass"}
+    with open(cfp, "w", encoding="utf-8") as fh:
+        json.dump(wcache, fh, indent=1)
+    sys.stdout.write("cache written %d entries\n" % len(files))
+    sys.exit(0)
+
 
 # ---- 变更收集（repo 相对路径）----
 changed = []
@@ -277,24 +503,6 @@ else:
             if not (is_tool or is_dot_cfg) and (in_src_root or (looks_src and not is_tool)):
                 selected = set(test_files)
 
-# ---- 指纹缓存 ----
-def sha1(s):
-    return hashlib.sha1(s if isinstance(s, bytes) else s.encode()).hexdigest()
-
-
-def blob_hash(fp):
-    try:
-        with open(os.path.join(repo, fp), "rb") as fh:
-            return sha1(fh.read())
-    except Exception:
-        return "missing"
-
-
-def compute_key(tf):
-    parts = ["TF:" + blob_hash(tf)]
-    for sf in (test2src.get(tf) or []):
-        parts.append("|" + sf + ":" + blob_hash(sf))
-    return sha1("".join(parts))
 
 
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -320,24 +528,3 @@ sys.stderr.write(
     % (len(test_files), len(selected), runs, skips)
 )
 sys.stdout.write(json.dumps(plan))
-
-# ---- 缓存回写入口：--writecache --cachedir=... --files="t1 t2 ..." ----
-if _flag("writecache"):
-    files = [x for x in _get("files", "").split() if x]
-    cdir = _get("cachedir", os.path.join(repo, ".testcache"))
-    os.makedirs(cdir, exist_ok=True)
-    cfp = os.path.join(cdir, "results.json")
-    wcache = {}
-    if os.path.exists(cfp):
-        try:
-            wcache = json.load(open(cfp, encoding="utf-8"))
-        except Exception:
-            wcache = {}
-    for tf in files:
-        # 与主计划共用同一 compute_key（依赖推断/指纹与运行路径完全一致，
-        # 确保回写后可被再次命中，不产生 key 漂移）。
-        wcache[tf] = {"key": compute_key(tf), "result": "pass"}
-    with open(cfp, "w", encoding="utf-8") as fh:
-        json.dump(wcache, fh, indent=1)
-    sys.stdout.write("cache written %d entries\n" % len(files))
-    sys.exit(0)

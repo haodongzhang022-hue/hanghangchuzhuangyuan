@@ -97,17 +97,19 @@ if [ ! -f "$PLANNER" ]; then
 fi
 
 # ---------- 调用内核生成执行计划 ----------
-PLAN_ARGS=""
-[ "$FORCE_ALL" = "true" ] && PLAN_ARGS="$PLAN_ARGS --all"
-[ "$NO_CACHE" = "true" ] && PLAN_ARGS="$PLAN_ARGS --no-cache"
-[ -n "$BASE_SHA" ] && PLAN_ARGS="$PLAN_ARGS --base=$BASE_SHA"
-[ -n "$SRC_GLOB" ] && PLAN_ARGS="$PLAN_ARGS --src=$SRC_GLOB"
-[ -n "$TEST_GLOB" ] && PLAN_ARGS="$PLAN_ARGS --testglob=$TEST_GLOB"
-[ -n "$MAP_FILE" ] && PLAN_ARGS="$PLAN_ARGS --map=$MAP_FILE"
-[ -n "$SKIP_EXTRA" ] && PLAN_ARGS="$PLAN_ARGS --skip=$SKIP_EXTRA"
-[ -n "$CACHE_DIR" ] && PLAN_ARGS="$PLAN_ARGS --cachedir=$CACHE_DIR"
+# 用 bash 数组承载参数：SRC_GLOB / TEST_GLOB 等多值(空格分隔)需整体作为单参传递，
+# 避免 `$PLAN_ARGS` 词法展开把多根拆散（修复 v4 通用化复制到他仓时多源码根失效的问题）。
+plan_args=()
+[ "$FORCE_ALL" = "true" ] && plan_args+=( --all )
+[ "$NO_CACHE" = "true" ] && plan_args+=( --no-cache )
+[ -n "$BASE_SHA" ] && plan_args+=( "--base=$BASE_SHA" )
+[ -n "$SRC_GLOB" ] && plan_args+=( "--src=$SRC_GLOB" )
+[ -n "$TEST_GLOB" ] && plan_args+=( "--testglob=$TEST_GLOB" )
+[ -n "$MAP_FILE" ] && plan_args+=( "--map=$MAP_FILE" )
+[ -n "$SKIP_EXTRA" ] && plan_args+=( "--skip=$SKIP_EXTRA" )
+[ -n "$CACHE_DIR" ] && plan_args+=( "--cachedir=$CACHE_DIR" )
 
-PLAN_JSON="$("$PY_CMD" "$PLANNER" $PLAN_ARGS 2>/tmp/ca-plan.log)"
+PLAN_JSON="$("$PY_CMD" "$PLANNER" "${plan_args[@]}" 2>/tmp/ca-plan.log)"
 PLAN_EXIT=$?
 cat /tmp/ca-plan.log >&2 || true
 
