@@ -111,7 +111,10 @@ MAP = [
         "tests/test_state_tree.py", "tests/test_batch_persist.py",
         "tests/test_web.py",
     ]),
-    ("src/hanghang/engine/metrics.py", ["tests/test_web.py"]),
+    ("src/hanghang/engine/metrics.py", [
+        "tests/test_web.py",        # Web /api/metrics、GET/POST 幂等、并发
+        "tests/test_state_cli_e2e.py",  # CLI cmd_route/cmd_metrics 也调用 MetricsCollector
+    ]),
     ("src/hanghang/engine/prefix.py", [
         "tests/test_registry.py", "tests/test_dongjiagoushi_routing.py",
         "tests/test_web.py",
