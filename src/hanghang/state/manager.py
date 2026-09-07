@@ -1,10 +1,11 @@
 """M9 状态管理器：StateCard 的生命周期管理"""
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
-import time
+import tempfile
 from typing import Dict, List, Optional
 
 from .persist import FlushQueue
@@ -12,6 +13,31 @@ from .models import StateCard, TaskRecord, TaskState, FoldState
 
 # session_id 白名单：仅允许字母/数字/下划线/短横线
 _SESSION_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]+$')
+
+
+class _CardLockContext:
+    """card_lock() 的上下文管理器包装。"""
+
+    def __init__(self, lock_f):
+        self._lock_f = lock_f
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._lock_f is not None:
+            try:
+                import fcntl
+                fcntl.flock(self._lock_f.fileno(), fcntl.LOCK_UN)
+            except (OSError, ValueError):
+                pass
+            finally:
+                try:
+                    self._lock_f.close()
+                except (OSError, ValueError):
+                    pass
+                self._lock_f = None
+        return None  # 不吞异常
 
 
 class StateManager:
@@ -91,7 +117,9 @@ class StateManager:
         """列出所有 StateCard"""
         cards = []
         for f in os.listdir(self.data_dir):
-            if f.endswith(".json"):
+            # 跳过租约文件(.owner.json)、锁文件(.lock)、临时文件(.json.tmp)
+            if (f.endswith(".json") and not f.endswith(".owner.json")
+                    and not f.endswith(".lock") and not f.endswith(".tmp")):
                 path = os.path.join(self.data_dir, f)
                 try:
                     with open(path, "r", encoding="utf-8") as fh:
@@ -234,6 +262,106 @@ class StateManager:
         self.save_card(card)
         return card
 
+    # ---- 并发安全原语（供 OwnershipGuard 使用） ----
+
+    def card_lock(self, session_id: str):
+        """获取 session 状态卡的 flock 排他锁（上下文管理器）。
+
+        用独立的 .lock 文件承载 flock，避免 os.replace 替换 .json 导致锁失效。
+        跨进程/线程同一文件写操作互斥。
+        使用方法：
+            with sm.card_lock(sid):
+                ...
+        """
+        self._validate_session_id(session_id)
+        lock_path = os.path.join(self.data_dir, f"{session_id}.lock")
+        lock_f = open(lock_path, "w", encoding="utf-8")
+        try:
+            fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+        except Exception:
+            lock_f.close()
+            raise
+        return _CardLockContext(lock_f)
+
+    def lock_card(self, session_id: str):
+        """兼容入口：获取 flock 排他写锁，返回文件对象（须配合 release_lock 释放）。"""
+        self._validate_session_id(session_id)
+        lock_path = os.path.join(self.data_dir, f"{session_id}.lock")
+        lock_f = open(lock_path, "w", encoding="utf-8")
+        try:
+            fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+        except Exception:
+            lock_f.close()
+            raise
+        return lock_f
+
+    @staticmethod
+    def release_lock(lock_f) -> None:
+        """释放由 lock_card 获得的文件锁。"""
+        if lock_f is None:
+            return
+        try:
+            fcntl.flock(lock_f.fileno(), fcntl.LOCK_UN)
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                lock_f.close()
+            except (OSError, ValueError):
+                pass
+
+    def read_card_disk(self, session_id: str) -> Optional[StateCard]:
+        """从磁盘强制读取最新卡（绕过内存缓存），供 CAS 校验用。"""
+        if not self._is_valid_session_id(session_id):
+            return None
+        self._mem_cache.pop(session_id, None)  # 确保读到的是磁盘最新值
+        path = self._card_path(session_id)
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return StateCard.from_dict(data)
+        except Exception:
+            return None
+
+    def cas_save_card(self, card: StateCard,
+                      expected_version: Optional[int] = None,
+                      skip_lock: bool = False) -> tuple:
+        """带 flock 排他锁 + CAS 版本校验的原子落盘。
+
+        参数:
+            card: 待保存的最新 StateCard（调用方已在内存中完成修改）
+            expected_version: 调用方"读到的版本"。若不提供则不做版本校验（兼容旧用法）。
+            skip_lock: 调用方已在 card_lock 上下文内时传 True，避免重复 flock 死锁。
+        返回:
+            (ok: bool, current_version: int)
+            ok=True → CAS 成功且已落盘；ok=False → 版本冲突(需重读重试)。
+        """
+        session_id = card.session_id
+        self._validate_session_id(session_id)
+        lock_f = None
+        if not skip_lock:
+            lock_f = self.lock_card(session_id)
+        try:
+            # 重新读磁盘最新版本（绕过缓存）
+            disk_card = self.read_card_disk(session_id)
+            if disk_card is not None and expected_version is not None:
+                if disk_card.version != expected_version:
+                    # 版本冲突 → 不落盘，返回 False
+                    self._mem_cache[session_id] = card  # 保留内存态便于上层取用
+                    return (False, disk_card.version)
+
+            # CAS 通过 → 原子写盘
+            self._mem_cache[session_id] = card
+            path = self._card_path(session_id)
+            self._atomic_write_json(path, card.to_dict())
+            self._mem_cache.pop(session_id, None)
+            return (True, card.version)
+        finally:
+            if not skip_lock:
+                self.release_lock(lock_f)
+
     # ---- 内部 ----
 
     @staticmethod
@@ -256,6 +384,21 @@ class StateManager:
         self._validate_session_id(session_id)
         return os.path.join(self.data_dir, f"{session_id}.json")
 
+    def _atomic_write_json(self, path: str, data: dict) -> None:
+        """原子写 JSON：写临时文件 + os.replace，避免半写文件被并发读到。"""
+        dir_path = os.path.dirname(os.path.abspath(path))
+        fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+
     def _save(self, card: StateCard):
         """登记一次卡落盘（统一走队列，支持批量/延迟落盘）。
 
@@ -270,8 +413,13 @@ class StateManager:
             # flush 时取最新内存态序列化，保证同一 session 多次变更只写最终态
             latest = self._mem_cache.get(card_sid, card)
             path = self._card_path(card_sid)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(latest.to_dict(), f, ensure_ascii=False, indent=2)
+            lock_f = None
+            try:
+                # flock 排他锁保护：跨进程同 session 并发写时不互相打断
+                lock_f = self.lock_card(card_sid)
+                self._atomic_write_json(path, latest.to_dict())
+            finally:
+                self.release_lock(lock_f)
             # 已落盘，可从缓存移除（下次读回磁盘最新值）
             if self._mem_cache.get(card_sid) is latest:
                 self._mem_cache.pop(card_sid, None)

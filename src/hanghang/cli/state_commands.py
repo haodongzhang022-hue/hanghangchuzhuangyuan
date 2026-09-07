@@ -150,8 +150,11 @@ def cmd_state_release(args):
         print(f"会话 {args.session} 不存在 StateCard")
         return
     g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
-    g.release()
-    print(f"已释放: 秘书 {args.role or 'secretary'} 释放会话 {args.session} 的归属")
+    released = g.release()
+    if released:
+        print(f"已释放: 秘书 {args.role or 'secretary'} 释放会话 {args.session} 的归属")
+    else:
+        print(f"未释放: 秘书 {args.role or 'secretary'} 不是会话 {args.session} 的 owner 或租约持有者，无需释放")
 
 
 def cmd_state_status(args):

@@ -12,3 +12,7 @@ data/metrics.json
 data/handoffs/
 data/state/*.json
 data/state/submissions.jsonl
+# M9 并发锁文件
+data/state/*.lock
+data/state/*.tmp
+data/state/*.owner.json
