@@ -1,0 +1,81 @@
+# M10 上下文装配 · 本地触发规则表
+# 规则：按需装配，不靠每次全量上下文（R3 声明式承载）
+# 设计原则：静态=缓存键，动态=按规则注入
+
+version: "1.0"
+description: "行行出状元 · 上下文装配规则表 - 防止提示词冗余"
+updated_at: "2026-09-07"
+
+rules:
+  # ---- 文件/代码操作 ----
+  - rule_id: "R3-FILE-01"
+    name: "文件/代码操作触发"
+    description: "当用户提及具体文件或代码修改时，触发装配文件diff/代码上下文"
+    triggers: ["修改", "编辑", "改动", "修复", "重构", "删除", "新增文件",
+               ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".md",
+               "代码", "code", "文件", "file", "diff"]
+    target_layer: "C"
+    data_source: "file.diff"
+    enabled: true
+    priority: 5
+    match_mode: "keyword"
+
+  # ---- 状态管理 ----
+  - rule_id: "R3-STAT-01"
+    name: "状态管理触发"
+    description: "当涉及任务状态/进度/StateCard操作时，装配会话状态上下文"
+    triggers: ["状态", "进度", "任务", "StateCard", "state", "session",
+               "折叠", "fold", "提交状态", "更新状态", "查看进度"]
+    target_layer: "B"
+    data_source: "state.card"
+    enabled: true
+    priority: 3
+    match_mode: "keyword"
+
+  # ---- 交接/接力 ----
+  - rule_id: "R3-HAND-01"
+    name: "交接/接力触发"
+    description: "当涉及跨单元交接/接力时，装配交接卡上下文"
+    triggers: ["交接", "接力", "转交", "handoff", "relay",
+               "跨单元", "跨行业", "传递"]
+    target_layer: "C"
+    data_source: "handoff.card"
+    enabled: true
+    priority: 5
+    match_mode: "keyword"
+
+  # ---- 架构/设计 ----
+  - rule_id: "R3-ARCH-01"
+    name: "架构/设计触发"
+    description: "当涉及架构/技术方案/设计时，装配架构文档上下文"
+    triggers: ["架构", "设计", "方案", "架构图", "技术方案",
+               "系统设计", "architecture", "design"]
+    target_layer: "C"
+    data_source: "architecture.docs"
+    enabled: true
+    priority: 7
+    match_mode: "keyword"
+
+  # ---- 测试 ----
+  - rule_id: "R3-TEST-01"
+    name: "测试触发"
+    description: "当涉及测试/回归/验证时，装配测试代码上下文"
+    triggers: ["测试", "回归", "验证", "test", "pytest",
+               "冒烟", "用例", "断言", "通过"]
+    target_layer: "C"
+    data_source: "test.code"
+    enabled: true
+    priority: 7
+    match_mode: "keyword"
+
+  # ---- 数据/规则配置 ----
+  - rule_id: "R3-DATA-01"
+    name: "数据/规则配置触发"
+    description: "当涉及数据/配置文件时，装配数据驱动上下文"
+    triggers: ["注册表", "注册", "yaml", "规则表", "声明式",
+               "registry", "config", "配置", "数据驱动"]
+    target_layer: "C"
+    data_source: "data.files"
+    enabled: true
+    priority: 9
+    match_mode: "keyword"

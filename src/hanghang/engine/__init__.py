@@ -1,4 +1,4 @@
-"""核心引擎：路由、注册表、交接、指标、前缀档案"""
+"""核心引擎：路由、注册表、交接、指标、前缀档案 + M9 状态管理 + M10 上下文装配"""
 from .models import IndustryUnit, Role, RouteResult, CompositePlan, HandoffCard
 from .registry import Registry
 from .router import IntentRouter, CompositePlanner
@@ -16,6 +16,11 @@ from hanghang.state.hierarchy import HierarchySubmitter, SecretaryTree, Secretar
 from hanghang.state.ownership import OwnershipGuard, CardLease, StateConflict, OwnershipDenied
 from hanghang.state.persist import FlushQueue, DeferredWriter
 
+# M10 上下文装配器
+from hanghang.context import (
+    ContextRule, RuleEngine, ContextAssembler, CacheGuard,
+)
+
 __all__ = [
     "IndustryUnit", "Role", "RouteResult", "CompositePlan", "HandoffCard",
     "Registry", "IntentRouter", "CompositePlanner", "HandoffBus",
@@ -26,4 +31,6 @@ __all__ = [
     "SecretaryTree", "SecretaryTreeNode",
     "OwnershipGuard", "CardLease", "StateConflict", "OwnershipDenied",
     "FlushQueue", "DeferredWriter",
+    # M10
+    "ContextRule", "RuleEngine", "ContextAssembler", "CacheGuard",
 ]
