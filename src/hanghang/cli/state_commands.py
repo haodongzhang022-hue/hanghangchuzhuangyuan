@@ -226,21 +226,44 @@ def cmd_arb_review(args):
         print(f"审核失败: {e}")
 
 
-def cmd_arb_test_diff(args):
-    """演示/测试 diff 与 overlap 分析能力"""
-    from hanghang.engine import (
-        StateManager, diff_state, diffs_overlap,
-    )
-    mgr = StateManager()
-    card = mgr.get_card(args.session)
-    if card is None:
-        print(f"会话 {args.session} 不存在 StateCard")
+def cmd_arb_diff(args):
+    """查看冲突票据的 A/B 双方字段级差异（版本 vs 版本）"""
+    from hanghang.engine import ConflictArbiter, diff_state
+    arbiter = ConflictArbiter()
+
+    ticket = arbiter.get_ticket(args.ticket)
+    if ticket is None:
+        print(f"票据不存在: {args.ticket}")
         return
-    # 创建两份副本做对比
-    card_a = StateManager()
-    print("直接调用 Python API 使用:")
-    print("  from hanghang.state import diff_state, diffs_overlap")
-    print("  from hanghang.state import ConflictArbiter")
+
+    base_card = ticket.base_card or ticket.card_a
+    diff_a = diff_state(base_card, ticket.card_a)
+    diff_b = diff_state(base_card, ticket.card_b)
+
+    print(f"票据 {ticket.id} 字段级差异 (会话 {ticket.session_id}, "
+          f"A_v={ticket.version_a}, B_v={ticket.version_b})")
+
+    def _render(tag, d):
+        lines = []
+        if d.task_added:
+            lines.append(f"  {tag} 新增任务: " +
+                         ", ".join(t.get("task_id", "") for t in d.task_added))
+        if d.task_removed:
+            lines.append(f"  {tag} 删除任务: {', '.join(d.task_removed)}")
+        for ch in d.task_changes:
+            lines.append(f"  {tag} {ch.task_id}.{ch.field}: "
+                         f"{ch.old_value!r} → {ch.new_value!r}")
+        return lines
+
+    print("— 已提交方 A (相对 base):")
+    a_lines = _render("[A]", diff_a)
+    print("\n".join(a_lines) if a_lines else "  (无变更)")
+    print("— 冲突方 B (相对 base):")
+    b_lines = _render("[B]", diff_b)
+    print("\n".join(b_lines) if b_lines else "  (无变更)")
+    if ticket.overlaps:
+        print(f"⚠️ 重叠冲突 {len(ticket.overlaps)} 处，建议 arb show 查看详情后 "
+              f"用 arb review 裁决。")
 
 
 

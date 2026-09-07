@@ -17,7 +17,7 @@ from hanghang.cli.state_commands import (
     cmd_state_compact, cmd_state_update, cmd_state_fold,
     cmd_state_submit, cmd_state_list,
     cmd_state_claim, cmd_state_release, cmd_state_status,
-    cmd_arb_list, cmd_arb_show, cmd_arb_review, cmd_arb_test_diff,
+    cmd_arb_list, cmd_arb_show, cmd_arb_review, cmd_arb_diff,
     cmd_state_search,
     cmd_tree_init, cmd_tree_register, cmd_tree_link,
     cmd_tree_show, cmd_tree_rollup,
@@ -345,9 +345,9 @@ def build_parser():
     arbr.add_argument("--reason", default="", help="决策理由")
     arbr.set_defaults(func=cmd_arb_review)
 
-    arbt = arb_sub.add_parser("diff", help="查看状态差异分析工具用法")
-    arbt.add_argument("--session", default="", help="会话ID")
-    arbt.set_defaults(func=cmd_arb_test_diff)
+    arbt = arb_sub.add_parser("diff", help="查看票据 A/B 双方字段级差异")
+    arbt.add_argument("--ticket", required=True, help="票据ID")
+    arbt.set_defaults(func=cmd_arb_diff)
 
     # ---- M9 秘书长多级树子命令 ----
     stree = sub.add_parser("tree", help="M9 秘书长多级树：树拓扑管理/汇总/导航")

@@ -121,6 +121,9 @@ python3 src/hanghang/cli/main.py arb list
 # 查看票据详情
 python3 src/hanghang/cli/main.py arb show --ticket ARB-sess-xxx-123
 
+# 查看票据 A/B 双方字段级差异
+python3 src/hanghang/cli/main.py arb diff --ticket ARB-sess-xxx-123
+
 # 执行审核决策
 python3 src/hanghang/cli/main.py arb review --ticket ARB-sess-xxx-123 \
     --decision keep_a --resolver human-1 --reason "A的修改更合理"

@@ -187,7 +187,20 @@ def diffs_overlap(diff_a: StateDiff, diff_b: StateDiff) -> List[dict]:
             "change_kind": "both_removed_same_task",
         })
 
-    # 4. 同一任务上修改同一字段
+    # 4. 一方修改某任务的字段，另一方删除该同一任务（含对称情形）。
+    #    删除会整体抹去对方对该任务的字段修改 → 语义冲突，禁止自动合并，转审核。
+    a_changed_ids = {c.task_id for c in diff_a.task_changes}
+    b_changed_ids = {c.task_id for c in diff_b.task_changes}
+    for tid in (a_changed_ids & b_removed) | (b_changed_ids & a_removed):
+        a_is_changer = tid in a_changed_ids
+        overlaps.append({
+            "task_id": tid, "field": "*",
+            "diff_a_value": "changed" if a_is_changer else "removed",
+            "diff_b_value": "removed" if a_is_changer else "changed",
+            "change_kind": "changed_removed_same_task",
+        })
+
+    # 5. 同一任务上修改同一字段
     a_changes: Dict[str, Dict[str, FieldChange]] = {}
     b_changes: Dict[str, Dict[str, FieldChange]] = {}
     for c in diff_a.task_changes:
@@ -318,7 +331,7 @@ class ReviewTicket:
             f"  会话: {self.session_id} (A_v={self.version_a}, B_v={self.version_b})",
             f"  状态: {self.status}",
             f"  发起方: {self.arbiter or '(未指定)'}",
-            f"  原因: {self.conflict_reason or '版本冲突' or '(未指定)'}",
+            f"  原因: {self.conflict_reason or '版本冲突'}",
         ]
         # 统计双方差异
         da = diff_state(self.base_card, self.card_a) if self.base_card else StateDiff()
@@ -430,12 +443,28 @@ class ConflictArbiter:
         if not overlaps:
             # 无重叠 → 自动合并
             merged = self._auto_merge(base_dict, current_dict, conflicting_dict)
-            if merged is not None:
+            # 合并后复核：确认 A、B 双方的非重叠变更均被保留，才允许"自动合并/宣称保留"；
+            # 若复核不通过（异常兜底），降级为待审核，绝不静默丢失任一方修改。
+            if merged is not None and self._verify_merge_retains(
+                    base_dict, current_dict, conflicting_dict, merged):
                 self._apply_merged(session_id, merged)
                 ticket.status = "resolved"
                 ticket.resolution = ConflictResolution.MERGE
                 ticket.resolver = "auto-arbiter"
-                ticket.resolution_note = "自动合并成功：A与B的修改不重叠，双方变更均已保留。"
+                ticket.resolution_note = "自动合并成功：A与B的修改不重叠，复核确认双方变更均已保留。"
+                ticket.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
+            elif merged is not None:
+                # 复核未通过 → 保守转审核，避免"宣称保留实则丢失"
+                ticket.status = "pending"
+                ticket.conflict_reason = (
+                    "自动合并复核未通过：存在边界重叠，转为人工/AI审核裁决。"
+                )
+                ticket.resolution = ""
+                ticket.overlaps = ticket.overlaps or [{
+                    "task_id": "*", "field": "*",
+                    "diff_a_value": "auto", "diff_b_value": "auto",
+                    "change_kind": "auto_merge_verify_failed",
+                }]
                 ticket.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
 
         # 持久化票据
@@ -459,6 +488,15 @@ class ConflictArbiter:
             raise ValueError(f"票据不存在: {ticket_id}")
         if ticket.status not in ("pending", "under_review"):
             raise ValueError(f"票据状态不是待审核: {ticket.status} (当前={ticket.status})")
+
+        # 版本回退防护：若冲突发生后会话又产生过更新（当前版本已高于票据快照），
+        # 直接覆写旧快照会回退版本并静默丢失中间变更。此时拒绝静默落盘，
+        # 提示重新基于最新状态捕获冲突（生成新票据）后再审核。
+        if decision in (ConflictResolution.KEEP_A,
+                        ConflictResolution.KEEP_B,
+                        ConflictResolution.REJECT,
+                        ConflictResolution.MERGE):
+            self._guard_stale_review(ticket)
 
         if decision == ConflictResolution.KEEP_A:
             self._apply_card(session_id=ticket.session_id,
@@ -581,9 +619,64 @@ class ConflictArbiter:
         merged.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
         return merged.to_dict()
 
+    def _verify_merge_retains(self, base: dict, card_a: dict,
+                              card_b: dict, merged: dict) -> bool:
+        """复核自动合并结果：确认 A、B 双方的非重叠变更均被保留。
+
+        防止"宣称双方均已保留、实则某方修改被静默丢弃"的边界情况。
+        校验维度（相对 base）：
+          - A 新增的任务在合并结果中仍存在
+          - A 删除的任务在合并结果中仍被删除
+          - A 修改的字段在合并结果中保持 A 的新值
+        对 B 同样校验一遍。任一不满足即返回 False。
+        """
+        for diff in (diff_state(base, card_a), diff_state(base, card_b)):
+            merged_card = StateCard.from_dict(merged)
+            merged_tasks = {t.task_id: t for t in merged_card.tasks}
+            base_tasks = {t.task_id: t for t in StateCard.from_dict(base).tasks}
+            # 新增任务应仍在
+            for added in diff.task_added:
+                tid = added.get("task_id", "")
+                if tid and tid not in merged_tasks:
+                    return False
+            # 删除的任务应已被移除
+            for removed_id in diff.task_removed:
+                if removed_id in merged_tasks:
+                    return False
+            # 字段修改应保留新值（需任务仍存在）
+            for change in diff.task_changes:
+                task = merged_tasks.get(change.task_id)
+                if task is None:
+                    return False
+                cur = getattr(task, change.field, None)
+                if cur != change.new_value:
+                    return False
+        return True
+
     def _apply_merged(self, session_id: str, merged: dict) -> None:
         """将合并结果写回 StateManager"""
         self._apply_card(session_id, merged)
+
+    def _guard_stale_review(self, ticket: ReviewTicket) -> None:
+        """版本回退防护：审核落盘前检查当前会话是否已越过票据快照。
+
+        若当前实时状态版本高于票据内快照版本（冲突后又有提交），直接以旧快照
+        覆写会回退版本号并静默丢弃中间变更 → 抛错提示重新捕获冲突，不静默落盘。
+        """
+        if not self.sm:
+            return
+        live = self.sm.get_card(ticket.session_id)
+        if live is None:
+            return
+        ticket_top = max(int(ticket.version_a or 0),
+                         int(ticket.version_b or 0))
+        if int(live.version or 0) > ticket_top:
+            raise ValueError(
+                f"票据 {ticket.id} 冲突后会话 {ticket.session_id} 已有更新 "
+                f"(当前 v{live.version} > 票据快照 v{ticket_top})。"
+                "直接落盘会回退版本并丢失中间变更，请基于最新状态重新捕获冲突"
+                "（生成新票据）后再审核。"
+            )
 
     def _apply_card(self, session_id: str, card: dict) -> None:
         """将一张卡的状态写入 StateManager"""

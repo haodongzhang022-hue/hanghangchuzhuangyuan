@@ -281,11 +281,12 @@ class OwnershipGuard:
                 raise OwnershipDenied(
                     f"秘书 {self.secretary} 无权写卡 {self.session_id}："
                     f"owner={owner}，租约持有者={lease.holder}")
-        # 若卡尚未 claim(owner 为空)，首个尝试写的秘书视为隐式取得该卡维护权
+        # 若卡尚未 claim(owner 为空)，首个尝试写的秘书视为隐式取得该卡维护权。
+        # 统一走 _set_owner（版本 +1），与 claim()/release() 的版本递增口径保持一致，
+        # 避免基于 version 的仲裁在 owner 交接处产生歧义。
         card = self.sm.get_card(self.session_id)
         if card and not card.owner:
-            card.owner = self.secretary
-            self.sm.save_card(card)
+            self._set_owner(self.secretary)
 
     def _check_version(self, base_version: Optional[int]) -> None:
         """乐观并发仲裁：写回须携带"读到的版本"，若已被他人改过则冲突。"""
