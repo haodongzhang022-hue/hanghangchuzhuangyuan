@@ -88,6 +88,13 @@ python3 src/hanghang/cli/main.py tree show --name project          # 渲染树�
 python3 src/hanghang/cli/main.py tree rollup --name project        # 逐级向上汇总
 python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf-1
 
+# M9 秘书并发归属与冲突仲裁（多 Agent 协作写同一状态）
+python3 src/hanghang/cli/main.py state claim   --session demo --role 秘书A   # 声明归属/占用
+python3 src/hanghang/cli/main.py state status  --session demo --role 秘书A   # 查看 owner/version
+python3 src/hanghang/cli/main.py state release --session demo --role 秘书A   # 释放归属
+# 说明：多秘书并发写同一 StateCard 时，基于乐观版本号(base_version)仲裁；
+#       基于旧版本写会抛 StateConflict 而非静默覆盖，归属越权写会抛 OwnershipDenied。
+
 # M9 POC 量化验证（状态管理 vs 全量历史对比）
 python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
@@ -170,6 +177,7 @@ python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
 python3 tests/test_batch_persist.py   # M9 批量/延迟落盘
 python3 tests/test_state_manager.py   # M9 状态管理层（StateCard/折叠/层级提交）
 python3 tests/test_state_tree.py      # M9 秘书长多级树 + 主链路集成
+python3 tests/test_state_ownership.py # M9 秘书并发归属与冲突仲裁
 python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）

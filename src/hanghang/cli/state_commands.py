@@ -124,6 +124,53 @@ def cmd_state_list(args):
               f"tasks={len(c.tasks)}, done={done}, role={c.role_name}")
 
 
+def cmd_state_claim(args):
+    """秘书声明对 StateCard 的归属/占用（写租约）"""
+    from hanghang.engine import OwnershipGuard, StateConflict
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard，请先执行 state init")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    try:
+        owner = g.claim(force=args.force)
+        print(f"归属成功: 秘书 {owner} 已占用会话 {args.session}")
+        print(f"  版本号: {g.version()}")
+    except StateConflict as e:
+        print(f"占用冲突: {e}")
+        print(f"  当前 owner: {e.current_owner or '(无)'}")
+        print("  如需强制抢占请加 --force")
+
+
+def cmd_state_release(args):
+    """释放本秘书对 StateCard 的归属"""
+    from hanghang.engine import OwnershipGuard
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    released = g.release()
+    if released:
+        print(f"已释放: 秘书 {args.role or 'secretary'} 释放会话 {args.session} 的归属")
+    else:
+        print(f"未释放: 秘书 {args.role or 'secretary'} 不是会话 {args.session} 的 owner 或租约持有者，无需释放")
+
+
+def cmd_state_status(args):
+    """查看 StateCard 归属与版本状态（并发观测）"""
+    from hanghang.engine import OwnershipGuard
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    print(f"会话: {args.session}")
+    print(f"  owner: {g.current_owner() or '(未归属)'}")
+    print(f"  version: {g.version()}")
+    print(f"  当前秘书({g.secretary})是否 owner: {g.is_owner()}")
+
+
 # ==== 秘书长多级树 CLI ====
 
 def cmd_tree_init(args):
