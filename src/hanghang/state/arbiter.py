@@ -509,18 +509,27 @@ class ConflictArbiter:
             ticket.resolution = ConflictResolution.KEEP_B
             ticket.resolution_note = "审核决策：保留版本 B（冲突方的修改）"
         elif decision == ConflictResolution.MERGE:
+            # 门禁：仅无重叠的票据才可执行自动合并。
+            # 若票据存在重叠(overlaps 非空)，_auto_merge 会对冲突字段直接以 B 覆盖 A，
+            # 造成"审核决策 merge"静默丢弃 A 的修改，违背"绝不静默丢一方修改"的约定。
+            if not ticket.is_auto_mergeable:
+                raise ValueError(
+                    "无法自动合并：票据存在重叠冲突("
+                    f"{len(ticket.overlaps)} 处)，直接 merge 会静默丢弃一方修改。"
+                    "请使用 keep_a / keep_b 显式选择保留哪一方，"
+                    "或先处理冲突后再重新捕获。"
+                )
             merged = self._auto_merge(ticket.base_card,
                                       ticket.card_a,
                                       ticket.card_b)
-            if merged is not None:
+            if merged is not None and self._verify_merge_retains(
+                    ticket.base_card, ticket.card_a, ticket.card_b, merged):
                 self._apply_card(session_id=ticket.session_id, card=merged)
                 ticket.resolution = ConflictResolution.MERGE
-                ticket.resolution_note = "审核决策：执行自动合并"
+                ticket.resolution_note = "审核决策：执行自动合并，复核确认双方变更均已保留"
             else:
-                # 仍无法自动合并（可能票是手动标记 need_review 的情况）
-                # 实际上当 overlaps 非空时 merge 不可行
                 raise ValueError(
-                    "无法自动合并：双方修改存在重叠，请使用 keep_a 或 keep_b。"
+                    "自动合并复核未通过或无法合并，请使用 keep_a / keep_b 决策。"
                 )
         elif decision == ConflictResolution.REJECT:
             # 拒绝 B，恢复 A

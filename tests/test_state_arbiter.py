@@ -287,16 +287,25 @@ def test_ownership_guard_arbitrate_integration():
         # Capture the base snapshot (agent B's view before agent A modified)
         # In real scenarios this would be captured when B read the card
         base_snapshot = StateCard.from_dict(base.to_dict())
-        # Trigger arbitration with exact base snapshot
+        # Trigger arbitration with exact base snapshot, passing data_dir to
+        # keep tickets within the temp dir (no leak to source tree)
+        arb_dir = os.path.join(tmpdir, "arbitration")
         result = guard_b.arbitrate_conflict(
             base_version=0,
             proposed_card=proposed,
             capture_base=base_snapshot,
             reason="agent_b 想修改同一任务状态",
+            data_dir=arb_dir,
         )
         # Should return a ReviewTicket
         assert hasattr(result, 'id')
-        assert result.status in ("pending", "resolved")
+        assert result.status == "pending"  # 同一任务同一字段冲突 → 必须转审核
+        assert result.is_auto_mergeable == False
+        # 票据文件应落在 arb_dir（临时目录），而非源码树 data/arbitration/
+        assert os.path.exists(arb_dir)
+        ticket_files = os.listdir(arb_dir)
+        assert len(ticket_files) == 1, f"应有1个票据文件，实际={ticket_files}"
+        assert ticket_files[0].startswith(result.id)
 
 
 if __name__ == "__main__":
@@ -471,6 +480,53 @@ def test_review_stale_guard_raises():
         assert raised, "会话已有更新时 review 应拒绝静默覆写旧快照"
 
 
+def test_review_merge_rejected_on_overlap():
+    """Bug修复: review(decision='merge') 对有重叠的票据必须拒绝，
+    不得静默以 B 覆盖 A 的冲突字段。"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+        mgr.create_card("sess-merge-gate", objective="merge门禁")
+        mgr.add_task("sess-merge-gate", "Task 1", task_type="normal")
+        base = mgr.get_card("sess-merge-gate")
+        base.version = 0
+        mgr.save_card(base)
+
+        # Agent A: task1 state → done
+        card_a = mgr.get_card("sess-merge-gate")
+        card_a.update_task("sess-merge-gate-0001", state="done")
+        # Agent B: task1 state → blocked (overlap on same field)
+        card_b = mgr.get_card("sess-merge-gate")
+        card_b.update_task("sess-merge-gate-0001", state="blocked")
+
+        arbiter = ConflictArbiter(data_dir=os.path.join(tmpdir, "arb"),
+                                  state_manager=mgr)
+        ticket = arbiter.capture_conflict(
+            session_id="sess-merge-gate",
+            base_card=base,
+            conflicting_card=card_b,
+            current_card=card_a,
+            arbiter_name="agent_b",
+        )
+        assert ticket.status == "pending"
+        assert ticket.is_auto_mergeable == False
+        assert len(ticket.overlaps) >= 1
+
+        # 尝试对重叠票据执行 merge → 必须抛错拒绝，而非静默覆盖
+        raised = False
+        try:
+            arbiter.review(ticket.id, "merge", resolver="reviewer-x",
+                           reason="尝试合并")
+        except ValueError as e:
+            raised = True
+            assert "重叠" in str(e), f"错误信息应提示重叠，实际={e}"
+        assert raised, "对重叠票据 review(merge) 应抛 ValueError 拒绝"
+
+        # 票据仍为 pending，状态未被污染
+        after = arbiter.get_ticket(ticket.id)
+        assert after.status == "pending"
+        assert after.resolution == ""
+
+
 if __name__ == "__main__":
     test_diff_state_task_added()
     test_diff_state_field_change()
@@ -486,4 +542,5 @@ if __name__ == "__main__":
     test_diffs_overlap_removed_vs_changed_conflict()
     test_auto_merge_verifies_both_retained()
     test_review_stale_guard_raises()
+    test_review_merge_rejected_on_overlap()
     print("✅ 版本化冲突仲裁与审核测试全部通过")

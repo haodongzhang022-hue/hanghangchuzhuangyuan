@@ -184,7 +184,8 @@ class OwnershipGuard:
     def arbitrate_conflict(self, base_version: Optional[int] = None,
                            proposed_card: Optional[StateCard] = None,
                            reason: str = "",
-                           capture_base: Optional[StateCard] = None) -> object:
+                           capture_base: Optional[StateCard] = None,
+                           data_dir: Optional[str] = None) -> object:
         """版本冲突时生成 ReviewTicket，而非简单拒绝。
 
         参数:
@@ -192,6 +193,8 @@ class OwnershipGuard:
         - base_version: 调用方读到的版本号（可选）
         - capture_base: 调用方读取时的 StateCard 快照（可选，用于精确差异分析）
         - reason: 冲突原因描述
+        - data_dir: 仲裁票据持久化目录（可选；若未指定，ConflictArbiter 将使用默认目录
+        <cwd>/data/arbitration/）
 
         流程:
         1. 读取当前 StateCard（A 已提交后的版本）
@@ -210,7 +213,10 @@ class OwnershipGuard:
         if proposed_card is None:
             raise ValueError("需提供 proposed_card（冲突方尝试提交的版本）")
 
-        arbiter = ConflictArbiter(state_manager=self.sm)
+        # data_dir 显式透传：若调用方未指定，ConflictArbiter 将使用其默认目录
+        # (cwd/data/arbitration)；测试/沙箱环境可通过 data_dir 参数指定临时目录，
+        # 避免票据残留污染工作区。
+        arbiter = ConflictArbiter(state_manager=self.sm, data_dir=data_dir)
 
         # 若有精确的 base 快照 → 完整分析流程（自动合并或生成审核票）
         if capture_base is not None:
