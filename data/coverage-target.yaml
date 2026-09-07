@@ -10,7 +10,7 @@
 # 参考基线：国民经济行业分类门类(GB/T 4754) + 高频可被 AI 数字员工承接的
 #           服务/职业场景。行业 name 与 unit-index.yaml 的 industry 对齐以自动判覆盖。
 # ============================================================================
-version: "0.1"        # 清单版本
+version: "0.2"        # 清单版本
 updated_at: "2026-09-08"
 baseline_note: "初版基线，待各渠道搜集核实后迭代增补；注册单元自动判为已覆盖，无需手动维护"
 
@@ -30,6 +30,12 @@ targets:
      status: registered, channels: [], note: "旗舰单元，岗位可继续向细分研发角色扩充"}
   - {id: data-analytics,       name: 数据分析,     category: 信息传输/软件和信息技术服务, priority: 高,
      status: registered, channels: [], note: "已注册"}
+  - {id: hr-services,          name: 人力资源,     category: 租赁和商务服务业, priority: 高,
+     status: registered, channels: [], note: "已注册，招聘/薪酬/员工关系/HR咨询"}
+  - {id: admin-office,         name: 行政办公,     category: 通用职能, priority: 高,
+     status: registered, channels: [], note: "已注册，通用行政底座"}
+  - {id: design-visual,        name: 视觉设计,     category: 文化/体育和娱乐业, priority: 高,
+     status: registered, channels: [], note: "已注册，与内容/营销易复合"}
   - {id: game-dev-unit,        name: 游戏研发,     category: 文化/体育和娱乐业,           priority: 中,
      status: registered, channels: [], note: "已注册"}
   - {id: content-creation,     name: 内容创作,     category: 文化/体育和娱乐业,           priority: 中,
@@ -50,22 +56,10 @@ targets:
      status: registered, channels: [], note: "已注册"}
 
   # ---------------- 待覆盖(pending)：需通过渠道搜集岗位并建单元补齐 ----------------
-  - {id: hr-services,          name: 人力资源,     category: 租赁和商务服务业, priority: 高,
-     status: pending,
-     target_roles: [招聘专员, 薪酬绩效, 员工关系, 猎头顾问, 培训师],
-     channels: [招聘网站岗位库, 人力资源协会目录, 企业HR访谈], note: "通用职能，需求高频"}
-  - {id: admin-office,         name: 行政办公,     category: 通用职能, priority: 高,
-     status: pending,
-     target_roles: [行政专员, 前台接待, 文秘, 资料档案, 会议组织],
-     channels: [通用岗位大典, 办公软件教程岗位集], note: "通用职能底座"}
   - {id: translation,          name: 翻译本地化,   category: 文化/体育和娱乐业, priority: 中,
      status: pending,
      target_roles: [口译, 笔译, 字幕翻译, 本地化, 审校],
      channels: [翻译平台岗位榜, 语言服务行业目录], note: ""}
-  - {id: design-visual,        name: 视觉设计,     category: 文化/体育和娱乐业, priority: 高,
-     status: pending,
-     target_roles: [平面设计, UI设计, 视觉设计, 插画师, 品牌设计],
-     channels: [设计平台岗位库, 设计学院课程目录], note: "与内容/营销易复合"}
   - {id: video-media,          name: 视频影视,     category: 文化/体育和娱乐业, priority: 中,
      status: pending,
      target_roles: [视频剪辑, 摄影摄像, 后期制作, 导演助理, 编导],

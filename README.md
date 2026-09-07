@@ -16,7 +16,7 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 
 **新增行业单元只需更新注册数据，无需修改代码。**
 
-各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（11个行业单元）：
+各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（14个行业单元）：
 
 | 单元 | 行业 | 岗位 |
 |------|------|------|
@@ -31,6 +31,9 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 | education-training | 教育培训 | curriculum_designer / teacher / learning_advisor |
 | healthcare | 健康医疗 | health_consultant / psychologist / medical_advisor / fitness_coach |
 | home-design | 家装设计 | interior_designer / soft_furnish / project_manager |
+| hr-services | 人力资源 | recruiter / comp_benefits / employee_relations / hr_advisor |
+| admin-office | 行政办公 | admin_specialist / receptionist / document_archivist / meeting_coordinator |
+| design-visual | 视觉设计 | graphic_designer / ui_designer / illustrator / brand_designer |
 
 > 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 
@@ -162,7 +165,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 > "暂无数据"），**绝不伪造为 0% 或 100%**，避免误导判断。
 
 页面聚合展示：
-- **行业单元总览** — 11个行业/岗位/能力/入口
+- **行业单元总览** — 14个行业/岗位/能力/入口
 - **路由测试** — 输入一句话意图即时路由（含自动识别/复合装配/回落人工判定）
 - **能力检索** — M8 跨行业能力多维搜索
 - **能力索引** — 全量能力标签 → 承接岗位映射
@@ -294,7 +297,7 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

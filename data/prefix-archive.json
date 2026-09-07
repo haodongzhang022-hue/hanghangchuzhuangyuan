@@ -265,5 +265,86 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "hr-services": {
+    "unit_id": "hr-services",
+    "industry": "人力资源",
+    "role_prefixes": {
+      "recruiter": {
+        "prefix": "[招聘]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "comp_benefits": {
+        "prefix": "[薪酬绩效]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "employee_relations": {
+        "prefix": "[员工关系]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "hr_advisor": {
+        "prefix": "[HR顾问]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "admin-office": {
+    "unit_id": "admin-office",
+    "industry": "行政办公",
+    "role_prefixes": {
+      "admin_specialist": {
+        "prefix": "[行政专员]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "receptionist": {
+        "prefix": "[前台]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "document_archivist": {
+        "prefix": "[档案文书]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "meeting_coordinator": {
+        "prefix": "[会务]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "design-visual": {
+    "unit_id": "design-visual",
+    "industry": "视觉设计",
+    "role_prefixes": {
+      "graphic_designer": {
+        "prefix": "[平面设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "ui_designer": {
+        "prefix": "[UI设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "illustrator": {
+        "prefix": "[插画]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "brand_designer": {
+        "prefix": "[品牌视觉]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }

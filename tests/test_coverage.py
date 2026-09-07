@@ -59,7 +59,8 @@ def test_pending_gaps_listed():
     # 已覆盖行业不应出现在缺口里
     for g in gaps:
         assert g["status"] != "registered"
-    assert "人力资源" in names  # 代表性子集
+    assert "人力资源" not in names  # 高优先级已覆盖，不再出现在缺口
+    assert "金融投资" in names  # 代表性子集(仍待补)
 
 
 def test_text_render_smoke():
