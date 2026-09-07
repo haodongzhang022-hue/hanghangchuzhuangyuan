@@ -5,6 +5,7 @@ from .router import IntentRouter, CompositePlanner
 from .handoff import HandoffBus
 from .metrics import MetricsCollector
 from .prefix import PrefixArchive
+from .coverage import CoverageTracker
 
 # M9 状态管理层
 from hanghang.state.models import (
@@ -28,7 +29,7 @@ from hanghang.context import (
 __all__ = [
     "IndustryUnit", "Role", "RouteResult", "CompositePlan", "HandoffCard",
     "Registry", "IntentRouter", "CompositePlanner", "HandoffBus",
-    "MetricsCollector", "PrefixArchive",
+    "MetricsCollector", "PrefixArchive", "CoverageTracker",
     # M9
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
     "StateManager", "FoldEngine", "HierarchySubmitter",

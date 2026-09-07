@@ -37,6 +37,7 @@ from hanghang.engine import (  # noqa: E402
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
 )
+from hanghang.engine.coverage import CoverageTracker  # noqa: E402
 
 # 默认前端静态页面目录
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -192,6 +193,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 self._api_index()
             elif path == "/api/metrics":
                 self._api_metrics()
+            elif path == "/api/coverage":
+                self._api_coverage()
             elif path == "/api/handoffs":
                 self._api_handoffs()
             elif path == "/api/prefixes":
@@ -252,6 +255,16 @@ class HanghangHandler(BaseHTTPRequestHandler):
             "total": len(units),
             "units": units,
         })
+
+
+    def _api_coverage(self):
+        """行业岗位覆盖进度：目标全集 vs 当前覆盖"""
+        tracker = CoverageTracker(registry=self._get_registry())
+        payload = tracker.compute()
+        payload["rows"] = sorted(
+            payload["rows"],
+            key=lambda r: (r["status"] != "registered", r["name"]))
+        _json_response(self, 200, payload)
 
     def _do_route(self, text: str, record_metrics: bool = False) -> dict:
         """意图路由（统一逻辑，供 GET/POST 调用）。

@@ -12,6 +12,7 @@ from hanghang.engine import (
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
 )
+from hanghang.engine.coverage import CoverageTracker
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
@@ -112,6 +113,24 @@ def cmd_metrics(args):
     print(f"单元命中: {s['unit_hits']}")
     print(f"岗位命中: {s['role_hits']}")
 
+
+
+def cmd_coverage(args):
+    """输出行业/岗位覆盖进度表(目标全集 vs 当前覆盖)"""
+    tracker = CoverageTracker()
+    if getattr(args, "gaps", False):
+        gaps = tracker.gaps()
+        if not gaps:
+            print("目标全集行业均已覆盖，无待补缺口。")
+            return
+        print(f"待补缺口 {len(gaps)} 个目标行业(需通过各渠道搜集岗位并建单元补齐):")
+        for g in gaps:
+            roles = "、".join(g["roles"]["names"]) or "岗位待搜集"
+            ch = "；".join(g["channels"]) if g["channels"] else "渠道待定"
+            print(f"  - {g['name']} [{g['category']}] 优先级={g['priority']} 目标岗位: {roles}")
+            print(f"      建议渠道: {ch}")
+        return
+    print(tracker.render_text())
 
 def cmd_search(args):
     """M8 跨行业能力索引多维搜索"""
@@ -254,6 +273,11 @@ def build_parser():
                    choices=["any", "industry", "capability", "role"],
                    help="检索维度(默认any: 行业/能力/岗位全部)")
     s.set_defaults(func=cmd_search)
+
+
+    cv = sub.add_parser("coverage", help="行业/岗位覆盖进度表(目标全集 vs 当前覆盖)")
+    cv.add_argument("--gaps", action="store_true", help="仅列出待补缺口")
+    cv.set_defaults(func=cmd_coverage)
 
     ci = sub.add_parser("index", help="导出全量跨行业能力索引")
     ci.set_defaults(func=cmd_index)

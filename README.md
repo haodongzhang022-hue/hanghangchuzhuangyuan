@@ -56,6 +56,10 @@ python3 src/hanghang/cli/main.py route "帮我点个外卖"
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
 
+# 查看「目标全集 vs 当前覆盖」行业/岗位覆盖进度表（覆盖率/待补缺口）
+python3 src/hanghang/cli/main.py coverage
+python3 src/hanghang/cli/main.py coverage --gaps   # 仅列出待通过渠道搜集补齐的行业缺口
+
 # 按关键词多维搜索行业能力索引（M8，可加 --mode 指定 industry/capability/role 维度）
 python3 src/hanghang/cli/main.py search "合同"
 python3 src/hanghang/cli/main.py search "数据" --mode role
@@ -196,11 +200,23 @@ python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
+- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
+
+
+## 行业覆盖进度与多渠道搜集
+
+平台以 **coverage 进度** 统一回答「整体要覆盖多少行业/岗位、当前覆盖到多少」。
+
+- **目标全集 = 分母**：`data/coverage-target.yaml` 声明应覆盖的行业单位清单及各自标岗位。
+- **当前覆盖 = 分子**：由已注册单元自动判定（按行业名对齐 unit-index），无需手工维护。
+- **覆盖率**：`coverage` 命令输出 行业覆盖率 与 岗位覆盖率 两张进度表，并可按缺口（`--gaps`）列出待补行业及建议搜集渠道。
+
+`coverage-target.yaml` 每个待补行业均声明了 `priority`(优先度) 与 `channels`(建议搜集渠道)，用于引导通过各渠道（招聘岗位库、行业协会目录、职业分类大纲、服务机构目录、用户真实诉求沉淀等）充分搜集岗位/职业/行业后逐步建单元补齐。新增目标行业只需在 `targets` 追加一条声明即可自动纳入进度统计，无需改代码（数据驱动）。
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
