@@ -30,8 +30,14 @@ class PrefixArchive:
                 pass
         return {}
 
-    def register_unit(self, unit: IndustryUnit):
-        """注册/更新一个单元的稳定前缀档案"""
+    def register_unit(self, unit: IndustryUnit, persist: bool = True):
+        """注册/更新一个单元的稳定前缀档案。
+
+        参数:
+            persist: 是否立即持久化到磁盘。为 False 时仅更新内存，不触发文件写入。
+        默认 persist=True 保持与历史行为一致（CLI 入口在启动时注册并回写磁盘）。
+        Web 只读路径应传入 persist=False 以避免 GET 请求写文件的副作用。
+        """
         entry = {
             "unit_id": unit.unit_id,
             "industry": unit.industry,
@@ -46,7 +52,12 @@ class PrefixArchive:
             "rule": "one_session_one_industry_fixed_prefixes",
         }
         self._archive[unit.unit_id] = entry
-        self._save()
+        if persist:
+            self._save()
+
+    def get_archive(self) -> Dict[str, dict]:
+        """获取全量前缀档案（只读视图）。"""
+        return dict(self._archive)
 
     def get_unit_prefixes(self, unit_id: str) -> Optional[List[str]]:
         """获取某单元的全部岗位稳定前缀"""
