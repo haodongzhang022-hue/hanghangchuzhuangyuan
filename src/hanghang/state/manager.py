@@ -7,6 +7,7 @@ import re
 import time
 from typing import Dict, List, Optional
 
+from .persist import FlushQueue
 from .models import StateCard, TaskRecord, TaskState, FoldState
 
 # session_id 白名单：仅允许字母/数字/下划线/短横线
@@ -22,9 +23,16 @@ class StateManager:
     - 提供折叠/展开查询
     """
 
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(self, data_dir: Optional[str] = None,
+                 flush_queue: Optional[FlushQueue] = None):
         self.data_dir = data_dir or os.path.join(os.getcwd(), "data", "state")
         os.makedirs(self.data_dir, exist_ok=True)
+        # 落盘统一走队列：默认 write-through 即时落盘（保持既有行为），
+        # 高频/规模场景可用 defer() 批量延迟落盘。
+        self._flush_queue = flush_queue or FlushQueue()
+        # 内存态缓存：defer() 延迟落盘期间，同一会话的多次变更在内存累计，
+        # 读操作(如 add_task 前 get_card)从缓存取最新态，保证批内正确。
+        self._mem_cache: Dict[str, StateCard] = {}
 
     # ---- 生命周期管理 ----
 
@@ -44,16 +52,19 @@ class StateManager:
         return card
 
     def get_card(self, session_id: str) -> Optional[StateCard]:
-        """按会话ID读取 StateCard"""
+        """按会话ID读取 StateCard（延迟落盘期间从内存缓存取最新态）"""
         if not self._is_valid_session_id(session_id):
             return None
+        if session_id in self._mem_cache:
+            return self._mem_cache[session_id]
         path = self._card_path(session_id)
         if not os.path.exists(path):
             return None
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return StateCard.from_dict(data)
+            card = StateCard.from_dict(data)
+            return card
         except Exception:
             return None
 
@@ -66,9 +77,10 @@ class StateManager:
         return card
 
     def delete_card(self, session_id: str) -> bool:
-        """删除一张 StateCard"""
+        """删除一张 StateCard（同步清理内存缓存）"""
         if not self._is_valid_session_id(session_id):
             return False
+        self._mem_cache.pop(session_id, None)
         path = self._card_path(session_id)
         if os.path.exists(path):
             os.remove(path)
@@ -245,6 +257,42 @@ class StateManager:
         return os.path.join(self.data_dir, f"{session_id}.json")
 
     def _save(self, card: StateCard):
-        path = self._card_path(card.session_id)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(card.to_dict(), f, ensure_ascii=False, indent=2)
+        """登记一次卡落盘（统一走队列，支持批量/延迟落盘）。
+
+        写入统一经 _flush_queue：
+        - write-through：登记即写盘（保持既有行为）
+        - defer() 延迟批量：仅登记并缓存内存态，flush() 时写最新态一次
+        """
+        card_sid = card.session_id
+        self._mem_cache[card_sid] = card   # 保存最新内存态
+
+        def _write():
+            # flush 时取最新内存态序列化，保证同一 session 多次变更只写最终态
+            latest = self._mem_cache.get(card_sid, card)
+            path = self._card_path(card_sid)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(latest.to_dict(), f, ensure_ascii=False, indent=2)
+            # 已落盘，可从缓存移除（下次读回磁盘最新值）
+            if self._mem_cache.get(card_sid) is latest:
+                self._mem_cache.pop(card_sid, None)
+        self._flush_queue.enqueue(self._card_path(card_sid), _write)
+
+    # ---- 批量/延迟落盘 ----
+
+    def flush(self) -> int:
+        """强制批量落盘当前 pending 的卡写入，返回写盘资源数"""
+        return self._flush_queue.flush()
+
+    def defer(self, batch_size: int = 0):
+        """
+        进入"延迟批量落盘"上下文：上下文内多次建卡/加任务仅登记，
+        退出时统一批量落盘。
+        """
+        from .persist import DeferredWriter
+        self._flush_queue.batch_size = max(batch_size, self._flush_queue.batch_size)
+        return DeferredWriter(self._flush_queue)
+
+    @property
+    def pending_write_count(self) -> int:
+        """尚未落盘的待写登记数（延迟模式下观测用）"""
+        return self._flush_queue.pending_count
