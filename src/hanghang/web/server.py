@@ -12,6 +12,7 @@
 - GET /api/metrics          — 运行指标（M7）
 - GET /api/handoffs         — 待处理交接卡（M5）
 - GET /api/prefixes         — 稳定前缀档案（M3）
+- GET /api/state            — M9 状态卡聚合（编排/交接任务进度，只读）
 - POST /api/route           — 意图路由调用（JSON body）
 
 运行方式:
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 import threading
@@ -38,6 +40,8 @@ from hanghang.engine import (  # noqa: E402
     MetricsCollector, PrefixArchive,
 )
 from hanghang.engine.coverage import CoverageTracker  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 # 默认前端静态页面目录
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -84,6 +88,10 @@ def _init_engines():
         _engine_cache["prefixes"] = pa
         _engine_cache["metrics"] = MetricsCollector()
         _engine_cache["handoffs"] = HandoffBus()
+        # M9 状态管理器：读取 data/state 下的 StateCard（路由自动落卡 + 交接关联卡）。
+        # GET /api/state 仅做只读聚合，绝不在此路径写入。
+        from hanghang.state.manager import StateManager
+        _engine_cache["state"] = StateManager()
         _engine_cache["initialized"] = True
 
 
@@ -105,6 +113,11 @@ def _get_cached_metrics() -> MetricsCollector:
 def _get_cached_handoffs() -> HandoffBus:
     _init_engines()
     return _engine_cache["handoffs"]  # type: ignore
+
+
+def _get_cached_state() -> "StateManager":
+    _init_engines()
+    return _engine_cache["state"]  # type: ignore
 
 
 def _apply_cors(handler):
@@ -176,6 +189,10 @@ class HanghangHandler(BaseHTTPRequestHandler):
         """获取 M5 交接总线（模块级缓存实例，避免 GET 每次重建触发目录副作用）。"""
         return _get_cached_handoffs()
 
+    def _get_state(self) -> "StateManager":
+        """获取 M9 状态管理器（模块级缓存实例，指向 data/state，GET 只读）。"""
+        return _get_cached_state()
+
     # ---- 路由 ----
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -199,6 +216,10 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 self._api_handoffs()
             elif path == "/api/prefixes":
                 self._api_prefixes()
+            elif path == "/api/session":
+                self._api_session()
+            elif path == "/api/state":
+                self._api_state()
             elif path.startswith("/static/"):
                 self._serve_static(path)
             else:
@@ -429,6 +450,228 @@ class HanghangHandler(BaseHTTPRequestHandler):
         pa = self._get_prefixes()
         archive = pa.get_archive()  # 通过公开方法读取，不暴露私有字段
         _json_response(self, 200, {"units": len(archive), "archive": archive})
+
+    def _api_state(self):
+        """GET /api/state — M9 状态卡聚合（编排/交接任务进度，只读）。
+
+        只读聚合 data/state 下各 StateCard：
+          - 路由自动落卡（session 以 rt- 开头）与交接关联卡（ho- 开头）分桶统计；
+          - 汇总任务进度（done/in_progress/blocked/todo）；
+          - 供 L2 出口复核端可视化"编排/交接进度"，不做任何写盘。
+        """
+        sm = self._get_state()
+        cards = sm.list_cards()  # 只读：遍历磁盘 JSON 重建，无写盘副作用
+        cards.sort(key=lambda c: c.created_at or "", reverse=True)
+
+        stats = {"total_cards": 0, "total_tasks": 0,
+                 "todo_tasks": 0, "done_tasks": 0, "in_progress_tasks": 0,
+                 "blocked_tasks": 0, "failed_tasks": 0, "cancelled_tasks": 0,
+                 "route_cards": 0, "handoff_cards": 0, "other_cards": 0}
+
+        per_unit = {}
+        items = []
+        for c in cards:
+            sid = c.session_id or ""
+            if sid.startswith("rt-"):
+                kind = "route"
+                stats["route_cards"] += 1
+            elif sid.startswith("ho-"):
+                kind = "handoff"
+                stats["handoff_cards"] += 1
+            else:
+                kind = "other"
+                stats["other_cards"] += 1
+
+            summary = c.summarize_for_upstream()
+            item = {
+                "session_id": sid,
+                "kind": kind,
+                "unit_id": c.unit_id or "",
+                "role_name": c.role_name or "",
+                "objective": c.objective or "",
+                "created_at": c.created_at or "",
+                "updated_at": c.updated_at or "",
+                "task_count": summary.get("task_count", 0),
+                "todo_count": summary.get("todo_count", 0),
+                "done_count": summary.get("done_count", 0),
+                "in_progress_count": summary.get("in_progress_count", 0),
+                "blocked_count": summary.get("blocked_count", 0),
+                "failed_count": summary.get("failed_count", 0),
+                "cancelled_count": summary.get("cancelled_count", 0),
+                "tasks": summary.get("tasks", []),
+            }
+            stats["total_cards"] += 1
+            stats["total_tasks"] += item["task_count"]
+            stats["todo_tasks"] += item["todo_count"]
+            stats["done_tasks"] += item["done_count"]
+            stats["in_progress_tasks"] += item["in_progress_count"]
+            stats["blocked_tasks"] += item["blocked_count"]
+            stats["failed_tasks"] += item["failed_count"]
+            stats["cancelled_tasks"] += item["cancelled_count"]
+
+            uid = item["unit_id"] or "未标注单元"
+            pu = per_unit.setdefault(uid, {"cards": 0, "tasks": 0, "done": 0})
+            pu["cards"] += 1
+            pu["tasks"] += item["task_count"]
+            pu["done"] += item["done_count"]
+            items.append(item)
+
+        _json_response(self, 200, {
+            "stats": stats,
+            "per_unit": [{"unit_id": u, **v} for u, v in per_unit.items()],
+            "cards": items,
+        })
+
+
+    def _api_session(self):
+        """GET /api/session?id=<session_id> — 单会话编排快照 + 续传锚点（只读）。
+
+        落 RFC-ECO-01 阶段4（生态闭环·轮询拉取形态）：外部 agent / L2 出口复核
+        可按 session 拉取某一编排/交接会话的「待办 + 结果 + 交接关联」，用于续传
+        或承接，而无需依赖 CLI 或对话记忆。
+
+        返回：
+          - session 概要（objective/unit/role/时间）
+          - 任务分桶统计 + 全量任务明细
+          - 树/上下级联动（upstream/downstream）
+          - 交接关联（handoff 会话时，从交接仓反查 source→target/状态）
+          - resume（续传锚点）：未完结任务清单 + resume_key = session@version
+        """
+        sid = _query_param(self, "id") or _query_param(self, "session")
+        if not sid:
+            _json_response(self, 400, {"error": "缺少 session id 参数 (?id=...)"})
+            return
+        sm = self._get_state()
+        card = sm.get_card(sid)
+        if card is None:
+            _json_response(self, 404, {
+                "error": f"未找到会话 {sid}",
+                "hint": "路由/交接自动落卡在 data/state/ 下，可用 /api/state 查看全部",
+            })
+            return
+
+        # 卡片概要 + 任务汇总
+        summary = card.summarize_for_upstream()
+        kind = "handoff" if sid.startswith("ho-") else (
+            "route" if sid.startswith("rt-") else "other")
+
+        # 联动：本卡 upstream/downstream + 反向扫描下级（谁的 upstream==本会话）
+        children = list(card.downstream or [])
+        for other in sm.list_cards():
+            if other.session_id == sid:
+                continue
+            if other.upstream == sid:
+                children.append(other.session_id)
+        children = sorted(set(children))
+
+        # 交接关联：ho- 会话反查交接仓记录（source→target / 状态）
+        handoff_link = None
+        if kind == "handoff":
+            handoff_link = self._resolve_handoff_link(sid)
+
+        # 续传锚点：未完结/需承接任务 + 确定性 resume_key
+        # 显式区分失败/全取消，避免 failed 被 in_progress 吞掉、全 cancelled 落成 done
+        task_count = summary.get("task_count", 0)
+        done_count = summary.get("done_count", 0)
+        blocked_count = summary.get("blocked_count", 0)
+        failed_count = summary.get("failed_count", 0)
+        cancelled_count = summary.get("cancelled_count", 0)
+        tasks = summary.get("tasks", [])
+        open_tasks = [
+            t for t in tasks
+            if t.get("state") in ("todo", "in_progress", "blocked", "failed")
+        ]
+        # 是否有真正"待续传/推进中"任务（todo / in_progress）
+        has_active = any(
+            t.get("state") in ("todo", "in_progress") for t in tasks
+        )
+        if task_count == 0:
+            status = "empty"
+        elif done_count == task_count:               # 全部完成 → 无续传负担
+            status = "delivered"
+        elif cancelled_count == task_count:          # 全取消：会话无实际推进
+            status = "cancelled"
+        elif failed_count > 0:                       # 含失败任务（含已 done 并存）→ 需人工关注
+            status = "needs_attention"
+        elif has_active:                             # 仍有 todo/in_progress 待续传
+            status = "in_progress"
+        elif blocked_count > 0:
+            status = "blocked"
+        else:
+            # done+cancelled 混合（无 failed、无 active、非全 done/全 cancel）
+            # 无任何可续传清单却非纯终态，显式标 needs_attention 避免空 pending 误标"进行中"
+            status = "needs_attention"
+        resume = {
+            "status": status,
+            "open_task_count": len(open_tasks),
+            "pending": open_tasks,
+            "resume_key": f"{sid}@{card.version or 0}",
+        }
+
+        _json_response(self, 200, {
+            "session_id": sid,
+            "kind": kind,
+            "card": {
+                "unit_id": card.unit_id or "",
+                "role_name": card.role_name or "",
+                "objective": card.objective or "",
+                "owner": card.owner or "",
+                "version": card.version or 0,
+                "created_at": card.created_at or "",
+                "updated_at": card.updated_at or "",
+            },
+            "stats": {
+                "task_count": summary.get("task_count", 0),
+                "todo_count": summary.get("todo_count", 0),
+                "done_count": summary.get("done_count", 0),
+                "in_progress_count": summary.get("in_progress_count", 0),
+                "blocked_count": summary.get("blocked_count", 0),
+                "failed_count": summary.get("failed_count", 0),
+                "cancelled_count": summary.get("cancelled_count", 0),
+            },
+            "tasks": summary.get("tasks", []),
+            "linkage": {
+                "upstream": card.upstream or None,
+                "downstream": children,
+            },
+            "handoff_link": handoff_link,
+            "resume": resume,
+        })
+
+    def _resolve_handoff_link(self, session_id: str):
+        """反查交接仓：找出 state_card_id == session_id 的交接记录。只读。
+
+        直接扫描交接数据目录内全部交接 JSON（不依赖 list_pending 的
+        status 过滤，以同时覆盖已回传 done/failed 与进行中记录）。
+        """
+        try:
+            hb = self._get_handoffs()
+            data_dir = getattr(hb, "data_dir", None)
+            if not data_dir or not os.path.isdir(data_dir):
+                return {"status": "no_handoff_record"}
+            for fn in os.listdir(data_dir):
+                if not fn.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(data_dir, fn), "r",
+                              encoding="utf-8") as f:
+                        rec = json.load(f)
+                except Exception as e:
+                    # G1: 半写/损坏 JSON 不再静默吞掉，记 warning 便于排障
+                    logger.warning(
+                        "handoff 交接记录解析失败，跳过 %s: %s", fn, e)
+                    continue
+                if isinstance(rec, dict) and rec.get("state_card_id") == session_id:
+                    return {
+                        "source_unit": rec.get("source_unit"),
+                        "target_unit": rec.get("target_unit"),
+                        "intent": rec.get("intent"),
+                        "status": rec.get("status") or "created",
+                        "card_id": rec.get("id") or rec.get("card_id") or fn[:-5],
+                    }
+            return {"status": "no_handoff_record"}
+        except Exception:
+            return {"status": "lookup_error"}
 
     def _serve_index(self):
         """返回单页 HTML 控制台"""
