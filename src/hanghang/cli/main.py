@@ -16,6 +16,7 @@ from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
     cmd_state_submit, cmd_state_list,
+    cmd_state_claim, cmd_state_release, cmd_state_status,
     cmd_tree_init, cmd_tree_register, cmd_tree_link,
     cmd_tree_show, cmd_tree_rollup,
     cmd_tree_submit_chain, cmd_tree_list,
@@ -300,6 +301,20 @@ def build_parser():
     sl = state_sub.add_parser("list", help="列出所有 StateCard")
     sl.set_defaults(func=cmd_state_list)
 
+    scl = state_sub.add_parser("claim", help="秘书声明对 StateCard 的归属/占用")
+    scl.add_argument("--session", required=True, help="会话ID")
+    scl.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    scl.add_argument("--force", action="store_true", help="强制抢占他人占用")
+    scl.set_defaults(func=cmd_state_claim)
+    srl = state_sub.add_parser("release", help="释放对 StateCard 的归属")
+    srl.add_argument("--session", required=True, help="会话ID")
+    srl.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    srl.set_defaults(func=cmd_state_release)
+    sst = state_sub.add_parser("status", help="查看 StateCard 归属与版本状态")
+    sst.add_argument("--session", required=True, help="会话ID")
+    sst.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    sst.set_defaults(func=cmd_state_status)
+
     # ---- M9 秘书长多级树子命令 ----
     stree = sub.add_parser("tree", help="M9 秘书长多级树：树拓扑管理/汇总/导航")
     tree_sub = stree.add_subparsers(dest="tree_cmd")
@@ -355,7 +370,7 @@ def main():
         sys.exit(1)
     # state 子命令需要检查二级命令
     if args.command == "state" and not getattr(args, "state_cmd", None):
-        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list")
+        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list / claim / release / status")
         print("示例: python3 src/hanghang/cli/main.py state init --session demo")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):
