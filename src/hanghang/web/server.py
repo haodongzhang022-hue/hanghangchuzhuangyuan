@@ -341,13 +341,18 @@ class HanghangHandler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             length = 0
         if length > MAX_BODY_SIZE:
-            # 先读取/丢弃已到达的部分 body，避免客户端 broken pipe
-            # （客户端可能在收到响应前继续写数据）
-            if length > 0:
+            # 完整读取并丢弃请求体，避免客户端 broken pipe。
+            # 仅读取部分 body 就关闭连接，会导致还在向 socket 写入
+            # 剩余 body 数据的客户端遇到 EPIPE/BrokenPipeError。
+            remaining = length
+            while remaining > 0:
                 try:
-                    self.rfile.read(min(length, 64 * 1024))
+                    chunk = self.rfile.read(min(remaining, 64 * 1024))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
                 except Exception:
-                    pass
+                    break
             _json_response(self, 413, {"error": "请求体过大（最大 1MB）"})
             self.close_connection = True
             return
