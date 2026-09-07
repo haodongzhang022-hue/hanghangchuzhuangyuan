@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from hanghang.web.server import HanghangHTTPServer, MAX_BODY_SIZE
+from hanghang.state.manager import StateManager
+from hanghang.state.models import TaskState
 
 
 class TestWebAPI:
@@ -844,6 +846,157 @@ class TestWebAPI:
             resp2.read()
         finally:
             conn2.close()
+
+    # ---- GET /api/state M9 状态卡聚合（编排/交接任务进度）----
+    def test_state_api_structure(self):
+        """GET /api/state 返回 stats/per_unit/cards 结构"""
+        code, data = self._get("/api/state")
+        assert code == 200
+        assert set(data.keys()) == {"stats", "per_unit", "cards"}
+        st = data["stats"]
+        for k in ("total_cards", "total_tasks", "done_tasks", "route_cards",
+                  "handoff_cards", "other_cards"):
+            assert k in st, f"stats 缺字段 {k}"
+        assert st["total_cards"] == len(data["cards"])
+        # cards 元素字段完整性
+        if data["cards"]:
+            c = data["cards"][0]
+            for k in ("session_id", "kind", "unit_id", "objective",
+                      "task_count", "tasks"):
+                assert k in c, f"card 缺字段 {k}"
+
+    def test_state_api_kind_classification(self):
+        """状态卡按 kind 分类：route(rt-)/handoff(ho-)/other"""
+        code, data = self._get("/api/state")
+        assert code == 200
+        kinds = {}
+        for c in data["cards"]:
+            kinds[c["session_id"].split("-")[0]] = c["kind"]
+        # rt- 开头 → route；ho- 开头 → handoff
+        for sid, kind in kinds.items():
+            if sid == "rt":
+                assert kind == "route"
+            elif sid == "ho":
+                assert kind == "handoff"
+        # 统计与卡片分类一致
+        st = data["stats"]
+        route_cnt = sum(1 for c in data["cards"] if c["kind"] == "route")
+        handoff_cnt = sum(1 for c in data["cards"] if c["kind"] == "handoff")
+        assert route_cnt == st["route_cards"]
+        assert handoff_cnt == st["handoff_cards"]
+
+    def test_state_api_post_creates_route_card(self):
+        """POST 路由落 StateCard 后 /api/state 能读到该卡（编排进度可追踪）。
+
+        StateCard 的 session_id 由意图文本稳定 hash 生成（同一意图复用同一卡），
+        因此用一次全新意图文本可保证生成一张此前未存在的新卡。断言基于 POST
+        返回的 state_card_id 是否出现在 /api/state。
+        """
+        import uuid
+        # 唯一 token 保证每次运行的意图文本全新 → StateCard 必为新建
+        text = f"既要架构设计方案又要编码实现（回归唯一{uuid.uuid4().hex[:8]}）"
+
+        # 1) POST 前该卡不应存在
+        code_before, before = self._get("/api/state")
+        assert code_before == 200
+        n_before = before["stats"]["total_cards"]
+
+        # 2) POST 复合路由落 StateCard
+        body = json.dumps({"text": text}).encode("utf-8")
+        req = urllib.request.Request(
+            self.base_url + "/api/route", data=body,
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            posted = json.loads(resp.read().decode("utf-8"))
+        card_id = posted.get("plan", {}).get("state_card_id")
+        assert card_id, "POST 复合路由应返回 state_card_id"
+
+        # 3) 该唯一意图的卡在 POST 前不应存在（未与历史残留卡冲突）
+        before_sids = {c["session_id"] for c in before["cards"]}
+        assert card_id not in before_sids, "全新意图的卡在 POST 前不应存在"
+
+        # 4) POST 后 /api/state 能读到该新编排卡，且落多岗位任务
+        _, after = self._get("/api/state")
+        sids = {c["session_id"] for c in after["cards"]}
+        assert card_id in sids, f"POST 后 /api/state 应能读到新编排卡 {card_id}"
+        target = next((c for c in after["cards"] if c["session_id"] == card_id), None)
+        assert target is not None
+        assert target["task_count"] >= 2, "复合意图应在状态卡中落多个岗位任务"
+
+    def test_state_api_get_is_read_only(self):
+        """GET /api/state 只读，不应新增卡片/不改写数据"""
+        code0, before = self._get("/api/state")
+        n0 = before["stats"]["total_cards"]
+        for _ in range(3):
+            _, _ = self._get("/api/state")
+        _, after = self._get("/api/state")
+        assert after["stats"]["total_cards"] == n0,             "GET /api/state 不应产生新的 StateCard"
+
+    def test_state_api_todo_excludes_failed_cancelled(self):
+        """todo_count 不把 failed/cancelled 任务计入 todo（回归验证）
+
+        构造 6 个不同状态的任务（1 todo/1 in_progress/1 done/1 blocked/1 failed/1 cancelled），
+        验证 /api/state 的 todo_count 仅统计真实 TODO 任务，而非用减法推算。
+        """
+        import uuid
+        # 唯一 session_id：前缀 rt- 使其被分类为 route
+        sid = f"rt-todocnt-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        card = sm.create_card(
+            session_id=sid,
+            objective="todo_count 回归验证",
+            unit_id="dongjiagoushi",
+            role_name="secretary",
+        )
+        try:
+            # 添加 6 个任务（覆盖全部 6 种状态）
+            t_todo = sm.add_task(sid, "任务A-todo")
+            t_prog = sm.add_task(sid, "任务B-in_progress")
+            t_done = sm.add_task(sid, "任务C-done")
+            t_blk  = sm.add_task(sid, "任务D-blocked")
+            t_fail = sm.add_task(sid, "任务E-failed")
+            t_canc = sm.add_task(sid, "任务F-cancelled")
+
+            # 设置各任务状态（todo 是默认值）
+            # 注意：状态机限制 todo→failed 不合法，需先 in_progress→failed
+            sm.update_task_state(sid, t_prog.task_id, TaskState.IN_PROGRESS.value)
+            sm.update_task_state(sid, t_done.task_id, TaskState.DONE.value)
+            sm.update_task_state(sid, t_blk.task_id,  TaskState.BLOCKED.value)
+            # todo → in_progress → failed（合法路径）
+            assert sm.update_task_state(sid, t_fail.task_id, TaskState.IN_PROGRESS.value)
+            assert sm.update_task_state(sid, t_fail.task_id, TaskState.FAILED.value)
+            # todo → cancelled 合法
+            assert sm.update_task_state(sid, t_canc.task_id, TaskState.CANCELLED.value)
+
+            # GET /api/state（StateManager.list_cards() 直接读磁盘，无需刷缓存）
+            code, data = self._get("/api/state")
+            assert code == 200
+            target = next((c for c in data["cards"] if c["session_id"] == sid), None)
+            assert target is not None, "GET /api/state 应能读到刚构造的 7 态卡"
+
+            # 验证 todo_count == 1（仅任务A 是真正 todo，failed/cancelled 不计入）
+            assert target["todo_count"] == 1,                 f"todo_count 应为 1（仅 TODO 任务），实际 {target['todo_count']}"
+            # 验证各分桶
+            assert target["done_count"] == 1
+            assert target["in_progress_count"] == 1
+            assert target["blocked_count"] == 1
+            assert target["failed_count"] == 1
+            assert target["cancelled_count"] == 1
+            # 分桶之和 == task_count（全部被真实统计，无丢失）
+            buckets = (target["todo_count"] + target["done_count"]
+                       + target["in_progress_count"] + target["blocked_count"]
+                       + target["failed_count"] + target["cancelled_count"])
+            assert buckets == target["task_count"],                 f"分桶之和({buckets})应等于 task_count({target['task_count']})"
+
+            # stats 侧也应如实反映 failed/cancelled
+            st = data["stats"]
+            assert st["failed_tasks"] >= 1
+            assert st["cancelled_tasks"] >= 1
+        finally:
+            # 清理测试数据
+            sm.delete_card(sid)
+
 def run_tests():
     t = TestWebAPI()
     t.setup_class()
