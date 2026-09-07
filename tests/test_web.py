@@ -46,6 +46,15 @@ class TestWebAPI:
         assert "dongjiagoushi" in unit_ids
         assert "game-dev-unit" in unit_ids
 
+
+    def test_coverage_api(self):
+        code, data = self._get("/api/coverage")
+        assert code == 200
+        assert data["total_industries"] > 0
+        assert 0 < data["covered_industries"] <= data["total_industries"]
+        assert 0.0 < data["industry_coverage"] < 1.0
+        assert "rows" in data
+
     def test_route_api(self):
         code, data = self._get(
             "/api/route?text=" + urllib.parse.quote("既要架构设计又要落地开发"))

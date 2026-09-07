@@ -1,0 +1,130 @@
+# ============================================================================
+# 行业岗位覆盖目标全集 · coverage-target
+# 作用：作为「整体目标(分母) vs 当前覆盖(分子)」的进度基准清单。
+#   - 提供全局行业/岗位覆盖率的统一口径，供 coverage 命令与 Web 面板统计；
+#   - 引导通过各渠道持续搜集、补齐岗位/职业/行业，形成可追踪记录；
+#   - 已注册行业由 unit-index 自动归为 registered，无需改本文件。
+#
+# 说明：本清单为「初版基线」，行业全集随多渠道搜集持续增补；
+#       新增目标行业只需在 targets 追加一条声明，无需修改代码（数据驱动）。
+# 参考基线：国民经济行业分类门类(GB/T 4754) + 高频可被 AI 数字员工承接的
+#           服务/职业场景。行业 name 与 unit-index.yaml 的 industry 对齐以自动判覆盖。
+# ============================================================================
+version: "0.2"        # 清单版本
+updated_at: "2026-09-08"
+baseline_note: "初版基线，待各渠道搜集核实后迭代增补；注册单元自动判为已覆盖，无需手动维护"
+
+# 目标行业全集：每个条目 = 一个应可路由的行业单位(细粒度)。
+# 字段说明：
+#   id           行业标识(建议=未来 unit_id 命名，短横线小写)
+#   name         行业名，与 unit-index.industry 对齐可自动识别为已覆盖
+#   category     所属国民经济/服务大类(便于分门别类看清缺口)
+#   target_roles 该行业首批应覆盖的代表性岗位(岗位基线；可随扩充持续加项)
+#   status       registered=已有单元覆盖 / pending=待通过渠道搜集后建单元
+#   priority     高/中/低，决定补充先后
+#   channels     建议的搜集渠道(对应"通过各渠道充分搜集岗位职业行业"落地项)
+#   note         备注
+targets:
+  # ---------------- 已覆盖(registered) 由下方 name 与 unit-index 自动关联 ----------------
+  - {id: dongjiagoushi,        name: 软件研发,     category: 信息传输/软件和信息技术服务, priority: 高,
+     status: registered, channels: [], note: "旗舰单元，岗位可继续向细分研发角色扩充"}
+  - {id: data-analytics,       name: 数据分析,     category: 信息传输/软件和信息技术服务, priority: 高,
+     status: registered, channels: [], note: "已注册"}
+  - {id: hr-services,          name: 人力资源,     category: 租赁和商务服务业, priority: 高,
+     status: registered, channels: [], note: "已注册，招聘/薪酬/员工关系/HR咨询"}
+  - {id: admin-office,         name: 行政办公,     category: 通用职能, priority: 高,
+     status: registered, channels: [], note: "已注册，通用行政底座"}
+  - {id: design-visual,        name: 视觉设计,     category: 文化/体育和娱乐业, priority: 高,
+     status: registered, channels: [], note: "已注册，与内容/营销易复合"}
+  - {id: game-dev-unit,        name: 游戏研发,     category: 文化/体育和娱乐业,           priority: 中,
+     status: registered, channels: [], note: "已注册"}
+  - {id: content-creation,     name: 内容创作,     category: 文化/体育和娱乐业,           priority: 中,
+     status: registered, channels: [], note: "已注册"}
+  - {id: marketing,            name: 市场营销,     category: 租赁和商务服务业,            priority: 中,
+     status: registered, channels: [], note: "已注册"}
+  - {id: e-commerce,           name: 电子商务,     category: 批发和零售业/互联网,         priority: 中,
+     status: registered, channels: [], note: "已注册"}
+  - {id: finance-accounting,   name: 财务会计,     category: 金融业/通用职能,             priority: 高,
+     status: registered, channels: [], note: "已注册，通用财务记账/税务/薪酬"}
+  - {id: legal-services,       name: 法律咨询,     category: 租赁和商务服务业,            priority: 中,
+     status: registered, channels: [], note: "已注册"}
+  - {id: education-training,   name: 教育培训,     category: 教育业,                      priority: 高,
+     status: registered, channels: [], note: "已注册"}
+  - {id: healthcare,           name: 健康医疗,     category: 卫生和社会工作业,            priority: 高,
+     status: registered, channels: [], note: "已注册"}
+  - {id: home-design,          name: 家装设计,     category: 建筑业/装饰装修,             priority: 中,
+     status: registered, channels: [], note: "已注册"}
+
+  # ---------------- 待覆盖(pending)：需通过渠道搜集岗位并建单元补齐 ----------------
+  - {id: translation,          name: 翻译本地化,   category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [口译, 笔译, 字幕翻译, 本地化, 审校],
+     channels: [翻译平台岗位榜, 语言服务行业目录], note: ""}
+  - {id: video-media,          name: 视频影视,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [视频剪辑, 摄影摄像, 后期制作, 导演助理, 编导],
+     channels: [视频平台创作者岗位, 传媒院校专业目录], note: ""}
+  - {id: finance-invest,       name: 金融投资,     category: 金融业, priority: 中,
+     status: pending,
+     target_roles: [理财顾问, 保险顾问, 证券分析, 投资顾问, 信贷专员],
+     channels: [金融机构岗位目录, 金融人才网], note: "与财务会计/投资复合"}
+  - {id: real-estate,          name: 房产置业,     category: 房地产业, priority: 中,
+     status: pending,
+     target_roles: [房产经纪, 置业顾问, 房产评估, 招商运营, 物业管理],
+     channels: [房产平台岗位, 中介协会目录], note: ""}
+  - {id: tourism-hospitality,  name: 旅游出行,     category: 住宿和餐饮业/旅游, priority: 中,
+     status: pending,
+     target_roles: [旅游规划, 酒店管理, 导游, 票务预订, 民宿运营],
+     channels: [旅游平台岗位, 酒店餐饮行业目录], note: ""}
+  - {id: food-beverage,        name: 餐饮美食,     category: 住宿和餐饮业, priority: 低,
+     status: pending,
+     target_roles: [菜品策划, 门店运营, 外卖运营, 食品安全, 餐饮管理],
+     channels: [餐饮连锁岗位, 美食行业目录], note: ""}
+  - {id: logistics-supply,     name: 物流供应链,   category: 交通运输/仓储物流, priority: 中,
+     status: pending,
+     target_roles: [物流运营, 供应链管理, 仓储管理, 采购专员, 报关员],
+     channels: [物流招聘网, 供应链管理目录], note: ""}
+  - {id: manufacturing,        name: 智能制造,     category: 制造业, priority: 中,
+     status: pending,
+     target_roles: [生产计划, 质量管理, 工艺工程师, 设备管理, 工业设计],
+     channels: [制造企业岗位目录, 工程师招聘平台], note: ""}
+  - {id: energy-environment,   name: 能源环保,     category: 电力热力/环保, priority: 低,
+     status: pending,
+     target_roles: [能源管理, 环保咨询, 碳管理, 节能方案, 环评],
+     channels: [能源环保行业目录], note: ""}
+  - {id: construction-eng,     name: 建筑工程,     category: 建筑业, priority: 中,
+     status: pending,
+     target_roles: [造价员, 监理工程师, 施工管理, 招投标专员, BIM工程师],
+     channels: [建筑业岗位目录, 工程造价平台], note: "家装外更大的建设领域"}
+  - {id: auto-service,         name: 汽车服务,     category: 批发和零售业/修理业, priority: 低,
+     status: pending,
+     target_roles: [汽车销售, 售后服务, 二手车评估, 汽车金融, 汽修顾问],
+     channels: [汽车平台岗位, 经销商目录], note: ""}
+  - {id: personal-services,    name: 生活服务,     category: 居民服务/修理, priority: 中,
+     status: pending,
+     target_roles: [家政顾问, 保洁管家, 育儿嫂, 月嫂顾问, 养老照护],
+     channels: [到家服务平台, 家政协会目录], note: ""}
+  - {id: beauty-grooming,      name: 美业美发,     category: 居民服务/修理, priority: 低,
+     status: pending,
+     target_roles: [美妆顾问, 美发师, 美甲师, 美容顾问, 形象设计],
+     channels: [美业培训目录, 造型机构岗位], note: ""}
+  - {id: agriculture,          name: 农林牧渔,     category: 农林牧渔业, priority: 低,
+     status: pending,
+     target_roles: [农业咨询, 种养规划, 农产品电商, 农技顾问, 牧场经营],
+     channels: [农业服务平台, 农科院专业目录], note: ""}
+  - {id: culture-art,          name: 文化艺术,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [策展人, 经纪人, 出版编辑, 编剧, 音乐制作],
+     channels: [文化机构岗位, 艺术人才目录], note: ""}
+  - {id: public-affairs,       name: 政务公共,     category: 公共管理/社会保障, priority: 中,
+     status: pending,
+     target_roles: [政策咨询, 社区服务, 政务服务, 档案管理, 民生代办],
+     channels: [政务公开办事目录, 社工职业目录], note: ""}
+  - {id: sport-leisure,        name: 体育健身,     category: 文化/体育和娱乐业, priority: 低,
+     status: pending,
+     target_roles: [运动教练, 体育经纪, 赛事运营, 场馆运营, 康复训练],
+     channels: [体育机构岗位, 运动培训目录], note: ""}
+  - {id: research-academic,    name: 科研学术,     category: 科学研究和技术服务, priority: 中,
+     status: pending,
+     target_roles: [文献综述, 课题申报, 实验设计, 数据分析师, 学术编辑],
+     channels: [科研院所岗位, 高校专业目录], note: "与数据分析/软件高度复合"}

@@ -16,7 +16,7 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 
 **新增行业单元只需更新注册数据，无需修改代码。**
 
-各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（11个行业单元）：
+各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（14个行业单元）：
 
 | 单元 | 行业 | 岗位 |
 |------|------|------|
@@ -31,6 +31,9 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 | education-training | 教育培训 | curriculum_designer / teacher / learning_advisor |
 | healthcare | 健康医疗 | health_consultant / psychologist / medical_advisor / fitness_coach |
 | home-design | 家装设计 | interior_designer / soft_furnish / project_manager |
+| hr-services | 人力资源 | recruiter / comp_benefits / employee_relations / hr_advisor |
+| admin-office | 行政办公 | admin_specialist / receptionist / document_archivist / meeting_coordinator |
+| design-visual | 视觉设计 | graphic_designer / ui_designer / illustrator / brand_designer |
 
 > 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 
@@ -71,6 +74,10 @@ python3 src/hanghang/cli/main.py unbind --session "sess-x"
 
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
+
+# 查看「目标全集 vs 当前覆盖」行业/岗位覆盖进度表（覆盖率/待补缺口）
+python3 src/hanghang/cli/main.py coverage
+python3 src/hanghang/cli/main.py coverage --gaps   # 仅列出待通过渠道搜集补齐的行业缺口
 
 # 按关键词多维搜索行业能力索引（M8，可加 --mode 指定 industry/capability/role 维度）
 python3 src/hanghang/cli/main.py search "合同"
@@ -158,7 +165,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 > "暂无数据"），**绝不伪造为 0% 或 100%**，避免误导判断。
 
 页面聚合展示：
-- **行业单元总览** — 11个行业/岗位/能力/入口
+- **行业单元总览** — 14个行业/岗位/能力/入口
 - **路由测试** — 输入一句话意图即时路由（含自动识别/复合装配/回落人工判定）
 - **能力检索** — M8 跨行业能力多维搜索
 - **能力索引** — 全量能力标签 → 承接岗位映射
@@ -255,11 +262,23 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
-- `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
+- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
+- `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
+
+
+## 行业覆盖进度与多渠道搜集
+
+平台以 **coverage 进度** 统一回答「整体要覆盖多少行业/岗位、当前覆盖到多少」。
+
+- **目标全集 = 分母**：`data/coverage-target.yaml` 声明应覆盖的行业单位清单及各自标岗位。
+- **当前覆盖 = 分子**：由已注册单元自动判定（按行业名对齐 unit-index），无需手工维护。
+- **覆盖率**：`coverage` 命令输出 行业覆盖率 与 岗位覆盖率 两张进度表，并可按缺口（`--gaps`）列出待补行业及建议搜集渠道。
+
+`coverage-target.yaml` 每个待补行业均声明了 `priority`(优先度) 与 `channels`(建议搜集渠道)，用于引导通过各渠道（招聘岗位库、行业协会目录、职业分类大纲、服务机构目录、用户真实诉求沉淀等）充分搜集岗位/职业/行业后逐步建单元补齐。新增目标行业只需在 `targets` 追加一条声明即可自动纳入进度统计，无需改代码（数据驱动）。
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
@@ -278,7 +297,7 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

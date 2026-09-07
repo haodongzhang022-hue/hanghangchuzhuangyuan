@@ -22,3 +22,6 @@
 | home-design | 家装设计 | 3 | ✅ active |
 | legal-services | 法律咨询 | 3 | ✅ active |
 | marketing | 市场营销 | 4 | ✅ active |
+| hr-services | 人力资源 | 4 | ✅ active |
+| admin-office | 行政办公 | 4 | ✅ active |
+| design-visual | 视觉设计 | 4 | ✅ active |

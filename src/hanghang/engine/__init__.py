@@ -5,6 +5,7 @@ from .router import IntentRouter, CompositePlanner
 from .handoff import HandoffBus
 from .metrics import MetricsCollector
 from .prefix import PrefixArchive
+from .coverage import CoverageTracker
 
 # SLIB 会话级行业绑定
 from .session_binding import (
@@ -34,7 +35,7 @@ from hanghang.context import (
 __all__ = [
     "IndustryUnit", "Role", "RouteResult", "CompositePlan", "HandoffCard",
     "Registry", "IntentRouter", "CompositePlanner", "HandoffBus",
-    "MetricsCollector", "PrefixArchive",
+    "MetricsCollector", "PrefixArchive", "CoverageTracker",
     # SLIB
     "SessionBinding", "SessionBindingStore", "SessionBoundRouter",
     # M9
