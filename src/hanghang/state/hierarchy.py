@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections import deque
 from typing import Dict, List, Optional
 
 from .models import StateCard, TaskRecord, TaskState
@@ -217,11 +218,18 @@ class SecretaryTree:
         # 若为根 → 清除根标记
         if self.root_session == session_id:
             self.root_session = None
-            # 若还有节点，选第一个作为新根
-            if self.nodes:
-                remaining = [s for s in self.nodes if s != session_id]
-                if remaining:
-                    self.root_session = remaining[0]
+            # 若还有节点，优先选"无父的顶层节点"作为新根，
+            # 保证单根落在某连通分量的顶部，其余孤立分量节点不会被
+            # rollup/render_tree 从根误判不可达。
+            remaining = [s for s in self.nodes if s != session_id]
+            root_candidates = [
+                s for s in remaining
+                if self.nodes[s].parent_session is None
+            ]
+            if root_candidates:
+                self.root_session = root_candidates[0]
+            elif remaining:
+                self.root_session = remaining[0]
 
         del self.nodes[session_id]
         self._save()
@@ -249,9 +257,9 @@ class SecretaryTree:
             return []
         result: List[SecretaryTreeNode] = []
         visited = set()
-        queue = list(self.nodes[session_id].children)
+        queue = deque(self.nodes[session_id].children)
         while queue:
-            sid = queue.pop(0)
+            sid = queue.popleft()
             if sid in visited or sid not in self.nodes:
                 continue
             visited.add(sid)
@@ -556,6 +564,15 @@ class HierarchySubmitter:
                     if parent_card and child_sid not in parent_card.downstream:
                         parent_card.downstream.append(child_sid)
                         state_manager.save_card(parent_card)
+            else:
+                # 中间层缺卡/state_manager 缺失：显式记录断链，避免静默漏提交
+                submissions.append({
+                    "level_skipped": True,
+                    "session": child_sid,
+                    "parent_session": parent_sid,
+                    "reason": "child_state_card_missing",
+                    "note": "该层无 StateCard 或 state_manager 为空，已跳过本层向上提交",
+                })
             cur_idx -= 1
         return submissions
 

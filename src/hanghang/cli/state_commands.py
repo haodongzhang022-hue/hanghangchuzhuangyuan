@@ -185,7 +185,7 @@ def cmd_tree_rollup(args):
     for lvl in rollup.get('levels', []):
         depth = lvl['depth']
         for node in lvl['nodes']:
-            label = "🏛" if depth == 0 else ("📋" if depth > 0 else "⚙")
+            label = "🏛" if depth == 0 else "📋"
             print(f"  depth={depth} {label} {node['session_id']} "
                   f"({node['role_name']}) tasks={node.get('task_count', 0)} "
                   f"done={node.get('done_count', 0)}")

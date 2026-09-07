@@ -670,6 +670,7 @@ class CompositePlanner:
                 "message": msg,
                 "handoff_required": True,
                 "handoff_card_id": card.id if card else None,
+                "state_card_id": card.state_card_id if card else None,
             }
 
     def plan_cross_unit(self, text: str,
