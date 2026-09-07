@@ -20,20 +20,30 @@ class FoldEngine:
     """
 
     def __init__(self, session_id: str, unit_id: str = "",
-                 role_name: str = "secretary"):
+                 role_name: str = "secretary",
+                 archive_root: Optional[str] = None):
         self.session_id = session_id
         self.unit_id = unit_id
         self.role_name = role_name
+        # ContentArchive 归档根目录（默认 data/state/content），供测试/复用注入
+        self.archive_root = archive_root
 
     # ---- 原文折叠 ----
 
     def fold_content(self, content: str,
-                     content_meta: Optional[dict] = None) -> StateCard:
+                     content_meta: Optional[dict] = None,
+                     archive: bool = True) -> StateCard:
         """
         将一段对话原文按逻辑块拆分并生成 StateCard。
         采用启发式拆分：按换行/编号分割任务片段。
         每段 → 一个 TaskRecord，内容默认折叠，原文引用保留在 content_ref。
+
+        archive=True（默认）时，将每段**原文全文**持久化到 ContentArchive
+        （data/state/content/），使折叠后的 content_ref 真正可按索引取回原文，
+        落实秘书机制"原文不丢、编号可找回"的核心承诺。
         """
+        from .content_archive import ContentArchive
+
         meta = content_meta or {}
         objective = meta.get("objective", "")
         cur_dir = meta.get("cur_dir", "")
@@ -49,12 +59,27 @@ class FoldEngine:
 
         segments = self._split_segments(content)
         total = len(segments)
+
+        # 若开启归档，先批量持久化每段原文全文，得到真正可寻回的 content_ref
+        archive_refs: List[str] = []
+        if archive:
+            archive_refs = ContentArchive(
+                root_dir=self.archive_root).store_segments(
+                self.session_id, segments)
+            # 保持与段号一一对应（跳过空段后可能出现错位，这里重建对应关系）
+            segments = [s.strip() for s in segments if s.strip()]
+            total = len(segments)
+
         for i, seg in enumerate(segments):
             is_deliverable = (i == total - 1)  # 最后一段为交付段
             task_type = TaskType.DELIVERABLE.value if is_deliverable else TaskType.NORMAL.value
             # 非交付任务恒折叠；交付任务展开
             fold = FoldState.EXPANDED.value if is_deliverable else FoldState.COLLAPSED.value
 
+            content_ref = (
+                archive_refs[i] if archive and i < len(archive_refs)
+                else self._gen_content_ref(i + 1)
+            )
             task = card.add_task(
                 title=self._extract_title(seg),
                 summary=seg[:200] + ("..." if len(seg) > 200 else ""),
@@ -64,7 +89,7 @@ class FoldEngine:
                 cur_dir=cur_dir,
                 files_touched=files,
                 tools_called=tools,
-                content_ref=self._gen_content_ref(i + 1),
+                content_ref=content_ref,
             )
         return card
 
@@ -188,10 +213,26 @@ class FoldEngine:
         """按任务编号精确检索任务（索引机制）"""
         return card.get_task(task_id)
 
+    def retrieve_original(self, session_id: str,
+                          content_ref: str) -> Optional[str]:
+        """按 content_ref 从归档取回**原文全文**（ContentArchive）。
+
+        这是"折叠后原文仍可通过索引找回"的关键入口：
+        content_ref 不再只是编号标记，而是真正能解析回原文的归档索引。
+        归档不存在 / 引用非法时返回 None。
+        """
+        from .content_archive import ContentArchive
+        try:
+            return ContentArchive(
+                root_dir=self.archive_root).retrieve_content(
+                session_id, content_ref)
+        except Exception:
+            return None
+
     # ---- M8 跨任务检索集成 ----
 
     def search_tasks(self, cards: list, keyword: str,
-                     fields=None) -> List[dict]:
+                     fields=None, include_original: bool = False) -> List[dict]:
         """在多个 StateCard 的折叠任务中搜索关键词。
         用于 M8 跨会话检索：让已折叠的内容也能被发现。
 
@@ -199,8 +240,11 @@ class FoldEngine:
         - cards: StateCard 列表（从 StateManager.list_cards() 获取）
         - keyword: 搜索关键词
         - fields: 搜索字段列表，默认 title/summary/objective/content_ref
+        - include_original: True 时对每个命中任务额外尝试从 ContentArchive
+          取回原文全文，放入返回的 "original" 字段（找不到则为 None）。
 
-        返回: [{session_id, task_id, title, state, fold, field_hit}]
+        返回: [{session_id, task_id, title, state, fold, field_hit,
+                content_ref, original?}]
         """
         search_fields = fields or ["title", "summary", "objective",
                                    "content_ref", "files_touched"]
@@ -219,7 +263,7 @@ class FoldEngine:
                         if any(kw in str(v).lower() for v in value):
                             hits.append(f)
                 if hits:
-                    results.append({
+                    item = {
                         "session_id": card.session_id,
                         "task_id": task.task_id,
                         "title": task.title,
@@ -227,7 +271,14 @@ class FoldEngine:
                         "fold": task.fold,
                         "field_hit": hits,
                         "content_ref": task.content_ref,
-                    })
+                    }
+                    if include_original:
+                        item["original"] = (
+                            self.retrieve_original(card.session_id,
+                                                   task.content_ref)
+                            if task.content_ref else None
+                        )
+                    results.append(item)
         return results
 
     def search_all_states(self, keyword: str, data_dir: Optional[str] = None) -> List[dict]:
