@@ -104,6 +104,7 @@ python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/�
 python3 tests/test_state_tree.py       # M9 秘书长多级树 + 主链路集成
 python3 tests/test_state_cli_e2e.py    # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
+python3 tests/test_context_m10.py  # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 
 # 或全部一键
 python3 scripts/run_all_tests.py
@@ -116,6 +117,7 @@ python3 scripts/run_all_tests.py
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部5单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
+- `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
