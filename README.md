@@ -16,7 +16,7 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 
 **新增行业单元只需更新注册数据，无需修改代码。**
 
-各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（8个行业单元）：
+各单元在其注册文件中声明 `keywords`（岗位触发词），路由引擎从数据动态读取识别信号。当前已注册（11个行业单元）：
 
 | 单元 | 行业 | 岗位 |
 |------|------|------|
@@ -28,6 +28,9 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 | e-commerce | 电子商务 | store_manager / ecom_marketer / customer_service |
 | finance-accounting | 财务会计 | accountant / tax_advisor / finance_analyst / payroll_processor |
 | marketing | 市场营销 | market_researcher / brand_planner / campaign_planner / pr_manager |
+| education-training | 教育培训 | curriculum_designer / teacher / learning_advisor |
+| healthcare | 健康医疗 | health_consultant / psychologist / medical_advisor / fitness_coach |
+| home-design | 家装设计 | interior_designer / soft_furnish / project_manager |
 
 > 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 
@@ -133,7 +136,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 > "暂无数据"），**绝不伪造为 0% 或 100%**，避免误导判断。
 
 页面聚合展示：
-- **行业单元总览** — 8个行业/岗位/能力/入口
+- **行业单元总览** — 11个行业/岗位/能力/入口
 - **路由测试** — 输入一句话意图即时路由（含自动识别/复合装配/回落人工判定）
 - **能力检索** — M8 跨行业能力多维搜索
 - **能力索引** — 全量能力标签 → 承接岗位映射
