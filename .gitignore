@@ -17,3 +17,5 @@ data/arbitration/
 data/state/*.lock
 data/state/*.tmp
 data/state/*.owner.json
+# 运行期内容归档目录
+data/state/content/
