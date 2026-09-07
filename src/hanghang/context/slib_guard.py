@@ -73,7 +73,7 @@ class SLIBAssemblyGuard:
             if unit_id and unit_id != binding.unit_id:
                 raise SLIBBoundMismatch(
                     session_id, binding.unit_id, binding.industry, unit_id)
-            return binding.unit_id if unit_id else binding.unit_id
+            return binding.unit_id
 
         # 未绑定
         if not unit_id:
@@ -86,10 +86,13 @@ class SLIBAssemblyGuard:
             try:
                 self.binding_store.bind(session_id, unit_id, industry or unit_id,
                                         role_name)
-            except ValueError:
-                # 并发下他进程已绑定 → 重新读取并对齐
+            except ValueError as exc:
+                # 两种可能：并发下他进程已绑定，或 session_id 非法
                 binding = self.binding_store.get_binding(session_id)
-                if binding is not None and binding.unit_id != unit_id:
+                if binding is None:
+                    # 无绑定存在 → 是非法 session_id 等真实错误，重新抛出
+                    raise exc
+                if binding.unit_id != unit_id:
                     raise SLIBBoundMismatch(
                         session_id, binding.unit_id, binding.industry, unit_id)
         return unit_id

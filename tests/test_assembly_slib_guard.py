@@ -100,9 +100,8 @@ def test_unbound_without_unit_raises():
         pass
 
 
-def test_guard_works_on_raw_assembler_without_bound():
-    """默认装配器未显式传 store，也可用（惰性创建默认 store）"""
-    # 用独立临时 data 规避默认 data/bindings 落盘
+def test_guard_with_injected_store():
+    """注入显式 store 时守卫可用（独立临时 data 规避默认落盘）"""
     guard = SLIBAssemblyGuard(binding_store=SessionBindingStore(data_dir=tempfile.mkdtemp()))
     a = ContextAssembler(slib_guard=guard)
     res = a.assemble_bound(
@@ -111,3 +110,28 @@ def test_guard_works_on_raw_assembler_without_bound():
         user_text="写一份促销方案",
     )
     assert "e-commerce" in res["layer_a"]
+
+
+def test_invalid_session_id_rejects_not_swallow():
+    """非法 session_id 在 auto_bind 时抛 ValueError，不静默放行"""
+    store = SessionBindingStore(data_dir=tempfile.mkdtemp())
+    guard = SLIBAssemblyGuard(binding_store=store)
+    try:
+        guard.resolve_unit(
+            session_id="!!!bad session!!!",
+            unit_id="e-commerce",
+            auto_bind=True,
+        )
+        assert False, "非法 session_id 应抛 ValueError，不应静默放行"
+    except ValueError as e:
+        assert "非法 session_id" in str(e) or "session_id" in str(e)
+
+
+def test_binding_store_auto_creates_on_first_access():
+    """未注入 store 时首次访问自动创建默认 SessionBindingStore"""
+    guard = SLIBAssemblyGuard()  # 不注入 store → 走惰性创建路径
+    store = guard.binding_store
+    assert store is not None
+    # 确保是真实的 SessionBindingStore 实例而非 None
+    from hanghang.engine.session_binding import SessionBindingStore
+    assert isinstance(store, SessionBindingStore)
