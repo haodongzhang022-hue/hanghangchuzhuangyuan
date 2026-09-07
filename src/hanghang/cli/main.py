@@ -24,7 +24,6 @@ from hanghang.cli.state_commands import (
     cmd_tree_submit_chain, cmd_tree_list,
 )
 
-
 def cmd_route(args):
     """意图路由命令"""
     registry = Registry()
@@ -42,11 +41,19 @@ def cmd_route(args):
     result = router.route(args.text)
     plan = planner.plan_from_result(result, args.text)
 
-    # 记录指标
+    # 记录指标：岗位维度取 result.roles（路由结果恒有 roles 字段）。
+    # plan 仅在 composite/handoff_required 分支含 roles；direct 分支仅含单 role
+    # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
+    #
+    # ⚠️ 语义标注（评审建议#3）：manual(人工确认)分支若路由结果含 roles
+    # （如置信度不足但岗位已模糊命中），也会被计入 role_hits。这属行为变更：
+    # 旧实现取 plan.roles（manual 分支 plan 无 roles 键）不统计岗位命中；
+    # 现改为 result.roles 如实记录"候选命中岗位"，人工介入仍由
+    # manual_confirmations 单独统计。CLI/Web 均以此口径记录。
     metrics.record_route(
         mode=plan.get("mode", "manual"),
-        unit_id=plan.get("unit_id", ""),
-        roles=plan.get("roles", []),
+        unit_id=plan.get("unit_id", "") or result.unit_id,
+        roles=result.roles,
     )
 
     print("=" * 50)
@@ -97,7 +104,9 @@ def cmd_metrics(args):
     metrics = MetricsCollector()
     s = metrics.get_summary()
     print(f"总路由数: {s['total_routes']}")
-    print(f"自动成功率: {s['auto_success_rate']:.1%}")
+    rate = s['auto_success_rate']
+    rate_str = f"{rate:.1%}" if rate is not None else "暂无数据"
+    print(f"自动成功率: {rate_str}")
     print(f"直连: {s['direct_routes']}, 复合: {s['composite_routes']}, "
           f"交接: {s['handoffs']}, 人工: {s['manual_confirmations']}")
     print(f"单元命中: {s['unit_hits']}")
@@ -214,6 +223,15 @@ def cmd_cross_unit(args):
             print(f"交接卡ID: {plan['handoff_card_id']}")
 
 
+# 延迟导入 serve（避免启动时 import http.server 影响 CLI 速度）
+def cmd_serve(args):
+    """启动 Web 可视化控制台"""
+    from hanghang.web.server import serve_forever
+    host = getattr(args, "host", "127.0.0.1")
+    port = getattr(args, "port", 8080)
+    serve_forever(host, port)
+
+
 def build_parser():
     p = argparse.ArgumentParser(
         prog="hanghang",
@@ -254,6 +272,11 @@ def build_parser():
     x.add_argument("text", help="用户意图文本")
     x.set_defaults(func=cmd_cross_unit)
 
+
+    srv = sub.add_parser("serve", help="启动 Web 可视化聚合控制台")
+    srv.add_argument("--host", default="127.0.0.1", help="监听地址(默认127.0.0.1)")
+    srv.add_argument("--port", type=int, default=8080, help="监听端口(默认8080)")
+    srv.set_defaults(func=cmd_serve)
     # ---- M9 状态管理子命令 ----
     st = sub.add_parser("state", help="M9 状态管理：任务状态卡/折叠/层级提交")
     state_sub = st.add_subparsers(dest="state_cmd")
@@ -392,6 +415,7 @@ def build_parser():
     tlst = tree_sub.add_parser("list", help="列出所有节点")
     tlst.add_argument("--name", default="default", help="树名称")
     tlst.set_defaults(func=cmd_tree_list)
+
 
     return p
 

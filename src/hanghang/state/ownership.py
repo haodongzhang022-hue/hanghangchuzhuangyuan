@@ -9,12 +9,17 @@
 - **乐观并发仲裁**：写回须携带其"读到的 base_version"，若与最新不符(他人已改)，
   抛 StateConflict 拒绝覆盖——结果确定，不静默丢更新；
 - **租约写锁**：可为某卡加临时写租约(持有者+过期)，防止两秘书同时改写；
+- **原子 CAS 落盘**：版本校验 + 整卡写回合并为一次 flock 保护的原子提交，
+  杜绝"校验与落盘之间的 TOCTOU 竞态"导致的静默覆盖；
+- **隐式归属同步建租约**：首个写者自动成为 owner 的同时建立 lease，
+  阻断"非 owner 秘书绕过越权检查改写他人卡"的旁路。
 - 全程兼容既有 StateManager：仅新增受控写入口，不改变原有无并发参数调用路径。
 """
 from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from typing import List, Optional
 
@@ -91,11 +96,11 @@ class OwnershipGuard:
 
     def __init__(self, session_id: str, state_manager: StateManager,
                  secretary: str = "secretary"):
-        if not state_manager.get_card(session_id):
-            raise ValueError(f"session 不存在，需先创建 StateCard: {session_id}")
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("session_id 不能为空")
         self.session_id = session_id
         self.sm = state_manager
-        self.secretary = secretary
+        self.secretary = secretary or "secretary"
         self._data_dir = state_manager.data_dir
 
     # ---- 只读 ----
@@ -117,29 +122,81 @@ class OwnershipGuard:
         """声明本秘书为该卡的 owner。
         force=True：强制抢占(覆盖原 owner)；默认若已被他人占用则拒绝。
         返回占用成功的秘书坑位名。
+
+        注意：本方法内 lease 仅作**抢占前置检查**——若他人租约未过期则拒绝抢占；
+        一旦通过（无租约/租约已过期/force），将直接覆盖 card.owner 为当前秘书
+        并刷新租约。写权限的判定（_authorize）始终以 card.owner 为唯一权威。
         """
-        lease = self._load_lease()
-        if lease and lease.holder != self.secretary and not lease.is_expired():
-            if not force:
+        # 获取排他锁保护整个 claim 流程
+        lock_f = self.sm.lock_card(self.session_id)
+        try:
+            # 在锁内读取磁盘最新状态
+            card = self.sm.read_card_disk(self.session_id)
+            if card is None:
+                raise ValueError(f"session 不存在，需先创建 StateCard: {self.session_id}")
+            disk_version = card.version
+            owner = card.owner or ""
+
+            # 检查租约状态
+            lease = self._load_lease()
+            if lease and lease.holder != self.secretary and not lease.is_expired():
+                if not force:
+                    raise StateConflict(
+                        f"卡 {self.session_id} 已被秘书 {lease.holder} 写租约占用，"
+                        f"拒绝 {self.secretary} 抢占。可用 force=True 强制抢占或等待租约过期。",
+                        session_id=self.session_id, current_owner=lease.holder,
+                        requester=self.secretary)
+
+            # 修改 owner 并写盘
+            card.owner = self.secretary
+            card.version += 1
+            ok, _ = self.sm.cas_save_card(
+                card, expected_version=disk_version, skip_lock=True)
+            if not ok:
                 raise StateConflict(
-                    f"卡 {self.session_id} 已被秘书 {lease.holder} 写租约占用，"
-                    f"拒绝 {self.secretary} 抢占。可用 force=True 强制抢占或等待租约过期。",
-                    session_id=self.session_id, current_owner=lease.holder,
-                    requester=self.secretary)
-        self._store_lease(CardLease(self.secretary))
-        self._set_owner(self.secretary)
+                    f"claim 版本冲突：卡 {self.session_id} 已被他人修改，请重试。",
+                    session_id=self.session_id, requester=self.secretary)
+            # 写租约
+            self._store_lease(CardLease(self.secretary))
+        finally:
+            self.sm.release_lock(lock_f)
         return self.secretary
 
-    def release(self) -> None:
-        """释放本秘书对卡的归属与写租约(仅 owner 或租约持有者可释放)。"""
-        lease = self._load_lease()
-        if lease and lease.holder == self.secretary:
-            self._clear_lease()
-        card = self.sm.get_card(self.session_id)
-        if card and card.owner == self.secretary:
-            card.owner = ""
-            card.version += 1
-            self.sm.save_card(card)
+    def release(self) -> bool:
+        """释放本秘书对卡的归属与写租约(仅 owner 或租约持有者可释放)。
+
+        返回:
+            True → 实际释放了（本秘书确实拥有该卡的所有权或租约）；
+            False → 本秘书不是 owner/租约持有者，未做任何变更。
+        """
+        lock_f = self.sm.lock_card(self.session_id)
+        try:
+            card = self.sm.read_card_disk(self.session_id)
+            if card is None:
+                return False
+            lease = self._load_lease()
+            is_owner = card.owner == self.secretary
+            is_lease_holder = lease is not None and lease.holder == self.secretary
+
+            if not is_owner and not is_lease_holder:
+                return False  # 非本秘书的卡，不释放
+
+            disk_version = card.version
+
+            if is_lease_holder:
+                self._clear_lease()
+            if is_owner:
+                card.owner = ""
+                card.version += 1
+                ok, _ = self.sm.cas_save_card(
+                    card, expected_version=disk_version, skip_lock=True)
+                if not ok:
+                    raise StateConflict(
+                        f"release 版本冲突：卡 {self.session_id} 已被他人修改，请重试。",
+                        session_id=self.session_id, requester=self.secretary)
+            return True
+        finally:
+            self.sm.release_lock(lock_f)
 
     def is_owner(self) -> bool:
         return self.current_owner() == self.secretary
@@ -154,32 +211,127 @@ class OwnershipGuard:
                          task_type: str = "normal",
                          content_ref: Optional[str] = None,
                          **kwargs) -> TaskRecord:
-        """归属 + 乐观版本受控的新增任务写。"""
-        self._authorize()
-        self._check_version(base_version)
-        task = self.sm.add_task(
-            self.session_id, title, objective=objective, cur_dir=cur_dir,
-            files=files, depends_on=depends_on, tools=tools,
-            task_type=task_type, content_ref=content_ref, **kwargs)
-        if task is None:
-            raise StateConflict("卡不存在或已被删除", session_id=self.session_id,
-                                requester=self.secretary)
-        return task
+        """归属 + 乐观版本受控的新增任务写（原子 CAS 落盘）。
+
+        在 flock 排他锁内完成：授权检查 → 版本校验 → 卡修改 → 原子写回。
+        """
+        lock_f = self.sm.lock_card(self.session_id)
+        try:
+            card = self.sm.read_card_disk(self.session_id)
+            if card is None:
+                raise ValueError(f"session 不存在，需先创建 StateCard: {self.session_id}")
+            disk_version = card.version
+
+            # 写权限预检（含隐式归属）
+            self._authorize(card)
+            # 版本 CAS 检查（基于磁盘读取时的原始版本）
+            if base_version is not None and base_version != disk_version:
+                raise StateConflict(
+                    f"乐观并发冲突：卡 {self.session_id} 版本已从 {base_version} 变为 {disk_version}，"
+                    f"秘书 {self.secretary} 基于旧版本写入被拒，请重读最新后重试。",
+                    session_id=self.session_id, expected_version=base_version,
+                    actual_version=disk_version, requester=self.secretary)
+
+            task = card.add_task(
+                title=title,
+                objective=objective,
+                cur_dir=cur_dir,
+                files_touched=files or [],
+                depends_on=depends_on or [],
+                tools_called=tools or [],
+                task_type=task_type,
+                content_ref=content_ref,
+                **kwargs,
+            )
+            # CAS 落盘：以磁盘原始版本为基准
+            ok, current_v = self.sm.cas_save_card(
+                card, expected_version=disk_version, skip_lock=True)
+            if not ok:
+                raise StateConflict(
+                    f"CAS 提交失败：卡 {self.session_id} 已被他人修改"
+                    f"(磁盘版本 {current_v} ≠ 期望 {disk_version})。请重读重试。",
+                    session_id=self.session_id, expected_version=disk_version,
+                    actual_version=current_v, requester=self.secretary)
+            return task
+        finally:
+            self.sm.release_lock(lock_f)
 
     def guarded_update_task_state(self, task_id: str, state: str,
                                   base_version: Optional[int] = None) -> bool:
-        self._authorize()
-        self._check_version(base_version)
-        return self.sm.update_task_state(self.session_id, task_id, state)
+        """归属 + 版本受控的任务状态更新（原子 CAS 落盘）。
+        若任务不存在/迁移非法，抛 ValueError。
+        """
+        lock_f = self.sm.lock_card(self.session_id)
+        try:
+            card = self.sm.read_card_disk(self.session_id)
+            if card is None:
+                raise ValueError(f"session 不存在，需先创建 StateCard: {self.session_id}")
+            disk_version = card.version
+
+            self._authorize(card)
+            if base_version is not None and base_version != disk_version:
+                raise StateConflict(
+                    f"乐观并发冲突：卡 {self.session_id} 版本已从 {base_version} "
+                    f"变为 {disk_version}，秘书 {self.secretary} 写入被拒。",
+                    session_id=self.session_id, expected_version=base_version,
+                    actual_version=disk_version, requester=self.secretary)
+
+            task = card.get_task(task_id)
+            if task is None:
+                raise ValueError(f"任务不存在: {task_id}")
+            ok = card.update_task(task_id, state=state)
+            if not ok:
+                raise ValueError(
+                    f"状态迁移非法: {task.state} → {state}（卡 {self.session_id} 任务 {task_id}）")
+            cas_ok, current_v = self.sm.cas_save_card(
+                card, expected_version=disk_version, skip_lock=True)
+            if not cas_ok:
+                raise StateConflict(
+                    f"CAS 提交失败：卡 {self.session_id} 已被他人修改。请重读重试。",
+                    session_id=self.session_id, expected_version=disk_version,
+                    actual_version=current_v, requester=self.secretary)
+            return True
+        finally:
+            self.sm.release_lock(lock_f)
 
     def guarded_update_task_fields(self, task_id: str, base_version: Optional[int] = None,
                                    **fields) -> bool:
-        self._authorize()
-        self._check_version(base_version)
-        return self.sm.update_task_fields(self.session_id, task_id, **fields)
+        """归属 + 版本受控的任务字段更新（原子 CAS 落盘）。
+        若任务不存在，抛 ValueError。
+        """
+        lock_f = self.sm.lock_card(self.session_id)
+        try:
+            card = self.sm.read_card_disk(self.session_id)
+            if card is None:
+                raise ValueError(f"session 不存在，需先创建 StateCard: {self.session_id}")
+            disk_version = card.version
 
+            self._authorize(card)
+            if base_version is not None and base_version != disk_version:
+                raise StateConflict(
+                    f"乐观并发冲突：卡 {self.session_id} 版本已从 {base_version} "
+                    f"变为 {disk_version}，秘书 {self.secretary} 写入被拒。",
+                    session_id=self.session_id, expected_version=base_version,
+                    actual_version=disk_version, requester=self.secretary)
 
-    # ---- 版本化冲突仲裁（接入 ConflictArbiter） ----
+            task = card.get_task(task_id)
+            if task is None:
+                raise ValueError(f"任务不存在: {task_id}")
+            ok = card.update_task(task_id, **fields)
+            if not ok:
+                raise ValueError(f"任务字段更新失败: {task_id}")
+            cas_ok, current_v = self.sm.cas_save_card(
+                card, expected_version=disk_version, skip_lock=True)
+            if not cas_ok:
+                raise StateConflict(
+                    f"CAS 提交失败：卡 {self.session_id} 已被他人修改。请重读重试。",
+                    session_id=self.session_id, expected_version=disk_version,
+                    actual_version=current_v, requester=self.secretary)
+            return True
+        finally:
+            self.sm.release_lock(lock_f)
+
+    # ---- 冲突仲裁（M9+ 版本化冲突仲裁与审核）----
 
     def arbitrate_conflict(self, base_version: Optional[int] = None,
                            proposed_card: Optional[StateCard] = None,
@@ -213,9 +365,6 @@ class OwnershipGuard:
         if proposed_card is None:
             raise ValueError("需提供 proposed_card（冲突方尝试提交的版本）")
 
-        # data_dir 显式透传：若调用方未指定，ConflictArbiter 将使用其默认目录
-        # (cwd/data/arbitration)；测试/沙箱环境可通过 data_dir 参数指定临时目录，
-        # 避免票据残留污染工作区。
         arbiter = ConflictArbiter(state_manager=self.sm, data_dir=data_dir)
 
         # 若有精确的 base 快照 → 完整分析流程（自动合并或生成审核票）
@@ -277,41 +426,29 @@ class OwnershipGuard:
 
     # ---- 内部 ----
 
-    def _authorize(self) -> None:
-        """写权限预检：仅 owner 或租约持有者可写。"""
-        lease = self._load_lease()
-        if lease and lease.holder != self.secretary and not lease.is_expired():
-            # 卡正被他人租约占用，非 owner 秘书不得写
-            owner = self.current_owner()
-            if owner and owner != self.secretary:
-                raise OwnershipDenied(
-                    f"秘书 {self.secretary} 无权写卡 {self.session_id}："
-                    f"owner={owner}，租约持有者={lease.holder}")
-        # 若卡尚未 claim(owner 为空)，首个尝试写的秘书视为隐式取得该卡维护权。
-        # 统一走 _set_owner（版本 +1），与 claim()/release() 的版本递增口径保持一致，
-        # 避免基于 version 的仲裁在 owner 交接处产生歧义。
-        card = self.sm.get_card(self.session_id)
-        if card and not card.owner:
-            self._set_owner(self.secretary)
+    def _authorize(self, card: StateCard) -> None:
+        """写权限预检（须在 flock 锁内调用，card 为磁盘最新读取的实例）。
 
-    def _check_version(self, base_version: Optional[int]) -> None:
-        """乐观并发仲裁：写回须携带"读到的版本"，若已被他人改过则冲突。"""
-        if base_version is None:
-            return  # 未携带版本 → 放弃乐观检测(兼容旧用法)
-        current = self.version()
-        if base_version != current:
-            raise StateConflict(
-                f"乐观并发冲突：卡 {self.session_id} 版本已从 {base_version} 变为 {current}，"
-                f"秘书 {self.secretary} 基于旧版本写入被拒，请重读最新后重试。",
-                session_id=self.session_id, expected_version=base_version,
-                actual_version=current, requester=self.secretary)
+        写权限仲裁以 **card.owner 字段为唯一权威**（owner 语义是责任秘书，
+        长期有效直至显式 release 或被他方 claim 覆盖）。租约(.owner.json)
+        仅作为 claim 的前置抢占检查，不参与写授权判定。
 
-    def _set_owner(self, owner: str) -> None:
-        card = self.sm.get_card(self.session_id)
-        if card:
-            card.owner = owner
-            card.version += 1
-            self.sm.save_card(card)
+        规则：
+        - 卡已被其他秘书 owner → 拒绝写入（OwnershipDenied）
+        - 卡 owner 为空（尚未 claim）→ 首个写者隐式取得归属，
+          并同步建立租约文件，阻断越权旁路
+        - 卡 owner 是本秘书 → 允许写
+        """
+        card_owner = card.owner or ""
+        if card_owner and card_owner != self.secretary:
+            raise OwnershipDenied(
+                f"秘书 {self.secretary} 无权写卡 {self.session_id}："
+                f"owner={card_owner}。请先 claim 或等待 owner 释放。")
+
+        # owner 为空 → 首个写者隐式取得归属（同步建租约）
+        if not card_owner:
+            card.owner = self.secretary
+            self._store_lease(CardLease(self.secretary))
 
     # ---- 租约持久化到 data/state/<session>.owner.json ----
 
@@ -329,8 +466,20 @@ class OwnershipGuard:
             return None
 
     def _store_lease(self, lease: CardLease) -> None:
-        with open(self._lease_path(), "w", encoding="utf-8") as f:
-            json.dump(lease.to_dict(), f, ensure_ascii=False, indent=2)
+        # 原子写 lease 文件
+        dir_path = os.path.dirname(os.path.abspath(self._lease_path()))
+        os.makedirs(dir_path, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(lease.to_dict(), f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, self._lease_path())
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     def _clear_lease(self) -> None:
         path = self._lease_path()
