@@ -92,22 +92,87 @@ python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf
 python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
 
-### 运行测试
-```bash
-python3 tests/test_router.py        # 路由引擎
-python3 tests/test_registry.py      # 注册表与元数据
-python3 tests/test_handoff.py       # 交接总线
-python3 tests/test_data_driven.py   # 数据驱动 + 复合边界 + 交接自动集成
-python3 tests/test_review.py        # 评审机制
-python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
-python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/层级提交）
-python3 tests/test_state_tree.py       # M9 秘书长多级树 + 主链路集成
-python3 tests/test_state_cli_e2e.py    # M9 × CLI 全链路联调回归
-python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
-python3 tests/test_context_m10.py  # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
+### Web 可视化控制台
 
-# 或全部一键
+启动 Web 可视化聚合面板（页面交互形态入口，纯 Python 标准库实现，无额外依赖）：
+
+```bash
+# 方式一：通过 CLI 启动
+python3 src/hanghang/cli/main.py serve --port 8080
+
+# 方式二：直接运行模块
+python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
+```
+
+浏览器打开 `http://localhost:8080/` 即可访问控制台页面。
+
+> **安全提示**：默认仅监听 `127.0.0.1`（回环）。服务含状态变更接口
+> （`POST /api/route` 记录运行指标、可写交接/指标数据）。若以
+> `--host 0.0.0.0` 显式对外暴露，**服务启动时会打印⚠️安全告警横幅**，
+> 且必须置于认证/网关之后，避免未授权访问。
+>
+> **指标口径说明**：`manual`（人工确认）分支若路由结果含候选岗位
+> （置信度不足但已模糊命中），该岗位仍计入 `role_hits`——role_hits 表示
+> "候选命中岗位"，`manual_confirmations` 单独统计人工介入次数。CLI 与
+> Web POST 均按此口径记录。
+>
+> **数据真实性保障**：`auto_success_rate` 仅在已有路由记录时返回百分比值。
+> 当累计路由数为 0（尚无任何数据）时，该字段返回 `null`（Web/CLI 显示
+> "暂无数据"），**绝不伪造为 0% 或 100%**，避免误导判断。
+
+页面聚合展示：
+- **行业单元总览** — 8个行业/岗位/能力/入口
+- **路由测试** — 输入一句话意图即时路由（含自动识别/复合装配/回落人工判定）
+- **能力检索** — M8 跨行业能力多维搜索
+- **能力索引** — 全量能力标签 → 承接岗位映射
+- **运行指标** — M7 自动成功率/复合使用率/人工介入率
+- **前缀档案** — M3 各行业稳定前缀
+- **交接卡** — M5 待处理交接卡
+
+也提供 REST API（供其它形态调用 / 前端页面消费）：
+
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| `/api/units` | GET | 行业单元总览 |
+| `/api/route?text=...` | GET | 意图路由识别 |
+| `/api/route` | POST | 意图路由识别（JSON body） |
+| `/api/search?kw=..&mode=..` | GET | 能力索引搜索 |
+| `/api/index` | GET | 全量能力索引 |
+| `/api/metrics` | GET | 运行指标 |
+| `/api/handoffs` | GET | 待处理交接卡 |
+| `/api/prefixes` | GET | 稳定前缀档案 |
+
+> 设计原则：前端/页面只做「聚合 + 可视化」，底层能力通过 REST API 与 CLI 双形态暴露，为将来多调用形态（生态整合）预留。
+
+### 运行测试
+
+**推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
+```bash
+bash scripts/change-aware-test.sh            # 自动按 git 变更选测试
+bash scripts/change-aware-test.sh --dry-run  # 只看会跑哪些，不执行
+bash scripts/change-aware-test.sh --all      # 强制全量
+```
+
+**全量回归**（main 合并门禁 / 发布前兜底）：
+```bash
 python3 scripts/run_all_tests.py
+```
+
+亦可单跑某个测试文件：
+```bash
+python3 tests/test_web.py             # Web 可视化面板 API
+python3 tests/test_router.py          # 路由引擎
+python3 tests/test_registry.py        # 注册表与元数据
+python3 tests/test_handoff.py         # 交接总线
+python3 tests/test_data_driven.py     # 数据驱动 + 复合边界 + 交接自动集成
+python3 tests/test_review.py          # 评审机制
+python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
+python3 tests/test_batch_persist.py   # M9 批量/延迟落盘
+python3 tests/test_state_manager.py   # M9 状态管理层（StateCard/折叠/层级提交）
+python3 tests/test_state_tree.py      # M9 秘书长多级树 + 主链路集成
+python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
+python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
+python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 ```
 
 ## 数据文件
