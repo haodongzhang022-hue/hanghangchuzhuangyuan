@@ -122,6 +122,10 @@ class OwnershipGuard:
         """声明本秘书为该卡的 owner。
         force=True：强制抢占(覆盖原 owner)；默认若已被他人占用则拒绝。
         返回占用成功的秘书坑位名。
+
+        注意：本方法内 lease 仅作**抢占前置检查**——若他人租约未过期则拒绝抢占；
+        一旦通过（无租约/租约已过期/force），将直接覆盖 card.owner 为当前秘书
+        并刷新租约。写权限的判定（_authorize）始终以 card.owner 为唯一权威。
         """
         # 获取排他锁保护整个 claim 流程
         lock_f = self.sm.lock_card(self.session_id)
@@ -332,7 +336,11 @@ class OwnershipGuard:
     def _authorize(self, card: StateCard) -> None:
         """写权限预检（须在 flock 锁内调用，card 为磁盘最新读取的实例）。
 
-        规则（以 card.owner 为唯一权威）：
+        写权限仲裁以 **card.owner 字段为唯一权威**（owner 语义是责任秘书，
+        长期有效直至显式 release 或被他方 claim 覆盖）。租约(.owner.json)
+        仅作为 claim 的前置抢占检查，不参与写授权判定。
+
+        规则：
         - 卡已被其他秘书 owner → 拒绝写入（OwnershipDenied）
         - 卡 owner 为空（尚未 claim）→ 首个写者隐式取得归属，
           并同步建立租约文件，阻断越权旁路

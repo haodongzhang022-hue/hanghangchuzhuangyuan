@@ -348,8 +348,10 @@ class StateManager:
             disk_card = self.read_card_disk(session_id)
             if disk_card is not None and expected_version is not None:
                 if disk_card.version != expected_version:
-                    # 版本冲突 → 不落盘，返回 False
-                    self._mem_cache[session_id] = card  # 保留内存态便于上层取用
+                    # 版本冲突 → 不落盘，返回 False。
+                    # 不写入 _mem_cache：该卡从未成功落盘，写入缓存会形成幻影态，
+                    # 后续 get_card 读到与磁盘分叉的数据。与成功路径一致，直接清理缓存。
+                    self._mem_cache.pop(session_id, None)
                     return (False, disk_card.version)
 
             # CAS 通过 → 原子写盘

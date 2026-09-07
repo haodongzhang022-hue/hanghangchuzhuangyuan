@@ -284,6 +284,41 @@ def test_update_state_silent_failure_fixed():
             pass
 
 
+def test_cas_save_card_conflict_no_cache_pollution():
+    """cas_save_card 版本冲突时不污染 _mem_cache：冲突卡不应被读到。
+
+    评审指出：冲突(不落盘)时若将调用方卡片写入 _mem_cache 且不清理，
+    后续 get_card 会读到仅存在于内存、从未落盘的幻影态。
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+        mgr.create_card("sess-cache", objective="缓存冲突")
+
+        # 先用另一 guard 把版本推进到 v1
+        g = OwnershipGuard("sess-cache", mgr, secretary="secre_a")
+        g.claim()
+        v_after_claim = g.version()
+        g.guarded_add_task("已提交任务", base_version=v_after_claim)
+        v1 = mgr.get_card("sess-cache").version
+        assert v1 > v_after_claim
+
+        # 模拟另一调用方基于旧版本(v0) 调用 cas_save_card → 版本冲突
+        stale_card = mgr.get_card("sess-cache")   # 从磁盘读到最新 v1
+        stale_card.version = 0                      # 改为模拟旧版本读取结果
+        ok, current_v = mgr.cas_save_card(stale_card, expected_version=0)
+        assert not ok, f"应版本冲突，ok={ok}"
+        assert current_v == v1
+
+        # 关键验证：冲突后 _mem_cache 不应有幻影条目。
+        # 若污染则 get_card 返回 stale_card(version=0)，而非磁盘上的 v1。
+        after = mgr.get_card("sess-cache")
+        assert after is not None
+        assert after.version == v1, f"缓存被污染: 读到 version={after.version}，期望磁盘 version={v1}"
+        # 磁盘内容不受冲突调用影响
+        titles = [t.title for t in after.tasks]
+        assert "已提交任务" in titles
+
+
 if __name__ == "__main__":
     test_claim_and_release_owner()
     test_conflict_on_occupied_by_others()
@@ -296,4 +331,5 @@ if __name__ == "__main__":
     test_release_returns_false_for_non_owner()
     test_concurrent_writers_no_loss()
     test_update_state_silent_failure_fixed()
+    test_cas_save_card_conflict_no_cache_pollution()
     print("✅ M9 秘书并发归属与冲突仲裁测试全部通过")
