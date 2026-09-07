@@ -42,7 +42,7 @@
   - 每张卡渲染：类型徽标（路由/交接）+ 目标 + 单元/岗位 + 进度百分比 + 各任务状态徽标；
   - 空态友好提示（无编排记录时引导触发一次路由/交接）。
 
-### W-48 自动化测试（test_web.py 新增 4 项）
+### W-48 自动化测试（test_web.py 新增 5 项）
 
 | 用例 | 断言 |
 |------|------|
@@ -50,14 +50,23 @@
 | test_state_api_kind_classification | rt-→route、ho-→handoff 分类与统计一致 |
 | test_state_api_post_creates_route_card | POST 复合路由落卡后 /api/state 能读到该新卡、含多岗位任务 |
 | test_state_api_get_is_read_only | 多次 GET /api/state 不新增卡（只读幂等） |
+| test_state_api_todo_excludes_failed_cancelled | failed/cancelled 不计入 todo，分桶之和==task_count |
 
 ---
 
 ## 3. 验证
 
-- 全量 **17 个测试文件全部通过**（含 test_web.py 新增 4 项状态聚合用例）。
+- 全量 **18 个测试文件全部通过**（含 test_web.py 新增 5 项状态聚合用例 + test_slib.py SLIB 回归）。
 - CLI 冒烟测试通过。
 - 本地 HTTP 冒烟：`GET /api/state` 返回 route/handoff 分桶统计与卡片明细正常。
+
+### 3.1 评审修复（todo_count 统计口径）
+
+- 修复前：`todo_count` 用 `task_count - done - in_progress - blocked` 减法推算，
+  存在 failed/cancelled 任务时被误计入 todo（显示为灰色"todo"徽标）。
+- 修复：`summarize_for_upstream()` 补充真实 `todo_count`/`failed_count`/`cancelled_count` 分桶，
+  `_api_state` 直接引用 summary 字段，不做减法推算；前端新增 failed(红)/cancelled(灰) 专属徽标。
+- 回归：新增 `test_state_api_todo_excludes_failed_cancelled` 防止缺陷回退。
 
 ## 4. 数据/接口变更
 
@@ -65,6 +74,7 @@
 |------|---------|------|
 | `src/hanghang/web/server.py` | 修改 | 新增 `GET /api/state` 只读聚合端点 + 模块级 StateManager 缓存 |
 | `src/hanghang/web/static/index.html` | 修改 | 新增「任务进度」标签页 + loadState 渲染 |
-| `tests/test_web.py` | 修改 | 新增 4 项状态聚合 API 测试 |
+| `src/hanghang/state/models.py` | 修改 | summarize_for_upstream 补充 todo/failed/cancelled 分桶 |
+| `tests/test_web.py` | 修改 | 新增 5 项状态聚合 API 测试（含 todo_count 回归） |
 | `README.md` | 修改 | Web 面板视图 + API 表补充 /api/state |
 | `docs/feature-delivery-v8.md` | 新增 | 本索引文档 |
