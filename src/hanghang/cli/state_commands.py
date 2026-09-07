@@ -124,7 +124,6 @@ def cmd_state_list(args):
               f"tasks={len(c.tasks)}, done={done}, role={c.role_name}")
 
 
-
 def cmd_state_claim(args):
     """秘书声明对 StateCard 的归属/占用（写租约）"""
     from hanghang.engine import OwnershipGuard, StateConflict
@@ -170,9 +169,6 @@ def cmd_state_status(args):
     print(f"  owner: {g.current_owner() or '(未归属)'}")
     print(f"  version: {g.version()}")
     print(f"  当前秘书({g.secretary})是否 owner: {g.is_owner()}")
-
-
-
 
 
 def cmd_arb_list(args):
@@ -268,7 +264,6 @@ def cmd_arb_diff(args):
     if ticket.overlaps:
         print(f"⚠️ 重叠冲突 {len(ticket.overlaps)} 处，建议 arb show 查看详情后 "
               f"用 arb review 裁决。")
-
 
 
 def cmd_state_search(args):

@@ -188,8 +188,6 @@ class FoldEngine:
         """按任务编号精确检索任务（索引机制）"""
         return card.get_task(task_id)
 
-
-
     # ---- M8 跨任务检索集成 ----
 
     def search_tasks(self, cards: list, keyword: str,
@@ -204,7 +202,6 @@ class FoldEngine:
 
         返回: [{session_id, task_id, title, state, fold, field_hit}]
         """
-        from typing import List as TList
         search_fields = fields or ["title", "summary", "objective",
                                    "content_ref", "files_touched"]
         results = []
