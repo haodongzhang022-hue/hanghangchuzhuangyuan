@@ -997,6 +997,212 @@ class TestWebAPI:
             # 清理测试数据
             sm.delete_card(sid)
 
+    # ---------- RFC-ECO-01 阶段4 · 单会话续传快照(/api/session) ----------
+
+    def test_session_api_requires_id_param(self):
+        """GET /api/session 缺 id 参数应返回 400"""
+        import urllib.error
+        try:
+            with urllib.request.urlopen(self.base_url + "/api/session") as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            assert False, "缺 id 时应返回非 2xx"
+        except urllib.error.HTTPError as e:
+            assert e.code == 400
+            body = json.loads(e.read().decode("utf-8"))
+            assert "session" in body.get("error", "")
+
+    def test_session_api_404_for_unknown(self):
+        """GET /api/session?id=不存在的会话 返回 404"""
+        import urllib.error
+        sid = urllib.parse.quote("rt-no-such-session-xyz")
+        try:
+            with urllib.request.urlopen(self.base_url + "/api/session?id=" + sid) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            assert False, "未知会话应返回 404"
+        except urllib.error.HTTPError as e:
+            assert e.code == 404
+            body = json.loads(e.read().decode("utf-8"))
+            assert "未找到会话" in body.get("error", "")
+
+    def test_session_api_route_resume_snapshot(self):
+        """单路由会话详情：卡概要 + 任务分桶 + 续传锚点(resume) 只读可拉取"""
+        import uuid
+        sid = f"rt-sess-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="做架构方案并编码",
+                           unit_id="dongjiagoushi", role_name="architect")
+            sm.add_task(sid, "route:architect")
+            t2 = sm.add_task(sid, "route:developer")
+            # 一个任务标记 done，另一个保持 todo → 会话处于"进行中/待续传"
+            sm.update_task_state(sid, t2.task_id, TaskState.DONE.value)
+
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["session_id"] == sid
+            assert data["kind"] == "route"
+            # 卡概要
+            assert data["card"]["unit_id"] == "dongjiagoushi"
+            assert data["card"]["objective"] == "做架构方案并编码"
+            # 任务统计：2 任务，1 done 1 todo
+            assert data["stats"]["task_count"] == 2
+            assert data["stats"]["done_count"] == 1
+            assert data["stats"]["todo_count"] == 1
+            # 续传锚点：仍有未完结任务 → status in_progress，pending 非空
+            assert data["resume"]["status"] == "in_progress"
+            assert data["resume"]["open_task_count"] == 1
+            assert data["resume"]["resume_key"].startswith(sid + "@")
+            pending_titles = {t["title"] for t in data["resume"]["pending"]}
+            assert "route:architect" in pending_titles
+            # linkage 字段存在
+            assert "upstream" in data["linkage"]
+            assert "downstream" in data["linkage"]
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_all_done_is_delivered(self):
+        """单会话全部任务完成 → resume.status 应为 delivered（无续传负担）"""
+        import uuid
+        sid = f"rt-done-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="完成全部任务",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            sm.update_task_state(sid, t1.task_id, TaskState.DONE.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["resume"]["status"] == "delivered"
+            assert data["resume"]["open_task_count"] == 0
+            assert data["resume"]["pending"] == []
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_failed_is_needs_attention(self):
+        """单会话有失败任务 → resume.status 应为 needs_attention（不再被 in_progress 吞掉）"""
+        import uuid
+        sid = f"rt-fail-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="有一个失败任务",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            # 合法迁移：todo → in_progress → failed
+            sm.update_task_state(sid, t1.task_id, TaskState.IN_PROGRESS.value)
+            sm.update_task_state(sid, t1.task_id, TaskState.FAILED.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["stats"]["failed_count"] == 1
+            assert data["resume"]["status"] == "needs_attention"
+            # 失败任务仍留在 pending 供续传方感知
+            assert data["resume"]["open_task_count"] == 1
+            assert {t["state"] for t in data["resume"]["pending"]} == {"failed"}
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_done_plus_failed_is_needs_attention(self):
+        """done+failed 并存 → 仍应 needs_attention（不能因有 done 就落成 delivered/in_progress）"""
+        import uuid
+        sid = f"rt-df-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="一个完成一个失败",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            t2 = sm.add_task(sid, "route:ops")
+            sm.update_task_state(sid, t1.task_id, TaskState.DONE.value)
+            sm.update_task_state(sid, t2.task_id, TaskState.IN_PROGRESS.value)
+            sm.update_task_state(sid, t2.task_id, TaskState.FAILED.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["stats"]["done_count"] == 1
+            assert data["stats"]["failed_count"] == 1
+            assert data["resume"]["status"] == "needs_attention"
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_all_cancelled_is_cancelled(self):
+        """单会话全部任务取消 → resume.status 应为 cancelled（不能含糊落成 done）"""
+        import uuid
+        sid = f"rt-cancel-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="全部取消",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            t2 = sm.add_task(sid, "route:ops")
+            sm.update_task_state(sid, t1.task_id, TaskState.CANCELLED.value)
+            sm.update_task_state(sid, t2.task_id, TaskState.CANCELLED.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["stats"]["cancelled_count"] == 2
+            assert data["resume"]["status"] == "cancelled"
+            assert data["resume"]["open_task_count"] == 0
+            assert data["resume"]["pending"] == []
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_done_plus_cancelled_mixed_is_needs_attention(self):
+        """S1 边界：done+cancelled 混合（无 failed、无 todo/in_progress、非全 done/全 cancel）
+        → 不应落成 in_progress（pending 为空却标"进行中"自相矛盾），应显式 needs_attention"""
+        import uuid
+        sid = f"rt-mix-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="完成与取消混合",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            t2 = sm.add_task(sid, "route:ops")
+            sm.update_task_state(sid, t1.task_id, TaskState.DONE.value)
+            sm.update_task_state(sid, t2.task_id, TaskState.CANCELLED.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["stats"]["done_count"] == 1
+            assert data["stats"]["cancelled_count"] == 1
+            # 无任何可续传任务 → 空 pending；状态显式 needs_attention 而非 in_progress
+            assert data["resume"]["open_task_count"] == 0
+            assert data["resume"]["pending"] == []
+            assert data["resume"]["status"] == "needs_attention"
+        finally:
+            sm.delete_card(sid)
+
+    def test_session_api_handoff_link(self):
+        """交接会话详情：能反查出 handoff_link(source→target/状态) 供续传承接"""
+        from hanghang.engine.handoff import HandoffBus
+        import uuid
+        # 用唯一意图保证新建独立 ho 卡
+        intent = f"跨单元续传测试 {uuid.uuid4().hex[:8]}"
+        hb = HandoffBus()
+        card = hb.create_handoff(
+            source_unit="dongjiagoushi",
+            target_unit="game-dev-unit",
+            intent=intent,
+            auto_state_card=True,
+        )
+        sid = card.state_card_id
+        assert sid, "交接卡应自动关联 ho- StateCard"
+        try:
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["kind"] == "handoff"
+            assert data["handoff_link"] is not None
+            hl = data["handoff_link"]
+            assert hl.get("source_unit") == "dongjiagoushi"
+            assert hl.get("target_unit") == "game-dev-unit"
+            # intent 应在交接记录或卡目标中体现
+            assert data["card"]["objective"].startswith("跨单元续传")
+            # handoff 卡的交接任务默认 todo → resume 显示进行中
+            assert data["resume"]["status"] in ("in_progress", "delivered")
+        finally:
+            # 清理交接卡与关联状态卡
+            if card.id:
+                fpath = os.path.join(hb.data_dir, f"{card.id}.json")
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+            sm2 = StateManager()
+            sm2.delete_card(sid)
+
+
 def run_tests():
     t = TestWebAPI()
     t.setup_class()

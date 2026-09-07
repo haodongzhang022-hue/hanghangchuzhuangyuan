@@ -180,6 +180,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 | `/api/handoffs` | GET | 待处理交接卡 |
 | `/api/prefixes` | GET | 稳定前缀档案 |
 | `/api/state` | GET | M9 编排/交接状态卡聚合（任务进度，只读） |
+| `/api/session?id=..` | GET | M9 单会话编排快照 + 续传锚点（只读；RFC-ECO-01 阶段4·轮询拉取形态） |
 
 > 设计原则：前端/页面只做「聚合 + 可视化」，底层能力通过 REST API 与 CLI 双形态暴露，为将来多调用形态（生态整合）预留。
 
@@ -277,7 +278,7 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照)
 - POC验证记录: `poc/`
 
 ## 自动评审机制
