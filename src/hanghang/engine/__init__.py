@@ -13,6 +13,11 @@ from hanghang.state.models import (
 from hanghang.state.manager import StateManager
 from hanghang.state.fold_engine import FoldEngine
 from hanghang.state.hierarchy import HierarchySubmitter, SecretaryTree, SecretaryTreeNode
+from hanghang.state.ownership import OwnershipGuard, CardLease, StateConflict, OwnershipDenied
+from hanghang.state.arbiter import (
+    ConflictArbiter, ReviewTicket, StateDiff, FieldChange,
+    diff_state, diffs_overlap,
+)
 from hanghang.state.persist import FlushQueue, DeferredWriter
 
 # M10 上下文装配器
@@ -28,6 +33,9 @@ __all__ = [
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
     "StateManager", "FoldEngine", "HierarchySubmitter",
     "SecretaryTree", "SecretaryTreeNode",
+    "OwnershipGuard", "CardLease", "StateConflict", "OwnershipDenied",
+    "ConflictArbiter", "ReviewTicket", "StateDiff", "FieldChange",
+    "diff_state", "diffs_overlap",
     "FlushQueue", "DeferredWriter",
     # M10
     "ContextRule", "RuleEngine", "ContextAssembler", "CacheGuard",

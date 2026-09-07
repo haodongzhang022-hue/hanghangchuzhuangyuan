@@ -124,6 +124,149 @@ def cmd_state_list(args):
               f"tasks={len(c.tasks)}, done={done}, role={c.role_name}")
 
 
+
+def cmd_state_claim(args):
+    """秘书声明对 StateCard 的归属/占用（写租约）"""
+    from hanghang.engine import OwnershipGuard, StateConflict
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard，请先执行 state init")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    try:
+        owner = g.claim(force=args.force)
+        print(f"归属成功: 秘书 {owner} 已占用会话 {args.session}")
+        print(f"  版本号: {g.version()}")
+    except StateConflict as e:
+        print(f"占用冲突: {e}")
+        print(f"  当前 owner: {e.current_owner or '(无)'}")
+        print("  如需强制抢占请加 --force")
+
+
+def cmd_state_release(args):
+    """释放本秘书对 StateCard 的归属"""
+    from hanghang.engine import OwnershipGuard
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    g.release()
+    print(f"已释放: 秘书 {args.role or 'secretary'} 释放会话 {args.session} 的归属")
+
+
+def cmd_state_status(args):
+    """查看 StateCard 归属与版本状态（并发观测）"""
+    from hanghang.engine import OwnershipGuard
+    mgr = StateManager()
+    if mgr.get_card(args.session) is None:
+        print(f"会话 {args.session} 不存在 StateCard")
+        return
+    g = OwnershipGuard(args.session, mgr, secretary=args.role or "secretary")
+    print(f"会话: {args.session}")
+    print(f"  owner: {g.current_owner() or '(未归属)'}")
+    print(f"  version: {g.version()}")
+    print(f"  当前秘书({g.secretary})是否 owner: {g.is_owner()}")
+
+
+
+
+
+def cmd_arb_list(args):
+    """列出待审核的冲突票据"""
+    from hanghang.engine import ConflictArbiter
+    arbiter = ConflictArbiter()
+    session_filter = getattr(args, 'session', None)
+    status_filter = getattr(args, 'status', None)
+    if status_filter:
+        tickets = arbiter.list_tickets(session_id=session_filter,
+                                        status=status_filter)
+    else:
+        tickets = arbiter.list_pending(session_id=session_filter)
+    if not tickets:
+        print("无待处理的冲突票据")
+        return
+    print(f"共 {len(tickets)} 张冲突票据:")
+    for t in tickets:
+        overlaps_count = len(t.overlaps) if t.overlaps else 0
+        print(f"  {t.id} | {t.session_id} | 状态={t.status} | "
+              f"重叠={overlaps_count}处 | {t.created_at}")
+
+
+def cmd_arb_show(args):
+    """查看冲突票据详情"""
+    from hanghang.engine import ConflictArbiter
+    arbiter = ConflictArbiter()
+    ticket = arbiter.get_ticket(args.ticket)
+    if ticket is None:
+        print(f"票据不存在: {args.ticket}")
+        return
+    print(ticket.summarize())
+
+
+def cmd_arb_review(args):
+    """执行审核决策: keep_a / keep_b / merge / reject"""
+    from hanghang.engine import ConflictArbiter
+    arbiter = ConflictArbiter()
+    try:
+        ticket = arbiter.review(
+            ticket_id=args.ticket,
+            decision=args.decision,
+            resolver=args.resolver or "cli-user",
+            reason=args.reason or "",
+        )
+        print(f"✅ 审核完成: {ticket.id}")
+        print(f"  状态: {ticket.status}")
+        print(f"  决策: {ticket.resolution}")
+        if ticket.reason:
+            print(f"  理由: {ticket.reason}")
+        if ticket.resolution_note:
+            print(f"  说明: {ticket.resolution_note}")
+    except Exception as e:
+        print(f"审核失败: {e}")
+
+
+def cmd_arb_test_diff(args):
+    """演示/测试 diff 与 overlap 分析能力"""
+    from hanghang.engine import (
+        StateManager, diff_state, diffs_overlap,
+    )
+    mgr = StateManager()
+    card = mgr.get_card(args.session)
+    if card is None:
+        print(f"会话 {args.session} 不存在 StateCard")
+        return
+    # 创建两份副本做对比
+    card_a = StateManager()
+    print("直接调用 Python API 使用:")
+    print("  from hanghang.state import diff_state, diffs_overlap")
+    print("  from hanghang.state import ConflictArbiter")
+
+
+
+def cmd_state_search(args):
+    """在 StateCards 中搜索任务（M8 跨会话检索集成）"""
+    from hanghang.engine import FoldEngine, StateManager
+    mgr = StateManager()
+    engine = FoldEngine("")
+    cards = mgr.list_cards()
+    if not cards:
+        print("无 StateCard 可搜索")
+        return
+    results = engine.search_tasks(cards, args.keyword)
+    if not results:
+        print(f"未找到包含 '{args.keyword}' 的任务")
+        return
+    print(f"在 {len(cards)} 张 StateCard 中搜索 '{args.keyword}'，"
+          f"命中 {len(results)} 个任务:")
+    for r in results:
+        fold_mark = "📁" if r["fold"] == "collapsed" else "📂"
+        print(f"  {fold_mark} [{r['session_id']}] {r['task_id']} "
+              f"{r['title']} ({r['state']})")
+        if r["field_hit"]:
+            print(f"      命中字段: {', '.join(r['field_hit'])}")
+
+
 # ==== 秘书长多级树 CLI ====
 
 def cmd_tree_init(args):

@@ -12,3 +12,4 @@ data/metrics.json
 data/handoffs/
 data/state/*.json
 data/state/submissions.jsonl
+data/arbitration/

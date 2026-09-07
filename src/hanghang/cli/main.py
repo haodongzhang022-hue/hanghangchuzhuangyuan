@@ -16,6 +16,9 @@ from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
     cmd_state_submit, cmd_state_list,
+    cmd_state_claim, cmd_state_release, cmd_state_status,
+    cmd_arb_list, cmd_arb_show, cmd_arb_review, cmd_arb_test_diff,
+    cmd_state_search,
     cmd_tree_init, cmd_tree_register, cmd_tree_link,
     cmd_tree_show, cmd_tree_rollup,
     cmd_tree_submit_chain, cmd_tree_list,
@@ -300,6 +303,52 @@ def build_parser():
     sl = state_sub.add_parser("list", help="列出所有 StateCard")
     sl.set_defaults(func=cmd_state_list)
 
+    scl = state_sub.add_parser("claim", help="秘书声明对 StateCard 的归属/占用")
+    scl.add_argument("--session", required=True, help="会话ID")
+    scl.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    scl.add_argument("--force", action="store_true", help="强制抢占他人占用")
+    scl.set_defaults(func=cmd_state_claim)
+    srl = state_sub.add_parser("release", help="释放对 StateCard 的归属")
+    srl.add_argument("--session", required=True, help="会话ID")
+    srl.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    srl.set_defaults(func=cmd_state_release)
+    sst = state_sub.add_parser("status", help="查看 StateCard 归属与版本状态")
+    sst.add_argument("--session", required=True, help="会话ID")
+    sst.add_argument("--role", help="秘书坑位名(默认 secretary)")
+    sst.set_defaults(func=cmd_state_status)
+
+    ssr = state_sub.add_parser("search", help="在StateCard中搜索任务（M8跨会话检索）")
+    ssr.add_argument("--keyword", required=True, help="搜索关键词")
+    ssr.set_defaults(func=cmd_state_search)
+
+
+
+    # ---- M9+ 冲突仲裁子命令 ----
+    arb = sub.add_parser("arb", help="M9+ 版本化冲突仲裁与审核")
+    arb_sub = arb.add_subparsers(dest="arb_cmd")
+
+    arbl = arb_sub.add_parser("list", help="列出冲突票据")
+    arbl.add_argument("--session", default="", help="按会话过滤")
+    arbl.add_argument("--status", default="", help="按状态过滤")
+    arbl.set_defaults(func=cmd_arb_list)
+
+    arbs = arb_sub.add_parser("show", help="查看冲突票据详情")
+    arbs.add_argument("--ticket", required=True, help="票据ID")
+    arbs.set_defaults(func=cmd_arb_show)
+
+    arbr = arb_sub.add_parser("review", help="执行审核决策")
+    arbr.add_argument("--ticket", required=True, help="票据ID")
+    arbr.add_argument("--decision", required=True,
+                       choices=["keep_a", "keep_b", "merge", "reject"],
+                       help="keep_a=保留已提交版本, keep_b=保留冲突版本, merge=自动合并, reject=拒绝冲突修改")
+    arbr.add_argument("--resolver", default="", help="审核者名")
+    arbr.add_argument("--reason", default="", help="决策理由")
+    arbr.set_defaults(func=cmd_arb_review)
+
+    arbt = arb_sub.add_parser("diff", help="查看状态差异分析工具用法")
+    arbt.add_argument("--session", default="", help="会话ID")
+    arbt.set_defaults(func=cmd_arb_test_diff)
+
     # ---- M9 秘书长多级树子命令 ----
     stree = sub.add_parser("tree", help="M9 秘书长多级树：树拓扑管理/汇总/导航")
     tree_sub = stree.add_subparsers(dest="tree_cmd")
@@ -355,8 +404,13 @@ def main():
         sys.exit(1)
     # state 子命令需要检查二级命令
     if args.command == "state" and not getattr(args, "state_cmd", None):
-        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list")
+        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list / claim / release / status")
+        print("请指定 arb 子命令：list / show / review / diff")
         print("示例: python3 src/hanghang/cli/main.py state init --session demo")
+        sys.exit(1)
+    if args.command == "arb" and not getattr(args, "arb_cmd", None):
+        print("请指定 arb 子命令：list / show / review / diff")
+        print("示例: python3 src/hanghang/cli/main.py arb list")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):
         print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")
