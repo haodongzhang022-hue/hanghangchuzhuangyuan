@@ -1,6 +1,6 @@
 # SLIB 会话级行业绑定（Session-Level Industry Binding）
 
-> 版本：v1.0 | 2026-09-08 | 实现：架构·开发(CodeBuddy)
+> 版本：v1.1 | 2026-09-08 | 实现：架构·开发 + CodeBuddy(装配守卫)
 > 前置设计：架构·总师（Issue #8）
 > 归属模块：M4 会话编排器 · 稳定前缀约束
 
@@ -45,6 +45,7 @@
 | `SessionBinding` | `src/hanghang/engine/session_binding.py` | 绑定记录数据模型 |
 | `SessionBindingStore` | 同上 | 绑定持久化 CRUD（data/bindings/） |
 | `SessionBoundRouter` | 同上 | 会话感知路由（SLIB 约束执行器） |
+| `SLIBAssemblyGuard` | `src/hanghang/context/slib_guard.py` | 装配层守卫：会话装配必须落在绑定行业 |
 
 ### 1.4 存储
 
@@ -130,3 +131,52 @@ python3 src/hanghang/cli/main.py unbind --session "my-session"
 | F-53 | CLI bind/unbind/binding/bindings | ✅ | src/hanghang/cli/main.py |
 | F-54 | CLI route --session | ✅ | src/hanghang/cli/main.py |
 | F-55 | SLIB 回归测试 | ✅ | tests/test_slib.py |
+
+---
+
+## 5. 装配层守卫（Assembly Guard）
+
+路由层（SessionBoundRouter）保证"会话锁定行业、跨行业拦截"；但**上下文装配**是本 Issue
+"只装配被锁定行业、杜绝多余/全量注入"的最后一环。若装配环节不校验绑定，上层仍可能把
+非绑定行业上下文拼进单次会话调用。
+
+为此新增装配层守卫（`src/hanghang/context/slib_guard.py`），把 SLIB 强约束**下沉到装配**：
+
+| 场景 | 行为 |
+|------|------|
+| 会话已绑定 X + 装配 unit_id == X | 放行，仅装配 X 上下文 |
+| 会话已绑定 X + 装配 unit_id == Y（≠X） | **抛 `SLIBBoundMismatch`**，拒绝装配非绑定行业 |
+| 会话未绑定 + 传入 unit_id | 按 `auto_bind` 自动绑定后放行（首装即锁行业） |
+| 会话未绑定 + 未提供 unit_id | 抛 ValueError：无法确定装配行业 |
+| 无 session_id | 退化为静态单发装配（向后兼容，不强约束） |
+
+### 5.1 装配入口
+
+`ContextAssembler.assemble_bound(...)` 在调用 `assemble` 前先过守卫对齐 unit_id：
+
+```python
+assembler.assemble_bound(
+    session_id="my-sess",
+    unit_id="dongjiagoushi",   # 若会话已绑其他行业且不一致 → SLIBBoundMismatch
+    user_text="帮我做架构方案",
+)
+```
+
+### 5.2 边界说明
+
+- 守卫不改变装配器的三层物理隔离设计；它只保证**在哪一层语境（哪个被锁行业）下装配**。
+- 通过构造注入 `binding_store`（默认指向 `data/bindings/`，与路由层同一存储）保证会话锁定一致。
+- 无会话单发场景不受影响，保持旧行为。
+
+---
+
+## 6. 功能交付索引
+
+| 能力 | 状态 | 归属 |
+|------|------|------|
+| SessionBindingStore CRUD | ✅ | 架构·开发 |
+| SessionBoundRouter 会话感知路由 | ✅ | 架构·开发 |
+| CLI bind/unbind/binding | ✅ | 架构·开发 |
+| 跨行业交接（handoff） | ✅ | 架构·开发 |
+| ContextAssembler 装配守卫 | ✅ | CodeBuddy（本 PR） |
+| 行业使用说明（面向 Agent） | ✅ | CodeBuddy |

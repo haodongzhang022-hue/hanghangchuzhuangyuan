@@ -17,8 +17,7 @@ data/arbitration/
 data/state/*.lock
 data/state/*.tmp
 data/state/*.owner.json
-
+# 运行期内容归档目录
+data/state/content/
 # 变更感知测试结果缓存（可放 cache: 卷持久化，不入库）
 .testcache/
-# ContentArchive 原文归档运行期目录
-data/state/content/
