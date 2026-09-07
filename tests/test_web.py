@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from hanghang.web.server import HanghangHTTPServer, MAX_BODY_SIZE
+from hanghang.state.manager import StateManager
+from hanghang.state.models import TaskState
 
 
 class TestWebAPI:
@@ -930,6 +932,70 @@ class TestWebAPI:
             _, _ = self._get("/api/state")
         _, after = self._get("/api/state")
         assert after["stats"]["total_cards"] == n0,             "GET /api/state 不应产生新的 StateCard"
+
+    def test_state_api_todo_excludes_failed_cancelled(self):
+        """todo_count 不把 failed/cancelled 任务计入 todo（回归验证）
+
+        构造 6 个不同状态的任务（1 todo/1 in_progress/1 done/1 blocked/1 failed/1 cancelled），
+        验证 /api/state 的 todo_count 仅统计真实 TODO 任务，而非用减法推算。
+        """
+        import uuid
+        # 唯一 session_id：前缀 rt- 使其被分类为 route
+        sid = f"rt-todocnt-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        card = sm.create_card(
+            session_id=sid,
+            objective="todo_count 回归验证",
+            unit_id="dongjiagoushi",
+            role_name="secretary",
+        )
+        try:
+            # 添加 6 个任务（覆盖全部 6 种状态）
+            t_todo = sm.add_task(sid, "任务A-todo")
+            t_prog = sm.add_task(sid, "任务B-in_progress")
+            t_done = sm.add_task(sid, "任务C-done")
+            t_blk  = sm.add_task(sid, "任务D-blocked")
+            t_fail = sm.add_task(sid, "任务E-failed")
+            t_canc = sm.add_task(sid, "任务F-cancelled")
+
+            # 设置各任务状态（todo 是默认值）
+            # 注意：状态机限制 todo→failed 不合法，需先 in_progress→failed
+            sm.update_task_state(sid, t_prog.task_id, TaskState.IN_PROGRESS.value)
+            sm.update_task_state(sid, t_done.task_id, TaskState.DONE.value)
+            sm.update_task_state(sid, t_blk.task_id,  TaskState.BLOCKED.value)
+            # todo → in_progress → failed（合法路径）
+            assert sm.update_task_state(sid, t_fail.task_id, TaskState.IN_PROGRESS.value)
+            assert sm.update_task_state(sid, t_fail.task_id, TaskState.FAILED.value)
+            # todo → cancelled 合法
+            assert sm.update_task_state(sid, t_canc.task_id, TaskState.CANCELLED.value)
+
+            # GET /api/state（StateManager.list_cards() 直接读磁盘，无需刷缓存）
+            code, data = self._get("/api/state")
+            assert code == 200
+            target = next((c for c in data["cards"] if c["session_id"] == sid), None)
+            assert target is not None, "GET /api/state 应能读到刚构造的 7 态卡"
+
+            # 验证 todo_count == 1（仅任务A 是真正 todo，failed/cancelled 不计入）
+            assert target["todo_count"] == 1,                 f"todo_count 应为 1（仅 TODO 任务），实际 {target['todo_count']}"
+            # 验证各分桶
+            assert target["done_count"] == 1
+            assert target["in_progress_count"] == 1
+            assert target["blocked_count"] == 1
+            assert target["failed_count"] == 1
+            assert target["cancelled_count"] == 1
+            # 分桶之和 == task_count（全部被真实统计，无丢失）
+            buckets = (target["todo_count"] + target["done_count"]
+                       + target["in_progress_count"] + target["blocked_count"]
+                       + target["failed_count"] + target["cancelled_count"])
+            assert buckets == target["task_count"],                 f"分桶之和({buckets})应等于 task_count({target['task_count']})"
+
+            # stats 侧也应如实反映 failed/cancelled
+            st = data["stats"]
+            assert st["failed_tasks"] >= 1
+            assert st["cancelled_tasks"] >= 1
+        finally:
+            # 清理测试数据
+            sm.delete_card(sid)
 
 def run_tests():
     t = TestWebAPI()

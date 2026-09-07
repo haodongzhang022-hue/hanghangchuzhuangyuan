@@ -446,8 +446,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
         cards.sort(key=lambda c: c.created_at or "", reverse=True)
 
         stats = {"total_cards": 0, "total_tasks": 0,
-                 "done_tasks": 0, "in_progress_tasks": 0,
-                 "blocked_tasks": 0, "todo_tasks": 0,
+                 "todo_tasks": 0, "done_tasks": 0, "in_progress_tasks": 0,
+                 "blocked_tasks": 0, "failed_tasks": 0, "cancelled_tasks": 0,
                  "route_cards": 0, "handoff_cards": 0, "other_cards": 0}
 
         per_unit = {}
@@ -474,21 +474,22 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 "created_at": c.created_at or "",
                 "updated_at": c.updated_at or "",
                 "task_count": summary.get("task_count", 0),
+                "todo_count": summary.get("todo_count", 0),
                 "done_count": summary.get("done_count", 0),
                 "in_progress_count": summary.get("in_progress_count", 0),
                 "blocked_count": summary.get("blocked_count", 0),
-                "todo_count": max(0, summary.get("task_count", 0)
-                                  - summary.get("done_count", 0)
-                                  - summary.get("in_progress_count", 0)
-                                  - summary.get("blocked_count", 0)),
+                "failed_count": summary.get("failed_count", 0),
+                "cancelled_count": summary.get("cancelled_count", 0),
                 "tasks": summary.get("tasks", []),
             }
             stats["total_cards"] += 1
             stats["total_tasks"] += item["task_count"]
+            stats["todo_tasks"] += item["todo_count"]
             stats["done_tasks"] += item["done_count"]
             stats["in_progress_tasks"] += item["in_progress_count"]
             stats["blocked_tasks"] += item["blocked_count"]
-            stats["todo_tasks"] += item["todo_count"]
+            stats["failed_tasks"] += item["failed_count"]
+            stats["cancelled_tasks"] += item["cancelled_count"]
 
             uid = item["unit_id"] or "未标注单元"
             pu = per_unit.setdefault(uid, {"cards": 0, "tasks": 0, "done": 0})

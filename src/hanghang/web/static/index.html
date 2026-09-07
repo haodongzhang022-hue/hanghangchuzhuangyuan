@@ -459,6 +459,8 @@ function taskStateBadge(st) {
   if (st === "done") return '<span class="badge badge-green">done</span>';
   if (st === "in_progress" || st === "running") return '<span class="badge badge-blue">进行中</span>';
   if (st === "blocked") return '<span class="badge badge-red">blocked</span>';
+  if (st === "failed") return '<span class="badge badge-red">failed</span>';
+  if (st === "cancelled") return '<span class="badge badge-gray">cancelled</span>';
   return '<span class="badge badge-gray">todo</span>';
 }
 
@@ -473,8 +475,9 @@ async function loadState() {
     // 顶部进度统计卡
     stBox.innerHTML = `<div class="route-result">
       <b>StateCard ${st.total_cards || 0} 张</b>（路由 ${st.route_cards || 0} / 交接 ${st.handoff_cards || 0}） ·
-      任务 ${st.total_tasks || 0} 项 · 已完成 ${st.done_tasks || 0} ·
-      进行中 ${st.in_progress_tasks || 0} · 阻塞 ${st.blocked_tasks || 0}
+      任务 ${st.total_tasks || 0} 项 · 待办 ${st.todo_tasks || 0} · 已完成 ${st.done_tasks || 0} ·
+      进行中 ${st.in_progress_tasks || 0} · 阻塞 ${st.blocked_tasks || 0} ·
+      失败 ${st.failed_tasks || 0} · 取消 ${st.cancelled_tasks || 0}
     </div>`;
     if ((st.total_cards || 0) === 0) {
       box.innerHTML = '<div class="route-result">暂无编排/交接任务记录。触发一次路由或交接后自动落卡，即可在此看到进度。</div>';
