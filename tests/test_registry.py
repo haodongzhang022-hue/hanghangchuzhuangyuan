@@ -39,8 +39,48 @@ def test_prefix_archive():
     assert "[开发]" in p
 
 
+def test_prefix_archive_drift_aware_save():
+    """建议①：register_unit(persist=True) 采用"内容漂移才落盘"，幂等不触碰文件。
+
+    1) 首次注册会写入档案文件；
+    2) 用完全相同内容再次注册 → 文件内容与 mtime 均不变（无漂移不落盘）；
+    """
+    import tempfile
+    import time as _time
+    from hanghang.engine.prefix import PrefixArchive
+
+    reg = Registry()
+    archive_path = os.path.join(tempfile.mkdtemp(), "prefix-archive.json")
+
+    # 场景1：首次注册落盘
+    pa1 = PrefixArchive(archive_file=archive_path)
+    for unit in reg.all_units():
+        pa1.register_unit(unit)  # persist=True
+    assert os.path.exists(archive_path), "首次注册应落盘"
+    with open(archive_path, "r", encoding="utf-8") as f:
+        first = f.read()
+    assert '"dongjiagoushi"' in first
+    first_mtime = os.path.getmtime(archive_path)
+
+    # 场景2：无漂移再注册 → 不重写文件（内容、mtime 均不变）
+    _time.sleep(0.01)  # 确保 mtime 可区分
+    pa2 = PrefixArchive(archive_file=archive_path)
+    for unit in reg.all_units():
+        pa2.register_unit(unit)
+    with open(archive_path, "r", encoding="utf-8") as f:
+        second = f.read()
+    assert second == first, "无漂移时内容不应变化"
+    assert os.path.getmtime(archive_path) == first_mtime, "无漂移时不应重写文件"
+
+    # 补充验证 archive 结构字段正确
+    entry = pa2.get_archive()["dongjiagoushi"]
+    assert entry["industry"]
+    assert "[架构]" in [p["prefix"] for p in entry["role_prefixes"].values()]
+
+
 if __name__ == "__main__":
     test_registry_loads_units()
     test_registry_roles()
     test_prefix_archive()
+    test_prefix_archive_drift_aware_save()
     print("✅ 注册表测试通过")

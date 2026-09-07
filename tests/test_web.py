@@ -844,6 +844,39 @@ class TestWebAPI:
             resp2.read()
         finally:
             conn2.close()
+
+    def test_post_route_form_urlencoded(self):
+        """建议②：application/x-www-form-urlencoded 应真实解析 text，而非 400。
+
+        Content-Type 校验已显式放行表单类型，此前 body 仅按 JSON 解析导致真实
+        form 数据落到 400「缺少 text 字段」。现应按表单键值解析并正常路由。
+        """
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            form = urllib.parse.urlencode({"text": "帮我设计一个系统架构"}).encode("utf-8")
+            conn.request("POST", "/api/route", body=form,
+                         headers={"Content-Type": "application/x-www-form-urlencoded"})
+            resp = conn.getresponse()
+            assert resp.status == 200, f"form POST 应 200，实际 {resp.status}"
+            data = json.loads(resp.read().decode("utf-8"))
+            rr = data["route_result"]
+            assert rr["unit_id"] == "dongjiagoushi", rr
+        finally:
+            conn.close()
+
+    def test_static_double_slash_index(self):
+        """建议③：/static//index.html（双斜杠）应正常服务，不应被 realpath 误拒 403。
+
+        移除 /static/ 前缀后残留的前导 '/' 曾使路径被判为绝对路径而 403；
+        归一化后双斜杠 URL 应返回 200，且目录穿越防护仍生效。
+        """
+        code, body = self._raw_get("/static//index.html")
+        assert code == 200, f"双斜杠静态资源应 200，实际 {code}"
+        assert b"<!DOCTYPE html>" in body or b"<html" in body
+        # 双斜杠形式的目录穿越仍须 403（安全回归）
+        code2, _ = self._raw_get("/static//../../etc/passwd")
+        assert code2 == 403, f"双斜杠穿越仍应 403，实际 {code2}"
 def run_tests():
     t = TestWebAPI()
     t.setup_class()
