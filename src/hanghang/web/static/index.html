@@ -535,7 +535,6 @@ async function loadSessionResume(sidEnc, btn) {
                     failed: '<span class="badge badge-red">failed</span>',
                     needs_attention: '<span class="badge badge-yellow">需关注</span>',
                     cancelled: '<span class="badge badge-gray">cancelled</span>',
-                    done: '<span class="badge badge-green">done</span>',
                     empty: '<span class="badge badge-gray">empty</span>' };
     let h = `<div class="kv"><b>会话状态</b> ${stMap[rs.status] || escapeHtml(rs.status)} ·
               未完结 ${rs.open_task_count || 0} 项</div>

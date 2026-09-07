@@ -107,6 +107,12 @@ python3 src/hanghang/cli/main.py tree show --name project          # 渲染树�
 python3 src/hanghang/cli/main.py tree rollup --name project        # 逐级向上汇总
 python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf-1
 
+# M9 原文归档（ContentArchive：折叠后原文不丢、编号可找回）
+python3 src/hanghang/cli/main.py state archive --session demo --ref demo-seg001 --content "折叠前完整原文"
+python3 src/hanghang/cli/main.py state retrieve --session demo --ref demo-seg001   # 取回原文全文
+python3 src/hanghang/cli/main.py state refs --session demo                         # 列出已归档引用
+python3 src/hanghang/cli/main.py state full --session demo                         # 可恢复完整视图
+
 # M9 秘书并发归属与冲突仲裁（多 Agent 协作写同一状态）
 python3 src/hanghang/cli/main.py state claim   --session demo --role 秘书A   # 声明归属/占用
 python3 src/hanghang/cli/main.py state status  --session demo --role 秘书A   # 查看 owner/version
@@ -238,7 +244,8 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(会话续传快照)
+- 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

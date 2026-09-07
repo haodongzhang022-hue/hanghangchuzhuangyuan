@@ -1,97 +1,161 @@
-# 功能特性交付索引（RFC-ECO-01 阶段4·单会话续传快照）
+# 功能特性交付索引（ContentArchive 原文归档检索层）
 
-> 版本：2026-09-08 | 交付人：CodeBuddy
-> 场景：Issue #1 持续推进 —— 落地 RFC-ECO-01「生态整合接口预研」**阶段4 的纯本仓可交付前哨**：
-> 对外（外部 agent / L2 出口复核）可按 session **轮询拉取某一编排/交接会话的「待办 + 结果 + 交接关联」**，
-> 用于续传或承接，而无需依赖 CLI 或对话记忆。前置：M1-M10 引擎 + Web 聚合面板 + `/api/state` 聚合已交付。
+> 版本：M9+ ContentArchive v1.0 | 2026-09-08 | 同步人：CodeBuddy
+> 场景：补齐秘书机制"折叠后原文不丢、编号可找回"的关键缺口
+> 前置：PR #15（M9+ 版本化冲突仲裁与审核）已合入 main
 
 ---
 
 ## 1. 总览
 
-RFC 阶段1-3（只读聚合端点 → 可视化看板）此前已落地。阶段4（生态闭环：状态卡订阅/回传 + 接入锚点）中，
-RFC 明示"首期以轮询拉取形态起步（GET /v1/state/{session}），不引入推送基础设施"。
-本期把这一**轮询拉取形态**落地到可调用层：新增只读端点，将某 session 的编排快照 + 未完结待办整理为
-确定性续传锚点（`resume_key`），并反查交接关联，供外部承接方续传。纯只读、零核心引擎改动、零写盘副作用。
+Issue #5 秘书机制的核心承诺之一是：**原文不是丢弃，而是保留 + 编号索引可检索**。
+此前 `FoldEngine.fold_content` 仅为每个折叠任务生成一个 `content_ref` **编号标记**
+（如 `sess-seg001`），并未真正持久化对应原文全文 —— 折叠后无法按 content_ref 找回原文。
 
-| 功能编号 | 功能名称 | 状态 |
-|---------|---------|------|
-| W-49 | `GET /api/session?id=..` 单会话编排快照 + 续传锚点（只读） | ✅ 已完成 |
-| W-50 | 交接会话反查 `handoff_link`（source→target / 状态） | ✅ 已完成 |
-| W-51 | Web「任务进度」页单卡「续传锚点」下钻展示 | ✅ 已完成 |
-| W-52 | `/api/session` 自动化测试（5 项） | ✅ 已完成 |
+本阶段新增 **ContentArchive 原文归档检索层**，把"编号即索引、可寻回原文"落实为真实能力。
 
----
-
-## 2. 功能详述
-
-### W-49 `GET /api/session?id=<session_id>`
-
-- 只读拉取 `data/state/` 下指定 StateCard；会话不存在返回 404，缺参返回 400。
-- 返回五块：
-  - `card`：卡概要（objective / unit_id / role_name / owner / version / 时间）；
-  - `stats`：任务分桶（done/todo/in_progress/blocked/failed/cancelled）；
-  - `tasks`：全量任务明细；
-  - `linkage`：`upstream` + `downstream`（本卡下级 + 反向扫描"谁的 upstream==本会话"的承接卡）；
-  - `resume`：**续传锚点** —— `status`（delivered/needs_attention/cancelled/blocked/in_progress/empty）、
-    `open_task_count`、`pending`（未完结待承接任务）、`resume_key = session@version`。
-
-- 确定性续传语义（显式区分失败/全取消，避免语义含糊）：
-  - 全部任务 done → `delivered`（无续传负担）；
-  - 含 failed 任务（含与 done 并存）→ `needs_attention`（需人工关注，不再被 in_progress 吞掉）；
-  - 全部任务取消 → `cancelled`（不再含糊落成 done）；
-  - 有 blocked → `blocked`；仍有 todo/in_progress → `in_progress`；无任务 → `empty`。
-  `pending` 仅列 todo/in_progress/blocked/failed（cancelled 为终态不参与续传），
-  `resume_key` 作为"从该版本会话续传"的锚点（跨轮询保持一致，供外部调用方/出口复核引用）。
-
-### W-50 交接关联反查（`handoff_link`）
-
-- 当请求的 session 为 `ho-` 交接卡时，直接扫描交接数据目录内全部交接 JSON，
-  反查 `state_card_id == session_id` 的记录，返回 `source_unit → target_unit / intent / status / card_id`，
-  供续传方承接（覆盖 created/done/failed，不依赖 list_pending 的 status 过滤）。
-
-### W-51 Web「任务进度」页单卡「续传锚点」下钻
-
-- 每张 StateCard 新增「续传锚点」按钮：点击拉取 `/api/session?id=..` 并展开显示
-  会话状态徽标、`resume_key`、交接关联、待续传任务清单（可收起）。
-
-### W-52 自动化测试（test_web.py 新增 5 项）
-
-| 用例 | 断言 |
-|------|------|
-| test_session_api_requires_id_param | 缺 id 返回 400 |
-| test_session_api_404_for_unknown | 未知会话返回 404 |
-| test_session_api_route_resume_snapshot | 路由卡详情 + 任务分桶 + 续传锚点（pending/resume_key/linkage） |
-| test_session_api_all_done_is_delivered | 全部完成 → resume.status=delivered、pending 空 |
-| test_session_api_handoff_link | 交接卡会话能反查 source→target / status |
-| test_session_api_failed_is_needs_attention | 单失败任务 → resume.status=needs_attention |
-| test_session_api_done_plus_failed_is_needs_attention | done+failed → needs_attention |
-| test_session_api_all_cancelled_is_cancelled | 全取消 → resume.status=cancelled、pending 空 |
+| 功能编号 | 功能名称 | 状态 | 涉及文件 |
+|---------|---------|------|---------|
+| F-57 | ContentArchive 原文归档存储层 | ✅ | src/hanghang/state/content_archive.py |
+| F-58 | FoldEngine.fold_content 自动归档原文 | ✅ | src/hanghang/state/fold_engine.py |
+| F-59 | FoldEngine.retrieve_original 按引用取回原文 | ✅ | src/hanghang/state/fold_engine.py |
+| F-60 | search_tasks(include_original=True) 命中返回原文 | ✅ | src/hanghang/state/fold_engine.py |
+| F-61 | CLI state archive/retrieve/refs/full | ✅ | src/hanghang/cli/ |
+| F-62 | ContentArchive 路径穿越加固 + 原子写 | ✅ | src/hanghang/state/content_archive.py |
+| F-63 | 归档检索回归测试 | ✅ | tests/test_content_archive.py |
 
 ---
 
-## 3. 验证
+## 2. 为什么需要原文归档
 
-- 全量 **18 个测试文件全部通过**（含 test_web.py 新增 5 项会话快照用例 + 既有 /api/state 等回归）。
-- CLI 冒烟测试通过。
-- 本地 HTTP 冒烟：`GET /api/session?id=rt-..` / `ho-..` 正常返回概要/统计/续传锚点/交接关联。
+用户原始洞察（Issue #5）：SKILL.state 论文"校验后丢弃本步推理"，我们的改进是**保留原文 + 编号**，
+缺原文时仍可通过索引找回，不丢上下文。此前实现了"折叠 + 编号"，但 `content_ref` 只是一个
+字符串编号，**原文全文并未真正落盘**，编号无法解析回原文 —— 相当于承诺了"可恢复"却无恢复载体。
+
+ContentArchive 正是这个"恢复载体"：
+
+```
+fold 一段原文
+   │
+   ▼
+ContentArchive.store_segments
+   │  每段原文全文 → data/state/content/<session>/<content_ref>.json
+   ▼
+StateCard 任务只带 content_ref（编号）
+   │  执行/提交时只传 compact 上下文 + 编号引用（不携带全量）
+   ▼
+需要原文时
+   ▼
+ContentArchive.retrieve_content(session, content_ref) → 精确取回原文全文
+```
 
 ---
 
-## 4. 数据/接口变更
+## 3. 核心机制
 
-| 文件 | 变更类型 | 说明 |
-|------|---------|------|
-| `src/hanghang/web/server.py` | 修改 | 新增 `GET /api/session` 端点 + `_resolve_handoff_link` 交接反查 |
-| `src/hanghang/web/static/index.html` | 修改 | 「任务进度」页单卡「续传锚点」下钻 + `btn-mini`/`resume-box` 样式 |
-| `tests/test_web.py` | 修改 | 新增 5 项会话快照 API 测试 |
-| `README.md` | 修改 | API 表补充 `/api/session` + 功能索引 v9 |
+### 3.1 ContentArchive 存储结构
+
+```
+data/state/content/
+  └── <session_id>/
+        ├── <content_ref>.json     # 每段原文一条
+        └── ...
+```
+
+单条归档 JSON：
+```json
+{
+  "session_id": "sess-full",
+  "content_ref": "sess-full-seg001",
+  "content": "……折叠前的原文全文……",
+  "title": "段标题",
+  "meta": {},
+  "archived_at": "2026-09-08 02:…"
+}
+```
+
+### 3.2 FoldEngine 自动联动
+
+`fold_content(content)` 默认（`archive=True`）自动将每段原文全文归档，
+并让每个任务的 `content_ref` 对应真实归档条目。之后：
+
+- `engine.retrieve_original(session_id, content_ref)` → 取回原文全文
+- `engine.search_tasks(cards, kw, include_original=True)` → 命中任务返回原文
+
+> `archive=False` 时保持"仅折叠不归档"的旧行为，向后兼容。
+
+### 3.3 完全解耦、可迁移
+
+`ContentArchive` 是独立类，不依赖 StateManager / FoldEngine，可单独对任意
+"要折叠但不可丢原文"的内容做归档 + 索引，便于迁移到其他仓库/单元复用。
+
+---
+
+## 4. 使用方式
+
+### Python API
+
+```python
+from hanghang.engine import ContentArchive, FoldEngine, StateManager
+
+# 1) 直接归档/取回
+ca = ContentArchive()
+ca.store("sess-1", "sess-1-seg001", "完整原文……")
+ca.retrieve_content("sess-1", "sess-1-seg001")   # -> 完整原文
+ca.list_refs("sess-1")                            # -> 该会话所有 content_ref
+
+# 2) fold 时自动归档（默认）
+fe = FoldEngine("sess-1", archive_root=None)      # None=默认 data/state/content
+card = fe.fold_content("第一段……\n\n第二段……")
+fe.retrieve_original("sess-1", card.tasks[0].content_ref)  # -> 找回原文
+
+# 3) M8 跨任务检索并带回原文
+results = fe.search_tasks(cards, "关键词", include_original=True)
+# results[i]["original"] = 命中的原文全文（折叠后仍可找回）
+```
+
+### CLI
+
+```bash
+# 归档一段原文
+python3 src/hanghang/cli/main.py state archive --session demo --ref demo-seg001 \
+    --content "这段完整原文需要被折叠但可找回"
+
+# 按 content_ref 取回原文全文
+python3 src/hanghang/cli/main.py state retrieve --session demo --ref demo-seg001
+
+# 列出某会话全部已归档 content_ref
+python3 src/hanghang/cli/main.py state refs --session demo
+
+# 展示"可恢复完整视图"：StateCard 导航 + 各折叠任务原文是否可恢复
+python3 src/hanghang/cli/main.py state full --session demo
+```
+
+---
+
+## 5. 能力索引 / 文件变更
+
+- Python 导出：`from hanghang.engine import ContentArchive` /
+  `from hanghang.state import ContentArchive`
+- 数据目录：`data/state/content/<session>/<content_ref>.json`
+- CLI：`state archive / retrieve / refs / full`
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/hanghang/state/content_archive.py` | 新增 | ContentArchive 原文归档检索层 |
+| `src/hanghang/state/fold_engine.py` | 修改 | fold_content 自动归档 + retrieve_original + search include_original |
+| `src/hanghang/state/__init__.py` | 修改 | 导出 ContentArchive |
+| `src/hanghang/engine/__init__.py` | 修改 | 导出 ContentArchive |
+| `src/hanghang/cli/state_commands.py` | 修改 | archive/retrieve/refs/full 实现 |
+| `src/hanghang/cli/main.py` | 修改 | 注册新子命令 |
+| `tests/test_content_archive.py` | 新增 | 15 项测试 |
 | `docs/feature-delivery-v9.md` | 新增 | 本索引文档 |
 
 ---
 
-## 5. 定位与后续
+## 6. 验证
 
-本期为 RFC-ECO-01 阶段4 的**轮询拉取形态**落地，属纯只读薄封装，未侵入核心引擎与既有语义。
-后续可继续：阶段4的推送/Webhook 形态（需单独立项）、单元源仓统一入口规范（跨仓协作，单独立 RFC）、
-多租户下状态卡读模型脱敏/权限边界。
+- ✅ 新增 `tests/test_content_archive.py` 15 项测试全部通过
+- ✅ 全量 **18 个测试文件 0 失败**（255 项测试全绿）
+- ✅ CLI 冒烟：archive → retrieve → refs 端到端通过
+- ✅ 边界：多空行不串位 / archive=False 不落盘 / 路径穿越拒绝 / 原子写无 .tmp 残留

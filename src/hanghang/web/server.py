@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 import threading
@@ -38,6 +39,8 @@ from hanghang.engine import (  # noqa: E402
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
 )
+
+logger = logging.getLogger(__name__)
 
 # 默认前端静态页面目录
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -560,22 +563,31 @@ class HanghangHandler(BaseHTTPRequestHandler):
         blocked_count = summary.get("blocked_count", 0)
         failed_count = summary.get("failed_count", 0)
         cancelled_count = summary.get("cancelled_count", 0)
+        tasks = summary.get("tasks", [])
         open_tasks = [
-            t for t in summary.get("tasks", [])
+            t for t in tasks
             if t.get("state") in ("todo", "in_progress", "blocked", "failed")
         ]
+        # 是否有真正"待续传/推进中"任务（todo / in_progress）
+        has_active = any(
+            t.get("state") in ("todo", "in_progress") for t in tasks
+        )
         if task_count == 0:
             status = "empty"
+        elif done_count == task_count:               # 全部完成 → 无续传负担
+            status = "delivered"
         elif cancelled_count == task_count:          # 全取消：会话无实际推进
             status = "cancelled"
         elif failed_count > 0:                       # 含失败任务（含已 done 并存）→ 需人工关注
             status = "needs_attention"
-        elif done_count == task_count:               # 全部完成
-            status = "delivered"
+        elif has_active:                             # 仍有 todo/in_progress 待续传
+            status = "in_progress"
         elif blocked_count > 0:
             status = "blocked"
-        else:                                        # 仍有 todo/in_progress 待续传
-            status = "in_progress"
+        else:
+            # done+cancelled 混合（无 failed、无 active、非全 done/全 cancel）
+            # 无任何可续传清单却非纯终态，显式标 needs_attention 避免空 pending 误标"进行中"
+            status = "needs_attention"
         resume = {
             "status": status,
             "open_task_count": len(open_tasks),
@@ -631,7 +643,10 @@ class HanghangHandler(BaseHTTPRequestHandler):
                     with open(os.path.join(data_dir, fn), "r",
                               encoding="utf-8") as f:
                         rec = json.load(f)
-                except Exception:
+                except Exception as e:
+                    # G1: 半写/损坏 JSON 不再静默吞掉，记 warning 便于排障
+                    logger.warning(
+                        "handoff 交接记录解析失败，跳过 %s: %s", fn, e)
                     continue
                 if isinstance(rec, dict) and rec.get("state_card_id") == session_id:
                     return {

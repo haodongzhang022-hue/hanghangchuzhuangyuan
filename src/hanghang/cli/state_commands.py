@@ -289,6 +289,69 @@ def cmd_state_search(args):
             print(f"      命中字段: {', '.join(r['field_hit'])}")
 
 
+def cmd_state_archive(args):
+    """归档一段原文全文到 ContentArchive（供折叠任务按 content_ref 找回）"""
+    from hanghang.engine import ContentArchive
+    ca = ContentArchive()
+    ref = ca.store(
+        session_id=args.session,
+        content_ref=args.ref,
+        content=args.content,
+        title=args.title or "",
+    )
+    print(f"原文已归档: {ref}")
+    print(f"  存储位置: data/state/content/{args.session}/{ref}.json")
+    print(f"  原文长度: {len(args.content)} 字符")
+
+
+def cmd_state_retrieve(args):
+    """按 content_ref 从归档取回原文全文"""
+    from hanghang.engine import ContentArchive
+    ca = ContentArchive()
+    content = ca.retrieve_content(args.session, args.ref)
+    if content is None:
+        print(f"未找到归档原文: {args.session} / {args.ref}")
+        return
+    print(content)
+
+
+def cmd_state_refs(args):
+    """列出某会话全部已归档的 content_ref"""
+    from hanghang.engine import ContentArchive
+    ca = ContentArchive()
+    refs = ca.list_refs(args.session)
+    if not refs:
+        print(f"会话 '{args.session}' 暂无归档原文")
+        return
+    print(f"会话 '{args.session}' 共 {len(refs)} 段归档原文:")
+    for ref in refs:
+        print(f"  - {ref}")
+
+
+def cmd_state_full(args):
+    """展示完整可恢复视图：StateCard 导航 + 各折叠任务按 content_ref 取回原文"""
+    from hanghang.engine import FoldEngine, StateManager, ContentArchive
+    mgr = StateManager()
+    card = mgr.get_card(args.session)
+    if card is None:
+        print(f"StateCard 不存在: {args.session}（请先 state init）")
+        return
+    engine = FoldEngine(args.session)
+    print(engine.render_navigation(card))
+    print("")
+    ca = ContentArchive()
+    print("— 原文归档（可恢复） —")
+    for task in card.tasks:
+        if not task.content_ref:
+            continue
+        orig = ca.retrieve_content(args.session, task.content_ref)
+        marker = "✅ 可恢复" if orig else "⚠️ 无归档"
+        print(f"  {task.task_id} {task.title}  ({marker} ref:{task.content_ref})")
+        if orig:
+            brief = orig[:120].replace("\n", " ") + ("..." if len(orig) > 120 else "")
+            print(f"      原文: {brief}")
+
+
 # ==== 秘书长多级树 CLI ====
 
 def cmd_tree_init(args):

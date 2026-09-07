@@ -1142,6 +1142,30 @@ class TestWebAPI:
         finally:
             sm.delete_card(sid)
 
+    def test_session_api_done_plus_cancelled_mixed_is_needs_attention(self):
+        """S1 边界：done+cancelled 混合（无 failed、无 todo/in_progress、非全 done/全 cancel）
+        → 不应落成 in_progress（pending 为空却标"进行中"自相矛盾），应显式 needs_attention"""
+        import uuid
+        sid = f"rt-mix-{uuid.uuid4().hex[:6]}"
+        sm = StateManager()
+        try:
+            sm.create_card(session_id=sid, objective="完成与取消混合",
+                           unit_id="game-dev-unit", role_name="game_dev")
+            t1 = sm.add_task(sid, "route:game_dev")
+            t2 = sm.add_task(sid, "route:ops")
+            sm.update_task_state(sid, t1.task_id, TaskState.DONE.value)
+            sm.update_task_state(sid, t2.task_id, TaskState.CANCELLED.value)
+            code, data = self._get("/api/session?id=" + urllib.parse.quote(sid))
+            assert code == 200
+            assert data["stats"]["done_count"] == 1
+            assert data["stats"]["cancelled_count"] == 1
+            # 无任何可续传任务 → 空 pending；状态显式 needs_attention 而非 in_progress
+            assert data["resume"]["open_task_count"] == 0
+            assert data["resume"]["pending"] == []
+            assert data["resume"]["status"] == "needs_attention"
+        finally:
+            sm.delete_card(sid)
+
     def test_session_api_handoff_link(self):
         """交接会话详情：能反查出 handoff_link(source→target/状态) 供续传承接"""
         from hanghang.engine.handoff import HandoffBus
