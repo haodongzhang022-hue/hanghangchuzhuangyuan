@@ -22,12 +22,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field as dc_field
 from typing import Dict, List, Optional, Set, Union
 
 from .models import StateCard, TaskRecord
 from .manager import StateManager
+
+# 标识符（session_id / ticket_id）白名单：仅允许字母/数字/下划线/短横线，防路径穿越
+_IDENTIFIER_PATTERN = re.compile(r'^[A-Za-z0-9_-]+$')
 
 # TaskRecord 中参与冲突仲裁的"语义字段"（排除 meta/时间戳/自动编号）
 _SEMANTIC_FIELDS = [
@@ -267,6 +271,16 @@ class ReviewTicket:
     id: Optional[str] = None
 
     def __post_init__(self):
+        if not _IDENTIFIER_PATTERN.match(self.session_id):
+            raise ValueError(
+                f"非法 session_id: {self.session_id!r}。仅允许字母/数字/下划线/短横线 "
+                f"([A-Za-z0-9_-])，防止路径穿越。"
+            )
+        if self.id and not _IDENTIFIER_PATTERN.match(self.id):
+            raise ValueError(
+                f"非法 ticket_id: {self.id!r}。仅允许字母/数字/下划线/短横线 "
+                f"([A-Za-z0-9_-])，防止路径穿越。"
+            )
         if not self.created_at:
             self.created_at = time.strftime("%Y-%m-%d %H:%M:%S")
         if not self.updated_at:
@@ -694,6 +708,11 @@ class ConflictArbiter:
             self.sm.save_card(sc)
         else:
             # 无 StateManager 时直接写文件
+            if not _IDENTIFIER_PATTERN.match(session_id):
+                raise ValueError(
+                    f"非法 session_id: {session_id!r}。仅允许字母/数字/下划线/短横线 "
+                    f"([A-Za-z0-9_-])，防止路径穿越。"
+                )
             data_dir = os.path.join(os.getcwd(), "data", "state")
             os.makedirs(data_dir, exist_ok=True)
             path = os.path.join(data_dir, f"{session_id}.json")
@@ -703,6 +722,11 @@ class ConflictArbiter:
     # ---- 持久化 ----
 
     def _ticket_path(self, ticket_id: str) -> str:
+        if not _IDENTIFIER_PATTERN.match(ticket_id):
+            raise ValueError(
+                f"非法 ticket_id: {ticket_id!r}。仅允许字母/数字/下划线/短横线 "
+                f"([A-Za-z0-9_-])，防止路径穿越。"
+            )
         return os.path.join(self.data_dir, f"{ticket_id}{self.TICKET_SUFFIX}")
 
     def _save_ticket(self, ticket: ReviewTicket) -> None:

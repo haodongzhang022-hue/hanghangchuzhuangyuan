@@ -308,6 +308,54 @@ def test_ownership_guard_arbitrate_integration():
         assert ticket_files[0].startswith(result.id)
 
 
+
+def test_arbiter_session_id_path_traversal_guard():
+    """安全：ConflictArbiter/ReviewTicket 拒绝非法 session_id（防路径穿越）"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        arb = ConflictArbiter(data_dir=tmpdir)
+
+        # ReviewTicket 拒绝非法 session_id
+        for bad in ["../evil", "../../etc", "a/b", "a\\b", ".", ".."]:
+            raised = False
+            try:
+                ReviewTicket(
+                    session_id=bad,
+                    version_a=1, version_b=1,
+                    card_a={}, card_b={}, base_card={},
+                )
+            except ValueError:
+                raised = True
+            assert raised, f"ReviewTicket 应拒绝非法 session_id={bad!r}"
+
+        # ConflictArbiter._apply_card（无 StateManager 路径）应拒绝非法 session_id
+        for bad in ["../evil", "a/b", ".."]:
+            raised = False
+            try:
+                arb._apply_card(bad, {"session_id": bad, "version": 1})
+            except ValueError:
+                raised = True
+            assert raised, f"_apply_card 应拒绝非法 session_id={bad!r}"
+
+
+def test_arbiter_ticket_id_path_traversal_guard():
+    """安全：_ticket_path 拒绝非法 ticket_id（防路径穿越）"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        arb = ConflictArbiter(data_dir=tmpdir)
+
+        for bad in ["../evil", "../../etc/passwd", "a/b", "a\\b", ".", ".."]:
+            raised = False
+            try:
+                arb._ticket_path(bad)
+            except ValueError:
+                raised = True
+            assert raised, f"_ticket_path 应拒绝非法 ticket_id={bad!r}"
+
+        # 合法 ticket_id 正常工作
+        path = arb._ticket_path("ARB-session_1-1234567890")
+        assert "ARB-session_1-1234567890" in os.path.basename(path)
+
 if __name__ == "__main__":
     test_diff_state_task_added()
     test_diff_state_field_change()
@@ -526,7 +574,6 @@ def test_review_merge_rejected_on_overlap():
         assert after.status == "pending"
         assert after.resolution == ""
 
-
 if __name__ == "__main__":
     test_diff_state_task_added()
     test_diff_state_field_change()
@@ -543,4 +590,6 @@ if __name__ == "__main__":
     test_auto_merge_verifies_both_retained()
     test_review_stale_guard_raises()
     test_review_merge_rejected_on_overlap()
+    test_arbiter_session_id_path_traversal_guard()
+    test_arbiter_ticket_id_path_traversal_guard()
     print("✅ 版本化冲突仲裁与审核测试全部通过")

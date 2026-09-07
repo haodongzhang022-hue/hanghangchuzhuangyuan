@@ -428,8 +428,7 @@ def main():
         sys.exit(1)
     # state 子命令需要检查二级命令
     if args.command == "state" and not getattr(args, "state_cmd", None):
-        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list / claim / release / status")
-        print("请指定 arb 子命令：list / show / review / diff")
+        print("请指定 state 子命令：init / add / show / compact / update / fold / submit / list / claim / release / status / search")
         print("示例: python3 src/hanghang/cli/main.py state init --session demo")
         sys.exit(1)
     if args.command == "arb" and not getattr(args, "arb_cmd", None):
