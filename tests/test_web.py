@@ -104,6 +104,56 @@ class TestWebAPI:
         assert "auto_success_rate" in data["metrics"]
         assert "unit_hits" in data["metrics"]
 
+    def test_metrics_empty_state_no_fabricated_success_rate(self):
+        """真实性保障：total_routes=0 时 auto_success_rate 必须为 None（非伪造1.0）。"""
+        from hanghang.engine.metrics import MetricsCollector
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            m = MetricsCollector(data_file=os.path.join(tmpdir, "m.json"))
+            s = m.get_summary()
+            assert s["total_routes"] == 0
+            assert s["auto_success_rate"] is None, \
+                "total_routes=0 时 auto_success_rate 应返回 None（表示暂无数据），" \
+                f"实际返回 {s['auto_success_rate']}（伪造了成功率）"
+
+            # 记录一条路由后应正常计算
+            m.record_route(mode="direct", unit_id="unit-x", roles=["role-1"])
+            s2 = m.get_summary()
+            assert s2["total_routes"] == 1
+            assert s2["auto_success_rate"] == 1.0
+
+            # 再记录一条 manual 路由后成功率应下降
+            m.record_route(mode="manual", unit_id="unit-x", roles=[])
+            s3 = m.get_summary()
+            assert s3["total_routes"] == 2
+            assert s3["auto_success_rate"] == 0.5
+
+    def test_metrics_legacy_file_with_success_rate_1_migrated(self):
+        """旧版 metrics.json 中 total_routes=0 + success_rate=1.0 应被迁移为 None。"""
+        from hanghang.engine.metrics import MetricsCollector
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mf = os.path.join(tmpdir, "legacy-metrics.json")
+            # 模拟旧版本写入的伪造数据
+            legacy = {
+                "total_routes": 0, "direct_routes": 0,
+                "composite_routes": 0, "handoffs": 0,
+                "manual_confirmations": 0,
+                "unit_hits": {}, "role_hits": {},
+                "success_rate": 1.0, "updated_at": "",
+            }
+            import json
+            with open(mf, "w", encoding="utf-8") as f:
+                json.dump(legacy, f)
+
+            m = MetricsCollector(data_file=mf)
+            s = m.get_summary()
+            assert s["total_routes"] == 0
+            assert s["auto_success_rate"] is None, \
+                "旧文件 total_routes=0 时 success_rate=1.0 应在加载时被迁移为 None"
+
     def test_prefixes_api(self):
         code, data = self._get("/api/prefixes")
         assert code == 200

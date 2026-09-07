@@ -28,7 +28,13 @@ class MetricsCollector:
         if os.path.exists(self.data_file):
             try:
                 with open(self.data_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                # 数据一致性保障：total_routes == 0 时 success_rate 必须为 None
+                # （防止旧版本写入的 success_rate: 1.0 伪造"100%成功率"）
+                total = data.get("total_routes", 0)
+                if total == 0:
+                    data["success_rate"] = None
+                return data
             except Exception:
                 pass
         return self._empty_metrics()
@@ -42,7 +48,7 @@ class MetricsCollector:
             "manual_confirmations": 0,
             "unit_hits": {},        # unit_id -> 次数
             "role_hits": {},        # role -> 次数
-            "success_rate": 1.0,
+            "success_rate": None,
             "updated_at": "",
         }
 
@@ -69,7 +75,7 @@ class MetricsCollector:
             # 计算成功率（直接+复合=自动成功）
             auto = m["direct_routes"] + m["composite_routes"]
             total = m["total_routes"]
-            m["success_rate"] = round(auto / total, 3) if total > 0 else 1.0
+            m["success_rate"] = round(auto / total, 3) if total > 0 else None
             m["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
             self._save()
 

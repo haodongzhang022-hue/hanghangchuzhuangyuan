@@ -222,7 +222,7 @@ async function loadStats() {
     const cards = [
       { num: units.total, label: "行业单元" },
       { num: m.total_routes || 0, label: "累计路由" },
-      { num: (m.auto_success_rate !== undefined ? Math.round(m.auto_success_rate * 100) : 0) + "%", label: "自动成功率" },
+      { num: (typeof m.auto_success_rate === "number" ? Math.round(m.auto_success_rate * 100) + "%" : "无数据"), label: "自动成功率" },
       { num: m.composite_routes || 0, label: "复合装配" },
       { num: m.handoffs || 0, label: "交接卡片" },
       { num: m.manual_confirmations || 0, label: "人工介入" },
@@ -361,7 +361,7 @@ async function loadMetrics() {
     const m = d.metrics || {};
     let html = `<table><tbody>
       <tr><td>累计路由</td><td>${m.total_routes || 0}</td></tr>
-      <tr><td>自动成功率</td><td>${m.auto_success_rate !== undefined ? (m.auto_success_rate * 100).toFixed(1) + "%" : "-"}</td></tr>
+      <tr><td>自动成功率</td><td>${typeof m.auto_success_rate === "number" ? (m.auto_success_rate * 100).toFixed(1) + "%" : "暂无数据"}</td></tr>
       <tr><td>单直连</td><td>${m.direct_routes || 0}</td></tr>
       <tr><td>复合装配</td><td>${m.composite_routes || 0}</td></tr>
       <tr><td>交接</td><td>${m.handoffs || 0}</td></tr>

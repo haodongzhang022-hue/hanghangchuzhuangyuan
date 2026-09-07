@@ -101,7 +101,9 @@ def cmd_metrics(args):
     metrics = MetricsCollector()
     s = metrics.get_summary()
     print(f"总路由数: {s['total_routes']}")
-    print(f"自动成功率: {s['auto_success_rate']:.1%}")
+    rate = s['auto_success_rate']
+    rate_str = f"{rate:.1%}" if rate is not None else "暂无数据"
+    print(f"自动成功率: {rate_str}")
     print(f"直连: {s['direct_routes']}, 复合: {s['composite_routes']}, "
           f"交接: {s['handoffs']}, 人工: {s['manual_confirmations']}")
     print(f"单元命中: {s['unit_hits']}")

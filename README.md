@@ -115,6 +115,10 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 > （置信度不足但已模糊命中），该岗位仍计入 `role_hits`——role_hits 表示
 > "候选命中岗位"，`manual_confirmations` 单独统计人工介入次数。CLI 与
 > Web POST 均按此口径记录。
+>
+> **数据真实性保障**：`auto_success_rate` 仅在已有路由记录时返回百分比值。
+> 当累计路由数为 0（尚无任何数据）时，该字段返回 `null`（Web/CLI 显示
+> "暂无数据"），**绝不伪造为 0% 或 100%**，避免误导判断。
 
 页面聚合展示：
 - **行业单元总览** — 8个行业/岗位/能力/入口
