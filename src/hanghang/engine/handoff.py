@@ -1,6 +1,7 @@
 """M5 跨单元交接总线"""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -40,26 +41,31 @@ class HandoffBus:
                 from ..state.manager import StateManager
                 sm = StateManager()
                 # 会话ID = 交接卡意图的简单哈希，保证稳定可检索
-                import hashlib
                 hash_hex = hashlib.md5(
                     f"{source_unit}-{target_unit}-{intent}".encode()
                 ).hexdigest()[:12]
                 state_card_id = f"ho-{source_unit[:8]}-{target_unit[:8]}-{hash_hex}"
-                # 获取或创建 StateCard
-                card_state = sm.get_or_create(
+                # 获取或创建 StateCard（同一稳定会话复用时沿用既有卡）
+                sm.get_or_create(
                     session_id=state_card_id,
                     objective=intent,
                     unit_id=target_unit,
                     role_name="secretary",
                 )
-                # 向 StateCard 添加一个交接任务
-                sm.add_task(
-                    session_id=state_card_id,
-                    title=f"交接: {source_unit} → {target_unit}",
-                    objective=intent,
-                    task_type="deliverable",
-                    summary=context,
-                )
+                # 向 StateCard 添加交接任务，但同一 StateCard 已存在同名任务时不重复堆积
+                task_title = f"交接: {source_unit} -> {target_unit}"
+                card_state = sm.get_card(state_card_id)
+                exists = any(
+                    t.title == task_title for t in card_state.tasks
+                ) if card_state else False
+                if not exists:
+                    sm.add_task(
+                        session_id=state_card_id,
+                        title=task_title,
+                        objective=intent,
+                        task_type="deliverable",
+                        summary=context,
+                    )
             except Exception:
                 # StateCard 创建失败不阻断交接卡本身
                 state_card_id = None

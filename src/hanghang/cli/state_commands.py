@@ -205,7 +205,12 @@ def cmd_tree_submit_chain(args):
         print("无可提交层级")
         return
     for s in subs:
-        print(f"已提交: {s['from_session']} → {s['to_session']}")
+        if s.get("level_skipped"):
+            # 断链记录：该层缺卡/无 state_manager，已跳过并显式提示
+            print(f"⚠️ 跳过断链层: {s.get('session')} -> "
+                  f"{s.get('parent_session')} ({s.get('reason')})")
+        else:
+            print(f"已提交: {s['from_session']} -> {s['to_session']}")
 
 
 def cmd_tree_list(args):

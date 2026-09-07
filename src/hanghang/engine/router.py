@@ -1,6 +1,7 @@
 """M1 行业识别·意图路由 + M4 会话编排判定 + M6 复合装配"""
 from __future__ import annotations
 
+import hashlib
 from typing import Dict, List, Optional
 
 from .models import IndustryUnit, RouteResult, Role
@@ -539,7 +540,6 @@ class CompositePlanner:
         返回 StateCard 的 session_id；失败返回 None（不阻断路由主流程）。
         """
         try:
-            import hashlib
             from ..state.manager import StateManager
             sm = StateManager()
             # 用稳定 hash 生成 session_id，同一意图多次路由复用同一卡

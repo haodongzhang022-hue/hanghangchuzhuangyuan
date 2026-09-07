@@ -14,6 +14,7 @@ import time
 from collections import deque
 from typing import Dict, List, Optional
 
+from .persist import FlushQueue
 from .models import StateCard, TaskRecord, TaskState
 
 
@@ -69,12 +70,16 @@ class SecretaryTree:
     - 不依赖 StateCard 已存在，节点可独立注册后由 StateManager 关联
     """
 
-    def __init__(self, data_dir: Optional[str] = None, tree_name: str = "default"):
+    def __init__(self, data_dir: Optional[str] = None, tree_name: str = "default",
+                 flush_queue: Optional[FlushQueue] = None):
         self.data_dir = data_dir or os.path.join(os.getcwd(), "data", "state")
         os.makedirs(self.data_dir, exist_ok=True)
         self.tree_name = tree_name
         self.nodes: Dict[str, SecretaryTreeNode] = {}
         self.root_session: Optional[str] = None
+        # 落盘走队列：默认 write-through（保持既有即时落盘行为），
+        # 规模大时可用 defer() 切到"延迟批量"，多次变更仅一次落盘。
+        self._flush_queue = flush_queue or FlushQueue()
         self._load()
 
     def _tree_path(self) -> str:
@@ -101,16 +106,40 @@ class SecretaryTree:
             pass  # 损坏的树数据静默忽略，不阻断
 
     def _save(self):
-        """持久化整棵树"""
-        path = self._tree_path()
-        payload = {
-            "tree_name": self.tree_name,
-            "root_session": self.root_session,
-            "nodes": [n.to_dict() for n in self.nodes.values()],
-            "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+        """登记一次整棵树落盘（写入统一走队列，支持批量/延迟落盘）"""
+        def _write():
+            path = self._tree_path()
+            payload = {
+                "tree_name": self.tree_name,
+                "root_session": self.root_session,
+                "nodes": [n.to_dict() for n in self.nodes.values()],
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        self._flush_queue.enqueue(self._tree_path(), _write)
+
+    # ---- 批量/延迟落盘 ----
+
+    def flush(self) -> int:
+        """强制批量落盘（把 pending 的全部一次写出），返回写盘资源数"""
+        return self._flush_queue.flush()
+
+    def defer(self, batch_size: int = 0):
+        """
+        进入"延迟批量落盘"上下文：上下文内多次变更仅登记、统一到退出时批量落盘。
+        with tree.defer():
+            tree.register_node(...)   # 多次变更
+        # 退出时 flush 一次
+        """
+        from .persist import DeferredWriter
+        self._flush_queue.batch_size = max(batch_size, self._flush_queue.batch_size)
+        return DeferredWriter(self._flush_queue)
+
+    @property
+    def pending_write_count(self) -> int:
+        """尚未落盘的待写登记数（延迟模式下观测用）"""
+        return self._flush_queue.pending_count
 
     # ---- 节点管理 ----
 

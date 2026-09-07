@@ -4,10 +4,12 @@ from .models import (
 )
 from .manager import StateManager
 from .fold_engine import FoldEngine
+from .persist import FlushQueue, DeferredWriter
 from .hierarchy import HierarchySubmitter, SecretaryTree, SecretaryTreeNode
 
 __all__ = [
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
     "StateManager", "FoldEngine", "HierarchySubmitter",
     "SecretaryTree", "SecretaryTreeNode",
+    "FlushQueue", "DeferredWriter",
 ]

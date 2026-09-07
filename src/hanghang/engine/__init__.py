@@ -13,6 +13,7 @@ from hanghang.state.models import (
 from hanghang.state.manager import StateManager
 from hanghang.state.fold_engine import FoldEngine
 from hanghang.state.hierarchy import HierarchySubmitter, SecretaryTree, SecretaryTreeNode
+from hanghang.state.persist import FlushQueue, DeferredWriter
 
 __all__ = [
     "IndustryUnit", "Role", "RouteResult", "CompositePlan", "HandoffCard",
@@ -22,4 +23,5 @@ __all__ = [
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
     "StateManager", "FoldEngine", "HierarchySubmitter",
     "SecretaryTree", "SecretaryTreeNode",
+    "FlushQueue", "DeferredWriter",
 ]
