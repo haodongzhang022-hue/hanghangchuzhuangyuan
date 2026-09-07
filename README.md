@@ -7,8 +7,8 @@
 ```
 L2 人类端点    = 仅入口(意图确认) + 出口(复核)
 L1 通用能力层  = 本仓库：识别路由(M1) / 注册表(M2) / 前缀档案(M3)
-               / 会话编排(M4) / 交接总线(M5) / 复合装配(M6)
-               / 指标观测(M7) / 能力索引(M8) / 状态管理(M9)
+               / 会话编排(M4含SLIB) / 交接总线(M5) / 复合装配(M6)
+               / 指标观测(M7) / 能力索引(M8) / 状态管理(M9) / 上下文装配(M10)
 L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 ```
 
@@ -52,6 +52,22 @@ python3 src/hanghang/cli/main.py route "既要架构设计又要落地开发"
 
 python3 src/hanghang/cli/main.py route "帮我点个外卖"
 # => 置信度不足，回落 L2 人工确认
+
+# SLIB 会话级行业绑定（会话感知路由，同一会话只能绑定一个行业）
+python3 src/hanghang/cli/main.py route "帮我做架构方案" --session "my-sess"
+# => 首次路由自动绑定: my-sess → 软件研发(dongjiagoushi)
+
+python3 src/hanghang/cli/main.py route "帮我写段代码" --session "my-sess"
+# => 同行业消息：仍在软件研发内路由
+
+python3 src/hanghang/cli/main.py route "帮我制定健身计划" --session "my-sess"
+# => ⚠️ SLIB 跨行业冲突：会话已绑定「软件研发」，需开新会话处理健康医疗
+
+# SLIB 手动绑定 / 查看 / 解绑
+python3 src/hanghang/cli/main.py bind --session "sess-x" --unit "healthcare"
+python3 src/hanghang/cli/main.py binding --session "sess-x"
+python3 src/hanghang/cli/main.py bindings           # 列出全部绑定
+python3 src/hanghang/cli/main.py unbind --session "sess-x"
 
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
@@ -190,6 +206,7 @@ python3 tests/test_state_arbiter.py   # M9+ 版本化冲突仲裁与审核
 python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
+python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
 ```
 
 ## 数据文件

@@ -154,6 +154,7 @@ register_version: "1.0"
 | R12 | M8 能力索引增强 | ✅ search_capability 多维检索(any/industry/capability/role) + capability_index 全量导出 + CLI `search --mode`/`index` |
 | R13 | Web API Server | ✅ src/hanghang/web/server.py 提供 REST API 全端点，聚合暴露 M1-M8 能力 |
 | R14 | Web 聚合可视化面板 | ✅ static/index.html 单页控制台（路由测试/行业单元/能力检索/指标/前缀/交接卡） |
+| R15 | SLIB 会话级行业绑定 | ✅ SessionBindingStore + SessionBoundRouter + CLI route --session / bind / bindings。会话绑定行业后禁止同会话跨行业（触发交接），保证前缀稳定。 |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
@@ -191,3 +192,7 @@ register_version: "1.0"
 > 📝 **CodeBuddy** | 2026-09-07: M9 增强版——新增 SecretaryTree/SecretaryTreeNode 秘书长多级树拓扑（多级注册/关系/rollup/渲染），HierarchySubmitter 支持 submit_chain_up 逐级向上提交。M9 接入主执行链路：CompositePlanner 自动创建 StateCard，HandoffBus auto_state_card 自动关联。新增 POC 量化验证脚本 poc/state_m9_benchmark.py。
 > 📝 **CodeBuddy** | 2026-09-07: M9 补多秘书协作拼图——新增 OwnershipGuard(秘书并发归属与冲突仲裁)：StateCard 增 owner+乐观版本号，claim/release 归属声明、租约写锁、基于 base_version 的乐观并发冲突检测(StateConflict)与越权拒绝(OwnershipDenied)。补 Issue#5/论文 SKILL.state 明示的"多 Agent 并发写状态需确定性冲突处理"缺口。
 > 📝 **CodeBuddy** | 2026-09-07: 新增 M10 上下文装配器——三层物理隔离（静态层A/会话态层B/规则注入层C），R3声明式规则表引擎，M10-d缓存保护（静态/动态隔离校验）。Issue #11 防提示词冗余核心落地。
+
+> 📝 **CodeBuddy** | 2026-09-08: 新增 SLIB 会话级行业绑定（M4 强化）——SessionBindingStore 持久化绑定关系，
+> SessionBoundRouter 会话感知路由（首次路由自动绑定/跨行业触发交接/同行业正常编排）。
+> 详细设计见 `docs/architecture/SLIB-会话级行业绑定.md`。
