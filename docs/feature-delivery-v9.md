@@ -33,10 +33,15 @@ RFC 明示"首期以轮询拉取形态起步（GET /v1/state/{session}），不�
   - `stats`：任务分桶（done/todo/in_progress/blocked/failed/cancelled）；
   - `tasks`：全量任务明细；
   - `linkage`：`upstream` + `downstream`（本卡下级 + 反向扫描"谁的 upstream==本会话"的承接卡）；
-  - `resume`：**续传锚点** —— `status`（delivered/in_progress/blocked/done/empty）、
+  - `resume`：**续传锚点** —— `status`（delivered/needs_attention/cancelled/blocked/in_progress/empty）、
     `open_task_count`、`pending`（未完结待承接任务）、`resume_key = session@version`。
 
-- 确定性续传语义：全部任务 done → `delivered`（无续传负担）；仍有 todo/in_progress/blocked/failed → 列出待续传清单，
+- 确定性续传语义（显式区分失败/全取消，避免语义含糊）：
+  - 全部任务 done → `delivered`（无续传负担）；
+  - 含 failed 任务（含与 done 并存）→ `needs_attention`（需人工关注，不再被 in_progress 吞掉）；
+  - 全部任务取消 → `cancelled`（不再含糊落成 done）；
+  - 有 blocked → `blocked`；仍有 todo/in_progress → `in_progress`；无任务 → `empty`。
+  `pending` 仅列 todo/in_progress/blocked/failed（cancelled 为终态不参与续传），
   `resume_key` 作为"从该版本会话续传"的锚点（跨轮询保持一致，供外部调用方/出口复核引用）。
 
 ### W-50 交接关联反查（`handoff_link`）
@@ -59,6 +64,9 @@ RFC 明示"首期以轮询拉取形态起步（GET /v1/state/{session}），不�
 | test_session_api_route_resume_snapshot | 路由卡详情 + 任务分桶 + 续传锚点（pending/resume_key/linkage） |
 | test_session_api_all_done_is_delivered | 全部完成 → resume.status=delivered、pending 空 |
 | test_session_api_handoff_link | 交接卡会话能反查 source→target / status |
+| test_session_api_failed_is_needs_attention | 单失败任务 → resume.status=needs_attention |
+| test_session_api_done_plus_failed_is_needs_attention | done+failed → needs_attention |
+| test_session_api_all_cancelled_is_cancelled | 全取消 → resume.status=cancelled、pending 空 |
 
 ---
 

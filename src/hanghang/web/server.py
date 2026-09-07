@@ -554,16 +554,28 @@ class HanghangHandler(BaseHTTPRequestHandler):
             handoff_link = self._resolve_handoff_link(sid)
 
         # 续传锚点：未完结/需承接任务 + 确定性 resume_key
+        # 显式区分失败/全取消，避免 failed 被 in_progress 吞掉、全 cancelled 落成 done
+        task_count = summary.get("task_count", 0)
+        done_count = summary.get("done_count", 0)
+        blocked_count = summary.get("blocked_count", 0)
+        failed_count = summary.get("failed_count", 0)
+        cancelled_count = summary.get("cancelled_count", 0)
         open_tasks = [
             t for t in summary.get("tasks", [])
             if t.get("state") in ("todo", "in_progress", "blocked", "failed")
         ]
-        all_done = summary.get("task_count", 0) > 0 and summary.get(
-            "done_count", 0) == summary.get("task_count", 0)
-        status = "delivered" if all_done else (
-            "blocked" if summary.get("blocked_count", 0) else (
-                "in_progress" if open_tasks else (
-                    "empty" if summary.get("task_count", 0) == 0 else "done")))
+        if task_count == 0:
+            status = "empty"
+        elif cancelled_count == task_count:          # 全取消：会话无实际推进
+            status = "cancelled"
+        elif failed_count > 0:                       # 含失败任务（含已 done 并存）→ 需人工关注
+            status = "needs_attention"
+        elif done_count == task_count:               # 全部完成
+            status = "delivered"
+        elif blocked_count > 0:
+            status = "blocked"
+        else:                                        # 仍有 todo/in_progress 待续传
+            status = "in_progress"
         resume = {
             "status": status,
             "open_task_count": len(open_tasks),

@@ -532,6 +532,9 @@ async function loadSessionResume(sidEnc, btn) {
     const stMap = { delivered: '<span class="badge badge-green">delivered</span>',
                     in_progress: '<span class="badge badge-blue">进行中</span>',
                     blocked: '<span class="badge badge-red">blocked</span>',
+                    failed: '<span class="badge badge-red">failed</span>',
+                    needs_attention: '<span class="badge badge-yellow">需关注</span>',
+                    cancelled: '<span class="badge badge-gray">cancelled</span>',
                     done: '<span class="badge badge-green">done</span>',
                     empty: '<span class="badge badge-gray">empty</span>' };
     let h = `<div class="kv"><b>会话状态</b> ${stMap[rs.status] || escapeHtml(rs.status)} ·
