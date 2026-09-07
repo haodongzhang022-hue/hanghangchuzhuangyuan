@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from typing import Dict, List, Optional
 
 from .models import IndustryUnit
@@ -37,6 +38,10 @@ class PrefixArchive:
             persist: 是否立即持久化到磁盘。为 False 时仅更新内存，不触发文件写入。
         默认 persist=True 保持与历史行为一致（CLI 入口在启动时注册并回写磁盘）。
         Web 只读路径应传入 persist=False 以避免 GET 请求写文件的副作用。
+
+        幂等说明：persist=True 时 `_save` 采用"内容漂移才落盘"策略——
+        仅在内存内容与磁盘现有内容不一致时触发一次文件写入；无差异则不写，
+        从而对 git 跟踪的 data/prefix-archive.json 保持干净，也不覆盖人工维护的改动。
         """
         entry = {
             "unit_id": unit.unit_id,
@@ -87,5 +92,39 @@ class PrefixArchive:
         return "\n".join(lines) if lines else "  (空档案库)"
 
     def _save(self):
-        with open(self.archive_file, "w", encoding="utf-8") as f:
-            json.dump(self._archive, f, ensure_ascii=False, indent=2)
+        """幂等持久化：仅当内容漂移（与磁盘现有内容不一致）时才落盘。
+
+        被 git 跟踪的 data/prefix-archive.json 在服务/CLI 每次启动时都会走
+        register_unit(persist=True)。若不比对即重写，即使数据未变化也会触碰
+        文件（mtime 变化、覆盖潜在人工改动）。这里序列化当前内存档案并与磁盘
+        现有字节比对，无差异则直接返回，真正做到 git status 干净且幂等。
+        """
+        payload = json.dumps(self._archive, ensure_ascii=False, indent=2)
+        try:
+            with open(self.archive_file, "r", encoding="utf-8") as f:
+                existing = f.read()
+        except (OSError, IOError):
+            existing = None
+        if existing == payload:
+            return  # 无漂移，无需重写
+
+        # 原子落盘：同目录临时文件 + os.replace 原子替换。
+        # 临时文件与被替换文件同目录 → 同文件系统内 rename 是原子的，
+        # 读方永远只看到"完整旧内容"或"完整新内容"，消除并发写导致的
+        # 半写/截断/丢失更新中间态被读到的问题。
+        dirname = os.path.dirname(self.archive_file) or "."
+        fd, tmp_path = tempfile.mkstemp(
+            prefix=".prefix-archive-", suffix=".tmp", dir=dirname)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno())  # 确保数据真正落盘后再替换
+            os.replace(tmp_path, self.archive_file)
+        except BaseException:
+            # 任一环节失败：清理临时文件，目标文件保持原状，异常向上抛出
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise

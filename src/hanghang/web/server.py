@@ -344,15 +344,21 @@ class HanghangHandler(BaseHTTPRequestHandler):
         _json_response(self, 200, self._do_route(text, record_metrics=False))
 
     def _api_route_post(self):
-        """POST /api/route body={"text": "..."}（状态变更，记录指标）"""
-        # Content-Type 宽松校验：期望 application/json，但对缺失/宽松类型保持兼容。
-        # 仅拒绝明确声明的非 JSON/非表单类型（如 application/xml）；text/*、+json
-        # 与缺失 Content-Type 均放行，避免误伤未显式设置的 curl 等客户端。
+        """POST /api/route body={"text": "..."}（状态变更，记录指标）
+
+        body 解析同时支持：
+        - application/json        → {"text": "..."}
+        - application/x-www-form-urlencoded → text=...（按 content-type 真实解析）
+        Content-Type 宽松校验：期望 application/json，但对缺失/宽松类型保持兼容。
+        仅拒绝明确声明的非 JSON/非表单类型（如 application/xml）；text/*、+json
+        与缺失 Content-Type 均放行，避免误伤未显式设置的 curl 等客户端。
+        """
         ctype = (self.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+        is_form = ctype == "application/x-www-form-urlencoded"
         if ctype and ctype != "application/json" \
                 and not ctype.endswith("+json") \
                 and not ctype.startswith("text/") \
-                and ctype != "application/x-www-form-urlencoded":
+                and not is_form:
             _json_response(self, 415, {
                 "error": f"不支持的 Content-Type: {ctype}（期望 application/json）"
             })
@@ -377,11 +383,19 @@ class HanghangHandler(BaseHTTPRequestHandler):
             _json_response(self, 413, {"error": "请求体过大（最大 1MB）"})
             self.close_connection = True
             return
-        try:
-            body_raw = self.rfile.read(length).decode("utf-8") if length else "{}"
-            body = json.loads(body_raw) if body_raw else {}
-        except Exception:
-            body = {}
+        body_raw = self.rfile.read(length).decode("utf-8") if length else ""
+        if is_form:
+            # 表单：application/x-www-form-urlencoded，逐字段解析（兼容重复键取末值）
+            try:
+                fields = urllib.parse.parse_qs(body_raw, keep_blank_values=True)
+                body = {k: (v[-1] if isinstance(v, list) and v else "") for k, v in fields.items()}
+            except Exception:
+                body = {}
+        else:
+            try:
+                body = json.loads(body_raw) if body_raw else {}
+            except Exception:
+                body = {}
         text = body.get("text", "")
         if not text:
             _json_response(self, 400, {"error": "缺少 text 字段"})
@@ -674,8 +688,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
     def _serve_static(self, path: str):
         """服务 /static/ 下的静态文件"""
-        # 先做一次 URL 解码，避免 %2e%2e（编码的 ..）绕过 normpath 判定
-        rel = urllib.parse.unquote(path.replace("/static/", "", 1))
+        # 先做一次 URL 解码，避免 %2e%2e（编码的 ..）绕过 normpath 判定。
+        # 移除 /static/ 前缀后再 strip 一次前导 '/'：/static//index.html 这类
+        # 双斜杠（URL 不规范但常见）经 replace 后会残留 '/'，若直接 normpath 会
+        # 变成绝对路径被下方 realpath 白名单误拒为 403。归一化后既能服务双斜杠
+        # URL，又保留对目录穿越的封堵（../ 仍会被 realpath 折叠出静态目录拒绝）。
+        rel = urllib.parse.unquote(path.replace("/static/", "", 1)).lstrip("/")
         safe = os.path.normpath(rel)
         # 白名单判定：realpath 会解析 .. 与符号链接，折叠后必须仍位于静态目录内，
         # 否则拒绝访问（彻底封堵 /static//../../etc/passwd 等绝对路径/穿越攻击）
