@@ -235,6 +235,7 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
+- 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
 - 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁)
 - POC验证记录: `poc/`
 
