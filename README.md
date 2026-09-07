@@ -102,6 +102,8 @@ python3 tests/test_review.py        # 评审机制
 python3 tests/test_industry_expansion.py  # 行业扩展 + M8 能力索引增强
 python3 tests/test_state_manager.py    # M9 状态管理层（StateCard/折叠/层级提交）
 python3 tests/test_state_tree.py       # M9 秘书长多级树 + 主链路集成
+python3 tests/test_state_cli_e2e.py    # M9 × CLI 全链路联调回归
+python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 
 # 或全部一键
 python3 scripts/run_all_tests.py
@@ -130,6 +132,8 @@ python3 scripts/run_all_tests.py
 - 顶层架构: `docs/architecture/ARCHITECTURE.md`
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范: `docs/industry/register-spec.md`
+- 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9)
 - POC验证记录: `poc/`
 
 ## 自动评审机制
