@@ -82,3 +82,34 @@ class HandoffCard:
     state_card_id: Optional[str] = None  # 关联 M9 StateCard 会话ID（M9 接入主链路）
     created_at: Optional[str] = None
     id: Optional[str] = None  # 运行时生成的唯一ID
+
+    def completeness_check(self) -> dict:
+        """完整性校验（M5 × M9 跨单元标准字段）：
+        校验交接卡是否包含执行所需的标准字段。
+        - source_unit / target_unit / intent: 必填
+        - state_card_id: M9 接入后为标准字段（创建时自动关联）
+        返回 {passed: bool, missing: [str]}
+        """
+        missing = []
+        if not self.source_unit:
+            missing.append("source_unit")
+        if not self.target_unit:
+            missing.append("target_unit")
+        if not self.intent:
+            missing.append("intent")
+        if not self.state_card_id:
+            missing.append("state_card_id")
+        return {
+            "passed": len(missing) == 0,
+            "missing": missing,
+            "card_id": self.id or "",
+        }
+
+    def validate(self) -> bool:
+        """严格校验：缺任何标准字段则抛 ValueError"""
+        result = self.completeness_check()
+        if not result["passed"]:
+            raise ValueError(
+                f"HandoffCard 缺少标准字段: {', '.join(result['missing'])}"
+            )
+        return True

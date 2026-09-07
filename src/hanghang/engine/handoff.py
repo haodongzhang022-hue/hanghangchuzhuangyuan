@@ -136,3 +136,30 @@ class HandoffBus:
                 "state_card_id": card.state_card_id,
                 "created_at": card.created_at,
             }, f, ensure_ascii=False, indent=2)
+
+
+    def validate_card(self, card: HandoffCard) -> dict:
+        """执行 M5 × M9 完整度校验（标准字段检查）"""
+        return card.completeness_check()
+
+    def create_standard_handoff(self, source_unit: str, target_unit: str,
+                                intent: str, context: str = "") -> HandoffCard:
+        """创建符合 M5 × M9 跨单元标准的交接卡（强制关联 StateCard）。
+
+        与 create_handoff 区别：
+        - 自动创建关联 StateCard
+        - 返回前执行完整度校验
+        """
+        card = self.create_handoff(
+            source_unit=source_unit,
+            target_unit=target_unit,
+            intent=intent,
+            context=context,
+            auto_state_card=True,
+        )
+        check = card.completeness_check()
+        if not check["passed"]:
+            raise ValueError(
+                f"交接卡不完整: 缺少 {', '.join(check['missing'])}"
+            )
+        return card

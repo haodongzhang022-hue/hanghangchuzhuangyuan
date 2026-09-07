@@ -188,6 +188,63 @@ class FoldEngine:
         """按任务编号精确检索任务（索引机制）"""
         return card.get_task(task_id)
 
+    # ---- M8 跨任务检索集成 ----
+
+    def search_tasks(self, cards: list, keyword: str,
+                     fields=None) -> List[dict]:
+        """在多个 StateCard 的折叠任务中搜索关键词。
+        用于 M8 跨会话检索：让已折叠的内容也能被发现。
+
+        参数:
+        - cards: StateCard 列表（从 StateManager.list_cards() 获取）
+        - keyword: 搜索关键词
+        - fields: 搜索字段列表，默认 title/summary/objective/content_ref
+
+        返回: [{session_id, task_id, title, state, fold, field_hit}]
+        """
+        search_fields = fields or ["title", "summary", "objective",
+                                   "content_ref", "files_touched"]
+        results = []
+        kw = keyword.lower()
+        for card in cards:
+            for task in card.tasks:
+                hits = []
+                for f in search_fields:
+                    value = getattr(task, f, None)
+                    if value is None:
+                        continue
+                    if isinstance(value, str) and kw in value.lower():
+                        hits.append(f)
+                    elif isinstance(value, list):
+                        if any(kw in str(v).lower() for v in value):
+                            hits.append(f)
+                if hits:
+                    results.append({
+                        "session_id": card.session_id,
+                        "task_id": task.task_id,
+                        "title": task.title,
+                        "state": task.state,
+                        "fold": task.fold,
+                        "field_hit": hits,
+                        "content_ref": task.content_ref,
+                    })
+        return results
+
+    def search_all_states(self, keyword: str, data_dir: Optional[str] = None) -> List[dict]:
+        """在所有 StateCard 中搜索任务内容（M8 集成便捷入口）。
+
+        参数:
+        - keyword: 搜索关键词
+        - data_dir: 可选的状态数据目录。缺省时使用当前工作目录下的
+          默认 data/state 目录（与 CLI state search 一致）。
+
+        返回: [{session_id, task_id, title, state, fold, field_hit}]
+        """
+        from .manager import StateManager
+        sm = StateManager(data_dir=data_dir)
+        cards = sm.list_cards()
+        return self.search_tasks(cards, keyword)
+
     def auto_fold_policy(self, card: StateCard, current_task_id: str = None) -> StateCard:
         """
         应用默认折叠策略：

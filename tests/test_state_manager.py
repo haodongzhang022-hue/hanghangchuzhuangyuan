@@ -268,6 +268,114 @@ def test_save_card_public_api():
         assert fetched is not None
         assert fetched.objective == "公开API测试"
 
+
+def test_fold_search_tasks():
+    """M8 跨会话任务检索: FoldEngine.search_tasks 跨卡搜索"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = StateManager(data_dir=tmpdir)
+        # 创建两张卡
+        mgr.create_card("sess-search-1", objective="搜索测试行业架构")
+        mgr.add_task("sess-search-1", "处理用户输入需求", task_type="normal")
+        mgr.create_card("sess-search-2", objective="游戏开发单元")
+        mgr.add_task("sess-search-2", "生成游戏逻辑代码", task_type="normal")
+
+        engine = FoldEngine("")
+        cards = mgr.list_cards()
+
+        # 按 keyword 搜索
+        results = engine.search_tasks(cards, "用户")
+        assert len(results) >= 1
+        assert any(r["session_id"] == "sess-search-1" for r in results)
+        assert any(r["session_id"] == "sess-search-2" for r in results) is False
+
+        results2 = engine.search_tasks(cards, "游戏")
+        assert len(results2) >= 1
+        assert any(r["session_id"] == "sess-search-2" for r in results2)
+
+        # 跨会话搜索所有状态卡（便捷入口，指向同一数据目录）
+        results3 = engine.search_all_states("游戏", data_dir=tmpdir)
+        assert len(results3) >= 1
+        assert any(r["session_id"] == "sess-search-2" for r in results3)
+
+
+def test_handoff_completeness_and_standard():
+    """M5xM9 交接卡标准字段完整度: completeness_check / create_standard_handoff"""
+    from hanghang.engine import HandoffBus
+    from hanghang.engine.models import HandoffCard
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bus = HandoffBus(data_dir=tmpdir)
+
+        # 1. 不完整卡 → completeness_check 应报缺失字段
+        incomplete = HandoffCard(
+            source_unit="", target_unit="target-x", intent="",
+        )
+        check = incomplete.completeness_check()
+        assert check["passed"] is False
+        assert "source_unit" in check["missing"]
+        assert "intent" in check["missing"]
+        assert "state_card_id" in check["missing"]
+
+        # 2. create_standard_handoff 自动补全 → 校验通过
+        std = bus.create_standard_handoff(
+            source_unit="dongjiagoushi",
+            target_unit="game-dev-unit",
+            intent="需要为游戏设计架构",
+            context="完整上下文",
+        )
+        assert std is not None
+        assert std.state_card_id is not None, "standard_handoff 应自动关联 StateCard"
+        check2 = std.completeness_check()
+        assert check2["passed"] is True, f"standard_handoff 应完整: {check2}"
+
+        # 3. validate_card 委托给 completeness_check
+        result = bus.validate_card(std)
+        assert result["passed"] is True
+
+        # 4. validate() 对不完整卡应抛 ValueError
+        try:
+            incomplete.validate()
+            assert False, "validate() 对不完整卡应抛 ValueError"
+        except ValueError:
+            pass
+
+
+def test_cli_arb_and_state_search():
+    """CLI: state search 与 arb list 冒烟验证"""
+    import subprocess
+
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _cli = os.path.join(_root, "src", "hanghang", "cli", "main.py")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 初始化一张 state 卡
+        r1 = subprocess.run(
+            [sys.executable, _cli, "state", "init", "--session", "cli-srch-test",
+             "--objective", "测试搜索用行业目标"],
+            capture_output=True, text=True, cwd=tmpdir, timeout=30,
+        )
+        assert r1.returncode == 0, f"state init failed: {r1.stderr}"
+
+        r2 = subprocess.run(
+            [sys.executable, _cli, "state", "add", "--session", "cli-srch-test",
+             "--title", "需要实现一个搜索功能"],
+            capture_output=True, text=True, cwd=tmpdir, timeout=30,
+        )
+        assert r2.returncode == 0, f"state add failed: {r2.stderr}"
+
+        # state search 按关键词检索
+        r3 = subprocess.run(
+            [sys.executable, _cli, "state", "search", "--keyword", "搜索"],
+            capture_output=True, text=True, cwd=tmpdir, timeout=30,
+        )
+        assert r3.returncode == 0, f"state search failed: {r3.stderr}"
+
+        # arb list 无票据时也应正常返回
+        r4 = subprocess.run(
+            [sys.executable, _cli, "arb", "list"],
+            capture_output=True, text=True, cwd=tmpdir, timeout=30,
+        )
+        assert r4.returncode == 0, f"arb list failed: {r4.stderr}"
 if __name__ == "__main__":
     test_create_and_get_state_card()
     test_add_and_update_task()
@@ -278,4 +386,7 @@ if __name__ == "__main__":
     test_session_id_path_traversal_guard()
     test_from_dict_forward_compatibility()
     test_save_card_public_api()
+    test_fold_search_tasks()
+    test_handoff_completeness_and_standard()
+    test_cli_arb_and_state_search()
     print("✅ M9 状态管理层测试全部通过")

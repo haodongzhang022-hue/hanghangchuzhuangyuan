@@ -92,15 +92,20 @@ python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf
 python3 src/hanghang/cli/main.py state claim   --session demo --role 秘书A   # 声明归属/占用
 python3 src/hanghang/cli/main.py state status  --session demo --role 秘书A   # 查看 owner/version
 python3 src/hanghang/cli/main.py state release --session demo --role 秘书A   # 释放归属
+python3 src/hanghang/cli/main.py arb list                                    # 列出冲突票据
+python3 src/hanghang/cli/main.py arb show --ticket ARB-xxx                   # 查看票据详情
+python3 src/hanghang/cli/main.py arb diff  --ticket ARB-xxx                  # 查看 A/B 字段级差异
+python3 src/hanghang/cli/main.py arb review --ticket ARB-xxx --decision keep_a --resolver human-1 --reason "说明理由"
 # 说明：多秘书并发写同一 StateCard 时，基于乐观版本号(base_version)仲裁；
 #       基于旧版本写会抛 StateConflict 而非静默覆盖，归属越权写会抛 OwnershipDenied。
+#       检测到冲突时走 M9+ 版本化仲裁：保存双方版本 → 字段级差异分析，
+#       非重叠自动合并、重叠则生成 ReviewTicket 待 arb review 审核。
 
 # M9 POC 量化验证（状态管理 vs 全量历史对比）
 python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
 
 ### Web 可视化控制台
-
 启动 Web 可视化聚合面板（页面交互形态入口，纯 Python 标准库实现，无额外依赖）：
 
 ```bash
@@ -178,6 +183,7 @@ python3 tests/test_batch_persist.py   # M9 批量/延迟落盘
 python3 tests/test_state_manager.py   # M9 状态管理层（StateCard/折叠/层级提交）
 python3 tests/test_state_tree.py      # M9 秘书长多级树 + 主链路集成
 python3 tests/test_state_ownership.py # M9 秘书并发归属与冲突仲裁
+python3 tests/test_state_arbiter.py   # M9+ 版本化冲突仲裁与审核
 python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
@@ -191,6 +197,7 @@ python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
+- `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
@@ -208,7 +215,7 @@ python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

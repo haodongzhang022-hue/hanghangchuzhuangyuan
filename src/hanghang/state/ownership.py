@@ -331,6 +331,100 @@ class OwnershipGuard:
         finally:
             self.sm.release_lock(lock_f)
 
+    # ---- 冲突仲裁（M9+ 版本化冲突仲裁与审核）----
+
+    def arbitrate_conflict(self, base_version: Optional[int] = None,
+                           proposed_card: Optional[StateCard] = None,
+                           reason: str = "",
+                           capture_base: Optional[StateCard] = None,
+                           data_dir: Optional[str] = None) -> object:
+        """版本冲突时生成 ReviewTicket，而非简单拒绝。
+
+        参数:
+        - proposed_card: 调用方尝试提交的 StateCard（应用了其修改后）
+        - base_version: 调用方读到的版本号（可选）
+        - capture_base: 调用方读取时的 StateCard 快照（可选，用于精确差异分析）
+        - reason: 冲突原因描述
+        - data_dir: 仲裁票据持久化目录（可选；若未指定，ConflictArbiter 将使用默认目录
+        <cwd>/data/arbitration/）
+
+        流程:
+        1. 读取当前 StateCard（A 已提交后的版本）
+        2. 若有 capture_base，则精确计算 A 与 B 的差异并检测重叠
+        3. 若无 capture_base，标记冲突并生成待审核票据（不自动合并，避免误覆盖）
+        4. 若 A 与 B 的修改确实不重叠，可自动合并
+
+        返回: ReviewTicket
+        """
+        from .arbiter import ConflictArbiter
+
+        current_card = self.sm.get_card(self.session_id)
+        if current_card is None:
+            raise StateConflict("卡不存在", session_id=self.session_id)
+
+        if proposed_card is None:
+            raise ValueError("需提供 proposed_card（冲突方尝试提交的版本）")
+
+        arbiter = ConflictArbiter(state_manager=self.sm, data_dir=data_dir)
+
+        # 若有精确的 base 快照 → 完整分析流程（自动合并或生成审核票）
+        if capture_base is not None:
+            ticket = arbiter.capture_conflict(
+                session_id=self.session_id,
+                base_card=capture_base,
+                conflicting_card=proposed_card,
+                current_card=current_card,
+                arbiter_name=self.secretary,
+                conflict_reason=reason or f"秘书 {self.secretary} 的写请求与当前状态冲突",
+            )
+            return ticket
+
+        # 无 base 快照 → 无法判断是否精确重叠，保守生成待审核票据
+        # （不自动合并，避免误覆盖他人的修改）
+        from .arbiter import ReviewTicket as RT
+        ticket = RT(
+            session_id=self.session_id,
+            version_a=current_card.version,
+            version_b=proposed_card.version,
+            card_a=current_card.to_dict(),
+            card_b=proposed_card.to_dict(),
+            base_card=current_card.to_dict(),
+            arbiter=self.secretary,
+            conflict_reason=reason or (
+                f"版本冲突：agent 基于 v{base_version} 写入，当前 v{current_card.version}。"
+                "无法确定是否与对方修改重叠，待人工/AI审核。"
+            ),
+            status="pending",
+            auto_merge_blocked=True,  # 无 base 无法精确判断重叠 → 禁止 merge 自动合并
+        )
+        arbiter._save_ticket(ticket)
+        return ticket
+
+    def build_proposed(self, mutation_fn) -> StateCard:
+        """在最新状态副本上应用修改，生成 proposed_card。
+        用于仲裁流程：将修改应用到最新版本上，供仲裁分析。
+        """
+        current = self.sm.get_card(self.session_id)
+        if current is None:
+            raise StateConflict("卡不存在", session_id=self.session_id)
+        proposed = StateCard.from_dict(current.to_dict())
+        mutation_fn(proposed)
+        return proposed
+
+    def build_proposed_from_base(self, base_snapshot: StateCard,
+                                 mutation_fn) -> StateCard:
+        """在 base 快照上应用修改，生成 proposed_card。
+        用于仲裁流程：将修改应用到 B 读取时的版本上，
+        这样 proposed 只包含 B 自己的修改，不含 A 已提交的变更。
+
+        参数:
+        - base_snapshot: Agent B 读取时的 StateCard 快照
+        - mutation_fn: B 要应用的修改函数，接收 StateCard 参数
+        """
+        proposed = StateCard.from_dict(base_snapshot.to_dict())
+        mutation_fn(proposed)
+        return proposed
+
     # ---- 内部 ----
 
     def _authorize(self, card: StateCard) -> None:

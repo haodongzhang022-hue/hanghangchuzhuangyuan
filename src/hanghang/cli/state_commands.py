@@ -171,6 +171,124 @@ def cmd_state_status(args):
     print(f"  当前秘书({g.secretary})是否 owner: {g.is_owner()}")
 
 
+def cmd_arb_list(args):
+    """列出待审核的冲突票据"""
+    from hanghang.engine import ConflictArbiter
+    arbiter = ConflictArbiter()
+    session_filter = getattr(args, 'session', None)
+    status_filter = getattr(args, 'status', None)
+    if status_filter:
+        tickets = arbiter.list_tickets(session_id=session_filter,
+                                        status=status_filter)
+    else:
+        tickets = arbiter.list_pending(session_id=session_filter)
+    if not tickets:
+        print("无待处理的冲突票据")
+        return
+    print(f"共 {len(tickets)} 张冲突票据:")
+    for t in tickets:
+        overlaps_count = len(t.overlaps) if t.overlaps else 0
+        print(f"  {t.id} | {t.session_id} | 状态={t.status} | "
+              f"重叠={overlaps_count}处 | {t.created_at}")
+
+
+def cmd_arb_show(args):
+    """查看冲突票据详情"""
+    from hanghang.engine import ConflictArbiter
+    arbiter = ConflictArbiter()
+    ticket = arbiter.get_ticket(args.ticket)
+    if ticket is None:
+        print(f"票据不存在: {args.ticket}")
+        return
+    print(ticket.summarize())
+
+
+def cmd_arb_review(args):
+    """执行审核决策: keep_a / keep_b / merge / reject"""
+    from hanghang.engine import ConflictArbiter
+    mgr = StateManager()
+    arbiter = ConflictArbiter(state_manager=mgr)
+    try:
+        ticket = arbiter.review(
+            ticket_id=args.ticket,
+            decision=args.decision,
+            resolver=args.resolver or "cli-user",
+            reason=args.reason or "",
+        )
+        print(f"✅ 审核完成: {ticket.id}")
+        print(f"  状态: {ticket.status}")
+        print(f"  决策: {ticket.resolution}")
+        if ticket.reason:
+            print(f"  理由: {ticket.reason}")
+        if ticket.resolution_note:
+            print(f"  说明: {ticket.resolution_note}")
+    except Exception as e:
+        print(f"审核失败: {e}")
+
+
+def cmd_arb_diff(args):
+    """查看冲突票据的 A/B 双方字段级差异（版本 vs 版本）"""
+    from hanghang.engine import ConflictArbiter, diff_state
+    arbiter = ConflictArbiter()
+
+    ticket = arbiter.get_ticket(args.ticket)
+    if ticket is None:
+        print(f"票据不存在: {args.ticket}")
+        return
+
+    base_card = ticket.base_card or ticket.card_a
+    diff_a = diff_state(base_card, ticket.card_a)
+    diff_b = diff_state(base_card, ticket.card_b)
+
+    print(f"票据 {ticket.id} 字段级差异 (会话 {ticket.session_id}, "
+          f"A_v={ticket.version_a}, B_v={ticket.version_b})")
+
+    def _render(tag, d):
+        lines = []
+        if d.task_added:
+            lines.append(f"  {tag} 新增任务: " +
+                         ", ".join(t.get("task_id", "") for t in d.task_added))
+        if d.task_removed:
+            lines.append(f"  {tag} 删除任务: {', '.join(d.task_removed)}")
+        for ch in d.task_changes:
+            lines.append(f"  {tag} {ch.task_id}.{ch.field}: "
+                         f"{ch.old_value!r} → {ch.new_value!r}")
+        return lines
+
+    print("— 已提交方 A (相对 base):")
+    a_lines = _render("[A]", diff_a)
+    print("\n".join(a_lines) if a_lines else "  (无变更)")
+    print("— 冲突方 B (相对 base):")
+    b_lines = _render("[B]", diff_b)
+    print("\n".join(b_lines) if b_lines else "  (无变更)")
+    if ticket.overlaps:
+        print(f"⚠️ 重叠冲突 {len(ticket.overlaps)} 处，建议 arb show 查看详情后 "
+              f"用 arb review 裁决。")
+
+
+def cmd_state_search(args):
+    """在 StateCards 中搜索任务（M8 跨会话检索集成）"""
+    from hanghang.engine import FoldEngine, StateManager
+    mgr = StateManager()
+    engine = FoldEngine("")
+    cards = mgr.list_cards()
+    if not cards:
+        print("无 StateCard 可搜索")
+        return
+    results = engine.search_tasks(cards, args.keyword)
+    if not results:
+        print(f"未找到包含 '{args.keyword}' 的任务")
+        return
+    print(f"在 {len(cards)} 张 StateCard 中搜索 '{args.keyword}'，"
+          f"命中 {len(results)} 个任务:")
+    for r in results:
+        fold_mark = "📁" if r["fold"] == "collapsed" else "📂"
+        print(f"  {fold_mark} [{r['session_id']}] {r['task_id']} "
+              f"{r['title']} ({r['state']})")
+        if r["field_hit"]:
+            print(f"      命中字段: {', '.join(r['field_hit'])}")
+
+
 # ==== 秘书长多级树 CLI ====
 
 def cmd_tree_init(args):
