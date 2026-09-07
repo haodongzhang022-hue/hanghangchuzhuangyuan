@@ -194,8 +194,9 @@ bash scripts/change-aware-test.sh --no-cache     # 忽略结果缓存，强制�
 bash scripts/change-aware-test.sh --purge-cache  # 清空结果缓存
 ```
 
-> **通用增量测试机制（v4）**：`scripts/change-aware-test.sh` + `scripts/ca-plan.mjs` 是一套
-> **仓库/语言无关**的变更感知测试基建（node 内核，复制到任意仓库 `scripts/` 即用）——
+> **通用增量测试机制（v4）**：`scripts/change-aware-test.sh` + `scripts/ca-plan.py` 是一套
+> **仓库/语言无关**的变更感知测试基建（python 内核，与仓库/CI 的 python 生态天然同源，
+> 复制到任意仓库 `scripts/` 即用，无需额外 node 运行时）——
 >
 > 1. **自动依赖推断选测试（公交攒批）**：不再人肉维护“源码→测试”硬编码映射表。
 >    内核静态解析每个测试文件 import/require 的本地模块，反向建立依赖索引；

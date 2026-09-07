@@ -17,7 +17,7 @@
 #   bash scripts/change-aware-test.sh --purge-cache# 清空结果缓存
 #   bash scripts/change-aware-test.sh --config=ca-test.conf  # 用仓库外部配置
 #
-# 配套：同目录 ca-plan.mjs 为依赖解析内核（node 实现，语言无关）。
+# 配套：同目录 ca-plan.py 为依赖解析内核（python 实现，语言无关，仓库/CI 天然同源）。
 #
 # 外部配置键（ca-test.conf 或环境变量，均带 CA_ 前缀）：
 #   CA_SRC_GLOB     源码根/glob （默认 src/ lib/ packages/ core/ engine/ app/）
@@ -26,7 +26,7 @@
 #   CA_SKIP_EXTRA   额外跳过"非触发"路径，逗号分隔（默认 docs/,README.md,.md,...）
 #   CA_CACHE_DIR    结果缓存目录（默认 .testcache，可用 CNB cache: 卷跨流水线复用）
 #   CA_PY_CMD       运行 python 测试的命令（默认 python3）
-#   CA_NODE_CMD     运行 node 测试的命令（默认 node）
+#   CA_NODE_CMD     运行 node/JS 测试的命令（默认 node；仅当仓库含 JS 测试且已装 node 时需要）
 #   CA_BASH_CMD     运行 bash/shell 测试的命令（默认 bash）
 #
 # 示例 .cnb.yml 接入（同一份代码第二次不重复全跑）：
@@ -90,10 +90,10 @@ if [ "$FORCE_ALL" = "true" ]; then MODE_LABEL="强制全量"; fi
 echo "==== [ca-test] $MODE_LABEL 模式（基线: ${BASE_SHA:-<全部>}） ===="
 
 # ---------- 依赖解析内核是否同目录可用 ----------
-PLANNER="$ME_DIR/ca-plan.mjs"
-if [ ! -f "$PLANNER" ] && [ -f "$REPO_ROOT/scripts/ca-plan.mjs" ]; then PLANNER="$REPO_ROOT/scripts/ca-plan.mjs"; fi
+PLANNER="$ME_DIR/ca-plan.py"
+if [ ! -f "$PLANNER" ] && [ -f "$REPO_ROOT/scripts/ca-plan.py" ]; then PLANNER="$REPO_ROOT/scripts/ca-plan.py"; fi
 if [ ! -f "$PLANNER" ]; then
-  echo "!! 未找到 ca-plan.mjs（需与脚本同目录或 scripts/ 下）。中止。" >&2; exit 2
+  echo "!! 未找到 ca-plan.py（需与脚本同目录或 scripts/ 下）。中止。" >&2; exit 2
 fi
 
 # ---------- 调用内核生成执行计划 ----------
@@ -107,12 +107,12 @@ PLAN_ARGS=""
 [ -n "$SKIP_EXTRA" ] && PLAN_ARGS="$PLAN_ARGS --skip=$SKIP_EXTRA"
 [ -n "$CACHE_DIR" ] && PLAN_ARGS="$PLAN_ARGS --cachedir=$CACHE_DIR"
 
-PLAN_JSON="$("$NODE_CMD" "$PLANNER" $PLAN_ARGS 2>/tmp/ca-plan.log)"
+PLAN_JSON="$("$PY_CMD" "$PLANNER" $PLAN_ARGS 2>/tmp/ca-plan.log)"
 PLAN_EXIT=$?
 cat /tmp/ca-plan.log >&2 || true
 
 if [ "$PLAN_EXIT" != "0" ]; then
-  echo "!! ca-plan.mjs 出错（exit $PLAN_EXIT），中止。" >&2
+  echo "!! ca-plan.py 出错（exit $PLAN_EXIT），中止。" >&2
   exit "$PLAN_EXIT"
 fi
 if [ "$PLAN_JSON" = "[]" ]; then
@@ -122,7 +122,7 @@ fi
 
 # 把 JSON 计划落盘供执行与回写阶段使用
 printf '%s' "$PLAN_JSON" > .ca-plan.json
-RUN_FILES=$(printf '%s' "$PLAN_JSON" | "$NODE_CMD" -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const p=JSON.parse(d);process.stdout.write(p.filter(x=>x[1]==='run').map(x=>x[0]).join('\\n'))})")
+RUN_FILES=$(printf '%s' "$PLAN_JSON" | "$PY_CMD" -c "import sys,json;print('\n'.join(x[0] for x in json.load(sys.stdin) if x[1]=='run'))")
 [ -f .ca-plan.json ] && rm -f .ca-plan.json
 
 if [ -z "$RUN_FILES" ]; then
@@ -158,7 +158,7 @@ done
 
 # ---------- 回写缓存（记录 PASS 指纹，供下次无变动跳过） ----------
 if [ "$FAILED" = "0" ] && [ -n "$PASSED" ]; then
-  "$NODE_CMD" "$PLANNER" --writecache --cachedir="$CACHE_DIR" --files="$PASSED" >/dev/null 2>&1 \
+  "$PY_CMD" "$PLANNER" --writecache --cachedir="$CACHE_DIR" --files="$PASSED" >/dev/null 2>&1 \
     || echo "  ! 缓存回写失败（不影响结果）"
 fi
 
