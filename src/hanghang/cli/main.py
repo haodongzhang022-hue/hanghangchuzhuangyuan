@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 from hanghang.engine import (
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
+    SessionBindingStore, SessionBoundRouter,
 )
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
@@ -25,52 +26,74 @@ from hanghang.cli.state_commands import (
 )
 
 def cmd_route(args):
-    """意图路由命令"""
+    """意图路由命令（支持 SLIB 会话级行业绑定）
+
+    用法:
+        python3 cli/main.py route "文本" [--session SESSION_ID]
+
+    有 --session 时：
+        - 若会话已绑定行业 X → 消息只能在 X 内路由
+        - 若消息明显属于行业 Y(≠X) → 返回 cross_industry_handoff
+        - 若会话未绑定 → 首次路由后自动绑定
+    """
     registry = Registry()
-    router = IntentRouter(registry)
-    planner = CompositePlanner(registry)
     metrics = MetricsCollector()
     prefixes = PrefixArchive()
+    bindings = SessionBindingStore()
 
     # 自动注册单元到前缀档案库
     for unit in registry.all_units():
         prefixes.register_unit(unit)
 
-    # 仅路由一次：route() 结果既用于展示，也交由 plan_from_result 编排，
-    # 避免与 planner.plan()（内部会再次 route）重复做意图识别。
-    result = router.route(args.text)
-    plan = planner.plan_from_result(result, args.text)
+    session_id = getattr(args, "session", None) or None
+    sbr = SessionBoundRouter(
+        registry=registry,
+        binding_store=bindings,
+    )
 
-    # 记录指标：岗位维度取 result.roles（路由结果恒有 roles 字段）。
-    # plan 仅在 composite/handoff_required 分支含 roles；direct 分支仅含单 role
-    # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
-    #
-    # ⚠️ 语义标注（评审建议#3）：manual(人工确认)分支若路由结果含 roles
-    # （如置信度不足但岗位已模糊命中），也会被计入 role_hits。这属行为变更：
-    # 旧实现取 plan.roles（manual 分支 plan 无 roles 键）不统计岗位命中；
-    # 现改为 result.roles 如实记录"候选命中岗位"，人工介入仍由
-    # manual_confirmations 单独统计。CLI/Web 均以此口径记录。
+    # SLIB 会话感知路由
+    result = sbr.route(args.text, session_id=session_id)
+
+    # 记录指标
+    mode = result.get("mode", "manual")
+    rr = result.get("route_result", {})
+    plan = result.get("plan", {})
+    unit_id = plan.get("unit_id", "") or rr.get("unit_id", "")
     metrics.record_route(
-        mode=plan.get("mode", "manual"),
-        unit_id=plan.get("unit_id", "") or result.unit_id,
-        roles=result.roles,
+        mode=mode if mode != "cross_industry_handoff" else "handoff_required",
+        unit_id=unit_id,
+        roles=rr.get("roles", []),
     )
 
     print("=" * 50)
     print(f"意图: {args.text}")
-    print(f"路由结果: unit={result.unit_id or 'N/A'}, industry={result.industry or 'N/A'}, "
-          f"roles={result.roles or '无'}")
-    print(f"置信度: {result.confidence}")
+    print(f"路由结果: unit={rr.get('unit_id') or 'N/A'}, "
+          f"industry={rr.get('industry') or 'N/A'}, "
+          f"roles={rr.get('roles') or '无'}")
+    print(f"置信度: {rr.get('confidence', 0)}")
 
-    if plan["mode"] == "manual":
-        print(f"模式: 人工确认 (原因: {plan['reason']})")
+    if session_id:
+        print(f"会话: {session_id}")
+
+    if mode == "manual":
+        print(f"模式: 人工确认 (原因: {plan.get('reason') or rr.get('fallback_reason', '')})")
+    elif mode == "cross_industry_handoff":
+        print(f"模式: ⚠️ SLIB 跨行业冲突（需开新会话）")
+        print(f"  {result.get('message', '')}")
+        if result.get("handoff_card_id"):
+            print(f"  交接卡ID: {result['handoff_card_id']}")
     else:
-        print(f"模式: {plan['mode']}")
+        print(f"模式: {mode}")
         print(plan.get("message", ""))
 
+    # 展示会话绑定信息
+    if session_id and result.get("binding"):
+        b = result["binding"]
+        print(f"会话绑定: {b['industry']} ({b['unit_id']})")
+
     # 展示稳定前缀（若适用）
-    if result.unit_id and plan["mode"] in ("direct", "composite"):
-        unit_prefixes = prefixes.get_unit_prefixes(result.unit_id)
+    if rr.get("unit_id") and mode in ("direct", "composite"):
+        unit_prefixes = prefixes.get_unit_prefixes(rr["unit_id"])
         if unit_prefixes:
             print(f"M3 前缀档案: {unit_prefixes}")
 
@@ -82,9 +105,65 @@ def cmd_route(args):
         print(f"执行顺序: {plan['execution_order']}")
     if "boundary" in plan:
         print(f"复合边界规则: {plan['boundary']}")
-    if "handoff_card_id" in plan and plan["handoff_card_id"]:
-        print(f"交接卡ID: {plan['handoff_card_id']}")
+    if result.get("handoff_card_id"):
+        print(f"交接卡ID: {result['handoff_card_id']}")
     print("=" * 50)
+
+
+def cmd_bind_session(args):
+    """显式绑定会话到行业单元（SLIB）"""
+    registry = Registry()
+    # 验证 unit_id 存在
+    unit = registry.get_unit(args.unit)
+    if unit is None:
+        print(f"错误: 行业单元 {args.unit} 不存在。可用单元: ")
+        for u in registry.all_units():
+            print(f"  {u.unit_id} ({u.industry})")
+        return
+    store = SessionBindingStore()
+    try:
+        b = store.bind(
+            session_id=args.session,
+            unit_id=args.unit,
+            industry=unit.industry,
+            role_name=getattr(args, "role", "") or "",
+        )
+        print(f"会话 {b.session_id} 已绑定到行业「{b.industry}」({b.unit_id})")
+    except ValueError as e:
+        print(f"绑定失败: {e}")
+
+
+def cmd_unbind_session(args):
+    """解除会话的行业绑定（SLIB）"""
+    store = SessionBindingStore()
+    b = store.get_binding(args.session)
+    if b is None:
+        print(f"会话 {args.session} 未绑定任何行业")
+        return
+    print(f"解除绑定: {b.session_id} ← {b.industry} ({b.unit_id})")
+    store.unbind(args.session)
+    print("已解除")
+
+
+def cmd_list_bindings(args):
+    """列出所有已绑定的会话"""
+    store = SessionBindingStore()
+    print(store.summary())
+
+
+def cmd_binding_info(args):
+    """查看会话的行业绑定详情"""
+    store = SessionBindingStore()
+    b = store.get_binding(args.session)
+    if b is None:
+        print(f"会话 {args.session} 未绑定任何行业")
+        return
+    print(f"会话: {b.session_id}")
+    print(f"行业: {b.industry}")
+    print(f"单元: {b.unit_id}")
+    print(f"岗位: {b.role_name or '(未指定)'}")
+    print(f"绑定时间: {b.bound_at}")
+    print(f"最近路由: {b.updated_at}")
 
 
 def cmd_units(args):
@@ -238,12 +317,31 @@ def build_parser():
         description="行行出状元 · 通用能力层路由编排系统")
     sub = p.add_subparsers(dest="command")
 
-    r = sub.add_parser("route", help="对一句话意图做路由识别")
+    r = sub.add_parser("route", help="对一句话意图做路由识别（支持 --session SLIB 会话绑定）")
     r.add_argument("text", help="用户意图文本")
+    r.add_argument("--session", default="", help="会话ID（SLIB 会话级行业绑定）")
     r.set_defaults(func=cmd_route)
 
     l = sub.add_parser("units", help="列出已注册行业单元")
     l.set_defaults(func=cmd_units)
+
+    # ---- SLIB 会话级行业绑定子命令 ----
+    bind = sub.add_parser("bind", help="SLIB: 将会话绑定到行业单元")
+    bind.add_argument("--session", required=True, help="会话ID")
+    bind.add_argument("--unit", required=True, help="行业单元ID（如 dongjiagoushi）")
+    bind.add_argument("--role", default="", help="岗位名（可选）")
+    bind.set_defaults(func=cmd_bind_session)
+
+    ubind = sub.add_parser("unbind", help="SLIB: 解除会话的行业绑定")
+    ubind.add_argument("--session", required=True, help="会话ID")
+    ubind.set_defaults(func=cmd_unbind_session)
+
+    blist = sub.add_parser("bindings", help="SLIB: 列出所有已绑定的会话")
+    blist.set_defaults(func=cmd_list_bindings)
+
+    bshow = sub.add_parser("binding", help="SLIB: 查看会话的行业绑定详情")
+    bshow.add_argument("--session", required=True, help="会话ID")
+    bshow.set_defaults(func=cmd_binding_info)
 
     m = sub.add_parser("metrics", help="查看运行指标")
     m.set_defaults(func=cmd_metrics)

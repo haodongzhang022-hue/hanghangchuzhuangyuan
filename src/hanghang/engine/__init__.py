@@ -1,10 +1,15 @@
-"""核心引擎：路由、注册表、交接、指标、前缀档案 + M9 状态管理 + M10 上下文装配"""
+"""核心引擎：路由、注册表、交接、指标、前缀档案 + M9 状态管理 + M10 上下文装配 + SLIB"""
 from .models import IndustryUnit, Role, RouteResult, CompositePlan, HandoffCard
 from .registry import Registry
 from .router import IntentRouter, CompositePlanner
 from .handoff import HandoffBus
 from .metrics import MetricsCollector
 from .prefix import PrefixArchive
+
+# SLIB 会话级行业绑定
+from .session_binding import (
+    SessionBinding, SessionBindingStore, SessionBoundRouter,
+)
 
 # M9 状态管理层
 from hanghang.state.models import (
@@ -29,6 +34,8 @@ __all__ = [
     "IndustryUnit", "Role", "RouteResult", "CompositePlan", "HandoffCard",
     "Registry", "IntentRouter", "CompositePlanner", "HandoffBus",
     "MetricsCollector", "PrefixArchive",
+    # SLIB
+    "SessionBinding", "SessionBindingStore", "SessionBoundRouter",
     # M9
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
     "StateManager", "FoldEngine", "HierarchySubmitter",
