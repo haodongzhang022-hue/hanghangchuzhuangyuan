@@ -65,7 +65,7 @@ flowchart TB
 | M6 | 复合agent装配器 | 动态叠加 ≥2 岗位为复合 agent + 跨界加能力 | 岗位组合 | 复合上下文 | 各单元 | **HIGH-上下文冲突** |
 | M7 | 能力/指标观测台 | 统计切换/交接/复合并发/人工介入率 | 运行日志 | 指标 | 全部 | 低 |
 | M8 | 跨行业能力索引 | 索引各单元能力入口供编排检索 | 注册表+日志 | 可检索索引 | M2 | 低 |
-| M9 | 状态管理层 | 任务状态卡+折叠索引+层级提交+秘书长多级树 | 任务/对话原文 | StateCard+渲染层+树拓扑 | M2/M5 | MED-折叠边界 |
+| M9 | 状态管理层 | 任务状态卡+折叠索引+层级提交+秘书长多级树+秘书并发归属/冲突仲裁 | 任务/对话原文 | StateCard+渲染层+树拓扑 | M2/M5 | MED-折叠边界 |
 | M10 | 上下文装配器 | 三层拼装+规则表触发+缓存隔离（防提示词冗余） | 角色+StateCard+触发文本 | 分层上下文+缓存键 | M3/M9 | MED-规则覆盖不全 |
 
 ---
@@ -154,11 +154,16 @@ register_version: "1.0"
 | R12 | M8 能力索引增强 | ✅ search_capability 多维检索(any/industry/capability/role) + capability_index 全量导出 + CLI `search --mode`/`index` |
 | R13 | Web API Server | ✅ src/hanghang/web/server.py 提供 REST API 全端点，聚合暴露 M1-M8 能力 |
 | R14 | Web 聚合可视化面板 | ✅ static/index.html 单页控制台（路由测试/行业单元/能力检索/指标/前缀/交接卡） |
+| R15 | SLIB 会话级行业绑定 | ✅ SessionBindingStore + SessionBoundRouter + CLI route --session / bind / bindings。会话绑定行业后禁止同会话跨行业（触发交接），保证前缀稳定。 |
+| R16 | M9 编排/交接进度可视化 | ✅ GET /api/state 只读聚合 + 面板任务进度页，落 RFC-ECO-01 阶段3 |
+| R17 | 行业使用说明（Agent 对接文档） | ✅ docs/industry/units/ 按行业建 agent 使用说明（定位/能力/岗位/路由接入/约束）+ _template 模板。支持机制未完善行业先建占位目录，后续按全行业列表扩展。 |
+| R18 | 单会话续传快照 | ✅ GET /api/session 只读快照+续传锚点(resume_key/pending)+交接反查，落 RFC-ECO-01 阶段4·轮询拉取形态 |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
 - 需求基线：`docs/architecture/通用能力-需求澄清基线.md`
 - 单元接入规范：`docs/industry/register-spec.md`
+- 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
 - 电子书旧档(迁出)：`docs/legacy/ebook-sousuozengqiang/`
 
 ---
@@ -189,4 +194,9 @@ register_version: "1.0"
 > 📝 **CodeBuddy** | 2026-09-06: 新增 M9 状态管理层(StateCard/StateManager/FoldEngine/HierarchySubmitter)，实现任务状态机+折叠索引+层级向上提交，秘书分工机制落地。
 >
 > 📝 **CodeBuddy** | 2026-09-07: M9 增强版——新增 SecretaryTree/SecretaryTreeNode 秘书长多级树拓扑（多级注册/关系/rollup/渲染），HierarchySubmitter 支持 submit_chain_up 逐级向上提交。M9 接入主执行链路：CompositePlanner 自动创建 StateCard，HandoffBus auto_state_card 自动关联。新增 POC 量化验证脚本 poc/state_m9_benchmark.py。
+> 📝 **CodeBuddy** | 2026-09-07: M9 补多秘书协作拼图——新增 OwnershipGuard(秘书并发归属与冲突仲裁)：StateCard 增 owner+乐观版本号，claim/release 归属声明、租约写锁、基于 base_version 的乐观并发冲突检测(StateConflict)与越权拒绝(OwnershipDenied)。补 Issue#5/论文 SKILL.state 明示的"多 Agent 并发写状态需确定性冲突处理"缺口。
 > 📝 **CodeBuddy** | 2026-09-07: 新增 M10 上下文装配器——三层物理隔离（静态层A/会话态层B/规则注入层C），R3声明式规则表引擎，M10-d缓存保护（静态/动态隔离校验）。Issue #11 防提示词冗余核心落地。
+
+> 📝 **CodeBuddy** | 2026-09-08: 新增 SLIB 会话级行业绑定（M4 强化）——SessionBindingStore 持久化绑定关系，
+> SessionBoundRouter 会话感知路由（首次路由自动绑定/跨行业触发交接/同行业正常编排）。
+> 详细设计见 `docs/architecture/SLIB-会话级行业绑定.md`。

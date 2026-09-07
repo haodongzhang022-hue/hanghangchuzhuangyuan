@@ -194,5 +194,76 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "education-training": {
+    "unit_id": "education-training",
+    "industry": "教育培训",
+    "role_prefixes": {
+      "curriculum_designer": {
+        "prefix": "[课程设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "teacher": {
+        "prefix": "[讲师]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "learning_advisor": {
+        "prefix": "[学习规划]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "healthcare": {
+    "unit_id": "healthcare",
+    "industry": "健康医疗",
+    "role_prefixes": {
+      "health_consultant": {
+        "prefix": "[健康顾问]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "psychologist": {
+        "prefix": "[心理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "medical_advisor": {
+        "prefix": "[医疗顾问]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "fitness_coach": {
+        "prefix": "[健身教练]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "home-design": {
+    "unit_id": "home-design",
+    "industry": "家装设计",
+    "role_prefixes": {
+      "interior_designer": {
+        "prefix": "[室内设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "soft_furnish": {
+        "prefix": "[软装]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "project_manager": {
+        "prefix": "[装修经理]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }

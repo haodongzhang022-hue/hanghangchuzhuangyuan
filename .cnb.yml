@@ -3,11 +3,13 @@
 # 仓库：hanghangchuzhuangyuan（通用能力层）
 #
 # 核心机制（同步自 dongjiagoushi / youxikaifaxilieagent 的自动评审闭环）：
-#   - pull_request 事件 → 测试信号灯 + NPC 代码审查 + 评审修复闭环
+#   - pull_request 事件 → 测试信号灯 + NPC 代码审查
+#   - 评审发现需修改 → 评审NPC在评论中 @CodeBuddy → 自动触发修复
+#   - CodeBuddy 修复提交 → 新 commit 触发下一轮 pull_request → 再次评审
+#   - 目标导向：评审无错即停，有错继续修，不强制轮数
 #   - pull_request.mergeable → 评审门禁检查 + 自动合并
-#   - failStages → 失败自动唤起修复角色
-#   - pull_request.changes_requested → 人工打回时自动修复
-#   - pull_request.comment@npc → 人类手动兜底
+#   - pull_request.changes_requested → 评审打回时自动修复（兜底）
+#   - pull_request.comment@npc → 人类/@NPC 手动兜底
 #   - main.push → 全量回归 + 知识库更新
 #   - issue.open/update → 事件自动处理
 #
@@ -31,6 +33,10 @@ $:
         cpus: 2
       docker:
         image: python:3.11
+        volumes:
+          - cache:/root/.cnb-testcache:rw   # 变更感知结果缓存（跨 job/流水线复用，防重复全量）
+      env:
+        HH_TEST_CACHE_DIR: /root/.cnb-testcache
       stages:
         - name: 测试信号灯（变更感知 + CLI 冒烟）
           script: |
@@ -41,6 +47,9 @@ $:
             # 变更感知选择器基于 PR diff 精确选取受影响测试，
             # 不盲目对每个 commit 全量跑 180+ 用例。
             # main 合并后的全量回归由 main.push 事件兜底，不会漏测。
+            # 变更感知内核自校验：工具自身改动也会被护栏兜底（评审 #26 🟡2）。
+            # ca-plan 属于"基建"，不会触发业务回归；故独立固定 fixture 校验其穿透逻辑不回退。
+            python3 scripts/ca-plan-selfcheck.py
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""
@@ -58,10 +67,11 @@ $:
               你是本仓库（hanghangchuzhuangyuan · 通用能力层路由编排系统）的资深代码审查员。
               你的职责**只有两条**：**读代码 + 给意见**。
               【权限边界声明】你是评审者（监督者），仅拥有只读审查权限：
-              - 你有权：读取代码、审查质量/架构/Bug/安全，输出审查结论，标记 approved / changes_requested；
+              - 你有权：读取代码、审查质量/架构/Bug/安全，输出审查结论；
               - 你无权：推送（push）、合并（merge）、关闭（close）、修改代码、打标签；
-              - **本系统设计不允许 push**：评审闭环通过打标签驱动，任何 NPC **不得尝试 push**；
-              - 若评审发现问题需要修复：**不得自己动手**，在评论中明确召唤本仓库 **CodeBuddy** 处理。
+              - **本系统设计不允许 push**：评审闭环通过 PR 评论 + 事件驱动，任何 NPC **不得尝试 push**；
+              - 若评审发现问题需要修复：**不得自己动手**。**必须在结论末尾召唤
+                @dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy) 触发自动修复**。
             userPrompt: |
               请审查本次 PR 的代码变更，重点检查：
               1. 是否符合通用能力层架构设计（M1-M8 模块：路由/注册表/前缀/会话编排/交接/复合装配/指标/能力索引）；
@@ -69,7 +79,12 @@ $:
               3. 稳定前缀约束是否保持（一会话一行业）；
               4. 是否存在 Bug、安全漏洞或资源泄漏；
               5. 是否包含自动化测试且测试通过。
-              给出"通过 / 需修改"结论及具体修改点。评审结论输出到 PR 评论。
+              给出结论：
+              - **通过/approved**：若未发现需修复的缺陷，明确说明"无问题"，不召唤任何人；
+              - **需修改/needs_modification**：逐条列出问题与修改点，末尾必须 @CodeBuddy
+                召唤修复（格式: @dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)），
+                让 CodeBuddy 自动接管修复。
+              评审结论输出到 PR 评论。
 
   # ========================================================
   # PR 可合并 → 自动合并（先做评审门禁）
@@ -80,6 +95,10 @@ $:
         cpus: 2
       docker:
         image: python:3.11
+        volumes:
+          - cache:/root/.cnb-testcache:rw   # 与 review-fix-loop 共享同一结果缓存，避免重复全量
+      env:
+        HH_TEST_CACHE_DIR: /root/.cnb-testcache
       stages:
         - name: 测试再次确认（变更感知）
           script: |
@@ -99,7 +118,7 @@ $:
             removeSourceBranch: true
 
   # ========================================================
-  # 人工评审打回 → 自动修复
+  # 评审打回(changes_requested) → 自动修复
   # ========================================================
   pull_request.changes_requested:
     - name: auto-fix
@@ -112,11 +131,11 @@ $:
             systemPrompt: |
               你是本仓库（hanghangchuzhuangyuan · 通用能力层）的代码修复 Agent。
               收到评审打回后默认直接修改代码并提交，遵循"评审修复闭环护栏"：
-              - 默认直接改：评审指出的问题（尤其 bug）默认直接修复，不反复询问；
-              - 最大 5 轮护栏：同一 PR 的评审→修复来回最多 5 次，达到上限仍无法
-                解决则停止自动修复，在 PR 评论中反馈人类；
+              - 目标导向：修复到评审不再发现问题为止。有错就继续修，无错即自然结束，
+                不需要"凑满多少轮"；
+              - 安全上限：若连续多轮修复仍未解决（最多 5 轮），停止并反馈人类介入；
               - 每修一个评审点，尽量固化成测试断言，防止回退；
-              - 禁止尝试 push。
+              - 禁止尝试 push；修复完成通过提交代码触发下一轮自动评审。
             userPrompt: |
               本次 PR 被评审打回（changes requested）。请作为代码修复 Agent 执行：
               1. 读取评审意见与行级评论；
@@ -124,9 +143,11 @@ $:
               3. 为每个修复点补充测试断言，确保持续生效不回退；
               4. 在 PR 源分支提交修复代码；
               5. 在 PR 评论中说明修复内容。
+              目标导向：修复到评审通过为止。本轮修复后由自动评审机制判断是否需要
+              继续；若评审不再发现问题则自然结束，无需额外操作。
 
   # ========================================================
-  # 人类评论 @CodeBuddy（手动兜底）
+  # PR 评论 @CodeBuddy（自动兜底：人类手动 @ 或评审 NPC 召唤修复）
   # ========================================================
   pull_request.comment@npc:
     - name: npc-manual-invoke
@@ -135,19 +156,26 @@ $:
       <<: *npc_default
       stages:
         - name: CodeBuddy 按 @ 指令处理
-          if: |
-            [ -z "${CNB_BUILD_USER_NPC_NAME:-}" ] && [ "${CNB_BUILD_USER:-}" != "cnb" ]
           type: npc:go
           options:
             role: CodeBuddy
             systemPrompt: |
               你是本仓库（hanghangchuzhuangyuan · 通用能力层）的代码处理 Agent。
-              人类在 PR 评论中 @你，请按指令处理。
+              评论中 @你可能是人类手动召唤，也可能是评审 NPC 在发现问题后自动召唤修复。
+              无论来源如何，都请按评论内容认真处理。
+              若评论者是评审 NPC（OCI/代码审查员）并指出需修复的问题：
+              - 默认直接修复，不反复询问；
+              - 每次修复必须补充测试断言，防止回退；
+              - 修复完成后提交代码到 PR 源分支，并在评论中说明修复内容，
+                评审会在下次 commit 后自动复审——若无问题自然停止，无需额外召唤。
             userPrompt: |
-              人类在评论中 @CodeBuddy 发起了指令。请按评论内容执行：
-              1. 若指令是要求修复代码问题：直接修复并提交；
+              PR 评论中 @CodeBuddy 发起了指令（可能来自人类手动召唤或评审 NPC 自动召唤）。
+              请根据评论内容执行：
+              1. 若指令是要求修复代码问题（含评审 NPC 指出的 Bug/质量/架构问题）：
+                 默认直接修复并提交到 PR 源分支；
               2. 若指令是询问/探讨：直接给出分析与结论，不修改代码；
               3. 若指令是要求新增功能/配置：按指令实现并提交。
+              目标导向：修复完不必反复追问，提交后由自动评审机制决定是否需要下一轮。
 
   # ========================================================
   # Issue 事件处理

@@ -109,12 +109,14 @@ class StateCard:
     session_id: str               # 会话ID（对话唯一）
     unit_id: str = ""             # 所属行业单元
     role_name: str = "secretary"  # 维护者坑位
+    owner: str = ""                  # 责任秘书坑位（卡归属/占用者，空=未占）
     objective: str = ""           # 总体目标
     tasks: List[TaskRecord] = field(default_factory=list)
     upstream: Optional[str] = None    # 上级秘书引用（层级向上提交）
     downstream: List[str] = field(default_factory=list)  # 下级秘书列表
     created_at: str = ""
     updated_at: str = ""
+    version: int = 0                # 乐观并发版本号：每次写变更 +1，供冲突仲裁
     id: Optional[str] = None
 
     def __post_init__(self):
@@ -160,6 +162,7 @@ class StateCard:
         )
         self.tasks.append(task)
         self.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.version += 1
         return task
 
     def update_task(self, task_id: str, **fields) -> bool:
@@ -178,6 +181,7 @@ class StateCard:
                 setattr(task, k, v)
         task.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
         self.updated_at = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.version += 1
         return True
 
     def summarize_for_upstream(self) -> dict:
@@ -200,11 +204,16 @@ class StateCard:
             "session_id": self.session_id,
             "unit_id": self.unit_id,
             "role_name": self.role_name,
+            "owner": self.owner,
+            "version": self.version,
             "objective": self.objective,
             "task_count": len(self.tasks),
+            "todo_count": states.count(TaskState.TODO.value),
             "done_count": states.count(TaskState.DONE.value),
             "in_progress_count": states.count(TaskState.IN_PROGRESS.value),
             "blocked_count": states.count(TaskState.BLOCKED.value),
+            "failed_count": states.count(TaskState.FAILED.value),
+            "cancelled_count": states.count(TaskState.CANCELLED.value),
             "tasks": tasks_summary,
             "content_refs": [t.content_ref for t in self.tasks if t.content_ref],
             "upstream": self.upstream,
@@ -217,6 +226,8 @@ class StateCard:
             "session_id": self.session_id,
             "unit_id": self.unit_id,
             "role_name": self.role_name,
+            "owner": self.owner,
+            "version": self.version,
             "objective": self.objective,
             "tasks": [t.to_dict() for t in self.tasks],
             "upstream": self.upstream,

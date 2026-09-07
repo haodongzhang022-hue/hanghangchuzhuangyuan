@@ -1,266 +1,179 @@
 #!/usr/bin/env bash
-# ============================================================
-# 变更范围感知测试选择器（Change-Aware Test Selector）v2
-# ------------------------------------------------------------
-# 作用：根据本次 git 变更的文件范围，只运行受影响的测试模块，
-#       避免全量跑测试造成 CPU 浪费（"公交车攒批"思想：只跑
-#       受影响的那一班，而非每个 commit 全量发车）。
+# ============================================================================
+# 通用变更感知测试选择器（Generic Change-Aware Test Selector）v4
+# ----------------------------------------------------------------------------
+# 跨仓库 / 跨语言生态通用的「增量测试」基建。解决三个问题：
+#   1) 无任何代码/测试变动时，不再重复全量跑 → 结果指纹缓存，沿用上次 PASS；
+#   2) 有变动时只跑「受本次变更影响」那批 → 公交攒批，不逐个分别构建/测试/关闭；
+#   3) 复制到任意仓库即用 → 靠【自动依赖推断 + 可选静态映射】驱动，不人肉维护
+#      硬编码"源码→测试"映射表。
 #
-# 用法：
-#   bash scripts/change-aware-test.sh                # 自动检测变更（PR/push/本地）
-#   bash scripts/change-aware-test.sh --all          # 强制全量跑（main push / 合并门禁用）
-#   bash scripts/change-aware-test.sh --dry-run      # 只打印将运行的测试，不实际执行
-#   bash scripts/change-aware-test.sh --base=SHA     # 指定比对基线（否则自动探测）
+# 用法（复制到目标仓库 scripts/ 后）：
+#   bash scripts/change-aware-test.sh              # 自动探测变更，跑受影响测试
+#   bash scripts/change-aware-test.sh --all        # 强制全量（main push / 合并门禁兜底）
+#   bash scripts/change-aware-test.sh --dry-run    # 只打印选中测试，不实跑
+#   bash scripts/change-aware-test.sh --base=SHA   # 指定变更比对基线
+#   bash scripts/change-aware-test.sh --no-cache   # 忽略缓存，本次选中全重跑
+#   bash scripts/change-aware-test.sh --purge-cache# 清空结果缓存
+#   bash scripts/change-aware-test.sh --config=ca-test.conf  # 用仓库外部配置
 #
-# 环境变量：
-#   CNB_PULL_REQUEST_TARGET_SHA  # PR 目标分支 SHA（CNB 内置变量）
-#   CNB_COMMIT                   # 本次提交 SHA（CNB 内置变量）
+# 配套：同目录 ca-plan.py 为依赖解析内核（python 实现，语言无关，仓库/CI 天然同源）。
 #
-# 设计说明：
-#   - 模块→测试映射表集中在下方 PY_MAP 中，随模块演进增补。
-#   - engine 内部改动波及面大（因 __init__ 聚合导出），映射至
-#     全部引擎回归；外围模块（state/web/context/review/cli）改动
-#     只跑自身域测试。
-#   - 数据文件（data/*.yaml）变更会重路由，映射至行业/数据驱动回归。
-# ============================================================
+# 外部配置键（ca-test.conf 或环境变量，均带 CA_ 前缀）：
+#   CA_SRC_GLOB     源码根/glob （默认 src/ lib/ packages/ core/ engine/ app/）
+#   CA_BEHAVIOR_GLOB 行为数据根/glob（默认 data/ cli/）：其下 yaml/json 属路由行为
+#                     配置，改动触发数据驱动回归，绝不按纯基建 0 测试放行
+#   CA_TEST_GLOB    测试文件 glob（默认自动识别 test_* / *.test / *.spec 等）
+#   CA_MAP_FILE     可选静态映射：为无 import 的脚本测试(bash)提供 "路径|测试1,测试2"
+#   CA_SKIP_EXTRA   额外跳过"非触发"路径，逗号分隔（默认 docs/,README.md,.md,...）
+#   CA_CACHE_DIR    结果缓存目录（默认 .testcache，可用 CNB cache: 卷跨流水线复用）
+#   CA_PY_CMD       运行 python 测试的命令（默认 python3）
+#   CA_NODE_CMD     运行 node/JS 测试的命令（默认 node；仅当仓库含 JS 测试且已装 node 时需要）
+#   CA_BASH_CMD     运行 bash/shell 测试的命令（默认 bash）
+#
+# 示例 .cnb.yml 接入（同一份代码第二次不重复全跑）：
+#   volumes: [ "cache:/root/.catest:rw" ]   env: { CA_CACHE_DIR: /root/.catest }
+#   script: bash scripts/change-aware-test.sh
+# ============================================================================
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+ME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DRY_RUN=false
-FORCE_ALL=false
-BASE_SHA=""
-
+FORCE_ALL=false; DRY_RUN=false; NO_CACHE=false; PURGE_CACHE=false
+BASE_SHA=""; CONF_FILE=""
 for arg in "$@"; do
   case "$arg" in
-    --dry-run) DRY_RUN=true ;;
-    --all) FORCE_ALL=true ;;
-    --base=*) BASE_SHA="${arg#*=}" ;;
+    --all) FORCE_ALL=true ;; --dry-run) DRY_RUN=true ;;
+    --no-cache) NO_CACHE=true ;; --purge-cache) PURGE_CACHE=true ;;
+    --base=*) BASE_SHA="${arg#*=}" ;; --config=*) CONF_FILE="${arg#*=}" ;;
   esac
 done
 
-# 选择测试文件列表（由内嵌 Python 输出，每行一个文件）
-SELECTED_TESTS=""
-if [ "$FORCE_ALL" = "true" ]; then
-  echo "==== [change-aware] 强制全量模式 ===="
-  SELECTED_TESTS=$(ls tests/test_*.py 2>/dev/null)
-else
-  # 探测变更基线
-  if [ -z "$BASE_SHA" ] && [ -n "${CNB_PULL_REQUEST_TARGET_SHA:-}" ]; then
-    BASE_SHA="$CNB_PULL_REQUEST_TARGET_SHA"
-  elif [ -z "$BASE_SHA" ] && [ -n "${CNB_COMMIT:-}" ] && git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-    BASE_SHA="HEAD~1"
-  elif [ -z "$BASE_SHA" ]; then
-    if git rev-parse --verify origin/main >/dev/null 2>&1; then
-      BASE_SHA="origin/main"
-    elif git rev-parse --verify main >/dev/null 2>&1; then
-      BASE_SHA="main"
-    elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-      BASE_SHA="HEAD~1"
-    fi
-  fi
+# ---------- 配置（conf 文件 + 环境变量覆盖） ----------
+SRC_GLOB="src/ lib/ packages/ core/ engine/ app/"
+BEHAVIOR_GLOB="data/ cli/"
+TEST_GLOB=""; MAP_FILE=""
+SKIP_EXTRA="docs/,README.md,.md,poc/,examples/,.github/,CHANGELOG.md"
+CACHE_DIR="${CA_CACHE_DIR:-${HH_TEST_CACHE_DIR:-${REPO_ROOT}/.testcache}}"
+PY_CMD="${CA_PY_CMD:-python3}"; NODE_CMD="${CA_NODE_CMD:-node}"; BASH_CMD="${CA_BASH_CMD:-bash}"
 
-  SELECTED_TESTS=$(python3 - "$BASE_SHA" << 'PY'
-import os, re, subprocess, sys
+if [ -n "$CONF_FILE" ] && [ -f "$CONF_FILE" ]; then
+  while IFS= read -r line; do
+    line="${line%%#*}"; [ -z "${line// }" ] && continue
+    k="${line%%=*}"; v="${line#*=}"; v="${v%\"}"; v="${v#\"}"
+    case "$k" in
+      CA_SRC_GLOB) SRC_GLOB="$v" ;; CA_BEHAVIOR_GLOB) BEHAVIOR_GLOB="$v" ;;
+      CA_TEST_GLOB) TEST_GLOB="$v" ;;
+      CA_MAP_FILE) MAP_FILE="$v" ;; CA_SKIP_EXTRA) SKIP_EXTRA="$v" ;;
+      CA_CACHE_DIR) CACHE_DIR="$v" ;;
+      CA_PY_CMD) PY_CMD="$v" ;; CA_NODE_CMD) NODE_CMD="$v" ;; CA_BASH_CMD) BASH_CMD="$v" ;;
+    esac
+  done < "$CONF_FILE"
+fi
+[ -n "${CA_SRC_GLOB:-}" ] && SRC_GLOB="$CA_SRC_GLOB"
+[ -n "${CA_BEHAVIOR_GLOB:-}" ] && BEHAVIOR_GLOB="$CA_BEHAVIOR_GLOB"
+[ -n "${CA_TEST_GLOB:-}" ] && TEST_GLOB="$CA_TEST_GLOB"
+[ -n "${CA_MAP_FILE:-}" ] && MAP_FILE="$CA_MAP_FILE"
+[ -n "${CA_CACHE_DIR:-}" ] && CACHE_DIR="$CA_CACHE_DIR"
 
-repo = os.getcwd()
-base_sha = sys.argv[1] if len(sys.argv) > 1 else ""
-
-# ---- 变更文件收集 ----
-def git(*args):
-    return subprocess.run(["git"] + list(args), capture_output=True,
-                          text=True, cwd=repo).stdout.strip()
-
-changed = []
-if base_sha:
-    try:
-        changed = git("diff", "--name-only", f"{base_sha}...HEAD").split("\n")
-    except Exception:
-        changed = []
-ws = git("diff", "--name-only").split("\n")  # 工作区未提交变更
-changed = [c for c in (changed + ws) if c]
-changed = list(dict.fromkeys(changed))  # 去重保序
-
-if not changed:
-    print("__ALL__")
-    sys.exit(0)
-
-# ---- 模块 → 测试文件映射（路径前缀 → 该变更触发的测试） ----
-# engine 核心改动波及面大 → 引擎全量回归；外围改动只跑自身域。
-MAP = [
-    ("src/hanghang/engine/router.py", [
-        "tests/test_router.py", "tests/test_data_driven.py",
-        "tests/test_industry_expansion.py", "tests/test_industry_expansion_v2.py",
-        "tests/test_dongjiagoushi_routing.py", "tests/test_state_manager.py",
-        "tests/test_state_tree.py", "tests/test_web.py",
-    ]),
-    ("src/hanghang/engine/registry.py", [
-        "tests/test_registry.py", "tests/test_router.py",
-        "tests/test_data_driven.py", "tests/test_industry_expansion.py",
-        "tests/test_industry_expansion_v2.py", "tests/test_dongjiagoushi_routing.py",
-        "tests/test_state_tree.py",
-    ]),
-    ("src/hanghang/engine/models.py", [
-        "tests/test_registry.py", "tests/test_router.py",
-        "tests/test_data_driven.py", "tests/test_handoff.py",
-        "tests/test_industry_expansion.py", "tests/test_industry_expansion_v2.py",
-    ]),
-    ("src/hanghang/engine/handoff.py", [
-        "tests/test_handoff.py", "tests/test_data_driven.py",
-        "tests/test_state_tree.py", "tests/test_batch_persist.py",
-        "tests/test_web.py",
-    ]),
-    ("src/hanghang/engine/metrics.py", [
-        "tests/test_web.py",        # Web /api/metrics、GET/POST 幂等、并发
-        "tests/test_state_cli_e2e.py",  # CLI cmd_route/cmd_metrics 也调用 MetricsCollector
-    ]),
-    ("src/hanghang/engine/prefix.py", [
-        "tests/test_registry.py", "tests/test_dongjiagoushi_routing.py",
-        "tests/test_web.py",
-    ]),
-    # M9 状态管理层
-    ("src/hanghang/state/", [
-        "tests/test_state_manager.py", "tests/test_state_tree.py",
-        "tests/test_batch_persist.py", "tests/test_state_cli_e2e.py",
-        "tests/test_web.py",
-    ]),
-    # M10 上下文装配器
-    ("src/hanghang/context/", ["tests/test_context_m10.py"]),
-    # 评审基础设施
-    ("src/hanghang/review/", ["tests/test_review.py"]),
-    # Web 可视化面板
-    ("src/hanghang/web/", ["tests/test_web.py"]),
-    # CLI
-    ("src/hanghang/cli/", [
-        "tests/test_state_cli_e2e.py", "tests/test_state_manager.py",
-        "tests/test_web.py",
-    ]),
-    # 数据文件
-    ("data/industry-register.yaml", [
-        "tests/test_data_driven.py", "tests/test_router.py",
-        "tests/test_industry_expansion.py", "tests/test_industry_expansion_v2.py",
-        "tests/test_registry.py", "tests/test_dongjiagoushi_routing.py",
-        "tests/test_state_tree.py",
-    ]),
-    ("data/unit-index.yaml", [
-        "tests/test_industry_expansion.py", "tests/test_industry_expansion_v2.py",
-        "tests/test_data_driven.py",
-    ]),
-    ("data/context-rules.yaml", ["tests/test_context_m10.py"]),
-    ("data/prefix-archive.json", ["tests/test_registry.py", "tests/test_dongjiagoushi_routing.py"]),
-    ("cli/units.yaml", [
-        "tests/test_data_driven.py", "tests/test_router.py",
-        "tests/test_industry_expansion.py", "tests/test_industry_expansion_v2.py",
-        "tests/test_dongjiagoushi_routing.py",
-    ]),
-]
-
-# 纯文档/注释变更集合（不触发行为回归，避免改个注释就全量跑）
-DOC_ONLY_PATTERNS = [
-    "docs/", "README.md", ".md", "poc/",
-]
-
-def is_doc_only(changed_files):
-    """判断变更是否全部为纯文档类（不涉及行为）。"""
-    if not changed_files:
-        return False
-    for f in changed_files:
-        f = f.strip()
-        if not f:
-            continue
-        matched_doc = any(p in f for p in DOC_ONLY_PATTERNS)
-        if not matched_doc:
-            return False
-    return True
-
-# ---- 匹配 ----
-selected = []
-seen = set()
-for f in changed:
-    f = f.strip()
-    if not f:
-        continue
-    # 测试文件自身变更 → 跑自身
-    if f.startswith("tests/test_") and f.endswith(".py"):
-        if f not in seen:
-            seen.add(f)
-            selected.append(f)
-        continue
-    for pat, tests in MAP:
-        if pat in f:
-            for t in tests:
-                if t not in seen:
-                    seen.add(t)
-                    selected.append(t)
-
-# 根级工程文件变更 → 兜底引擎回归
-root_files = [".cnb.yml", "requirements.txt", "setup.py", "cli/route",
-              "src/hanghang/__init__.py"]
-for f in changed:
-    if f.strip() in root_files:
-        for t in ["tests/test_router.py", "tests/test_registry.py",
-                  "tests/test_handoff.py", "tests/test_data_driven.py"]:
-            if t not in seen:
-                seen.add(t)
-                selected.append(t)
-
-if is_doc_only(changed):
-    # 纯文档变更：不触发任何行为测试
-    print("__NONE__")
-elif not selected:
-    # 未知代码/数据变更：无法判断影响面 → 全量兜底
-    print("__ALL__")
-else:
-    for t in selected:
-        print(t)
-PY
-)
+if [ "$PURGE_CACHE" = "true" ]; then
+  echo "==== [ca-test] 清空结果缓存: $CACHE_DIR ===="
+  rm -rf "$CACHE_DIR"
 fi
 
-if [ "$SELECTED_TESTS" = "__ALL__" ]; then
-  echo "  模式: 全量（无法确定变更范围 / 根级变更 / 未知代码变更）"
-  SELECTED_TESTS=$(ls tests/test_*.py 2>/dev/null)
-elif [ "$SELECTED_TESTS" = "__NONE__" ]; then
-  echo "  模式: 纯文档变更，跳过行为测试（跑轻量 CLI 冒烟即可）"
-  SELECTED_TESTS=""
-else
-  echo "  模式: 变更感知"
+# ---------- 探测基线 ----------
+if [ "$FORCE_ALL" != "true" ] && [ -z "$BASE_SHA" ]; then
+  if [ -n "${CNB_PULL_REQUEST_TARGET_SHA:-}" ]; then BASE_SHA="$CNB_PULL_REQUEST_TARGET_SHA"
+  elif [ -n "${CNB_COMMIT:-}" ] && git rev-parse --verify HEAD~1 >/dev/null 2>&1; then BASE_SHA="HEAD~1"
+  else for b in origin/main main HEAD~1; do git rev-parse --verify "$b" >/dev/null 2>&1 && { BASE_SHA="$b"; break; }; done; fi
 fi
 
-echo "  将运行的测试文件($(echo "$SELECTED_TESTS" | grep -c . )):"
-for t in $SELECTED_TESTS; do
-  echo "    python3 $t"
-done
+MODE_LABEL="变更感知"
+if [ "$FORCE_ALL" = "true" ]; then MODE_LABEL="强制全量"; fi
+echo "==== [ca-test] $MODE_LABEL 模式（基线: ${BASE_SHA:-<全部>}） ===="
 
-# ---- 执行（--dry-run 只打印） ----
-if [ "$DRY_RUN" = "true" ]; then
+# ---------- 依赖解析内核是否同目录可用 ----------
+PLANNER="$ME_DIR/ca-plan.py"
+if [ ! -f "$PLANNER" ] && [ -f "$REPO_ROOT/scripts/ca-plan.py" ]; then PLANNER="$REPO_ROOT/scripts/ca-plan.py"; fi
+if [ ! -f "$PLANNER" ]; then
+  echo "!! 未找到 ca-plan.py（需与脚本同目录或 scripts/ 下）。中止。" >&2; exit 2
+fi
+
+# ---------- 调用内核生成执行计划 ----------
+# 用 bash 数组承载参数：SRC_GLOB / TEST_GLOB 等多值(空格分隔)需整体作为单参传递，
+# 避免 `$PLAN_ARGS` 词法展开把多根拆散（修复 v4 通用化复制到他仓时多源码根失效的问题）。
+plan_args=()
+[ "$FORCE_ALL" = "true" ] && plan_args+=( --all )
+[ "$NO_CACHE" = "true" ] && plan_args+=( --no-cache )
+[ -n "$BASE_SHA" ] && plan_args+=( "--base=$BASE_SHA" )
+[ -n "$SRC_GLOB" ] && plan_args+=( "--src=$SRC_GLOB" )
+[ -n "$BEHAVIOR_GLOB" ] && plan_args+=( "--behavior=$BEHAVIOR_GLOB" )
+[ -n "$TEST_GLOB" ] && plan_args+=( "--testglob=$TEST_GLOB" )
+[ -n "$MAP_FILE" ] && plan_args+=( "--map=$MAP_FILE" )
+[ -n "$SKIP_EXTRA" ] && plan_args+=( "--skip=$SKIP_EXTRA" )
+[ -n "$CACHE_DIR" ] && plan_args+=( "--cachedir=$CACHE_DIR" )
+
+PLAN_JSON="$("$PY_CMD" "$PLANNER" "${plan_args[@]}" 2>/tmp/ca-plan.log)"
+PLAN_EXIT=$?
+cat /tmp/ca-plan.log >&2 || true
+
+if [ "$PLAN_EXIT" != "0" ]; then
+  echo "!! ca-plan.py 出错（exit $PLAN_EXIT），中止。" >&2
+  exit "$PLAN_EXIT"
+fi
+if [ "$PLAN_JSON" = "[]" ]; then
+  echo "== 本次为纯文档/非触发变更，或无需行为测试，直接通过。=="
   exit 0
 fi
 
-pip install -q -r requirements.txt 2>/dev/null || true
+# 把 JSON 计划落盘供执行与回写阶段使用
+printf '%s' "$PLAN_JSON" > .ca-plan.json
+RUN_FILES=$(printf '%s' "$PLAN_JSON" | "$PY_CMD" -c "import sys,json;print('\n'.join(x[0] for x in json.load(sys.stdin) if x[1]=='run'))")
+[ -f .ca-plan.json ] && rm -f .ca-plan.json
 
+if [ -z "$RUN_FILES" ]; then
+  echo "== 命中缓存：本批无需要实跑的测试，沿用上次全部 PASS。=="
+  exit 0
+fi
+
+# ---------- dry-run 只打印 ----------
+if [ "$DRY_RUN" = "true" ]; then
+  echo "将运行的测试批次:"
+  for t in $RUN_FILES; do echo "    $t"; done
+  exit 0
+fi
+
+# ---------- 公交攒批执行 ----------
 echo ""
-FAILED=0
-for t in $SELECTED_TESTS; do
-  if [ ! -f "$t" ]; then
-    echo "  ⚠️ 跳过不存在: $t"
-    continue
-  fi
+echo "==== [ca-test] 公交攒批执行（一次构建、一批测试、一个退出码） ===="
+echo "  缓存目录: $CACHE_DIR"
+FAILED=0; PASSED=""; N=0
+for t in $RUN_FILES; do
+  [ -f "$t" ] || { echo "  ! 跳过不存在: $t"; continue; }
+  case "$t" in
+    *.py)  CMD="$PY_CMD" ;;
+    *.sh|*.bash) CMD="$BASH_CMD" ;;
+    *)     CMD="$NODE_CMD" ;;
+  esac
+  N=$((N+1))
   echo ""
-  echo "==== 运行测试: python3 $t ===="
-  if python3 "$t"; then
-    echo "  ✅ $t 通过"
-  else
-    echo "  ❌ $t 失败"
-    FAILED=1
-  fi
+  echo "  [$N] $CMD $t"
+  if "$CMD" "$t"; then echo "  ✅ 通过: $t"; PASSED="$PASSED $t"
+  else echo "  ❌ 失败: $t"; FAILED=1; fi
 done
+
+# ---------- 回写缓存（记录 PASS 指纹，供下次无变动跳过） ----------
+if [ "$FAILED" = "0" ] && [ -n "$PASSED" ]; then
+  "$PY_CMD" "$PLANNER" --writecache --cachedir="$CACHE_DIR" --files="$PASSED" >/dev/null 2>&1 \
+    || echo "  ! 缓存回写失败（不影响结果）"
+fi
 
 echo ""
 if [ "$FAILED" = "0" ]; then
-  echo "==== [change-aware] 所有选定测试通过 ===="
+  echo "==== [ca-test] 本批全部通过（实跑 $N 个） ===="
 else
-  echo "==== [change-aware] 存在失败测试 ===="
+  echo "==== [ca-test] 本批存在失败（$N 个中） ===="
 fi
-exit $FAILED
+exit "$FAILED"

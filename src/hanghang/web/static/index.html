@@ -67,6 +67,13 @@ th { background: #f8fafc; font-weight: 600; color: #374151; }
 .badge-yellow { background: #fef3c7; color: #92400e; }
 .badge-red { background: #fee2e2; color: #991b1b; }
 .badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-gray { background: #e5e7eb; color: #374151; }
+.btn-mini { margin-left: 10px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px;
+          background: var(--bg); color: var(--primary); font-size: 11px; padding: 1px 8px; }
+.resume-box { border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px;
+              background: #f8fafc; }
+.resume-box .kv { margin: 2px 0; }
+
 .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
 .tab { padding: 8px 16px; cursor: pointer; font-size: 14px; color: var(--muted);
        border-bottom: 2px solid transparent; margin-bottom: -2px; }
@@ -99,6 +106,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px
     <div class="tab" data-tab="metrics">运行指标</div>
     <div class="tab" data-tab="prefixes">前缀档案</div>
     <div class="tab" data-tab="handoffs">交接卡</div>
+    <div class="tab" data-tab="state">任务进度</div>
   </div>
 
   <!-- Tab 1: 路由测试 -->
@@ -174,6 +182,15 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px
     </div>
   </div>
 
+  <!-- Tab 8: 任务进度 -->
+  <div class="tab-content" id="tab-state">
+    <div class="section">
+      <h2>编排任务进度 <span>M9 · 路由/交接自动落卡</span></h2>
+      <div id="state-stats"></div>
+      <div id="state-content"></div>
+    </div>
+  </div>
+
   <footer>行行出状元 · hanghangchuzhuangyuan · 通用能力层控制台</footer>
 </div>
 
@@ -208,6 +225,7 @@ document.querySelectorAll(".tab").forEach(t => {
     const loaders = {
       "units": loadUnits, "search": () => {}, "index": loadIndex,
       "metrics": loadMetrics, "prefixes": loadPrefixes, "handoffs": loadHandoffs,
+      "state": loadState,
     };
     const fn = loaders[t.dataset.tab];
     if (fn) fn();
@@ -439,6 +457,105 @@ async function loadHandoffs() {
     box.innerHTML = html + "</tbody></table>";
   } catch (e) {
     box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- 编排任务进度(M9) ----------
+function taskStateBadge(st) {
+  if (st === "done") return '<span class="badge badge-green">done</span>';
+  if (st === "in_progress" || st === "running") return '<span class="badge badge-blue">进行中</span>';
+  if (st === "blocked") return '<span class="badge badge-red">blocked</span>';
+  if (st === "failed") return '<span class="badge badge-red">failed</span>';
+  if (st === "cancelled") return '<span class="badge badge-gray">cancelled</span>';
+  return '<span class="badge badge-gray">todo</span>';
+}
+
+async function loadState() {
+  const box = document.getElementById("state-content");
+  const stBox = document.getElementById("state-stats");
+  box.innerHTML = '<div class="loading">加载中...</div>';
+  stBox.innerHTML = "";
+  try {
+    const d = await api("/api/state");
+    const st = d.stats || {};
+    // 顶部进度统计卡
+    stBox.innerHTML = `<div class="route-result">
+      <b>StateCard ${st.total_cards || 0} 张</b>（路由 ${st.route_cards || 0} / 交接 ${st.handoff_cards || 0}） ·
+      任务 ${st.total_tasks || 0} 项 · 待办 ${st.todo_tasks || 0} · 已完成 ${st.done_tasks || 0} ·
+      进行中 ${st.in_progress_tasks || 0} · 阻塞 ${st.blocked_tasks || 0} ·
+      失败 ${st.failed_tasks || 0} · 取消 ${st.cancelled_tasks || 0}
+    </div>`;
+    if ((st.total_cards || 0) === 0) {
+      box.innerHTML = '<div class="route-result">暂无编排/交接任务记录。触发一次路由或交接后自动落卡，即可在此看到进度。</div>';
+      return;
+    }
+    let html = "";
+    for (const c of d.cards) {
+      const kindBadge = c.kind === "route"
+        ? '<span class="badge badge-blue">路由</span>'
+        : c.kind === "handoff" ? '<span class="badge badge-yellow">交接</span>'
+                               : '<span class="badge badge-gray">其他</span>';
+      const donePct = c.task_count ? Math.round((c.done_count / c.task_count) * 100) : 0;
+      html += `<div class="unit-card">
+        <h3>${kindBadge} ${escapeHtml(c.objective || "(无目标)")}
+          <span style="font-size:12px;color:var(--muted)">[${escapeHtml(c.unit_id || "-")} / ${escapeHtml(c.role_name || "-")}]</span></h3>
+        <div class="meta">会话: ${escapeHtml(c.session_id)} · 进度 ${donePct}%（${c.done_count}/${c.task_count}）</div>
+        <div class="meta" style="margin-bottom:6px">${escapeHtml(c.created_at || "")}
+          <button class="btn-mini" onclick="loadSessionResume('${encodeURIComponent(c.session_id)}', this)">续传锚点</button></div>
+        <div class="resume-box" style="display:none;margin-bottom:8px"></div>`;
+      if (c.tasks && c.tasks.length) {
+        html += `<table><thead><tr><th>任务</th><th>状态</th><th>摘要</th></tr></thead><tbody>`;
+        for (const tk of c.tasks) {
+          html += `<tr><td>${escapeHtml(tk.title || "")}</td>
+                   <td>${taskStateBadge(tk.state)}</td>
+                   <td>${escapeHtml(tk.summary || tk.title || "")}</td></tr>`;
+        }
+        html += "</tbody></table>";
+      }
+      html += "</div>";
+    }
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function loadSessionResume(sidEnc, btn) {
+  // OCI-review#3：decodeURIComponent 置于 try-catch 内，非法编码时不抛未捕获异常
+  let sid;
+  try { sid = decodeURIComponent(sidEnc); }
+  catch (e) { sid = sidEnc; }
+  const host = btn.closest(".unit-card").querySelector(".resume-box");
+  if (host.style.display !== "none") { host.style.display = "none"; btn.textContent = "续传锚点"; return; }
+  host.style.display = "block";
+  host.innerHTML = '<div class="loading">拉取中...</div>';
+  try {
+    const d = await api("/api/session?id=" + encodeURIComponent(sid));
+    const rs = d.resume || {};
+    const stMap = { delivered: '<span class="badge badge-green">delivered</span>',
+                    in_progress: '<span class="badge badge-blue">进行中</span>',
+                    blocked: '<span class="badge badge-red">blocked</span>',
+                    failed: '<span class="badge badge-red">failed</span>',
+                    needs_attention: '<span class="badge badge-yellow">需关注</span>',
+                    cancelled: '<span class="badge badge-gray">cancelled</span>',
+                    empty: '<span class="badge badge-gray">empty</span>' };
+    let h = `<div class="kv"><b>会话状态</b> ${stMap[rs.status] || escapeHtml(rs.status)} ·
+              未完结 ${rs.open_task_count || 0} 项</div>
+            <div class="kv"><b>续传锚点 resume_key</b> <code>${escapeHtml(rs.resume_key || "-")}</code></div>`;
+    if (d.handoff_link && d.handoff_link.status !== "no_handoff_record") {
+      h += `<div class="kv"><b>交接</b> ${escapeHtml(d.handoff_link.source_unit||"")} → ${escapeHtml(d.handoff_link.target_unit||"")}
+              · 状态 ${escapeHtml(d.handoff_link.status||"-")}</div>`;
+    }
+    const pend = rs.pending || [];
+    if (pend.length) {
+      h += `<div class="kv"><b>待续传任务</b></div><table><thead><tr><th>任务</th><th>状态</th></tr></thead><tbody>`;
+      for (const tk of pend) h += `<tr><td>${escapeHtml(tk.title||"")}</td><td>${taskStateBadge(tk.state)}</td></tr>`;
+      h += "</tbody></table>";
+    }
+    btn.textContent = "收起";
+    host.innerHTML = h;
+  } catch (e) {
+    host.innerHTML = `<div class="error-box">拉取失败: ${escapeHtml(e.message)}</div>`;
   }
 }
 

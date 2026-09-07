@@ -696,3 +696,380 @@ units:
     - 新闻稿
     - 危机公关
     - 发布会
+- unit_id: education-training
+  repo_ref: ''
+  industry: 教育培训
+  industry_alias:
+  - 教育培训
+  - 培训
+  - 教育
+  - 教学
+  - 课程
+  - 学习
+  - 辅导
+  - 家教
+  - 留学
+  - 在线教育
+  - 职业教育
+  - 成人教育
+  - K12
+  - 语言培训
+  - 技能培训
+  - 教师资格
+  - 教师培训
+  capability_tags:
+  - 课程设计
+  - 教学方案
+  - 培训方案
+  - 学习规划
+  - 辅导答疑
+  - 在线课程
+  - 教学设计
+  - 备课教案
+  register_version: '1.0'
+  roles:
+  - name: curriculum_designer
+    prefix: '[课程设计]'
+    handoff: relay
+    composite: true
+    description: 课程设计 教学大纲 培训体系
+    keywords:
+    - 课程设计
+    - 课程规划
+    - 课程体系
+    - 培训方案
+    - 培训课程
+    - 教学大纲
+    - 课程大纲
+    - 教案设计
+    - 教学设计
+    - 课程研发
+    - 培训体系
+    - 课程安排
+    - 备课
+    - 做课件
+    - 设计课件
+    - 教案
+    - 课件
+    - 培训内容
+    - 课程内容
+    - 备一节
+    - 备一堂课
+    - 做讲义
+  - name: teacher
+    prefix: '[讲师]'
+    handoff: relay
+    composite: true
+    description: 授课 教学 讲解 辅导
+    keywords:
+    - 讲课
+    - 授课
+    - 教学
+    - 辅导
+    - 带课
+    - 教书
+    - 上课
+    - 讲解
+    - 一对一教学
+    - 英语教学
+    - 数学教学
+    - 物理教学
+    - 化学教学
+    - 教师
+    - 老师
+    - 讲师
+    - 培训师
+    - 家教
+    - 辅导老师
+    - 教学辅导
+    - 数学课
+    - 英语课
+    - 语文课
+    - 科学课
+  - name: learning_advisor
+    prefix: '[学习规划]'
+    handoff: relay
+    composite: true
+    description: 学习规划 学习方案 学业规划
+    keywords:
+    - 学习规划
+    - 学习计划
+    - 学业规划
+    - 选课建议
+    - 学习方法
+    - 学什么
+    - 学习路线
+    - 英语学习
+    - 学习方案
+    - 备考计划
+    - 学习建议
+    - 留学规划
+    - 留学方案
+    - 报班
+    - 报名课程
+    - 报课
+    - 学英语
+    - 学法语
+    - 学日语
+    - 学Python
+    - 学编程
+    - 学Java
+    - 学前端
+    - 报英语班
+    - 报个班
+    - 编程课
+    - Java课
+    - Python课
+    - 报个培训班
+    - 报个辅导班
+    - 编程培训
+    - 编程学习
+    - 编程教学
+    - 编程课程
+    - 学编程课
+    - 学编程语言
+    - Java培训
+    - Python培训
+    - 前端培训
+    - 大数据培训
+    - AI培训
+    - 算法培训
+    - 英语培训课程
+    - 语言培训
+- unit_id: healthcare
+  repo_ref: ''
+  industry: 健康医疗
+  industry_alias:
+  - 医疗
+  - 医院
+  - 就医
+  - 看病
+  - 就诊
+  - 健康
+  - 保健
+  - 体检
+  - 医疗咨询
+  - 心理健康
+  - 心理咨询
+  - 中医
+  - 挂号
+  - 康复
+  - 理疗
+  - 养生
+  capability_tags:
+  - 在线问诊
+  - 健康管理
+  - 心理咨询
+  - 体检解读
+  - 康复指导
+  - 营养咨询
+  - 中医养生
+  - 健身规划
+  register_version: '1.0'
+  roles:
+  - name: health_consultant
+    prefix: '[健康顾问]'
+    handoff: relay
+    composite: true
+    description: 健康咨询 健康管理 体检报告解读
+    keywords:
+    - 健康咨询
+    - 健康管理
+    - 体检报告
+    - 体检解读
+    - 健康顾问
+    - 健康建议
+    - 养生建议
+    - 保健方案
+    - 亚健康
+    - 健康计划
+    - 营养搭配
+    - 营养餐
+    - 减肥
+    - 减脂
+    - 增肌
+    - 养生
+    - 食疗
+  - name: psychologist
+    prefix: '[心理]'
+    handoff: relay
+    composite: true
+    description: 心理咨询 情绪疏导 压力管理
+    keywords:
+    - 心理咨询
+    - 心理辅导
+    - 情绪疏导
+    - 压力管理
+    - 焦虑
+    - 抑郁
+    - 失眠
+    - 心理评估
+    - 心理治疗
+    - 心理医生
+    - 咨询师
+    - 心理调节
+    - 心态调整
+    - 心理测评
+    - 解压
+  - name: medical_advisor
+    prefix: '[医疗顾问]'
+    handoff: relay
+    composite: true
+    description: 在线问诊 就医建议 用药咨询
+    keywords:
+    - 在线问诊
+    - 就医建议
+    - 挂号
+    - 预约就诊
+    - 看病
+    - 就诊
+    - 症状咨询
+    - 医疗建议
+    - 用药咨询
+    - 复诊
+    - 首诊
+    - 看医生
+    - 去哪个科室
+    - 医院推荐
+  - name: fitness_coach
+    prefix: '[健身教练]'
+    handoff: relay
+    composite: true
+    description: 健身计划 运动方案 训练指导
+    keywords:
+    - 健身计划
+    - 健身方案
+    - 训练计划
+    - 运动方案
+    - 跑步计划
+    - 力量训练
+    - 有氧运动
+    - 私教
+    - 健身教练
+    - 练瑜伽
+    - 瑜伽
+    - 普拉提
+    - 动作指导
+    - 训练指导
+    - 体态矫正
+    - 康复训练
+- unit_id: home-design
+  repo_ref: ''
+  industry: 家装设计
+  industry_alias:
+  - 装修
+  - 家装
+  - 室内设计
+  - 装饰
+  - 家居设计
+  - 装潢
+  - 全屋定制
+  - 软装
+  - 硬装
+  - 房屋装修
+  - 新房装修
+  - 老房翻新
+  - 局部改造
+  capability_tags:
+  - 室内设计
+  - 户型设计
+  - 装修方案
+  - 软装搭配
+  - 施工管理
+  - 全屋定制
+  - 效果图
+  - 预算报价
+  register_version: '1.0'
+  roles:
+  - name: interior_designer
+    prefix: '[室内设计]'
+    handoff: relay
+    composite: true
+    description: 室内设计 户型方案 装修设计 效果图
+    keywords:
+    - 室内设计
+    - 室内装修设计
+    - 户型设计
+    - 空间设计
+    - 装修设计
+    - 家装设计
+    - 设计客厅
+    - 设计卧室
+    - 设计厨房
+    - 设计卫生间
+    - 设计书房
+    - 效果图设计
+    - 装修效果图
+    - 设计方案
+    - 家装方案
+    - 装修方案
+    - 改户型
+    - 户型改造
+    - 全屋设计
+    - 家居设计方案
+    - 简约风
+    - 现代风
+    - 客厅设计
+    - 客厅布局
+    - 卧室设计
+    - 卧室装修
+    - 厨房设计
+    - 厨房装修
+    - 书房设计
+    - 书房装修
+    - 室内方案
+    - 新房子
+    - 房屋设计
+    - 空间规划
+    - 空间利用
+    - 室内装修
+  - name: soft_furnish
+    prefix: '[软装]'
+    handoff: relay
+    composite: true
+    description: 软装搭配 家具选购 色彩搭配 灯光布置
+    keywords:
+    - 软装设计
+    - 软装搭配
+    - 家具搭配
+    - 家具选购
+    - 窗帘搭配
+    - 色彩搭配
+    - 色彩方案
+    - 家居配色
+    - 灯光设计
+    - 灯具选择
+    - 挂画
+    - 地毯选择
+    - 装饰画
+    - 装饰品搭配
+    - 家居布置
+    - 布置客厅
+    - 布置卧室
+    - 搭配家具
+    - 客厅布置
+    - 软装布置
+    - 家居搭配方案
+  - name: project_manager
+    prefix: '[装修经理]'
+    handoff: relay
+    composite: true
+    description: 施工管理 装修监理 装修预算
+    keywords:
+    - 装修施工
+    - 施工管理
+    - 装修监理
+    - 装修预算
+    - 装修报价
+    - 预算报价
+    - 材料清单
+    - 选材建议
+    - 装修公司
+    - 装修合同
+    - 找装修
+    - 工期安排
+    - 装修流程
+    - 施工进度
+    - 验收新房
+    - 装修公司推荐
+    - 装修报价方案
