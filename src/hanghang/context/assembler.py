@@ -16,6 +16,7 @@ import hashlib
 from typing import Dict, List, Optional, Any, Callable
 
 from .rules import RuleEngine, ContextRule
+from .slib_guard import SLIBAssemblyGuard, SLIBBoundMismatch
 
 
 # 分层标记
@@ -46,6 +47,7 @@ class ContextAssembler:
         static_prefix_provider: Optional[Callable] = None,
         state_card_provider: Optional[Callable] = None,
         source_providers: Optional[Dict[str, Callable]] = None,
+        slib_guard: Optional[SLIBAssemblyGuard] = None,
     ):
         """
         Args:
@@ -60,6 +62,7 @@ class ContextAssembler:
         self.static_prefix_provider = static_prefix_provider
         self.state_card_provider = state_card_provider
         self.source_providers = source_providers or {}
+        self.slib_guard = slib_guard or SLIBAssemblyGuard()
 
     # ---- 三层拼装 ----
 
@@ -146,6 +149,44 @@ class ContextAssembler:
                 "C": len(layer_c.encode("utf-8")) if layer_c else 0,
             },
         }
+
+    def assemble_bound(
+        self,
+        session_id: str,
+        role_name: str = "secretary",
+        unit_id: str = "",
+        industry: str = "",
+        user_text: str = "",
+        static_prefix: Optional[str] = None,
+        state_card: Any = None,
+        objective: str = "",
+        auto_bind: bool = True,
+    ) -> Dict[str, Any]:
+        """SLIB 会话级装配：在"被锁定行业"内执行三层装配。
+
+        在调用 assemble 之前先用 SLIB 装配守卫把 unit_id 与会话绑定对齐：
+          - 会话已绑定行业 X：若请求装配 unit_id != X → 抛 SLIBBoundMismatch；
+          - 会话未绑定：按 auto_bind 将首装行业写入绑定后放行；
+          - 无 session_id：退化为普通 assemble（静态单发）。
+
+        由此保证一次会话调用只装配"被锁定行业"的上下文，杜绝跨/全量注入。
+        """
+        resolved_unit = self.slib_guard.resolve_unit(
+            session_id=session_id,
+            unit_id=unit_id,
+            industry=industry,
+            role_name=role_name,
+            auto_bind=auto_bind,
+        )
+        return self.assemble(
+            session_id=session_id,
+            role_name=role_name,
+            unit_id=resolved_unit,
+            user_text=user_text,
+            static_prefix=static_prefix,
+            state_card=state_card,
+            objective=objective,
+        )
 
     def _build_layer_a(
         self,
@@ -252,11 +293,16 @@ class ContextAssembler:
 # 便捷函数：快速构造默认装配器
 def default_assembler(
     rules_file: Optional[str] = None,
+    slib_guard: Optional["SLIBAssemblyGuard"] = None,
     **source_providers,
 ) -> ContextAssembler:
-    """构造带默认规则引擎和自定义数据源 provider 的装配器"""
+    """构造带默认规则引擎和自定义数据源 provider 的装配器
+
+    slib_guard: 可选 SLIB 装配守卫实例（用于测试注入自定义 binding_store）
+    """
     rule_engine = RuleEngine(rules_file) if rules_file else RuleEngine()
     return ContextAssembler(
         rule_engine=rule_engine,
         source_providers=source_providers,
+        slib_guard=slib_guard,
     )
