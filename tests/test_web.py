@@ -702,6 +702,85 @@ class TestWebAPI:
             assert "unit-c" in summary2["unit_hits"]
             assert "role-3" in summary2["role_hits"]
 
+    # ---- 评审非阻塞改进建议（approved 轮 4 条可选建议的落地）----
+    def test_non_loopback_binding_warning(self):
+        """建议①：_is_loopback 判断正确（回环/非回环地址区分）。"""
+        from hanghang.web.server import _is_loopback
+        assert _is_loopback("127.0.0.1") is True
+        assert _is_loopback("localhost") is True
+        assert _is_loopback("::1") is True
+        assert _is_loopback("0.0.0.0") is False
+        assert _is_loopback("192.168.1.1") is False
+        assert _is_loopback("") is True
+
+    def test_serve_forever_has_loopback_warning_code(self):
+        """建议①：源码中包含非回环绑定告警横幅逻辑。"""
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            src = f.read()
+        assert "_is_loopback" in src, "应定义 _is_loopback 辅助函数"
+        assert "安全告警" in src, "应包含安全告警横幅文案"
+        assert "认证" in src, "告警应提示置于认证/网关之后"
+
+    def test_post_content_type_validation(self):
+        """建议②：POST /api/route 对明确非 JSON 的 Content-Type 应返回 415。
+
+        宽松校验：仅当 Content-Type 明确声明为 application/xml 等非 JSON
+        类型时拒绝；缺失 Content-Type 的 curl 请求应保持兼容。
+        """
+        import http.client
+
+        # 情况A：声明 application/xml → 应 415
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            body = json.dumps({"text": "帮我做个网站"}).encode("utf-8")
+            conn.request("POST", "/api/route", body=body,
+                         headers={"Content-Type": "application/xml"})
+            resp = conn.getresponse()
+            assert resp.status == 415, f"预期 415，实际 {resp.status}"
+            data = json.loads(resp.read().decode("utf-8"))
+            assert "Content-Type" in data.get("error", "")
+        finally:
+            conn.close()
+
+        # 情况B：缺失 Content-Type（curl 默认无）→ 应正常 200
+        conn2 = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            body = json.dumps({"text": "帮我做个网站"}).encode("utf-8")
+            conn2.request("POST", "/api/route", body=body)
+            resp2 = conn2.getresponse()
+            assert resp2.status == 200, f"无 Content-Type 应 200，实际 {resp2.status}"
+            resp2.read()
+        finally:
+            conn2.close()
+
+    def test_manual_route_role_hits_semantics_documented(self):
+        """建议③：CLI/Web 中 manual 分支统计 role_hits 的口径已在注释中标注。"""
+        # CLI main.py
+        cli_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/cli/main.py")
+        with open(cli_py, encoding="utf-8") as f:
+            cli_src = f.read()
+        assert "manual(人工确认)" in cli_src or "人工确认" in cli_src, \
+            "CLI cmd_route 注释应标注 manual 分支岗位统计语义"
+        assert "role_hits" in cli_src, "CLI 注释应提及 role_hits 统计"
+
+        # README 指标口径说明
+        readme = os.path.join(
+            os.path.dirname(__file__), "../README.md")
+        with open(readme, encoding="utf-8") as f:
+            readme_src = f.read()
+        assert "指标口径说明" in readme_src, "README 应包含指标口径说明"
+
+        # server.py
+        server_py = os.path.join(
+            os.path.dirname(__file__), "../src/hanghang/web/server.py")
+        with open(server_py, encoding="utf-8") as f:
+            server_src = f.read()
+        assert "manual(人工确认)分支" in server_src or "人工确认" in server_src, \
+            "server.py 注释应标注 manual 分支岗位统计语义"
+
 
 def run_tests():
     t = TestWebAPI()

@@ -283,6 +283,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
             # 岗位维度取 result.roles（路由结果恒有 roles 字段）：
             # plan 仅在 composite/handoff_required 分支含 roles，direct 分支仅含单 role
             # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
+            # ⚠️ manual(人工确认)分支若 roles 有值同样计入 role_hits（候选命中岗位），
+            #    人工介入由 manual_confirmations 单独统计——与 CLI cmd_route 口径一致。
             metrics.record_route(
                 mode=plan.get("mode", "manual"),
                 unit_id=plan.get("unit_id", "") or result.unit_id,
@@ -322,6 +324,18 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
     def _api_route_post(self):
         """POST /api/route body={"text": "..."}（状态变更，记录指标）"""
+        # Content-Type 宽松校验：期望 application/json，但对缺失/宽松类型保持兼容。
+        # 仅当明确声明为非 JSON（如 text/plain、application/xml）时拒绝，
+        # 避免误伤未显式设置 Content-Type 的 curl 等客户端。
+        ctype = (self.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+        if ctype and ctype != "application/json" \
+                and not ctype.endswith("+json") \
+                and not ctype.startswith("text/") \
+                and ctype != "application/x-www-form-urlencoded":
+            _json_response(self, 415, {
+                "error": f"不支持的 Content-Type: {ctype}（期望 application/json）"
+            })
+            return
         try:
             length = int(self.headers.get("Content-Length", 0))
         except (TypeError, ValueError):
@@ -462,6 +476,17 @@ def _inline_default_index() -> str:
 """
 
 
+def _is_loopback(host: str) -> bool:
+    """判断绑定地址是否为回环地址。"""
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_loopback
+    except ValueError:
+        # 非 IP 字面量（如 hostname 'localhost'）也视为回环安全
+        return host in ("localhost", "")
+
+
 def serve_forever(host: str = "127.0.0.1", port: int = 8080):
     """启动 HTTP 服务"""
     _init_engines()  # 启动时先初始化缓存（含首次前缀档案注册 + 持久化）
@@ -470,6 +495,15 @@ def serve_forever(host: str = "127.0.0.1", port: int = 8080):
     print(f"  页面入口: http://{host}:{port}/")
     print(f"  API 文档: http://{host}:{port}/api/units")
     print(f"  Ctrl+C 停止")
+    # 非回环绑定的安全告警横幅：服务含状态变更接口(POST /api/route)，
+    # 对外暴露必须置于认证/网关之后，避免未授权访问。
+    if not _is_loopback(host):
+        print("=" * 60)
+        print("  ⚠️  [安全告警] 监听非回环地址，服务已暴露到网络！")
+        print(f"  ⚠️  当前绑定: {host}:{port}")
+        print("  ⚠️  本服务含状态变更接口(POST /api/route，写指标/交接/StateCard)")
+        print("  ⚠️  请确保已置于反向代理/认证/网关之后，避免未授权访问！")
+        print("=" * 60)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

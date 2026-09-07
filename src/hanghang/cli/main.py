@@ -41,6 +41,12 @@ def cmd_route(args):
     # 记录指标：岗位维度取 result.roles（路由结果恒有 roles 字段）。
     # plan 仅在 composite/handoff_required 分支含 roles；direct 分支仅含单 role
     # （无 roles 键），沿用 plan.roles 会导致 direct 模式岗位命中被低估。
+    #
+    # ⚠️ 语义标注（评审建议#3）：manual(人工确认)分支若路由结果含 roles
+    # （如置信度不足但岗位已模糊命中），也会被计入 role_hits。这属行为变更：
+    # 旧实现取 plan.roles（manual 分支 plan 无 roles 键）不统计岗位命中；
+    # 现改为 result.roles 如实记录"候选命中岗位"，人工介入仍由
+    # manual_confirmations 单独统计。CLI/Web 均以此口径记录。
     metrics.record_route(
         mode=plan.get("mode", "manual"),
         unit_id=plan.get("unit_id", "") or result.unit_id,
