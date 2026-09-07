@@ -107,6 +107,12 @@ python3 src/hanghang/cli/main.py tree show --name project          # 渲染树�
 python3 src/hanghang/cli/main.py tree rollup --name project        # 逐级向上汇总
 python3 src/hanghang/cli/main.py tree submit-chain --name project --session leaf-1
 
+# M9 原文归档（ContentArchive：折叠后原文不丢、编号可找回）
+python3 src/hanghang/cli/main.py state archive --session demo --ref demo-seg001 --content "折叠前完整原文"
+python3 src/hanghang/cli/main.py state retrieve --session demo --ref demo-seg001   # 取回原文全文
+python3 src/hanghang/cli/main.py state refs --session demo                         # 列出已归档引用
+python3 src/hanghang/cli/main.py state full --session demo                         # 可恢复完整视图
+
 # M9 秘书并发归属与冲突仲裁（多 Agent 协作写同一状态）
 python3 src/hanghang/cli/main.py state claim   --session demo --role 秘书A   # 声明归属/占用
 python3 src/hanghang/cli/main.py state status  --session demo --role 秘书A   # 查看 owner/version

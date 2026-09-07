@@ -17,6 +17,7 @@ from hanghang.state.models import (
 )
 from hanghang.state.manager import StateManager
 from hanghang.state.fold_engine import FoldEngine
+from hanghang.state.content_archive import ContentArchive
 from hanghang.state.hierarchy import HierarchySubmitter, SecretaryTree, SecretaryTreeNode
 from hanghang.state.ownership import OwnershipGuard, CardLease, StateConflict, OwnershipDenied
 from hanghang.state.arbiter import (
@@ -38,7 +39,7 @@ __all__ = [
     "SessionBinding", "SessionBindingStore", "SessionBoundRouter",
     # M9
     "StateCard", "TaskRecord", "TaskState", "TaskType", "FoldState",
-    "StateManager", "FoldEngine", "HierarchySubmitter",
+    "StateManager", "FoldEngine", "ContentArchive", "HierarchySubmitter",
     "SecretaryTree", "SecretaryTreeNode",
     "OwnershipGuard", "CardLease", "StateConflict", "OwnershipDenied",
     "ConflictArbiter", "ReviewTicket", "StateDiff", "FieldChange",

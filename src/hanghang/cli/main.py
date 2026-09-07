@@ -20,6 +20,8 @@ from hanghang.cli.state_commands import (
     cmd_state_claim, cmd_state_release, cmd_state_status,
     cmd_arb_list, cmd_arb_show, cmd_arb_review, cmd_arb_diff,
     cmd_state_search,
+    cmd_state_archive, cmd_state_retrieve,
+    cmd_state_refs, cmd_state_full,
     cmd_tree_init, cmd_tree_register, cmd_tree_link,
     cmd_tree_show, cmd_tree_rollup,
     cmd_tree_submit_chain, cmd_tree_list,
@@ -442,7 +444,25 @@ def build_parser():
     ssr.add_argument("--keyword", required=True, help="搜索关键词")
     ssr.set_defaults(func=cmd_state_search)
 
+    sarch = state_sub.add_parser("archive", help="归档一段原文全文到ContentArchive")
+    sarch.add_argument("--session", required=True, help="会话ID")
+    sarch.add_argument("--ref", required=True, help="原文引用(content_ref)")
+    sarch.add_argument("--content", required=True, help="原文全文")
+    sarch.add_argument("--title", default="", help="段标题")
+    sarch.set_defaults(func=cmd_state_archive)
 
+    sret = state_sub.add_parser("retrieve", help="按content_ref从归档取回原文全文")
+    sret.add_argument("--session", required=True, help="会话ID")
+    sret.add_argument("--ref", required=True, help="原文引用(content_ref)")
+    sret.set_defaults(func=cmd_state_retrieve)
+
+    srefs = state_sub.add_parser("refs", help="列出某会话全部已归档content_ref")
+    srefs.add_argument("--session", required=True, help="会话ID")
+    srefs.set_defaults(func=cmd_state_refs)
+
+    sfull = state_sub.add_parser("full", help="展示可恢复完整视图(导航+原文归档)")
+    sfull.add_argument("--session", required=True, help="会话ID")
+    sfull.set_defaults(func=cmd_state_full)
 
     # ---- M9+ 冲突仲裁子命令 ----
     arb = sub.add_parser("arb", help="M9+ 版本化冲突仲裁与审核")
