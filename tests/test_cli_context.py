@@ -57,16 +57,21 @@ def test_context_rules_match_no_hit():
     assert "未命中" in out
 
 
-def test_context_assemble_smoke(tmp_path):
-    """context assemble 冒烟：三层结构 + 前缀自动获取 + 层B目标"""
-    out = _run_cli([
-        "context", "assemble",
-        "--session", "ctx_test_demo",
-        "--unit", "dongjiagoushi",
-        "--role", "architect",
-        "--text", "修改代码实现测试",
-        "--objective", "装配冒烟",
-    ], cwd=str(tmp_path))
+def test_context_assemble_smoke():
+    """context assemble 冒烟：三层结构 + 前缀自动获取 + 层B目标
+
+    用临时 cwd 运行，验证 data/ 目录回落（读仓库真实 data/），
+    同时让运行期写盘的 bindings/ 落在临时目录，不污染仓库。
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = _run_cli([
+            "context", "assemble",
+            "--session", "ctx_test_demo",
+            "--unit", "dongjiagoushi",
+            "--role", "architect",
+            "--text", "修改代码实现测试",
+            "--objective", "装配冒烟",
+        ], cwd=tmpdir)
     # 三层结构均出现
     assert "【层A · 静态上下文" in out
     assert "【层B · 会话态上下文" in out
@@ -120,3 +125,15 @@ def test_context_validate_cache_hit_with_session():
     ])
     assert "缓存命中: ✅" in out
     assert "校验通过" in out
+
+
+if __name__ == "__main__":
+    test_context_rules_list_loads_yaml()
+    test_context_rules_match_hits()
+    test_context_rules_match_no_hit()
+    test_context_assemble_smoke()
+    test_context_assemble_no_unit_friendly_hint()
+    test_context_validate_pass()
+    test_context_validate_violation()
+    test_context_validate_cache_hit_with_session()
+    print("✅ M10 context CLI 三子命令测试通过")

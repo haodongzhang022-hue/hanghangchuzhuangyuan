@@ -263,6 +263,7 @@ python3 tests/test_state_arbiter.py   # M9+ 版本化冲突仲裁与审核
 python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
+python3 tests/test_cli_context.py     # M10 × CLI context 三子命令（assemble/rules/validate）
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
 ```
 
