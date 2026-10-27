@@ -9,6 +9,7 @@ T1 交付（Issue #14）：把 M10 上下文装配器的三大能力挂到 CLI�
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -24,6 +25,7 @@ from hanghang.context import (  # noqa: E402
     ContextAssembler, CacheGuard, RuleEngine,
     SLIBAssemblyGuard, SLIBBoundMismatch,
 )
+from hanghang.engine import Registry  # noqa: E402
 
 
 def _data_candidates():
@@ -76,6 +78,42 @@ def _auto_prefix_provider(unit_id: str, role_name: str):
         return None
 
 
+def _load_registry():
+    """加载行业注册表：cwd/data 优先，仓库根 data 兜底（与 _data_file 一致）。
+
+    临时 cwd 下 Registry 默认搜索路径取不到 data/，会导致所有 --unit
+    被误判为"单元不存在"，故显式传入候选路径。
+    """
+    paths = [d for d in _data_candidates() if os.path.isdir(d)]
+    return Registry(search_paths=paths or None)
+
+
+def _baseline_dir() -> str:
+    """层A基线落盘目录：<cwd>/data/state/context_baseline（跨进程）。
+
+    与 _data_file 的"回落仓库根读真实数据"不同：基线是**运行期写入**数据，
+    必须严格落在 cwd 下，否则在临时 cwd/测试里会把基线写进仓库工作区。
+    """
+    return os.path.join(os.getcwd(), "data", "state", "context_baseline")
+
+
+def _read_baseline(path: str):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("signature") if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _write_baseline(path: str, signature: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"signature": signature}, f)
+    os.replace(tmp, path)
+
+
 def _render_result(result: dict, session_id: str):
     """人类可读渲染一次装配结果"""
     print("=" * 60)
@@ -125,6 +163,22 @@ def cmd_context_assemble(args):
         except Exception:
             pass
 
+    # 行业名须取注册表真实 industry（不是 unit_id），否则绑定文件显示成
+    # industry=dongjiagoushi 这种伪行业名。同时校验单元存在性：
+    # 不存在的单元若被写入绑定，会把会话永久占死（后续合法单元被 SLIB 拦截）。
+    industry = ""
+    if unit_id:
+        registry = _load_registry()
+        unit = registry.get_unit(unit_id)
+        if unit is None:
+            print(f"⚠️  行业单元不存在: {unit_id}")
+            print("    可用单元:")
+            for u in registry.all_units():
+                print(f"      {u.unit_id} ({u.industry})")
+            print("    未写入任何会话绑定，请换一个 --unit 重试。")
+            return 1
+        industry = unit.industry
+
     assembler = ContextAssembler(
         rule_engine=RuleEngine(_rules_file()) if os.path.exists(_rules_file())
         else RuleEngine(),
@@ -137,7 +191,7 @@ def cmd_context_assemble(args):
             session_id=session_id,
             role_name=role_name,
             unit_id=unit_id,
-            industry=unit_id,  # 首次自动绑定时用 unit_id 作行业名兜底
+            industry=industry,  # 注册表真实行业名（首次绑定写入）
             user_text=user_text,
             static_prefix=static_prefix,
             objective=objective,
@@ -148,15 +202,16 @@ def cmd_context_assemble(args):
         print(f"    会话 {exc.session_id} 已绑定行业「{exc.bound_industry}」"
               f"({exc.bound_unit})，不能装配 {exc.attempt_unit} 的上下文。")
         print("    跨行业请开新会话。")
-        return
+        return 1
     except ValueError as exc:
         # 无法确定装配行业（会话未绑定且未提供 unit_id）→ 友好提示
         print(f"⚠️  {exc}")
         print("    请用 --unit 指定行业单元，或先 bind 该会话。")
         print("    示例: context assemble --session S --unit dongjiagoushi --role developer")
-        return
+        return 1
 
     _render_result(result, session_id)
+    return 0
 
 
 def cmd_context_rules(args):
@@ -173,23 +228,24 @@ def cmd_context_rules(args):
         print(f"上下文规则表（{os.path.abspath(_rules_file())}）")
         print(f"共 {len(engine.list_rules())} 条启用规则:\n")
         print(engine.summary())
-        return
+        return 0
 
     text = getattr(args, "match", "") or ""
     if not text:
         print("请用 --list 查看规则表，或用 --match \"文本\" 做命中测试。")
-        return
+        return 1
     hits = engine.match(text)
     print(f"输入: {text}")
     if not hits:
         print("未命中任何规则 → 本次调用无需额外装配上下文。")
-        return
+        return 0
     print(f"命中 {len(hits)} 条规则（按优先级排序）:")
     for r in hits:
         layer_desc = {"A": "静态层", "B": "会话态层", "C": "规则注入层"}
         print(f"  - {r.rule_id} {r.name} [目标{r.target_layer} "
               f"{layer_desc.get(r.target_layer, '')}] src={r.data_source}")
         print(f"      描述: {r.description}")
+    return 0
 
 
 def cmd_context_validate(args):
@@ -200,10 +256,11 @@ def cmd_context_validate(args):
 
     校验层A是否误混入动态内容/缺少静态声明标记。
 
-    说明（缓存命中）：
-      CacheGuard 的 _a_signatures 存于进程内存，CLI 每次调用为独立进程。
-      单次 CLI 调用内先记录基线签名，再以同参数二次校验——若层A合规稳定
-      即输出「✅ 命中」，验证同 session 内层A不随调用变化。
+    说明（缓存命中 / 层A稳定性）：
+      CacheGuard 的 _a_signatures 存于进程内存，而 CLI 每次调用都是独立进程，
+      进程内自比签名恒相等 → 恒判"命中"，该分支永远为真、毫无判别力。
+      故改用**跨进程落盘基线**：层A签名写 data/state/context_baseline/<session>.json，
+      下次调用读回比对，给出「首次记录基线」/「与基线一致」/「层A漂移」三态。
     """
     layer_a = getattr(args, "layer_a", "") or ""
     session_id = getattr(args, "session", "") or ""
@@ -211,28 +268,40 @@ def cmd_context_validate(args):
         print("缺少 --layer-a：请输入待校验的静态层(层A)文本。")
         print('示例: context validate --layer-a "[秘书] | unit=dongjiagoushi | '
               'session_context_static=true" --session demo')
-        return
+        return 1
 
     guard = CacheGuard()
-    # 首轮：记录基线签名 + 内容合规检查（同 session 内层A稳定性判定需次轮）
-    _first = guard.validate_isolation(layer_a=layer_a, session_id=session_id)
-    # 次轮：同参数复验 → 层A签名未变则缓存命中
     result = guard.validate_isolation(layer_a=layer_a, session_id=session_id)
+    signature = result["layer_a_signature"]
+    drifted = False
 
     print(f"缓存隔离校验 (session={session_id or '(无会话)'})")
-    print(f"层A签名: {result['layer_a_signature']}")
-    if session_id:
-        if result.get("cache_hit"):
-            print("缓存命中: ✅ 同 session 内层A签名稳定（基线一致）")
-        else:
-            print("缓存命中: ❌ 签名不一致 → 同 session 内层A不稳定")
+    print(f"层A签名: {signature}")
+    if not session_id:
+        print("层A稳定性: -（未指定 --session，跳过跨进程基线比对）")
     else:
-        print("缓存命中: -（未指定 --session，跳过稳定性判定）")
+        baseline_path = os.path.join(_baseline_dir(), f"{session_id}.json")
+        previous = _read_baseline(baseline_path)
+        if previous is None:
+            _write_baseline(baseline_path, signature)
+            print(f"层A稳定性: 首次记录基线 → {baseline_path}")
+        elif previous == signature:
+            print("层A稳定性: ✅ 与上次落盘基线一致（层A未漂移）")
+        else:
+            drifted = True
+            print("层A稳定性: ❌ 层A签名与上次基线不一致 → 静态层发生漂移")
+            print(f"    上次基线: {previous}")
+
+    exit_code = 0
     if result["valid"]:
         print("✅ 校验通过：层A无动态内容混入，且包含静态声明标记。")
     else:
         print("❌ 校验未通过，违规项:")
         for v in result["violations"]:
             print(f"   - {v}")
+        exit_code = 1
+    if drifted:
+        exit_code = 1
     stats = result.get("stats", {})
     print(f"(累计检查 {stats.get('checks', 0)} 次 / 违规 {stats.get('violations', 0)} 次)")
+    return exit_code

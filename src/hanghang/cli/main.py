@@ -582,7 +582,7 @@ def build_parser():
 
     cv = ctx_sub.add_parser("validate", help="缓存隔离校验（CacheGuard.validate_isolation）")
     cv.add_argument("--layer-a", default="", help="待校验的静态层(层A)文本")
-    cv.add_argument("--session", default="", help="会话ID（同 session 内层A签名稳定→缓存命中，单次进程内自动双轮校验）")
+    cv.add_argument("--session", default="", help="会话ID（层A签名落盘 data/state/context_baseline/ 做跨进程基线比对）")
     cv.set_defaults(func=cmd_context_validate)
 
     return p
@@ -611,7 +611,10 @@ def main():
         print("请指定 context 子命令：assemble / rules / validate")
         print("示例: python3 src/hanghang/cli/main.py context rules --list")
         sys.exit(1)
-    args.func(args)
+    exit_code = args.func(args)
+    # 子命令显式返回非 0 表示失败（脚本/CI 可据此判断，避免失败被当成成功放行）
+    if isinstance(exit_code, int) and exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
