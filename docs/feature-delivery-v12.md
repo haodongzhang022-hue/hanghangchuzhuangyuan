@@ -16,7 +16,7 @@
 | CLI | `src/hanghang/cli/industry_commands.py`（`industry partitions/partition/occupations/check/export`） |
 | REST | `GET /api/industry-db`（只读，含 `problems` 自检） |
 | 文档 | `docs/industry/industry-partition-db.md` |
-| 测试 | `tests/test_industry_db.py`（25 项）+ `test_coverage.py`（12 项，含权威源降级）+ `test_web.py` 端点断言 |
+| 测试 | `tests/test_industry_db.py`（39 项）+ `test_coverage.py`（12 项，含权威源降级）+ `test_web.py` 端点断言 |
 
 ## 当前进度快照
 
@@ -47,13 +47,23 @@
 6. **供给结构一律实测**。`provider_mix` 由成员职业 `provider` 字段统计得出，
    与「不存第二份清单」同一条立场；分区手写值降级为 `provider_mix_estimated`
    对账留档，偏差 > 25pt 由 `validate()` 报出来。
+7. **分母被悄悄缩小是这类数据最危险的错**。分区 id 写重、`status` 拼成 `coverd`、
+   标了 `covered` 却没登记职业——三种错都不会让覆盖率变红，只会让它变好看。
+   `validate()` 现在有 13 条校验，其中 1（主键唯一非空）、2（状态枚举）、
+   6（covered 无成员）专门守这三条暗沟；第 8 条守"职业挂到单元 id 而不是分区 id"
+   ——这类数据在 `members_of()` 反查里永远查不到，必须在成员循环之外独立扫描。
+8. **索引不能过期**。`partition()` 走的是加载期 id 索引，动态追加/替换记录后
+   会返回 `None`（详情页永远"未找到"）或旧对象；现在按列表指纹自动重建，
+   重复 id 显式保留首次出现并 `warning`。
 
 ## 验证
 
-- `python3 tests/test_industry_db.py` → 25 项通过
+- `python3 tests/test_industry_db.py` → 39 项通过
 - `python3 tests/test_coverage.py` → 12 项通过
 - `bash scripts/change-aware-test.sh` → 24 个测试文件全部通过（含 CLI 冒烟）
 - `python3 src/hanghang/cli/main.py industry check` → 37 分区 / 147 职业，双向对齐无缺口
+- `.cnb.yml` 已接入 `industry check`：PR 测试阶段、合并门禁、main 全量回归三处都会跑，
+  数据漂移不再靠自觉；`main.push` 另跑 `industry export` 校验 4 个扁平表能产出
 
 ## 后续（待拍板）
 

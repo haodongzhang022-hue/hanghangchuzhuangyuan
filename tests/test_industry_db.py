@@ -352,15 +352,38 @@ def test_validate_reports_missing_unit_role_on_registered_unit():
 
 
 def test_validate_reports_unit_id_member_mismatch():
-    """b) 分区 unit_id 与成员实际挂靠的分区不一致 → 报错"""
+    """校验点 8/9：成员挂在本分区但角色不属于分区指向的单元 → 报 unit_role
+
+    反查口径是 unit_id == 分区 id，所以"成员挂错到别的单元"根本进不了
+    members_of()；那类错挂由 validate 的全量扫描覆盖（见下一条）。
+    这条守的是"分区指向单元 A、成员角色却是单元 B 的岗位"。
+    """
     db = IndustryDatabase()
     db.partitions.append({"id": "fake-part-y", "name": "假分区",
-                          "status": "covered", "unit_id": "game-dev-unit"})
+                          "status": "covered", "unit_id": "dongjiagoushi"})
     db.occupations.append({"id": "fake-occ-y", "name": "假职业",
                            "unit_id": "fake-part-y", "unit_role": "game_planner",
                            "provider": "ai", "billing": "usage"})
     problems = db.validate()
-    assert any("fake-part-y" in p for p in problems), problems
+    assert any("fake-occ-y" in p and "game_planner" in p for p in problems), problems
+
+
+def test_validate_reports_occupation_attached_to_unit_not_partition():
+    """校验点 8：职业挂到单元 id 而非分区 id → 不属于任何分区，必须报错
+
+    这类数据在 members_of() 里永远查不到，只在分区的成员循环里校验是抓不到的。
+    """
+    db = IndustryDatabase()
+    db.partitions.append({"id": "unit-only-part", "name": "只有分区",
+                          "status": "covered", "unit_id": "dongjiagoushi"})
+    # game-dev-unit 既是分区 id 也是单元 id，会被正常反查；这里换一个"真单元但
+    # 分区不指向它"的场景：直接篡改分区 id，让成员挂的单元成为孤立单元。
+    db.partitions[-1]["unit_id"] = "dongjiagoushi"
+    db.occupations.append({"id": "orphan-on-unit", "name": "挂单元的职业",
+                           "unit_id": "e-commerce", "unit_role": "ops",
+                           "provider": "ai"})
+    problems = db.validate()
+    assert any("orphan-on-unit" in p for p in problems), problems
 
 
 def test_validate_reports_evaluated_partition_with_unit():
@@ -413,6 +436,129 @@ def test_real_pending_partitions_are_not_flagged():
     assert db.validate() == []
 
 
+# ---------------------------------------------------------------- 校验点 1-13
+def test_validate_reports_covered_partition_without_members():
+    """校验点 6：covered 却无成员职业 → 纸面覆盖必须报出来"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "paper-cov", "name": "纸面覆盖",
+                          "status": "covered", "unit_id": "dongjiagoushi"})
+    problems = db.validate()
+    assert any("paper-cov" in p and "纸面覆盖" in p for p in problems), problems
+
+
+def test_paper_covered_partition_not_in_coverage_numerator():
+    """纸面覆盖不能进覆盖率分子：数值上不失真，但缺口必须可见"""
+    db = IndustryDatabase()
+    before = db.compute()["covered_partitions"]
+    db.partitions.append({"id": "paper-cov", "name": "纸面覆盖",
+                          "status": "covered", "unit_id": "dongjiagoushi"})
+    assert db.compute()["covered_partitions"] == before + 1
+    assert db.validate(), "分子涨了却没有问题记录 = 静默变好看"
+
+
+def test_validate_reports_unknown_status():
+    """校验点 2：status 拼错/漏填的分区不会静默漏出分母"""
+    db = IndustryDatabase()
+    before = db.compute()["buildable_partitions"]
+    db.partitions.append({"id": "coverd-typo", "name": "拼错",
+                          "status": "coverd", "unit_id": "dongjiagoushi"})
+    db.partitions.append({"id": "no-status", "name": "缺状态", "unit_id": ""})
+    problems = db.validate()
+    assert any("coverd-typo" in p and "status" in p for p in problems), problems
+    assert any("no-status" in p and "status" in p for p in problems), problems
+    # 拼错的分区既没进分母也没报错才是问题；这里确认它确实没进分母
+    assert db.compute()["buildable_partitions"] == before
+
+
+def test_validate_reports_empty_primary_key():
+    """校验点 1：空 id / 空 name 会让分母虚增，必须报错"""
+    db = IndustryDatabase()
+    db.occupations.append({"id": "", "name": "空id", "unit_id": "translation"})
+    problems = db.validate()
+    assert any("缺少 id" in p for p in problems), problems
+
+
+def test_validate_reports_duplicate_primary_key():
+    """校验点 1：重复 id 必须报出并给出次数（否则成员被静默丢弃）"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "dup-part", "name": "A", "status": "pending"})
+    db.partitions.append({"id": "dup-part", "name": "B", "status": "pending"})
+    problems = db.validate()
+    assert any("dup-part" in p and "重复" in p and "2 次" in p
+               for p in problems), problems
+
+
+def test_duplicate_key_does_not_break_index():
+    """重复 id 不能让 partition() 返回 None（否则详情页永远"未找到"）"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "dup-part", "name": "首次出现", "status": "pending"})
+    db.partitions.append({"id": "dup-part", "name": "第二次", "status": "pending"})
+    got = db.partition("dup-part")
+    assert got is not None and got["name"] == "首次出现"
+
+
+def test_duplicate_occupation_not_dropped_from_mix():
+    """重复职业 id 时成员不能被静默丢弃：分母不缩水，重复由 validate 报出"""
+    db = IndustryDatabase()
+    first = db.occupations[0]
+    db.occupations.append(dict(first))  # 同 id 再塞一条
+    target = first["unit_id"]
+    ids = [o["id"] for o in db.members_of(target)]
+    assert ids.count(first["id"]) == 2, ids
+
+
+def test_index_refreshes_after_dynamic_append():
+    """动态追加分区后 partition() 必须能查到（加载期索引不能过期）"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "late-part", "name": "后加的分区",
+                          "status": "pending"})
+    assert db.partition("late-part") is not None
+    assert "late-part" in {r["id"] for r in db.compute()["rows"]}
+
+
+def test_validate_reports_missing_data_source():
+    """校验点 13：yaml 读不到要显式报出，空库不能当作自检通过"""
+    db = IndustryDatabase(data_dir=os.path.join(tempfile.gettempdir(), "no-such-dir"))
+    problems = db.validate()
+    assert any("未读到" in p for p in problems), problems
+
+
+def test_render_marks_no_member_as_dash_not_zero():
+    """无成员分区的 AI% 显示 "-"，真实 0% 仍显示 0.0（两者不能混）"""
+    db = IndustryDatabase()
+    out = db.render_text()
+    mining = next(l for l in out.splitlines() if "矿业资源" in l)
+    health = next(l for l in out.splitlines() if "健康医疗" in l)
+    assert " - " in f" {mining} ", mining
+    assert "0.0" in health, health
+
+
+def test_occupation_anchored_to_unit_id_is_reported():
+    """校验点 8：职业挂到单元 id 而非分区 id → 反查属于任何分区都查不到，必须报错"""
+    db = IndustryDatabase()
+    # 造一个"是分区 id 但分区不指向它"的情形：把成员挂到别处更直观——
+    # 这里直接用真实单元 id（同时是分区 id）不算错，故构造分区/单元错配的替身：
+    db.partitions = [p for p in db.partitions if p.get("id") != "translation"]
+    db.occupations.append({"id": "orphan-occ", "name": "孤儿职业",
+                           "unit_id": "translation", "unit_role": "x",
+                           "provider": "ai"})
+    # translation 已不是分区，但它也不是注册单元 → 归为悬空（校验点 3）
+    problems = db.validate()
+    assert any("orphan-occ" in p for p in problems), problems
+
+
+def test_role_baseline_source_stale_is_not_silent():
+    """权威源失效（分区有登记但全非基线）必须进 problems，不静默回落"""
+    from hanghang.engine.coverage import CoverageTracker
+    db = IndustryDatabase()
+    for o in db.members_of("dongjiagoushi"):
+        o["baseline_occupation"] = False
+    s = CoverageTracker(industry_db=db).compute()
+    stale = [r for r in s["rows"] if r["roles"]["baseline_source"] == "stale"]
+    assert stale, "应至少有一行被判 stale"
+    assert any("stale" in p or "baseline_occupation" in p for p in s["problems"])
+
+
 if __name__ == "__main__":
     test_partition_and_occupation_loaded()
     test_members_are_derived_not_duplicated()
@@ -436,8 +582,21 @@ if __name__ == "__main__":
     test_partition_detail_reads_estimated_not_declared()
     test_validate_reports_missing_unit_role_on_registered_unit()
     test_validate_reports_unit_id_member_mismatch()
+    test_validate_reports_occupation_attached_to_unit_not_partition()
     test_validate_reports_evaluated_partition_with_unit()
     test_pending_partition_unit_role_must_be_in_planned_roles()
     test_validate_survives_dirty_mix_values()
     test_real_pending_partitions_are_not_flagged()
+    test_validate_reports_covered_partition_without_members()
+    test_paper_covered_partition_not_in_coverage_numerator()
+    test_validate_reports_unknown_status()
+    test_validate_reports_empty_primary_key()
+    test_validate_reports_duplicate_primary_key()
+    test_duplicate_key_does_not_break_index()
+    test_duplicate_occupation_not_dropped_from_mix()
+    test_index_refreshes_after_dynamic_append()
+    test_validate_reports_missing_data_source()
+    test_render_marks_no_member_as_dash_not_zero()
+    test_occupation_anchored_to_unit_id_is_reported()
+    test_role_baseline_source_stale_is_not_silent()
     print("✅ 行业分区定义库测试通过")

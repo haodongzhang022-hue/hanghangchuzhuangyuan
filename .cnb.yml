@@ -56,6 +56,10 @@ $:
             echo "==== CLI 冒烟测试 ===="
             python3 src/hanghang/cli/main.py route "架构设计方案" | grep -q "architect" && echo "  ✅ 路由冒烟通过" || { echo "  ❌ 路由冒烟失败"; exit 1; }
             python3 src/hanghang/cli/main.py route "帮我点个外卖" | grep -q "人工" && echo "  ✅ 回落冒烟通过" || { echo "  ❌ 回落冒烟失败"; exit 1; }
+            # M11 行业分区库是「数据即产品」：yaml 漂移必须由流水线兜底，不能靠自觉
+            echo ""
+            echo "==== M11 行业分区库自检 ===="
+            python3 src/hanghang/cli/main.py industry check
     - name: npc-code-review
       <<: *npc_default
       stages:
@@ -108,6 +112,8 @@ $:
             # 合并门禁同样采用变更感知选择，快速放行无风险的 PR；
             # 全量回归已由 main.push 事件保证。
             bash scripts/change-aware-test.sh
+            # 数据即产品：合并前再确认一次行业分区库双向对齐，防止只改 yaml 的 PR 溜过去
+            python3 src/hanghang/cli/main.py industry check
         - name: 自动合并
           # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
           # 避免与 changes_requested 的 auto-fix 竞态误合。
@@ -249,6 +255,23 @@ main:
                 sys.exit(1)
             print("\n✅ 全部测试通过")
             PY
+        - name: M11 行业分区库自检
+          script: |
+            set -e
+            pip install -q -r requirements.txt
+            python3 src/hanghang/cli/main.py industry check
+        - name: M11 导出扁平表
+          # 只做"导得出来"的产物校验：仓库没有 generic 制品库，CNB 也没有通用的
+          # 文件产物上传入口（git:release 不支持附件），所以这里不假装有发布通道。
+          # 真要发布时再接 cnbcool/attachments 或 generic 制品库，别写成伪配置。
+          script: |
+            set -e
+            pip install -q -r requirements.txt
+            python3 src/hanghang/cli/main.py industry export --out out/industry-db
+            for f in industry-db.json partitions.csv occupations.csv industry.sqlite; do
+              test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
+            done
+            echo "  ✅ 行业分区库 4 个扁平表导出正常"
     - name: build-knowledge-base
       stages:
         - name: knowledge update

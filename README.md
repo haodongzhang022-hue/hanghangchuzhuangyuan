@@ -298,8 +298,10 @@ python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗�
   （行政办公/政务公共/国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
 - **不引入外部数据库**：yaml 是权威源（可评审、可回滚、可被知识库切片），
   `industry export` 一键生成 `industry.sqlite` + 两份 csv 扁平表，随 CNB 制品库发布，拿到即用。
-- **双向自检**：`industry check` 校验「注册单元每个岗位都有职业登记」+
-  「职业挂的分区与岗位真实存在」，防止"纸面覆盖"。
+- **双向自检**：`industry check` 跑 13 条校验（主键唯一/状态枚举/成员归属/职业↔岗位对齐/
+  供给结构对账/数据源存在），其中三条专守"分母被悄悄缩小"的暗沟——分区 id 写重、
+  `status` 拼错、标了 `covered` 却没登记职业，这三种错不会让覆盖率变红，只会让它变好看。
+  流水线在 PR 测试、合并门禁、main 全量回归三处都会跑它，数据漂移不靠自觉。
 
 `coverage` 的岗位基线现在**优先取职业库**，`coverage-target.yaml` 只作兜底，
 避免两处手写岗位各自漂移。详见 `docs/industry/industry-partition-db.md`。

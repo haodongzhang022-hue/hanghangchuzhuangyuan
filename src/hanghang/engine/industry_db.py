@@ -27,6 +27,8 @@ from .registry import Registry
 
 # 参与"应建设"分母的分区状态；evaluated 表示评估后明确不建单元
 _BUILDABLE = ("covered", "pending")
+# 合法状态全集：拼错/漏填的分区既不进分母也不报错，覆盖会静默变好看
+_STATUSES = ("covered", "pending", "evaluated")
 
 
 class IndustryDatabase:
@@ -73,16 +75,50 @@ class IndustryDatabase:
         else:
             logging.warning(f"缺少分区清单: {self.part_path}")
 
-        self._occ_by_id: Dict[str, dict] = {
-            o.get("id", ""): o for o in self.occupations if o.get("id")}
-        self._part_by_id: Dict[str, dict] = {
-            p.get("id", ""): p for p in self.partitions if p.get("id")}
+        self._reindex()
+
+    def _reindex(self) -> None:
+        """按当前列表重建 id 索引（显式保留首次出现，不依赖 dict 覆盖顺序）。
+
+        校验/查询前会按列表指纹检查一次：有人 append 了分区或替换了某条记录时
+        自动重建，避免拿加载期索引去判断已被改动过的数据（会误判"悬空"，
+        也会让 partition() 返回旧对象）。
+        """
+        self._occ_by_id = self._index(self.occupations, "职业")
+        self._part_by_id = self._index(self.partitions, "分区")
+        self._fingerprint = (len(self.occupations), len(self.partitions),
+                             sum(id(o) for o in self.occupations),
+                             sum(id(o) for o in self.partitions))
+
+    @staticmethod
+    def _index(rows: List[dict], label: str) -> Dict[str, dict]:
+        """id -> 记录，重复 id 保留首次出现并告警（重复本身由 validate 报出）。"""
+        index: Dict[str, dict] = {}
+        for row in rows:
+            key = row.get("id") or ""
+            if not key:
+                continue
+            if key in index:
+                logging.warning(f"{label} id 重复: {key}，索引保留首次出现的那条")
+                continue
+            index[key] = row
+        return index
+
+    def _ensure_fresh(self) -> None:
+        """列表被外部改动过（增删/替换/换序）就重建索引。"""
+        fp = (len(self.occupations), len(self.partitions),
+              sum(id(o) for o in self.occupations),
+              sum(id(o) for o in self.partitions))
+        if fp != self._fingerprint:
+            self._reindex()
 
     # ------------------------------------------------------------- queries
     def occupation(self, occ_id: str) -> Optional[dict]:
+        self._ensure_fresh()
         return self._occ_by_id.get(occ_id)
 
     def partition(self, part_id: str) -> Optional[dict]:
+        self._ensure_fresh()
         return self._part_by_id.get(part_id)
 
     def members_of(self, part_id: str) -> List[dict]:
@@ -99,8 +135,9 @@ class IndustryDatabase:
         unit_id 悬空的职业（分区不存在）不进分母，避免脏数据污染占比；
         这类数据由 validate() 单独报错。
         """
+        known = {p.get("id") for p in self.partitions if p.get("id")}
         return [o for o in self.occupations
-                if o.get("unit_id") and o.get("unit_id") in self._part_by_id]
+                if o.get("unit_id") and o.get("unit_id") in known]
 
     def provider_distribution(self, occupations: Optional[List[dict]] = None) -> dict:
         """按职业自身的 provider 实测统计供给结构（不读分区手写值）。"""
@@ -218,7 +255,9 @@ class IndustryDatabase:
             mark = {"covered": "已建", "pending": "待建",
                     "evaluated": "不建"}.get(r["status"], r["status"])
             gdp = f"{r['gdp_cny'] / 1e8:,.0f}" if r["gdp_cny"] else "无口径"
-            ai = (r["provider_mix"] or {}).get("ai", "-")
+            # 无成员 = 无实测数据，用 "-" 区分"真实 0%"（如健康医疗 AI 0.0）
+            ai = ("-" if r["member_count"] == 0
+                  else (r["provider_mix"] or {}).get("ai", "-"))
             demand = "、".join(r["demand_side"])[:28]
             lines.append(f"{mark:<5}{r['name']:<14}{r['member_count']:<8}"
                          f"{gdp:<14}{ai:<8}{demand}")
@@ -249,73 +288,103 @@ class IndustryDatabase:
     def validate(self) -> List[str]:
         """数据一致性自检：返回问题列表，空表示健康。
 
-        校验点：
-        0. 职业自身登记有效：unit_id 必须指向已注册单元或已知分区（悬空即脏数据，
-           既不进覆盖率分子也不进供给结构分母）。
-        1. 分区 members 反查到的职业，其 unit_role 必须真实存在于注册单元（防止
-           职业挂错单元 → 路由永远命中不了，形成"纸面覆盖"）。
-        2. 已注册单元里的每个 role 都应能在职业库找到对应职业（防止新增岗位漏登记）。
-        3. 分区 status=covered 但无 unit_id、或 unit_id 指向不存在的单元 → 报错。
-        4. 分区手写 provider_mix 与实测分布偏差 > DECLARED_MIX_TOLERANCE 个百分点
-           → 报漂移（手写值只作对账留档，漂太多说明数据该回填了）；
-           无成员职业的分区 provider_mix 必须为 0/0/0（估算值放
-           provider_mix_estimated，不能冒充实测）。
-        5. 分区 status=evaluated(明确不建单元) 却填了 unit_id → 语义矛盾，报错。
-        6. 分区 unit_id 与成员职业实际挂靠的分区不一致 → 报错。
-        7. 已建单元的分区成员必须填 unit_role（否则路由永远命中不了）；
-           未建单元的成员 unit_role 可空，但填了就必须在该分区 planned_roles 里。
+        校验点（编号与 docs/industry/industry-partition-db.md 的表格一一对应）：
+        1. 主键唯一且非空：职业/分区的 id 为空或重复 → 报错（空 id 让分母虚增，
+           重复 id 让成员被静默丢弃、覆盖率一起失明）。
+        2. 分区 status 必须在 _STATUSES 里：拼错/漏填的分区既不进分母也不报错，
+           覆盖率会静默变好看。
+        3. 职业 unit_id 必须指向已注册单元或已知分区（悬空即脏数据，既不进
+           覆盖率分子也不进供给结构分母）。
+        4. 分区 covered 必须有 unit_id。
+        5. 分区 unit_id 必须已注册。
+        6. 分区 covered 必须有成员职业（纸面覆盖：数值上不失真，但该行业岗位
+           其实没登记）。
+        7. evaluated（评估后明确不建单元）不得带 unit_id → 状态互斥。
+        8. 成员职业挂靠的 id 必须是分区 id 或分区指向的单元，其它一律报错。
+           注意反查口径：members_of(pid) 按 unit_id == pid 匹配，挂错的成员压根
+           不出现在 members 里，所以这条要独立扫全量职业才看得见。
+        9. 已建单元的分区成员必须填 unit_role（否则路由永远命中不了）。
+        10. 未建单元的成员 unit_role 可空，但填了必须在该分区 planned_roles 里。
+        11. 声明 provider_mix 与实测偏差 > DECLARED_MIX_TOLERANCE → 报漂移；
+            无成员分区 provider_mix 必须 0/0/0（估算值放 provider_mix_estimated）。
+        12. 注册单元的每个 role 都要在职业库有登记。
+        13. 数据文件缺失：空库必须显式报出，不能 0 分区 0 职业还"自检通过"。
         """
         problems: List[str] = []
-        unit_ids = {u.unit_id for u in self.registry.all_units()}
+        self._ensure_fresh()
 
-        # 0. 按职业独立校验：unit_id 既非已注册单元也非已知分区 → 悬空
+        # 13. 数据源可用：yaml 缺失时不能静默当"健康空库"
+        for path, label in ((self.occ_path, "职业清单"),
+                            (self.part_path, "分区清单")):
+            if not os.path.exists(path):
+                problems.append(f"未读到{label}: {path}（数据源缺失，自检不能视为通过）")
+
+        # 1. 主键唯一 + 非空
+        problems.extend(self._check_primary_keys())
+
+        # 2. 状态枚举
+        for p in self.partitions:
+            status = p.get("status")
+            if status not in _STATUSES:
+                problems.append(
+                    f"分区 {p.get('id') or '(空)'} 的 status={status!r} 不在合法状态 "
+                    f"{list(_STATUSES)} 中（拼错/漏填会让该分区静默漏出分母）")
+
+        unit_ids = {u.unit_id for u in self.registry.all_units()}
+        # 分区集合按当前列表现算：加载期索引会因追加/改动而过期
+        part_by_id = {x.get("id", ""): x for x in self.partitions if x.get("id")}
+
+        # 3. 职业 unit_id 存在性
         for o in self.occupations:
             uid = o.get("unit_id") or ""
             if not uid:
                 continue  # 未挂分区是显式登记的缺口，不算错
-            known = uid in unit_ids or uid in self._part_by_id
-            if not known:
+            if uid not in unit_ids and uid not in part_by_id:
                 problems.append(
-                    f"职业 {o.get('id')} 的 unit_id={uid or '(空)'} "
+                    f"职业 {o.get('id')} 的 unit_id={uid} "
                     f"既不是已注册单元也不是已知分区")
 
-        # 用当前 partitions 现算分区集合：_part_by_id 是加载期索引，
-        # 校验时若有人追加/改动了 partitions，索引会过期导致误判悬空。
-        part_by_id = {x.get("id", ""): x for x in self.partitions if x.get("id")}
         for p in self.partitions:
-            pid, status = p.get("id", ""), p.get("status", "")
+            pid = p.get("id", "")
             uid = p.get("unit_id", "") or ""
-            # 3. 状态互斥：evaluated = 评估后明确不建单元，不该带 unit_id
+            status = p.get("status", "")
+            members = self.members_of(pid)
+
+            # 7. 状态互斥
             if status == "evaluated" and uid:
                 problems.append(
                     f"分区 {pid} 标记 evaluated(不建单元) 却填了 unit_id={uid}，语义矛盾")
+            # 4. covered 必须有 unit_id
             if status == "covered" and not uid:
                 problems.append(f"分区 {pid} 标记 covered 但未填 unit_id")
+            # 5. unit_id 必须已注册
             if uid and uid not in unit_ids:
                 problems.append(f"分区 {pid} 的 unit_id={uid} 未注册")
+            # 6. covered 却无成员 → 纸面覆盖
+            if status == "covered" and not members:
+                problems.append(
+                    f"分区 {pid} 标记 covered 但职业库无成员职业"
+                    f"（纸面覆盖：需先登记该分区职业并标 baseline_occupation）")
+
             unit = self.registry.get_unit(uid) if uid else None
             planned = set(p.get("planned_roles", []) or [])
-            for o in self.members_of(pid):
+            for o in members:
                 o_uid = o.get("unit_id") or ""
-                if o_uid and o_uid not in unit_ids \
-                        and o_uid not in part_by_id:
-                    # 已由第 0 项报出悬空，这里不重复刷屏
+                # 3 已报悬空，这里不重复刷屏
+                if o_uid and o_uid not in unit_ids and o_uid not in part_by_id:
                     continue
-                # 1. 分区 unit_id 必须与成员实际挂靠的分区一致
-                if uid and o_uid != pid:
-                    problems.append(
-                        f"职业 {o.get('id')} 的 unit_id={o_uid or '(空)'} 与分区 "
-                        f"{pid} 的 unit_id={uid} 不一致（成员应挂分区 id）")
+                # 注：members_of 按 unit_id == pid 反查，走进这个循环的职业天然
+                # o_uid == pid，"成员挂靠一致性"在这里判不出东西；真正会错挂的
+                # 情形（挂到单元 id）由下面第 8 条独立扫描覆盖。
                 role = o.get("unit_role")
                 if unit is None:
-                    # 未建单元：unit_role 允许为空（岗位名此时还不存在），
-                    # 但一旦填了就必须落在该分区声明的 planned_roles 骨架里，
-                    # 堵住"建单元时随手编一个不存在的角色名"。
+                    # 10. 未建单元：unit_role 可空，填了必须落在 planned_roles 骨架里
                     if role and planned and role not in planned:
                         problems.append(
                             f"职业 {o.get('id')} 的 unit_role={role} 不在分区 "
                             f"{pid} 的 planned_roles 中 {sorted(planned)}")
                     continue
+                # 9. 已建单元必须填 unit_role
                 if not role:
                     problems.append(
                         f"职业 {o.get('id')} 挂在已注册单元 {unit.unit_id}，"
@@ -327,17 +396,15 @@ class IndustryDatabase:
                         f"职业 {o.get('id')} 的 unit_role={role} "
                         f"不在单元 {unit.unit_id} 的岗位中 {sorted(role_names)}")
 
-            # 4. 声明值 vs 实测 对账
+            # 11. 声明值 vs 实测 对账
             declared = p.get("provider_mix") or {}
-            members = self.members_of(pid)
             if not members:
-                # 无成员职业 → 实测口径必须无数据；非零说明手写值又冒充实测了
                 if any(self._as_float(declared.get(k)) for k in
                        ("ai", "hybrid", "human")):
                     problems.append(
                         f"分区 {pid} 无成员职业，provider_mix(实测口径) 应为 "
                         f"0/0/0，实际 {declared}（估算值请放 provider_mix_estimated）")
-            if declared and members:
+            elif declared:
                 measured = self.provider_distribution(members)
                 for k in ("ai", "hybrid", "human"):
                     if k not in declared:
@@ -349,7 +416,20 @@ class IndustryDatabase:
                             f"{declared.get(k)}% 与实测 {measured[k]}% "
                             f"偏差 {drift:.0f}pt（>{self.DECLARED_MIX_TOLERANCE:.0f}pt）")
 
-        # 注册单元的每个 role 都应有登记职业
+        # 8. 独立扫全量职业：成员反查按 unit_id == 分区 id 匹配，挂到单元 id 或
+        # 挂到"不指向该单元的分区"的职业都不会出现在 members 里，只在成员循环
+        # 里查永远看不见这类错挂。
+        for o in self.occupations:
+            o_uid = o.get("unit_id") or ""
+            if not o_uid or o_uid in part_by_id:
+                continue  # 未挂 / 正常挂在分区上（含单元与分区同名的情形）
+            if o_uid in unit_ids:
+                problems.append(
+                    f"职业 {o.get('id')} 的 unit_id={o_uid} 是注册单元 id 而非分区 id"
+                    f"（成员反查按分区 id 匹配，挂单元会让该职业不属于任何分区）")
+            # 悬空已由第 3 条报出，这里不重复
+
+        # 12. 注册单元的每个 role 都应有登记职业
         occ_by_role = {(o.get("unit_id"), o.get("unit_role")): o
                        for o in self.occupations if o.get("unit_id")}
         for unit in self.registry.all_units():
@@ -357,4 +437,27 @@ class IndustryDatabase:
                 if (unit.unit_id, role.name) not in occ_by_role:
                     problems.append(
                         f"单元 {unit.unit_id} 的岗位 {role.name} 未在职业库登记")
+        return problems
+
+    def _check_primary_keys(self) -> List[str]:
+        """1. 主键唯一且非空。空 id 会让分子分母一起虚增；重复 id 会让成员被
+        静默丢弃（index 只留首次出现），覆盖率与供给结构一起缩水。"""
+        problems: List[str] = []
+        for rows, label in ((self.occupations, "职业"),
+                            (self.partitions, "分区")):
+            seen: Dict[str, List[int]] = {}
+            for i, row in enumerate(rows, 1):
+                key = row.get("id")
+                if not key:
+                    problems.append(
+                        f"{label}第 {i} 条缺少 id（主键必填，空 id 会让分母虚增）")
+                elif not str(key).strip():
+                    problems.append(f"{label}第 {i} 条的 id 为空白（主键必填）")
+                seen.setdefault(key or "", []).append(i)
+            for key, positions in seen.items():
+                if key and len(positions) > 1:
+                    where = "、".join(str(x) for x in positions)
+                    problems.append(
+                        f"{label} id 重复: {key} 出现 {len(positions)} 次"
+                        f"（第 {where} 条），主键必须唯一")
         return problems
