@@ -78,6 +78,73 @@ def test_occupation_db_is_baseline_authority():
                          if o.get("baseline_occupation")]
         if baseline_occs:
             assert row["roles"]["baseline"] == len(baseline_occs), row["id"]
+            assert row["roles"]["baseline_source"] == "occupation", row["id"]
+
+
+def test_role_baseline_total_equals_occupation_db_sum():
+    """总量断言：分母必须等于「职业库基线合计」，而不是刚好等于分子那几个数
+
+    旧断言比的是 roles.baseline（分母）与基线职业数（分子口径），恒真且测不出
+    industry_db 失效。这里直接比 compute() 的总分母与职业库独立算出的合计。
+    """
+    from hanghang.engine.industry_db import IndustryDatabase
+    db = IndustryDatabase()
+    t = CoverageTracker(industry_db=db)
+    s = t.compute()
+
+    # 独立复算：权威源（职业库基线，口径同 CoverageTracker）+ 兜底（无登记分区）
+    authoritative = sum(
+        1 for o in db.occupations
+        if o.get("baseline_occupation")
+        and db.partition(o.get("unit_id") or "") is not None)
+    registered_ids = {p.get("id") for p in db.partitions}
+    fallback = 0
+    fallback_only = 0
+    for target in t.targets:
+        unit = t._registered_map().get(target.get("name", ""))
+        fallback_only += len(unit.roles) if unit else len(
+            target.get("target_roles", []) or [])
+        if target.get("id") in registered_ids:
+            continue
+        fallback += len(unit.roles) if unit else len(
+            target.get("target_roles", []) or [])
+    assert s["total_role_baseline"] == authoritative + fallback
+    # 权威源必须真的被用上：总基线不得等于「全量兜底」
+    assert s["total_role_baseline"] != fallback_only
+    # 分子：已注册行业按实际注册岗位计
+    assert s["covered_roles"] == sum(
+        len(u.roles) for u in t._registered_map().values())
+
+
+def test_stale_baseline_is_reported_not_silent():
+    """分区有职业登记但全部非基线 → 兜底必须可见（problems）"""
+    from hanghang.engine.coverage import CoverageTracker as CT
+
+    class FakeDB:
+        @staticmethod
+        def partition(pid):
+            return {"id": pid} if pid == "x" else None
+
+        @staticmethod
+        def members_of(pid):
+            return [{"id": "only-ext", "unit_id": pid,
+                     "baseline_occupation": False}]
+
+    t = CT(industry_db=FakeDB())
+    source = t._baseline_source("x", has_unit=True)
+    assert source == "stale", source
+
+    class FakeTracker(CT):
+        def _load_targets(self):
+            self.targets = [{"id": "x", "name": "占位行业", "category": "c"}]
+            self.version, self.updated_at = "0", ""
+
+    ft = FakeTracker(industry_db=FakeDB())
+    s = ft.compute()
+    assert s["rows"][0]["roles"]["baseline_source"] == "stale"
+    assert any("baseline_occupation" in p for p in s["problems"])
+    # 有登记但全非基线时不得回落 roles 计数（宁可为 0 也不能冒充）
+    assert s["rows"][0]["roles"]["baseline"] == 0
 
 
 def test_text_render_smoke():
@@ -94,5 +161,7 @@ if __name__ == "__main__":
     test_role_coverage_bounds()
     test_pending_gaps_listed()
     test_occupation_db_is_baseline_authority()
+    test_role_baseline_total_equals_occupation_db_sum()
+    test_stale_baseline_is_reported_not_silent()
     test_text_render_smoke()
     print("✅ 行业岗位覆盖进度测试通过")

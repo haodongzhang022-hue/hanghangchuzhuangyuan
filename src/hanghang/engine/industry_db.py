@@ -3,7 +3,8 @@
 设计立场：**职业(occupation) 是解耦的最小单目标，行业(partition) 是聚类结果。**
 
 - 职业登记在 data/industry-occupations.yaml，主键 id 稳定，不受行业命名影响；
-  同一职业可被多个分区引用，因此"改行业名"不会导致职业缺漏。
+  职业通过单值 unit_id 挂到唯一分区（多归属暂不支持：需要扩成 partition_ids 并
+  同步 members_of/validate/导出，本轮不做），因此"改行业名"不会导致职业缺漏。
 - 分区登记在 data/industry-partitions.yaml，只记录"为什么把这批职业聚在一起"：
   聚类依据 / 付费方 / 供给结构 / 产值口径。members 由 occupation.unit_id 反查，
   分区自身不重复存职业名，避免两份清单分叉。
@@ -92,6 +93,30 @@ class IndustryDatabase:
         """尚未挂到任何分区的职业：既可能是缺口，也可能是刻意不归属的孤立职业。"""
         return [o for o in self.occupations if not o.get("unit_id")]
 
+    def linked_occupations(self) -> List[dict]:
+        """已挂到分区且分区真实存在的职业：供给结构与覆盖率的有效分母。
+
+        unit_id 悬空的职业（分区不存在）不进分母，避免脏数据污染占比；
+        这类数据由 validate() 单独报错。
+        """
+        return [o for o in self.occupations
+                if o.get("unit_id") and o.get("unit_id") in self._part_by_id]
+
+    def provider_distribution(self, occupations: Optional[List[dict]] = None) -> dict:
+        """按职业自身的 provider 实测统计供给结构（不读分区手写值）。"""
+        occs = self.linked_occupations() if occupations is None else occupations
+        counts = {"ai": 0, "hybrid": 0, "human": 0}
+        for o in occs:
+            key = o.get("provider")
+            if key in counts:
+                counts[key] += 1
+        n = sum(counts.values())
+        if not n:  # 无数据就是无数据，不伪装成"纯人供给"
+            return {"ai": 0.0, "hybrid": 0.0, "human": 0.0, "n": 0}
+        mix = {k: round(v / n * 100, 1) for k, v in counts.items()}
+        mix["n"] = n
+        return mix
+
     def by_provider(self, provider: str) -> List[dict]:
         return [o for o in self.occupations if o.get("provider") == provider]
 
@@ -113,20 +138,10 @@ class IndustryDatabase:
         gdp_covered = sum(p.get("gdp_cny") or 0 for p in self.partitions
                           if p.get("status") == "covered")
 
-        # 供给结构：按分区成员职业数加权（分区之间不按产值加权，避免大行业淹没小行业）
-        provider_mix = {"ai": 0.0, "hybrid": 0.0, "human": 0.0}
-        weighted = 0
-        for p in self.partitions:
-            mix = p.get("provider_mix") or {}
-            n = len(self.members_of(p.get("id", ""))) or 0
-            if not n:
-                continue
-            for k in provider_mix:
-                provider_mix[k] += (mix.get(k) or 0) * n
-            weighted += n
-        if weighted:
-            for k in provider_mix:
-                provider_mix[k] = round(provider_mix[k] / weighted, 1)
+        # 供给结构：一律由成员职业的 provider 实测得出，与「不存第二份清单」一致。
+        # 分区手写的 provider_mix 只作对账留档（provider_mix_declared），不参与展示。
+        mix_n = self.provider_distribution()
+        provider_mix = {k: mix_n[k] for k in ("ai", "hybrid", "human")}
 
         rows = []
         for p in self.partitions:
@@ -137,7 +152,10 @@ class IndustryDatabase:
                 "aliases": p.get("aliases", []) or [],
                 "cluster_basis": p.get("cluster_basis", []) or [],
                 "demand_side": p.get("demand_side", []) or [],
-                "provider_mix": p.get("provider_mix", {}) or {},
+                "provider_mix": {k: v for k, v in
+                                 self.provider_distribution(members).items()
+                                 if k != "n"},
+                "provider_mix_declared": p.get("provider_mix", {}) or {},
                 "gdp_cny": p.get("gdp_cny"),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
@@ -153,6 +171,7 @@ class IndustryDatabase:
 
         return {
             "version": self.version,
+            "provider_mix_basis": "按已挂分区职业的 provider 字段实测",
             "updated_at": self.updated_at,
             "total_occupations": len(self.occupations),
             "baseline_occupations": len(baseline_occs),
@@ -170,6 +189,7 @@ class IndustryDatabase:
             "gdp_covered_cny": gdp_covered,
             "gdp_known_partitions": len(gdp_known),
             "provider_mix": provider_mix,
+            "provider_mix_n": mix_n["n"],
             "rows": rows,
         }
 
@@ -185,8 +205,9 @@ class IndustryDatabase:
             f"评估后不建单元(不计分母)",
             f"职业: {s['linked_baseline_occupations']}/{s['baseline_occupations']} 基线"
             f"  ({s['occupation_coverage']:.1%})  全量登记 {s['total_occupations']} 个",
-            f"供给结构(按成员职业加权): AI {s['provider_mix']['ai']}% / "
-            f"混合 {s['provider_mix']['hybrid']}% / 纯人 {s['provider_mix']['human']}%",
+            f"供给结构({s['provider_mix_n']} 个已挂分区职业 provider 实测): "
+            f"AI {s['provider_mix']['ai']}% / 混合 {s['provider_mix']['hybrid']}% / "
+            f"纯人 {s['provider_mix']['human']}%",
             "-" * 72,
             f"{'状态':<5}{'分区':<14}{'职业':<6}{'产值(亿元)':<12}{'AI%':<6}付费方",
         ]
@@ -210,17 +231,35 @@ class IndustryDatabase:
         return [r for r in self.compute()["rows"] if r["status"] == "pending"]
 
     # ------------------------------------------------------------ validate
+    # 分区手写 provider_mix 与实测分布的允许偏差（百分点），超出即报漂移
+    DECLARED_MIX_TOLERANCE = 25.0
+
     def validate(self) -> List[str]:
         """数据一致性自检：返回问题列表，空表示健康。
 
         校验点：
+        0. 职业自身登记有效：unit_id 必须指向已注册单元或已知分区（悬空即脏数据，
+           既不进覆盖率分子也不进供给结构分母）。
         1. 分区 members 反查到的职业，其 unit_role 必须真实存在于注册单元（防止
            职业挂错单元 → 路由永远命中不了，形成"纸面覆盖"）。
         2. 已注册单元里的每个 role 都应能在职业库找到对应职业（防止新增岗位漏登记）。
         3. 分区 status=covered 但无 unit_id、或 unit_id 指向不存在的单元 → 报错。
+        4. 分区手写 provider_mix 与实测分布偏差 > DECLARED_MIX_TOLERANCE 个百分点
+           → 报漂移（手写值只作对账留档，漂太多说明数据该回填了）。
         """
         problems: List[str] = []
         unit_ids = {u.unit_id for u in self.registry.all_units()}
+
+        # 0. 按职业独立校验：unit_id 既非已注册单元也非已知分区 → 悬空
+        for o in self.occupations:
+            uid = o.get("unit_id") or ""
+            if not uid:
+                continue  # 未挂分区是显式登记的缺口，不算错
+            known = uid in unit_ids or uid in self._part_by_id
+            if not known:
+                problems.append(
+                    f"职业 {o.get('id')} 的 unit_id={uid or '(空)'} "
+                    f"既不是已注册单元也不是已知分区")
 
         for p in self.partitions:
             pid, status = p.get("id", ""), p.get("status", "")
@@ -230,16 +269,35 @@ class IndustryDatabase:
             if uid and uid not in unit_ids:
                 problems.append(f"分区 {pid} 的 unit_id={uid} 未注册")
             for o in self.members_of(pid):
+                o_uid = o.get("unit_id") or ""
+                if o_uid and o_uid not in unit_ids:
+                    # 已由第 0 项报出悬空，这里不重复刷屏
+                    continue
                 unit = self.registry.get_unit(uid) if uid else None
                 if unit is None:
                     problems.append(
-                        f"职业 {o.get('id')} 挂在未注册单元 {uid}")
+                        f"职业 {o.get('id')} 挂在未注册单元 {uid or '(空)'}")
                     continue
                 role_names = {r.name for r in unit.roles}
                 if o.get("unit_role") not in role_names:
                     problems.append(
                         f"职业 {o.get('id')} 的 unit_role={o.get('unit_role')} "
                         f"不在单元 {uid} 的岗位中 {sorted(role_names)}")
+
+            # 4. 声明值 vs 实测 对账
+            declared = p.get("provider_mix") or {}
+            members = self.members_of(pid)
+            if declared and members:
+                measured = self.provider_distribution(members)
+                for k in ("ai", "hybrid", "human"):
+                    if k not in declared:
+                        continue
+                    drift = abs(float(declared.get(k) or 0) - measured[k])
+                    if drift > self.DECLARED_MIX_TOLERANCE:
+                        problems.append(
+                            f"分区 {pid} 的 provider_mix.{k} 声明 "
+                            f"{declared.get(k)}% 与实测 {measured[k]}% "
+                            f"偏差 {drift:.0f}pt（>{self.DECLARED_MIX_TOLERANCE:.0f}pt）")
 
         # 注册单元的每个 role 都应有登记职业
         occ_by_role = {(o.get("unit_id"), o.get("unit_role")): o

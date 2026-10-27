@@ -37,9 +37,22 @@ def cmd_industry_partition(args):
         print("  别名: " + "、".join(p["aliases"]))
     print("  聚类依据: " + "、".join(p.get("cluster_basis", [])))
     print("  付费方: " + "、".join(p.get("demand_side", [])))
-    mix = p.get("provider_mix") or {}
-    print(f"  供给结构: AI {mix.get('ai', '-')}% / 混合 {mix.get('hybrid', '-')}%"
-          f" / 纯人 {mix.get('human', '-')}%")
+    members = db.members_of(p.get("id", ""))
+    declared = p.get("provider_mix") or {}
+    if members:
+        mix = db.provider_distribution(members)
+        print(f"  供给结构(实测): AI {mix['ai']}% / 混合 {mix['hybrid']}%"
+              f" / 纯人 {mix['human']}%")
+    else:
+        # 无成员职业 = 无实测数据，用估算值并标 ~，不伪装成实测
+        print(f"  供给结构(估算~): AI {declared.get('ai', '-')}% / "
+              f"混合 {declared.get('hybrid', '-')}% / "
+              f"纯人 {declared.get('human', '-')}%")
+    estimated = p.get("provider_mix_estimated") or {}
+    if members and estimated:
+        print(f"  对账留档(原估算): AI {estimated.get('ai', '-')}% / "
+              f"混合 {estimated.get('hybrid', '-')}% / "
+              f"纯人 {estimated.get('human', '-')}%")
     print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
     if p.get("gdp_scope"):
         print(f"  产值口径: {p['gdp_scope']}")
@@ -50,7 +63,6 @@ def cmd_industry_partition(args):
         print("  数据渠道: " + "、".join(p["channels"]))
     if p.get("note"):
         print(f"  备注: {p['note']}")
-    members = db.members_of(p.get("id", ""))
     if members:
         print(f"  成员职业({len(members)}):")
         for o in members:
@@ -129,15 +141,20 @@ def cmd_industry_export(args):
             w = csv.writer(fh)
             w.writerow(["id", "name", "aliases", "status", "unit_id", "priority",
                         "member_count", "gdp_cny", "gdp_scope", "provider_ai",
-                        "provider_hybrid", "provider_human", "demand_side",
-                        "cluster_basis", "channels", "note"])
+                        "provider_hybrid", "provider_human", "provider_ai_declared",
+                        "provider_hybrid_declared", "provider_human_declared",
+                        "demand_side", "cluster_basis", "channels", "note"])
             for r in snapshot["rows"]:
                 mix = r["provider_mix"] or {}
+                dec = r.get("provider_mix_declared") or {}
                 w.writerow([r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                             r["unit_id"], r["priority"], r["member_count"],
                             r["gdp_cny"] if r["gdp_cny"] is not None else "",
                             r["gdp_scope"], mix.get("ai", ""), mix.get("hybrid", ""),
-                            mix.get("human", ""), "|".join(r["demand_side"]),
+                            mix.get("human", ""),
+                            dec.get("ai", ""), dec.get("hybrid", ""),
+                            dec.get("human", ""),
+                            "|".join(r["demand_side"]),
                             "|".join(r["cluster_basis"]),
                             "|".join(r["channels"]), r["note"]])
         written.append(ppath)
@@ -165,20 +182,24 @@ def cmd_industry_export(args):
         conn.execute("""CREATE TABLE partition(
             id TEXT PRIMARY KEY, name TEXT, aliases TEXT, status TEXT,
             unit_id TEXT, priority TEXT, gdp_cny INTEGER, gdp_scope TEXT,
-            gdp_source TEXT, provider_ai INTEGER, provider_hybrid INTEGER,
-            provider_human INTEGER, demand_side TEXT, cluster_basis TEXT,
-            channels TEXT, note TEXT)""")
+            gdp_source TEXT, provider_ai REAL, provider_hybrid REAL,
+            provider_human REAL, provider_ai_declared REAL,
+            provider_hybrid_declared REAL, provider_human_declared REAL,
+            demand_side TEXT, cluster_basis TEXT, channels TEXT, note TEXT)""")
         conn.execute("""CREATE TABLE occupation(
             id TEXT PRIMARY KEY, name TEXT, partition_id TEXT, unit_role TEXT,
             deliverable TEXT, provider TEXT, billing TEXT,
             baseline INTEGER, note TEXT)""")
         for r in snapshot["rows"]:
             mix = r["provider_mix"] or {}
-            conn.execute("INSERT INTO partition VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            dec = r.get("provider_mix_declared") or {}
+            conn.execute("INSERT INTO partition VALUES "
+                         "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                          (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                           r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
                           r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
-                          mix.get("human"), "|".join(r["demand_side"]),
+                          mix.get("human"), dec.get("ai"), dec.get("hybrid"),
+                          dec.get("human"), "|".join(r["demand_side"]),
                           "|".join(r["cluster_basis"]), "|".join(r["channels"]),
                           r["note"]))
         for o in db.occupations:

@@ -116,109 +116,109 @@ occupations:
   - {id: brand-designer,     name: 品牌设计师, unit_id: design-visual, unit_role: brand_designer,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
 
   # ---------------- 待建单元分区里的代表性职业（覆盖缺口） ----------------
-  - {id: simultaneous-interpreter, name: 口译员, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "翻译本地化"}
-  - {id: subtitle-translator, name: 字幕翻译, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
-  - {id: localizer,          name: 本地化工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "翻译本地化"}
-  - {id: proofreader,        name: 审校员,     deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
+  - {id: simultaneous-interpreter, unit_id: translation, name: 口译员, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "翻译本地化"}
+  - {id: subtitle-translator, unit_id: translation, name: 字幕翻译, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
+  - {id: localizer,          unit_id: translation, name: 本地化工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "翻译本地化"}
+  - {id: proofreader,        unit_id: translation, name: 审校员,     deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
 
-  - {id: video-editor,       name: 视频剪辑,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: "视频影视"}
-  - {id: cinematographer,    name: 摄影摄像,   deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "视频影视"}
-  - {id: post-production,    name: 后期制作,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: "视频影视"}
-  - {id: director-assistant, name: 导演助理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "视频影视"}
-  - {id: scriptwriter,       name: 编导/编剧,  deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "视频影视"}
+  - {id: video-editor,       unit_id: video-media, name: 视频剪辑,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: "视频影视"}
+  - {id: cinematographer,    unit_id: video-media, name: 摄影摄像,   deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "视频影视"}
+  - {id: post-production,    unit_id: video-media, name: 后期制作,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: "视频影视"}
+  - {id: director-assistant, unit_id: video-media, name: 导演助理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "视频影视"}
+  - {id: scriptwriter,       unit_id: video-media, name: 编导/编剧,  deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "视频影视"}
 
-  - {id: financial-advisor,  name: 理财顾问,   deliverable: 方案, provider: hybrid, billing: commission, baseline_occupation: true, note: "金融投资"}
-  - {id: insurance-advisor,  name: 保险顾问,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
-  - {id: securities-analyst, name: 证券分析师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "金融投资"}
-  - {id: investment-advisor, name: 投资顾问,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
-  - {id: loan-officer,       name: 信贷专员,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
+  - {id: financial-advisor,  unit_id: finance-invest, name: 理财顾问,   deliverable: 方案, provider: hybrid, billing: commission, baseline_occupation: true, note: "金融投资"}
+  - {id: insurance-advisor,  unit_id: finance-invest, name: 保险顾问,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
+  - {id: securities-analyst, unit_id: finance-invest, name: 证券分析师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "金融投资"}
+  - {id: investment-advisor, unit_id: finance-invest, name: 投资顾问,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
+  - {id: loan-officer,       unit_id: finance-invest, name: 信贷专员,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "金融投资"}
 
-  - {id: realtor,            name: 房产经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "房产置业"}
-  - {id: property-consultant, name: 置业顾问,  deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "房产置业"}
-  - {id: appraiser,          name: 房产评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "房产置业"}
-  - {id: leasing-operator,   name: 招商运营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "房产置业"}
-  - {id: property-manager,   name: 物业管理,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "房产置业"}
+  - {id: realtor,            unit_id: real-estate, name: 房产经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "房产置业"}
+  - {id: property-consultant, unit_id: real-estate, name: 置业顾问,  deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "房产置业"}
+  - {id: appraiser,          unit_id: real-estate, name: 房产评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "房产置业"}
+  - {id: leasing-operator,   unit_id: real-estate, name: 招商运营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "房产置业"}
+  - {id: property-manager,   unit_id: real-estate, name: 物业管理,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "房产置业"}
 
-  - {id: travel-planner,     name: 旅游规划师, deliverable: 方案, provider: ai, billing: usage, baseline_occupation: true, note: "旅游出行"}
-  - {id: hotel-manager,      name: 酒店管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "旅游出行"}
-  - {id: tour-guide,         name: 导游,       deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "旅游出行"}
-  - {id: booking-agent,      name: 票务预订,   deliverable: 服务, provider: ai, billing: usage, baseline_occupation: true, note: "旅游出行"}
-  - {id: homestay-operator,  name: 民宿运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "旅游出行"}
+  - {id: travel-planner,     unit_id: tourism-hospitality, name: 旅游规划师, deliverable: 方案, provider: ai, billing: usage, baseline_occupation: true, note: "旅游出行"}
+  - {id: hotel-manager,      unit_id: tourism-hospitality, name: 酒店管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "旅游出行"}
+  - {id: tour-guide,         unit_id: tourism-hospitality, name: 导游,       deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "旅游出行"}
+  - {id: booking-agent,      unit_id: tourism-hospitality, name: 票务预订,   deliverable: 服务, provider: ai, billing: usage, baseline_occupation: true, note: "旅游出行"}
+  - {id: homestay-operator,  unit_id: tourism-hospitality, name: 民宿运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "旅游出行"}
 
-  - {id: menu-planner,       name: 菜品策划,   deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
-  - {id: restaurant-operator, name: 门店运营,  deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
-  - {id: delivery-operator,  name: 外卖运营,   deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: "餐饮美食"}
-  - {id: food-safety-officer, name: 食品安全员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
-  - {id: fb-manager,         name: 餐饮店长,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
+  - {id: menu-planner,       unit_id: food-beverage, name: 菜品策划,   deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
+  - {id: restaurant-operator, unit_id: food-beverage, name: 门店运营,  deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
+  - {id: delivery-operator,  unit_id: food-beverage, name: 外卖运营,   deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: "餐饮美食"}
+  - {id: food-safety-officer, unit_id: food-beverage, name: 食品安全员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
+  - {id: fb-manager,         unit_id: food-beverage, name: 餐饮店长,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "餐饮美食"}
 
-  - {id: logistics-operator, name: 物流运营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
-  - {id: supply-chain-manager, name: 供应链管理, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
-  - {id: warehouse-manager,  name: 仓储管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
-  - {id: buyer,              name: 采购专员,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
-  - {id: customs-broker,     name: 报关员,     deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "物流供应链"}
+  - {id: logistics-operator, unit_id: logistics-supply, name: 物流运营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
+  - {id: supply-chain-manager, unit_id: logistics-supply, name: 供应链管理, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
+  - {id: warehouse-manager,  unit_id: logistics-supply, name: 仓储管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
+  - {id: buyer,              unit_id: logistics-supply, name: 采购专员,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "物流供应链"}
+  - {id: customs-broker,     unit_id: logistics-supply, name: 报关员,     deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "物流供应链"}
 
-  - {id: production-planner, name: 生产计划员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
-  - {id: quality-engineer,   name: 质量管理工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
-  - {id: process-engineer,   name: 工艺工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
-  - {id: equipment-manager,  name: 设备管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
-  - {id: industrial-designer, name: 工业设计师, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "智能制造"}
+  - {id: production-planner, unit_id: manufacturing, name: 生产计划员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
+  - {id: quality-engineer,   unit_id: manufacturing, name: 质量管理工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
+  - {id: process-engineer,   unit_id: manufacturing, name: 工艺工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
+  - {id: equipment-manager,  unit_id: manufacturing, name: 设备管理,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "智能制造"}
+  - {id: industrial-designer, unit_id: manufacturing, name: 工业设计师, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "智能制造"}
 
-  - {id: cost-estimator,     name: 造价员,     deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
-  - {id: supervision-engineer, name: 监理工程师, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
-  - {id: construction-manager, name: 施工管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "建筑工程"}
-  - {id: bidding-specialist, name: 招投标专员, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "建筑工程"}
-  - {id: bim-engineer,       name: BIM工程师,  deliverable: 程序, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
+  - {id: cost-estimator,     unit_id: construction-eng, name: 造价员,     deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
+  - {id: supervision-engineer, unit_id: construction-eng, name: 监理工程师, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
+  - {id: construction-manager, unit_id: construction-eng, name: 施工管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "建筑工程"}
+  - {id: bidding-specialist, unit_id: construction-eng, name: 招投标专员, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "建筑工程"}
+  - {id: bim-engineer,       unit_id: construction-eng, name: BIM工程师,  deliverable: 程序, provider: human, billing: project, baseline_occupation: true, note: "建筑工程"}
 
-  - {id: carbon-manager,     name: 碳管理师,   deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true, note: "能源环保"}
-  - {id: energy-manager,     name: 能源管理师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "能源环保"}
-  - {id: environmental-consultant, name: 环保咨询, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
-  - {id: energy-saving-planner, name: 节能方案, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
-  - {id: eia-writer,         name: 环评编制,   deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
+  - {id: carbon-manager,     unit_id: energy-environment, name: 碳管理师,   deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true, note: "能源环保"}
+  - {id: energy-manager,     unit_id: energy-environment, name: 能源管理师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: "能源环保"}
+  - {id: environmental-consultant, unit_id: energy-environment, name: 环保咨询, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
+  - {id: energy-saving-planner, unit_id: energy-environment, name: 节能方案, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
+  - {id: eia-writer,         unit_id: energy-environment, name: 环评编制,   deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: "能源环保"}
 
-  - {id: auto-sales,         name: 汽车销售,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "汽车服务"}
-  - {id: after-sales,        name: 售后服务,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "汽车服务"}
-  - {id: used-car-appraiser, name: 二手车评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "汽车服务"}
-  - {id: auto-finance,       name: 汽车金融,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "汽车服务"}
-  - {id: repair-advisor,     name: 汽修顾问,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "汽车服务"}
+  - {id: auto-sales,         unit_id: auto-service, name: 汽车销售,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "汽车服务"}
+  - {id: after-sales,        unit_id: auto-service, name: 售后服务,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "汽车服务"}
+  - {id: used-car-appraiser, unit_id: auto-service, name: 二手车评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "汽车服务"}
+  - {id: auto-finance,       unit_id: auto-service, name: 汽车金融,   deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: "汽车服务"}
+  - {id: repair-advisor,     unit_id: auto-service, name: 汽修顾问,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "汽车服务"}
 
-  - {id: housekeeping-advisor, name: 家政顾问, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
-  - {id: cleaning-steward,   name: 保洁管家,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
-  - {id: nanny,              name: 育儿嫂,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
-  - {id: maternity-matron,   name: 月嫂,       deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "生活服务"}
-  - {id: elder-care,         name: 养老照护,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "生活服务"}
+  - {id: housekeeping-advisor, unit_id: personal-services, name: 家政顾问, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
+  - {id: cleaning-steward,   unit_id: personal-services, name: 保洁管家,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
+  - {id: nanny,              unit_id: personal-services, name: 育儿嫂,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "生活服务"}
+  - {id: maternity-matron,   unit_id: personal-services, name: 月嫂,       deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "生活服务"}
+  - {id: elder-care,         unit_id: personal-services, name: 养老照护,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "生活服务"}
 
-  - {id: makeup-advisor,     name: 美妆顾问,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "美业美发"}
-  - {id: hairstylist,        name: 美发师,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "美业美发"}
-  - {id: manicurist,         name: 美甲师,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "美业美发"}
-  - {id: beauty-advisor,     name: 美容顾问,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "美业美发"}
-  - {id: image-consultant,   name: 形象设计,   deliverable: 方案, provider: hybrid, billing: hourly, baseline_occupation: true, note: "美业美发"}
+  - {id: makeup-advisor,     unit_id: beauty-grooming, name: 美妆顾问,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "美业美发"}
+  - {id: hairstylist,        unit_id: beauty-grooming, name: 美发师,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "美业美发"}
+  - {id: manicurist,         unit_id: beauty-grooming, name: 美甲师,     deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "美业美发"}
+  - {id: beauty-advisor,     unit_id: beauty-grooming, name: 美容顾问,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "美业美发"}
+  - {id: image-consultant,   unit_id: beauty-grooming, name: 形象设计,   deliverable: 方案, provider: hybrid, billing: hourly, baseline_occupation: true, note: "美业美发"}
 
-  - {id: agri-consultant,    name: 农业咨询,   deliverable: 方案, provider: human, billing: retainer, baseline_occupation: true, note: "农林牧渔"}
-  - {id: planting-planner,   name: 种养规划,   deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "农林牧渔"}
-  - {id: agri-ecommerce,     name: 农产品电商, deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: "农林牧渔"}
-  - {id: agronomist,         name: 农技顾问,   deliverable: 方案, provider: human, billing: hourly, baseline_occupation: true, note: "农林牧渔"}
-  - {id: ranch-operator,     name: 牧场经营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "农林牧渔"}
+  - {id: agri-consultant,    unit_id: agriculture, name: 农业咨询,   deliverable: 方案, provider: human, billing: retainer, baseline_occupation: true, note: "农林牧渔"}
+  - {id: planting-planner,   unit_id: agriculture, name: 种养规划,   deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "农林牧渔"}
+  - {id: agri-ecommerce,     unit_id: agriculture, name: 农产品电商, deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: "农林牧渔"}
+  - {id: agronomist,         unit_id: agriculture, name: 农技顾问,   deliverable: 方案, provider: human, billing: hourly, baseline_occupation: true, note: "农林牧渔"}
+  - {id: ranch-operator,     unit_id: agriculture, name: 牧场经营,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "农林牧渔"}
 
-  - {id: curator,            name: 策展人,     deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "文化艺术"}
-  - {id: talent-agent,       name: 经纪人,     deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "文化艺术"}
-  - {id: publisher-editor,   name: 出版编辑,   deliverable: 文本, provider: hybrid, billing: salary, baseline_occupation: true, note: "文化艺术"}
-  - {id: playwright,         name: 编剧,       deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "文化艺术"}
-  - {id: music-producer,     name: 音乐制作,   deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "文化艺术"}
+  - {id: curator,            unit_id: culture-art, name: 策展人,     deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "文化艺术"}
+  - {id: talent-agent,       unit_id: culture-art, name: 经纪人,     deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "文化艺术"}
+  - {id: publisher-editor,   unit_id: culture-art, name: 出版编辑,   deliverable: 文本, provider: hybrid, billing: salary, baseline_occupation: true, note: "文化艺术"}
+  - {id: playwright,         unit_id: culture-art, name: 编剧,       deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "文化艺术"}
+  - {id: music-producer,     unit_id: culture-art, name: 音乐制作,   deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "文化艺术"}
 
-  - {id: policy-consultant,  name: 政策咨询,   deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: "政务公共"}
-  - {id: community-worker,   name: 社区服务,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "政务公共"}
-  - {id: gov-service-clerk,  name: 政务服务,   deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: "政务公共"}
-  - {id: records-manager,    name: 档案管理,   deliverable: 文本, provider: ai, billing: salary, baseline_occupation: true, note: "政务公共"}
-  - {id: civic-agent,        name: 民生代办,   deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: "政务公共"}
+  - {id: policy-consultant,  unit_id: public-affairs, name: 政策咨询,   deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: "政务公共"}
+  - {id: community-worker,   unit_id: public-affairs, name: 社区服务,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "政务公共"}
+  - {id: gov-service-clerk,  unit_id: public-affairs, name: 政务服务,   deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: "政务公共"}
+  - {id: records-manager,    unit_id: public-affairs, name: 档案管理,   deliverable: 文本, provider: ai, billing: salary, baseline_occupation: true, note: "政务公共"}
+  - {id: civic-agent,        unit_id: public-affairs, name: 民生代办,   deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: "政务公共"}
 
-  - {id: sports-coach,       name: 运动教练,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
-  - {id: sports-agent,       name: 体育经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "体育健身"}
-  - {id: event-operator,     name: 赛事运营,   deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "体育健身"}
-  - {id: venue-manager,      name: 场馆运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "体育健身"}
-  - {id: rehab-trainer,      name: 康复训练师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
+  - {id: sports-coach,       unit_id: sport-leisure, name: 运动教练,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
+  - {id: sports-agent,       unit_id: sport-leisure, name: 体育经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "体育健身"}
+  - {id: event-operator,     unit_id: sport-leisure, name: 赛事运营,   deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "体育健身"}
+  - {id: venue-manager,      unit_id: sport-leisure, name: 场馆运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "体育健身"}
+  - {id: rehab-trainer,      unit_id: sport-leisure, name: 康复训练师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
 
-  - {id: literature-reviewer, name: 文献综述员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}
-  - {id: grant-writer,       name: 课题申报,   deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
-  - {id: experiment-designer, name: 实验设计,  deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "科研学术"}
-  - {id: research-analyst,   name: 科研数据分析, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
-  - {id: academic-editor,    name: 学术编辑,   deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}
+  - {id: literature-reviewer, unit_id: research-academic, name: 文献综述员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}
+  - {id: grant-writer,       unit_id: research-academic, name: 课题申报,   deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
+  - {id: experiment-designer, unit_id: research-academic, name: 实验设计,  deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "科研学术"}
+  - {id: research-analyst,   unit_id: research-academic, name: 科研数据分析, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
+  - {id: academic-editor,    unit_id: research-academic, name: 学术编辑,   deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}

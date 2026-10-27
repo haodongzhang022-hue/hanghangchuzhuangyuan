@@ -17,6 +17,8 @@
 #   cluster_basis 聚类依据
 #   demand_side   付费方/需求侧（谁付钱）
 #   provider_mix  供给结构：{ai, hybrid, human} 占比，和为 100
+#                 已建分区一律由成员职业 provider 字段实测回填；待建分区保留人工估算。
+#   provider_mix_estimated  人工估算值留档（对账用，不参与展示）
 #   gdp_cny       年产值(元, 中国口径, 约占该产业规模)；null = 未可靠估算（禁止编造）
 #   gdp_scope     产值口径说明
 #   gdp_source    来源/估算方法
@@ -41,7 +43,8 @@ partitions:
     aliases: [软件和信息技术服务, 信息技术服务, IT服务, 软件开发]
     cluster_basis: [交付物同源(代码/方案), 技能栈重叠]
     demand_side: [企业IT预算, 政企信息化采购, 互联网公司研发投入]
-    provider_mix: {ai: 50, hybrid: 40, human: 10}
+    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix_estimated: {ai: 50, hybrid: 40, human: 10}
     gdp_cny: 6000000000000
     gdp_scope: 软件业务收入 + 信息技术服务收入（规上口径）
     gdp_source: 工信部软件业统计公报(量级估算)
@@ -56,7 +59,8 @@ partitions:
     aliases: [游戏, 电子游戏, 互动娱乐]
     cluster_basis: [交付物同源(游戏产品), 交付链上下游]
     demand_side: [玩家付费, 发行分成, 广告变现]
-    provider_mix: {ai: 35, hybrid: 45, human: 20}
+    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix_estimated: {ai: 35, hybrid: 45, human: 20}
     gdp_cny: 3300000000000
     gdp_scope: 游戏市场实际销售收入
     gdp_source: 中国音数协游戏工委年度报告(量级估算)
@@ -70,7 +74,8 @@ partitions:
     aliases: [法律服务, 法务, 律师服务]
     cluster_basis: [付费方同行(企业/个人纠纷), 资质门槛]
     demand_side: [企业法务预算, 个人诉讼付费, 政府购买法律服务]
-    provider_mix: {ai: 40, hybrid: 50, human: 10}
+    provider_mix: {ai: 33.3, hybrid: 66.7, human: 0.0}
+    provider_mix_estimated: {ai: 40, hybrid: 50, human: 10}
     gdp_cny: 270000000000
     gdp_scope: 法律服务行业营业收入
     gdp_source: 司法部/律协行业统计(量级估算)
@@ -84,7 +89,8 @@ partitions:
     aliases: [新媒体, 内容运营, 自媒体, 文案]
     cluster_basis: [交付物同源(图文/短视频), 付费方同为平台分成/品牌预算]
     demand_side: [平台流量分成, 品牌内容预算, 用户订阅]
-    provider_mix: {ai: 60, hybrid: 35, human: 5}
+    provider_mix: {ai: 66.7, hybrid: 33.3, human: 0.0}
+    provider_mix_estimated: {ai: 60, hybrid: 35, human: 5}
     gdp_cny: 500000000000
     gdp_scope: 数字内容/新媒体内容生产相关收入(窄口径, 不含版权交易)
     gdp_source: 平台公开口径+行业报告(量级估算, 低置信)
@@ -98,7 +104,8 @@ partitions:
     aliases: [大数据分析, 商业分析, 数据科学, BI]
     cluster_basis: [技能栈重叠(数据/建模/可视化), 交付物同源(洞察报告)]
     demand_side: [企业数据预算, 数字化改造项目]
-    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
+    provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 800000000000
     gdp_scope: 大数据产业市场规模中"分析服务"部分
     gdp_source: 大数据产业生态报告(量级估算, 与软件研发存在重叠)
@@ -112,7 +119,8 @@ partitions:
     aliases: [电商, 网络零售, 跨境电商]
     cluster_basis: [交付链上下游(货-店-客), 付费方同行(成交佣金)]
     demand_side: [消费者购买, 平台佣金/服务费, 品牌代运营预算]
-    provider_mix: {ai: 40, hybrid: 40, human: 20}
+    provider_mix: {ai: 33.3, hybrid: 33.3, human: 33.3}
+    provider_mix_estimated: {ai: 40, hybrid: 40, human: 20}
     gdp_cny: 15000000000000
     gdp_scope: 全国网上零售额(含平台交易额, 非增加值)
     gdp_source: 国家统计局社零/网上零售额(量级估算)
@@ -127,7 +135,8 @@ partitions:
     aliases: [财税, 会计服务, 代理记账, 财务共享]
     cluster_basis: [交付物同源(账/税/报表), 法规一致性要求]
     demand_side: [企业年度财税服务预算, 代账订阅费]
-    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    provider_mix: {ai: 25.0, hybrid: 75.0, human: 0.0}
+    provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 300000000000
     gdp_scope: 代理记账/财税服务市场规模(窄口径)
     gdp_source: 财政部代理记账行业与市场报告(量级估算)
@@ -141,7 +150,8 @@ partitions:
     aliases: [市场推广, 品牌营销, 广告策划, 数字营销]
     cluster_basis: [付费方同行(企业营销预算), 交付链上下游(策略-投放)]
     demand_side: [企业市场预算, 广告主投放预算]
-    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 1200000000000
     gdp_scope: 广告经营额 + 营销服务收入
     gdp_source: 市场监管总局广告业统计(量级估算)
@@ -155,7 +165,8 @@ partitions:
     aliases: [教育, 培训, 在线教育, 职业教育]
     cluster_basis: [付费方同行(家长/学员/企业培训预算), 交付物同源(课程)]
     demand_side: [家庭学费支出, 企业培训预算, 政府教育采购]
-    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    provider_mix: {ai: 33.3, hybrid: 66.7, human: 0.0}
+    provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 2000000000000
     gdp_scope: 教育培训行业市场规模(含非学历培训)
     gdp_source: 教育部/行业报告(量级估算)
@@ -169,7 +180,8 @@ partitions:
     aliases: [医疗健康, 大健康, 健康管理, 互联网医疗]
     cluster_basis: [付费方同行(医保/自费), 资质与合规门槛]
     demand_side: [医保支付, 个人自费, 企业健康福利]
-    provider_mix: {ai: 30, hybrid: 45, human: 25}
+    provider_mix: {ai: 0.0, hybrid: 75.0, human: 25.0}
+    provider_mix_estimated: {ai: 30, hybrid: 45, human: 25}
     gdp_cny: 9000000000000
     gdp_scope: 卫生总费用(含公立医疗, 其中市场化服务仅一部分)
     gdp_source: 国家卫健委卫生统计公报(量级估算)
@@ -184,7 +196,8 @@ partitions:
     aliases: [装修, 室内设计, 家居家装, 全屋定制]
     cluster_basis: [交付链上下游(设计-施工-软装), 付费方同行(业主)]
     demand_side: [业主装修支出, 房企精装项目]
-    provider_mix: {ai: 35, hybrid: 45, human: 20}
+    provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
+    provider_mix_estimated: {ai: 35, hybrid: 45, human: 20}
     gdp_cny: 4000000000000
     gdp_scope: 家装家居市场规模(含材料与施工)
     gdp_source: 建筑装饰协会/家装行业报告(量级估算)
@@ -198,7 +211,8 @@ partitions:
     aliases: [人事, HR服务, 招聘服务, 人力资源服务]
     cluster_basis: [付费方同行(企业人力预算), 交付物同源(人与制度)]
     demand_side: [企业人力服务预算, 猎头佣金, HR SaaS 订阅]
-    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 2500000000000
     gdp_scope: 人力资源服务业营业收入
     gdp_source: 人社部人力资源服务业统计(量级估算)
@@ -212,7 +226,8 @@ partitions:
     aliases: [行政, 综合办公, 后台职能]
     cluster_basis: [技能栈重叠(事务/文书/协调), 付费方=内部预算]
     demand_side: [企业内部行政预算]
-    provider_mix: {ai: 50, hybrid: 40, human: 10}
+    provider_mix: {ai: 25.0, hybrid: 50.0, human: 25.0}
+    provider_mix_estimated: {ai: 50, hybrid: 40, human: 10}
     gdp_cny: null
     gdp_scope: 无独立行业口径（属企业内部职能，产值计入各自主业）
     gdp_source: 不适用，刻意留空不编造
@@ -227,7 +242,8 @@ partitions:
     aliases: [平面设计, 设计服务, UI设计, 品牌设计]
     cluster_basis: [交付物同源(视觉稿/物料), 付费方同行(品牌预算)]
     demand_side: [企业品牌/营销预算, 平台商家设计付费]
-    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 500000000000
     gdp_scope: 设计服务业营业收入(含工业设计/平面设计)
     gdp_source: 设计行业报告(量级估算, 置信中等)
@@ -242,7 +258,8 @@ partitions:
     aliases: [语言服务, 翻译服务, 本地化服务]
     cluster_basis: [交付物同源(语言转换), 技能栈重叠(双语+术语)]
     demand_side: [企业出海本地化预算, 出版/影视本地化项目]
-    provider_mix: {ai: 70, hybrid: 28, human: 2}
+    provider_mix: {ai: 50.0, hybrid: 25.0, human: 25.0}
+    provider_mix_estimated: {ai: 70, hybrid: 28, human: 2}
     gdp_cny: 70000000000
     gdp_scope: 语言服务行业总产值
     gdp_source: 中国翻译协会年度报告(量级估算)
@@ -257,7 +274,8 @@ partitions:
     aliases: [影视制作, 短视频制作, 传媒, 视频内容]
     cluster_basis: [交付链上下游(拍摄-剪辑-发行), 交付物同源(视频)]
     demand_side: [平台分账, 品牌短视频预算, 影视投资]
-    provider_mix: {ai: 45, hybrid: 40, human: 15}
+    provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
+    provider_mix_estimated: {ai: 45, hybrid: 40, human: 15}
     gdp_cny: 2500000000000
     gdp_scope: 广播电视与网络视听行业收入
     gdp_source: 广电总局统计公报(量级估算)
@@ -271,7 +289,8 @@ partitions:
     aliases: [投资理财, 财富管理, 保险服务, 证券服务]
     cluster_basis: [资质门槛, 付费方同行(佣金/管理费)]
     demand_side: [个人财富管理费, 机构管理费/佣金]
-    provider_mix: {ai: 30, hybrid: 40, human: 30}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 30, hybrid: 40, human: 30}
     gdp_cny: 3000000000000
     gdp_scope: 金融业增加值中财富管理/经纪相关部分
     gdp_source: 央行/证监会统计(量级估算)
@@ -286,7 +305,8 @@ partitions:
     aliases: [房地产服务, 中介, 物业服务]
     cluster_basis: [付费方同行(佣金/物业费), 交付链上下游]
     demand_side: [二手房佣金, 物业费, 开发商营销费]
-    provider_mix: {ai: 30, hybrid: 40, human: 30}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 30, hybrid: 40, human: 30}
     gdp_cny: 1500000000000
     gdp_scope: 房地产服务业(中介/物业)收入
     gdp_source: 住建部/行业协会统计(量级估算)
@@ -300,7 +320,8 @@ partitions:
     aliases: [旅游, 酒店, 住宿, 文旅]
     cluster_basis: [交付链上下游(行程-住宿-票务), 付费方同行(游客)]
     demand_side: [游客消费, 商旅报销, 平台佣金]
-    provider_mix: {ai: 40, hybrid: 35, human: 25}
+    provider_mix: {ai: 40.0, hybrid: 0.0, human: 60.0}
+    provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 5000000000000
     gdp_scope: 旅游业总收入(含住宿/餐饮/景区, 与餐饮有重叠)
     gdp_source: 文旅部统计(量级估算)
@@ -314,7 +335,8 @@ partitions:
     aliases: [餐饮, 餐饮服务, 食品服务]
     cluster_basis: [交付物同源(现制食品), 付费方同行(消费者)]
     demand_side: [消费者餐饮支出, 外卖平台佣金]
-    provider_mix: {ai: 20, hybrid: 30, human: 50}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 20, hybrid: 30, human: 50}
     gdp_cny: 5000000000000
     gdp_scope: 全国餐饮收入
     gdp_source: 国家统计局社零餐饮收入
@@ -329,7 +351,8 @@ partitions:
     aliases: [物流, 供应链, 仓储运输, 快递]
     cluster_basis: [交付链上下游(仓-运-配), 付费方同行(运费)]
     demand_side: [运费收入, 供应链服务费, 电商履约费]
-    provider_mix: {ai: 45, hybrid: 30, human: 25}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 45, hybrid: 30, human: 25}
     gdp_cny: 18000000000000
     gdp_scope: 社会物流总费用(成本口径, 非增加值)
     gdp_source: 中国物流与采购联合会统计
@@ -343,7 +366,8 @@ partitions:
     aliases: [制造业, 工业制造, 生产制造]
     cluster_basis: [交付物同源(实物产品), 交付链上下游(计划-工艺-质控)]
     demand_side: [制造企业订单收入, 工业服务费]
-    provider_mix: {ai: 30, hybrid: 30, human: 40}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 30, hybrid: 30, human: 40}
     gdp_cny: 33000000000000
     gdp_scope: 制造业增加值(整行业口径, 其中管理与技术岗是 AI 可承接部分)
     gdp_source: 国家统计局工业增加值
@@ -358,7 +382,8 @@ partitions:
     aliases: [建筑业, 工程建设, 施工]
     cluster_basis: [交付链上下游(设计-造价-施工-监理), 项目制付费]
     demand_side: [工程合同收入, 政府基建投资]
-    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: 32000000000000
     gdp_scope: 建筑业总产值
     gdp_source: 国家统计局建筑业统计
@@ -372,7 +397,8 @@ partitions:
     aliases: [环保, 节能, 双碳, 环境服务]
     cluster_basis: [法规驱动, 付费方同为合规成本/政府购买]
     demand_side: [环评/碳核查服务费, 政府环保采购, 节能改造项目]
-    provider_mix: {ai: 35, hybrid: 35, human: 30}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 35, hybrid: 35, human: 30}
     gdp_cny: 800000000000
     gdp_scope: 环保产业营业收入(含装备, 服务部分更小)
     gdp_source: 生态环境部环保产业统计(量级估算)
@@ -386,7 +412,8 @@ partitions:
     aliases: [汽车后市场, 汽车销售, 汽修]
     cluster_basis: [交付链上下游(销售-金融-售后), 付费方同行(车主)]
     demand_side: [整车销售佣金, 售后维修收入, 汽车金融返佣]
-    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: 5000000000000
     gdp_scope: 汽车后市场市场规模(不含整车制造)
     gdp_source: 汽车流通协会/行业报告(量级估算)
@@ -400,7 +427,8 @@ partitions:
     aliases: [家政, 居民服务, 到家服务, 养老照护]
     cluster_basis: [交付物同源(上门服务), 付费方同行(家庭付费)]
     demand_side: [家庭服务付费, 家政平台佣金, 长护险支付]
-    provider_mix: {ai: 25, hybrid: 25, human: 50}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 25, hybrid: 25, human: 50}
     gdp_cny: 1000000000000
     gdp_scope: 家政服务业营业收入(量级估算)
     gdp_source: 商务部家政服务业统计(量级估算)
@@ -414,7 +442,8 @@ partitions:
     aliases: [美容美发, 美业, 形象设计]
     cluster_basis: [交付物同源(线下形象服务), 付费方同行(个人消费)]
     demand_side: [个人到店消费, 会员卡预付]
-    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}
     gdp_cny: 500000000000
     gdp_scope: 美容美发行业市场规模(量级估算)
     gdp_source: 行业协会报告(低置信)
@@ -428,7 +457,8 @@ partitions:
     aliases: [农业, 现代农业, 农产品]
     cluster_basis: [交付物同源(农产品), 政策驱动]
     demand_side: [农产品销售收入, 农业补贴, 农技服务费]
-    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}
     gdp_cny: 9000000000000
     gdp_scope: 农林牧渔业增加值
     gdp_source: 国家统计局农业增加值
@@ -442,7 +472,8 @@ partitions:
     aliases: [文化娱乐, 演艺, 出版, 艺术服务]
     cluster_basis: [付费方同行(票务/版权), 交付物版权属性]
     demand_side: [票务收入, 版权授权, 政府文化采购]
-    provider_mix: {ai: 40, hybrid: 35, human: 25}
+    provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
+    provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 1000000000000
     gdp_scope: 文化及相关产业增加值中内容创作生产部分
     gdp_source: 国家统计局文化产业统计
@@ -456,7 +487,8 @@ partitions:
     aliases: [政务服务, 公共管理, 社区治理]
     cluster_basis: [付费方=财政, 非市场付费]
     demand_side: [财政预算, 政府购买服务]
-    provider_mix: {ai: 40, hybrid: 45, human: 15}
+    provider_mix: {ai: 20.0, hybrid: 40.0, human: 40.0}
+    provider_mix_estimated: {ai: 40, hybrid: 45, human: 15}
     gdp_cny: null
     gdp_scope: 无市场产值口径（公共管理增加值不构成市场付费分区）
     gdp_source: 不适用，刻意留空
@@ -471,7 +503,8 @@ partitions:
     aliases: [体育, 健身, 赛事运营]
     cluster_basis: [付费方同行(会员费/票务), 交付物同源(运动服务)]
     demand_side: [健身会员费, 赛事票务与赞助, 体育培训费]
-    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: 3000000000000
     gdp_scope: 体育产业总产出(含用品制造, 服务部分更小)
     gdp_source: 国家体育总局体育产业统计
@@ -485,7 +518,8 @@ partitions:
     aliases: [科研服务, 学术出版, 研发外包]
     cluster_basis: [交付链上下游(选题-申报-实验-发表), 经费驱动]
     demand_side: [科研经费, 企业研发外包费, APC版面费]
-    provider_mix: {ai: 50, hybrid: 45, human: 5}
+    provider_mix: {ai: 40.0, hybrid: 40.0, human: 20.0}
+    provider_mix_estimated: {ai: 50, hybrid: 45, human: 5}
     gdp_cny: 2500000000000
     gdp_scope: 研究与试验发展(R&D)经费中外部服务部分(窄口径)
     gdp_source: 国家统计局R&D经费投入统计

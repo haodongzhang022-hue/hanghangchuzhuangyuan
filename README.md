@@ -272,7 +272,7 @@ python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗�
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
-- `data/industry-occupations.yaml` — M11 职业表（最小单目标，稳定主键，可跨分区复用）
+- `data/industry-occupations.yaml` — M11 职业表（最小单目标，稳定主键，单值 `unit_id` 挂唯一分区）
 - `data/industry-partitions.yaml` — M11 行业分区表（聚类依据/付费方/供给结构/产值口径）
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
@@ -286,7 +286,8 @@ python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗�
 
 **职业是解耦的最小单目标，行业是聚类结果。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
 
-- **职业表** `data/industry-occupations.yaml`：一职业一条 `id`，跨分区可复用；
+- **职业表** `data/industry-occupations.yaml`：一职业一条 `id`，通过单值 `unit_id`
+  挂到唯一分区（多归属暂不支持，需扩 `partition_ids` 并同步 `members_of`/`validate`/导出）；
   未挂分区的职业照样登记 → 缺口永远可见，不会静默丢失。
 - **分区表** `data/industry-partitions.yaml`：只写清"为什么聚类"（聚类依据 / 付费方 /
   供给结构 `provider_mix` / 产值口径 `gdp_cny`）。成员由 `occupation.unit_id` **反查**，

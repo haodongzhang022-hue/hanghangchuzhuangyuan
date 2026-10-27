@@ -17,8 +17,10 @@ unit（已注册的行业单元，真正能被路由到的执行体）
 
 三层各管一件事：
 
-- **职业层**：一个职业一条记录，`id` 是主键（如 `translator`）。行业改名不动它，
-  一个职业也能被多个分区复用。没挂分区的职业照样登记 → **缺口永远可见，不会静默丢失**。
+- **职业层**：一个职业一条记录，`id` 是主键（如 `translator`）。行业改名不动它。
+  职业通过**单值** `unit_id` 挂到唯一分区；多归属暂不支持（要扩成 `partition_ids`
+  并同步 `members_of`/`validate`/导出，本轮不做）。没挂分区的职业照样登记
+  → **缺口永远可见，不会静默丢失**。
 - **分区层**：不写职业清单，只写清"为什么聚类"。成员由 `occupation.unit_id` 反查得到，
   **不存在第二份清单**，也就不会两份数据打架。
 - **单元层**：只有建了单元的分区才能真正被路由。`status` 区分
@@ -36,7 +38,10 @@ unit（已注册的行业单元，真正能被路由到的执行体）
 - `provider`（提供者）：`ai` / `hybrid` / `human` —— 该职业的供给主要来自谁。
 - `billing`（谁付钱）：`subscription`订阅 / `hourly`计时 / `project`项目 /
   `commission`佣金 / `retainer`顾问 / `usage`按次 / `salary`雇员工资 / `free`公共 / `licensing`授权。
-- `provider_mix`（分区供给结构）：按**成员职业数加权**汇总，不让大产值行业淹没小行业。
+- `provider_mix`（分区供给结构）：**由成员职业的 `provider` 字段实测统计**
+  （AI/混合/纯人各占多少条），汇总与分区行同源。分区手写的估算值降级为
+  `provider_mix_estimated` 只作对账留档，偏差 > 25 个百分点 `validate()` 会报出来；
+  没有成员职业的分区不给实测值（三个 0），**不把"无数据"伪装成"纯人供给"**。
 - `gdp_cny`（年产值）：**量级参考，不是官方统计**，用于分区排序定权重。
   无市场口径的分区（行政办公、政务公共、国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
 - `baseline_occupation`：是否进覆盖分母。目标基线刻意收敛，避免把上千个细类职业
@@ -88,7 +93,7 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
   aliases: [播客, 有声书]
   cluster_basis: [交付物同源(音频), 付费方同行(平台分账)]
   demand_side: [平台分账, 品牌冠名]
-  provider_mix: {ai: 55, hybrid: 40, human: 5}
+  provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}  # 单元未建时的人工估算
   gdp_cny: null            # 没有可靠口径就留空，不要编
   gdp_scope: 无独立统计口径
   gdp_source: 不适用，刻意留空
@@ -100,5 +105,14 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 ## 与覆盖进度的关系
 
 `coverage`（M2 覆盖进度）的岗位基线现在**优先取职业库**：
-职业库有登记就用职业数，没有才回落到 `coverage-target.yaml` 手写的 `target_roles`。
+职业库有登记就用基线职业数，没有才回落到 `coverage-target.yaml` 手写的 `target_roles`。
 即"职业库是权威，coverage-target 只是兜底"，避免两处手写岗位各自漂移。
+
+每行带 `roles.baseline_source`，兜底可见、不静默：
+
+| 值 | 含义 |
+|---|---|
+| `occupation` | 取职业库基线（权威源） |
+| `unit_roles` | 分区无职业登记 → 回落注册岗位数 |
+| `target_roles` | 分区无职业登记 → 回落 coverage-target 手写岗位 |
+| `stale` | 分区有职业登记但**全部非基线** → 权威源失效，`compute()["problems"]` 会报 |

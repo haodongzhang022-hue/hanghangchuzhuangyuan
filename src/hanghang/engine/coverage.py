@@ -11,8 +11,8 @@ targets 追加一条声明即可纳入进度统计。
 - 行业覆盖率 = 已注册(registered) 目标行业数 / 目标行业总数
 - 岗位覆盖率 = 已覆盖岗位数 / 目标岗位基线数
     * 已注册行业：优先取 M11 职业库里"已挂到该单元"的基线职业数
-      （职业是最小单位，可跨分区复用，不会被行业命名变化影响）；
-      职业库不可用时回落到该单元实际注册岗位数(roles)
+      （职业是最小单位，一个职业通过单值 unit_id 挂到唯一分区，不会被行业命名
+      变化影响；多归属暂不支持）；职业库不可用时回落到该单元实际注册岗位数(roles)
     * 待覆盖行业：优先取职业库里该分区的基线职业数；
       职业库无登记时回落到 target_roles 声明的代表性岗位数
 
@@ -99,6 +99,24 @@ class CoverageTracker:
                     if o.get("baseline_occupation")]
         return len(baseline) if baseline else None
 
+    def _baseline_source(self, partition_id: str, has_unit: bool) -> str:
+        """标注该行岗位基线取自哪里，兜底要可见、不静默。
+
+        - ``occupation``  职业库基线（权威源）
+        - ``unit_roles``  分区无任何职业登记 → 回落注册岗位数（可接受兜底）
+        - ``target_roles`` 分区无职业登记 → 回落 coverage-target 手写岗位（可接受兜底）
+        - ``stale``       分区有职业登记但全部非基线 → 权威源失效，需报 problems
+        """
+        db = self.industry_db
+        if not db or not partition_id or db.partition(partition_id) is None:
+            return "unit_roles" if has_unit else "target_roles"
+        members = db.members_of(partition_id)
+        if any(o.get("baseline_occupation") for o in members):
+            return "occupation"
+        if members:
+            return "stale"
+        return "unit_roles" if has_unit else "target_roles"
+
     # ------------------------------------------------------------ compute
     def compute(self) -> dict:
         """
@@ -120,6 +138,7 @@ class CoverageTracker:
         role_baseline_total = 0         # 分母：目标岗位基线数
         by_category: Dict[str, dict] = {}
         rows: List[dict] = []
+        problems: List[str] = []
 
         for t in self.targets:
             name = t.get("name", "")
@@ -128,6 +147,11 @@ class CoverageTracker:
             cat = t.get("category", "未归类")
 
             occ_baseline = self._occupation_baseline(t.get("id", ""))
+            source = self._baseline_source(t.get("id", ""), bool(unit))
+            if source == "stale":
+                problems.append(
+                    f"分区 {t.get('id')} 在职业库有职业登记但无一标记 "
+                    f"baseline_occupation，岗位基线已静默回落兜底")
             if unit:  # 已注册单元覆盖该目标行业
                 covered_industry += 1
                 covered_roles = len(unit.roles)
@@ -159,6 +183,7 @@ class CoverageTracker:
                 "roles": {
                     "covered": covered_roles,
                     "baseline": role_baseline,
+                    "baseline_source": source,
                     "names": [r.name for r in unit.roles] if unit else t.get("target_roles", []),
                 },
                 "channels": t.get("channels", []),
@@ -179,6 +204,7 @@ class CoverageTracker:
             "role_coverage": (covered_role_total / role_baseline_total)
                              if role_baseline_total else 0.0,
             "by_category": by_category,
+            "problems": problems,
             "rows": rows,
         }
 

@@ -68,6 +68,10 @@ class TestWebAPI:
         gdp = {r["id"]: r["gdp_cny"] for r in data["rows"]}
         assert gdp["admin-office"] is None
         assert gdp["dongjiagoushi"] > 0
+        # 供给结构是实测口径，手写值另有留档字段
+        assert data["provider_mix_n"] > 0
+        assert set(data["provider_mix"]) == {"ai", "hybrid", "human"}
+        assert all("provider_mix_declared" in r for r in data["rows"])
 
     def test_route_api(self):
         code, data = self._get(
