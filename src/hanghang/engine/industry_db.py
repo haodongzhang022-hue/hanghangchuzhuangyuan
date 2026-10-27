@@ -146,6 +146,7 @@ class IndustryDatabase:
         rows = []
         for p in self.partitions:
             members = self.members_of(p.get("id", ""))
+            _measured = self.provider_distribution(members)
             rows.append({
                 "id": p.get("id", ""),
                 "name": p.get("name", ""),
@@ -153,9 +154,10 @@ class IndustryDatabase:
                 "cluster_basis": p.get("cluster_basis", []) or [],
                 "demand_side": p.get("demand_side", []) or [],
                 "provider_mix": {k: v for k, v in
-                                 self.provider_distribution(members).items()
-                                 if k != "n"},
+                                 _measured.items() if k != "n"},
+                "provider_mix_n": _measured["n"],
                 "provider_mix_declared": p.get("provider_mix", {}) or {},
+                "provider_mix_estimated": p.get("provider_mix_estimated", {}) or {},
                 "gdp_cny": p.get("gdp_cny"),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
@@ -245,7 +247,13 @@ class IndustryDatabase:
         2. 已注册单元里的每个 role 都应能在职业库找到对应职业（防止新增岗位漏登记）。
         3. 分区 status=covered 但无 unit_id、或 unit_id 指向不存在的单元 → 报错。
         4. 分区手写 provider_mix 与实测分布偏差 > DECLARED_MIX_TOLERANCE 个百分点
-           → 报漂移（手写值只作对账留档，漂太多说明数据该回填了）。
+           → 报漂移（手写值只作对账留档，漂太多说明数据该回填了）；
+           无成员职业的分区 provider_mix 必须为 0/0/0（估算值放
+           provider_mix_estimated，不能冒充实测）。
+        5. 分区 status=evaluated(明确不建单元) 却填了 unit_id → 语义矛盾，报错。
+        6. 分区 unit_id 与成员职业实际挂靠的分区不一致 → 报错。
+        7. 已建单元的分区成员必须填 unit_role（否则路由永远命中不了）；
+           未建单元的成员 unit_role 可空，但填了就必须在该分区 planned_roles 里。
         """
         problems: List[str] = []
         unit_ids = {u.unit_id for u in self.registry.all_units()}
@@ -261,32 +269,64 @@ class IndustryDatabase:
                     f"职业 {o.get('id')} 的 unit_id={uid or '(空)'} "
                     f"既不是已注册单元也不是已知分区")
 
+        # 用当前 partitions 现算分区集合：_part_by_id 是加载期索引，
+        # 校验时若有人追加/改动了 partitions，索引会过期导致误判悬空。
+        part_by_id = {x.get("id", ""): x for x in self.partitions if x.get("id")}
         for p in self.partitions:
             pid, status = p.get("id", ""), p.get("status", "")
             uid = p.get("unit_id", "") or ""
+            # 3. 状态互斥：evaluated = 评估后明确不建单元，不该带 unit_id
+            if status == "evaluated" and uid:
+                problems.append(
+                    f"分区 {pid} 标记 evaluated(不建单元) 却填了 unit_id={uid}，语义矛盾")
             if status == "covered" and not uid:
                 problems.append(f"分区 {pid} 标记 covered 但未填 unit_id")
             if uid and uid not in unit_ids:
                 problems.append(f"分区 {pid} 的 unit_id={uid} 未注册")
+            unit = self.registry.get_unit(uid) if uid else None
+            planned = set(p.get("planned_roles", []) or [])
             for o in self.members_of(pid):
                 o_uid = o.get("unit_id") or ""
-                if o_uid and o_uid not in unit_ids:
+                if o_uid and o_uid not in unit_ids \
+                        and o_uid not in part_by_id:
                     # 已由第 0 项报出悬空，这里不重复刷屏
                     continue
-                unit = self.registry.get_unit(uid) if uid else None
-                if unit is None:
+                # 1. 分区 unit_id 必须与成员实际挂靠的分区一致
+                if uid and o_uid != pid:
                     problems.append(
-                        f"职业 {o.get('id')} 挂在未注册单元 {uid or '(空)'}")
+                        f"职业 {o.get('id')} 的 unit_id={o_uid or '(空)'} 与分区 "
+                        f"{pid} 的 unit_id={uid} 不一致（成员应挂分区 id）")
+                role = o.get("unit_role")
+                if unit is None:
+                    # 未建单元：unit_role 允许为空（岗位名此时还不存在），
+                    # 但一旦填了就必须落在该分区声明的 planned_roles 骨架里，
+                    # 堵住"建单元时随手编一个不存在的角色名"。
+                    if role and planned and role not in planned:
+                        problems.append(
+                            f"职业 {o.get('id')} 的 unit_role={role} 不在分区 "
+                            f"{pid} 的 planned_roles 中 {sorted(planned)}")
+                    continue
+                if not role:
+                    problems.append(
+                        f"职业 {o.get('id')} 挂在已注册单元 {unit.unit_id}，"
+                        f"但未填 unit_role（建单元后路由命中不了该岗位）")
                     continue
                 role_names = {r.name for r in unit.roles}
-                if o.get("unit_role") not in role_names:
+                if role not in role_names:
                     problems.append(
-                        f"职业 {o.get('id')} 的 unit_role={o.get('unit_role')} "
-                        f"不在单元 {uid} 的岗位中 {sorted(role_names)}")
+                        f"职业 {o.get('id')} 的 unit_role={role} "
+                        f"不在单元 {unit.unit_id} 的岗位中 {sorted(role_names)}")
 
             # 4. 声明值 vs 实测 对账
             declared = p.get("provider_mix") or {}
             members = self.members_of(pid)
+            if not members:
+                # 无成员职业 → 实测口径必须无数据；非零说明手写值又冒充实测了
+                if any(float(declared.get(k) or 0) for k in
+                       ("ai", "hybrid", "human")):
+                    problems.append(
+                        f"分区 {pid} 无成员职业，provider_mix(实测口径) 应为 "
+                        f"0/0/0，实际 {declared}（估算值请放 provider_mix_estimated）")
             if declared and members:
                 measured = self.provider_distribution(members)
                 for k in ("ai", "hybrid", "human"):

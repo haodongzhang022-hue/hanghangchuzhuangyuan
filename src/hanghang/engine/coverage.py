@@ -29,6 +29,10 @@ import yaml
 from .registry import Registry
 
 
+# 显式禁用职业库的哨兵：与 None(自动构造) 区分，避免"想禁用却被自动构造"
+DISABLED_DB = object()
+
+
 class CoverageTracker:
     """计算并汇报「目标全集 vs 当前覆盖」的行业/岗位覆盖率。"""
 
@@ -36,7 +40,13 @@ class CoverageTracker:
                  data_dir: Optional[str] = None, industry_db=None):
         self.registry = registry or Registry()
         self.data_dir = data_dir or self._find_data_dir()
-        # 延迟导入避免循环依赖：职业库是岗位基线的权威来源
+        # industry_db 三态：
+        #   None         → 自动构造（默认，职业库是岗位基线的权威来源）
+        #   DISABLED_DB  → 显式禁用职业库，岗位基线一律走兜底
+        #   其它对象     → 注入实例（测试替身/外部库），不做任何自动构造
+        # 注入对象的读取异常不向上抛，按兜底口径处理并写入 problems。
+        self._degraded: set = set()
+        self._degrade_notes: List[str] = []
         if industry_db is None:
             try:
                 from .industry_db import IndustryDatabase
@@ -44,8 +54,8 @@ class CoverageTracker:
                                                registry=self.registry)
             except Exception as exc:  # 职业库不可用不应阻断覆盖统计
                 logging.warning(f"职业库不可用，岗位基线回落 coverage-target: {exc}")
-                industry_db = False
-        self.industry_db = industry_db or None
+                industry_db = DISABLED_DB
+        self.industry_db = None if industry_db is DISABLED_DB else industry_db
         self.target_path = os.path.join(self.data_dir, "coverage-target.yaml")
         self.targets: List[dict] = []
         self.version: str = "0.1"
@@ -88,15 +98,44 @@ class CoverageTracker:
             index.setdefault(unit.industry, unit)
         return index
 
+    def _check_partition(self, partition_id: str) -> dict:
+        """带保护的 ``db.partition()``：异常按"分区未登记"处理并记录降级。"""
+        db = self.industry_db
+        try:
+            return db.partition(partition_id) or {}
+        except Exception as exc:  # 权威源坏掉不能让覆盖统计整体倒
+            self._degrade(partition_id, f"partition() 异常: {exc}")
+            return {}
+
+    def _members(self, partition_id: str) -> List[dict]:
+        """带保护的 ``db.members_of()``：异常/非列表一律降级为空成员。"""
+        db = self.industry_db
+        try:
+            members = db.members_of(partition_id)
+        except Exception as exc:
+            self._degrade(partition_id, f"members_of() 异常: {exc}")
+            return []
+        if not isinstance(members, list):
+            self._degrade(partition_id, f"members_of() 返回 {type(members).__name__}")
+            return []
+        return members
+
+    def _degrade(self, partition_id: str, reason: str) -> None:
+        """记录一次权威源降级；同一分区只记一条（两个读取点会各读一次）。"""
+        if partition_id in self._degraded:
+            return
+        self._degraded.add(partition_id)
+        self._degrade_notes.append(
+            f"分区 {partition_id} 职业库读取降级（{reason}），岗位基线回落兜底")
+
     def _occupation_baseline(self, partition_id: str) -> Optional[int]:
         """职业库中该分区的基线职业数；职业库不可用或未登记时返回 None。"""
-        db = self.industry_db
-        if not db or not partition_id:
+        if not self.industry_db or not partition_id:
             return None
-        if db.partition(partition_id) is None:
+        if not self._check_partition(partition_id):
             return None
-        baseline = [o for o in db.members_of(partition_id)
-                    if o.get("baseline_occupation")]
+        baseline = [o for o in self._members(partition_id)
+                    if isinstance(o, dict) and o.get("baseline_occupation")]
         return len(baseline) if baseline else None
 
     def _baseline_source(self, partition_id: str, has_unit: bool) -> str:
@@ -107,11 +146,12 @@ class CoverageTracker:
         - ``target_roles`` 分区无职业登记 → 回落 coverage-target 手写岗位（可接受兜底）
         - ``stale``       分区有职业登记但全部非基线 → 权威源失效，需报 problems
         """
-        db = self.industry_db
-        if not db or not partition_id or db.partition(partition_id) is None:
+        if not self.industry_db or not partition_id:
             return "unit_roles" if has_unit else "target_roles"
-        members = db.members_of(partition_id)
-        if any(o.get("baseline_occupation") for o in members):
+        if not self._check_partition(partition_id):
+            return "unit_roles" if has_unit else "target_roles"
+        members = self._members(partition_id)
+        if any(isinstance(o, dict) and o.get("baseline_occupation") for o in members):
             return "occupation"
         if members:
             return "stale"
@@ -190,6 +230,7 @@ class CoverageTracker:
                 "note": t.get("note", ""),
             })
 
+        problems.extend(self._degrade_notes)
         covered_industry_out = covered_industry
         pending = total - covered_industry_out
         return {

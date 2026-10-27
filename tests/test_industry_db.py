@@ -265,6 +265,134 @@ def test_partition_detail_marks_estimate():
     assert "估算~" in buf.getvalue()
 
 
+def test_no_member_partition_has_zero_measured_mix():
+    """无成员职业的分区，实测口径必须是 0/0/0；人工估算另存 estimated"""
+    db = IndustryDatabase()
+    s = db.compute()
+    no_member = [r for r in s["rows"] if r["member_count"] == 0]
+    assert no_member, "至少要有无成员分区才能校验这条"
+    for r in no_member:
+        assert r["provider_mix"] == {"ai": 0.0, "hybrid": 0.0, "human": 0.0}, \
+            f"{r['id']} 无成员却给了非零实测值（手写值又冒充实测了）"
+        assert r["provider_mix_declared"] == {
+            "ai": 0, "hybrid": 0, "human": 0}, r["id"]
+        assert r["provider_mix_estimated"], \
+            f"{r['id']} 的原人工估算丢了，对账无从下手"
+    # 数据文件本身也不许有非零实测值（挡住"改 yaml 绕过去"）
+    for p in db.partitions:
+        if db.members_of(p["id"]):
+            continue
+        declared = p.get("provider_mix") or {}
+        assert not any(float(declared.get(k) or 0)
+                       for k in ("ai", "hybrid", "human")), p["id"]
+
+
+def test_no_member_partition_export_measured_as_zero():
+    """导出实测列（csv/sqlite）对无成员分区必须是 0，手写值只能进 *_declared"""
+    import csv as _csv
+    db = IndustryDatabase()
+    no_member = {p["id"] for p in db.partitions if not db.members_of(p["id"])}
+    assert no_member
+    with tempfile.TemporaryDirectory() as td:
+        from hanghang.cli.industry_commands import cmd_industry_export
+
+        class A:
+            out = td
+            format = "all"
+            data_dir = ""
+
+        cmd_industry_export(A)
+        with open(os.path.join(td, "partitions.csv"), encoding="utf-8") as fh:
+            for row in _csv.DictReader(fh):
+                if row["id"] not in no_member:
+                    continue
+                for k in ("provider_ai", "provider_hybrid", "provider_human"):
+                    assert float(row[k]) == 0.0, (row["id"], k, row[k])
+        conn = sqlite3.connect(os.path.join(td, "industry.sqlite"))
+        try:
+            for pid in no_member:
+                got = conn.execute(
+                    "SELECT provider_ai, provider_hybrid, provider_human, "
+                    "provider_ai_declared FROM partition WHERE id=?", (pid,)
+                ).fetchone()
+                assert got[:3] == (0.0, 0.0, 0.0), (pid, got)
+                assert got[3] == 0.0, (pid, got)
+        finally:
+            conn.close()
+
+
+def test_partition_detail_reads_estimated_not_declared():
+    """详情页无成员时读 provider_mix_estimated，不得把手写值念成实测"""
+    import io
+    from contextlib import redirect_stdout
+    from hanghang.cli.industry_commands import cmd_industry_partition
+
+    class A:
+        id = "mining-resources"
+        data_dir = ""
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        cmd_industry_partition(A)
+    out = buf.getvalue()
+    assert "估算~" in out and "15" in out, out
+    assert "供给结构(实测): AI 0%" not in out, out
+
+
+def test_validate_reports_missing_unit_role_on_registered_unit():
+    """a) 已建单元的分区，成员缺 unit_role → 报错（建单元后路由命中不了）"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "fake-part-x", "name": "假分区",
+                          "status": "covered", "unit_id": "dongjiagoushi"})
+    db.occupations.append({"id": "fake-occ", "name": "假职业",
+                           "unit_id": "fake-part-x", "unit_role": None,
+                           "provider": "ai", "billing": "usage"})
+    problems = db.validate()
+    assert any("fake-occ" in p and "unit_role" in p for p in problems), problems
+
+
+def test_validate_reports_unit_id_member_mismatch():
+    """b) 分区 unit_id 与成员实际挂靠的分区不一致 → 报错"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "fake-part-y", "name": "假分区",
+                          "status": "covered", "unit_id": "game-dev-unit"})
+    db.occupations.append({"id": "fake-occ-y", "name": "假职业",
+                           "unit_id": "fake-part-y", "unit_role": "game_planner",
+                           "provider": "ai", "billing": "usage"})
+    problems = db.validate()
+    assert any("fake-part-y" in p for p in problems), problems
+
+
+def test_validate_reports_evaluated_partition_with_unit():
+    """c) evaluated（明确不建单元）却填了 unit_id → 状态互斥报错"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "fake-part-z", "name": "假分区",
+                          "status": "evaluated", "unit_id": "dongjiagoushi"})
+    problems = db.validate()
+    assert any("fake-part-z" in p and "evaluated" in p for p in problems), problems
+
+
+def test_pending_partition_unit_role_must_be_in_planned_roles():
+    """未建单元的成员 unit_role 可空；填了就必须在该分区 planned_roles 里"""
+    db = IndustryDatabase()
+    pending = next(p for p in db.partitions
+                   if p.get("status") == "pending"
+                   and not p.get("unit_id")
+                   and db.members_of(p["id"]))
+    pending["planned_roles"] = ["declared_role_only"]
+    member = db.members_of(pending["id"])[0]
+    member["unit_role"] = "随手编的角色"
+    problems = db.validate()
+    assert any(member["id"] in p and "planned_roles" in p
+               for p in problems), problems
+
+
+def test_real_pending_partitions_are_not_flagged():
+    """现实路径不被误伤：18 个待建分区成员 unit_role 为空不算错"""
+    db = IndustryDatabase()
+    assert db.validate() == []
+
+
 if __name__ == "__main__":
     test_partition_and_occupation_loaded()
     test_members_are_derived_not_duplicated()
@@ -283,4 +411,12 @@ if __name__ == "__main__":
     test_export_flat_tables()
     test_export_exposes_measured_and_declared_mix()
     test_partition_detail_marks_estimate()
+    test_no_member_partition_has_zero_measured_mix()
+    test_no_member_partition_export_measured_as_zero()
+    test_partition_detail_reads_estimated_not_declared()
+    test_validate_reports_missing_unit_role_on_registered_unit()
+    test_validate_reports_unit_id_member_mismatch()
+    test_validate_reports_evaluated_partition_with_unit()
+    test_pending_partition_unit_role_must_be_in_planned_roles()
+    test_real_pending_partitions_are_not_flagged()
     print("✅ 行业分区定义库测试通过")

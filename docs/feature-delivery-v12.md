@@ -16,7 +16,7 @@
 | CLI | `src/hanghang/cli/industry_commands.py`（`industry partitions/partition/occupations/check/export`） |
 | REST | `GET /api/industry-db`（只读，含 `problems` 自检） |
 | 文档 | `docs/industry/industry-partition-db.md` |
-| 测试 | `tests/test_industry_db.py`（17 项）+ `test_coverage.py` 权威性断言 + `test_web.py` 端点断言 |
+| 测试 | `tests/test_industry_db.py`（25 项）+ `test_coverage.py`（12 项，含权威源降级）+ `test_web.py` 端点断言 |
 
 ## 当前进度快照
 
@@ -50,7 +50,8 @@
 
 ## 验证
 
-- `python3 tests/test_industry_db.py` → 17 项通过
+- `python3 tests/test_industry_db.py` → 25 项通过
+- `python3 tests/test_coverage.py` → 12 项通过
 - `bash scripts/change-aware-test.sh` → 24 个测试文件全部通过（含 CLI 冒烟）
 - `python3 src/hanghang/cli/main.py industry check` → 37 分区 / 147 职业，双向对齐无缺口
 

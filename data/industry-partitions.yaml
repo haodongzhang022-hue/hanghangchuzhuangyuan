@@ -17,8 +17,12 @@
 #   cluster_basis 聚类依据
 #   demand_side   付费方/需求侧（谁付钱）
 #   provider_mix  供给结构：{ai, hybrid, human} 占比，和为 100
-#                 已建分区一律由成员职业 provider 字段实测回填；待建分区保留人工估算。
-#   provider_mix_estimated  人工估算值留档（对账用，不参与展示）
+#                 契约是"成员职业 provider 实测"：已建/待建分区按实测回填；
+#                 无成员职业的分区一律 {ai:0, hybrid:0, human:0}（没有值就是 0，不是估算）。
+#   provider_mix_estimated  人工估算值留档（对账用，不参与展示）；
+#                 无成员分区只在这里放估算，别塞回 provider_mix 冒充实测。
+#   planned_roles 岗位命名骨架（待建分区专填）：单元未建时 unit_role 可空，
+#                 一旦填了就必须落在这份骨架里，防止建单元时随手编角色名。
 #   gdp_cny       年产值(元, 中国口径, 约占该产业规模)；null = 未可靠估算（禁止编造）
 #   gdp_scope     产值口径说明
 #   gdp_source    来源/估算方法
@@ -534,7 +538,8 @@ partitions:
     aliases: [采矿, 矿产资源, 能源开采]
     cluster_basis: [交付物同源(资源开采), 重资产+安全监管]
     demand_side: [大宗商品销售, 资源开采权]
-    provider_mix: {ai: 15, hybrid: 20, human: 65}
+    provider_mix: {ai: 0, hybrid: 0, human: 0}   # 无成员职业 → 实测口径无数据
+    provider_mix_estimated: {ai: 15, hybrid: 20, human: 65}   # 人工估算留档，不参与展示
     gdp_cny: 5000000000000
     gdp_scope: 采矿业增加值
     gdp_source: 国家统计局采矿业增加值
@@ -549,7 +554,8 @@ partitions:
     aliases: [公用事业, 电力, 燃气, 供水]
     cluster_basis: [管网垄断, 强监管定价]
     demand_side: [用户用能缴费, 政府定价]
-    provider_mix: {ai: 25, hybrid: 35, human: 40}
+    provider_mix: {ai: 0, hybrid: 0, human: 0}   # 无成员职业 → 实测口径无数据
+    provider_mix_estimated: {ai: 25, hybrid: 35, human: 40}   # 人工估算留档，不参与展示
     gdp_cny: 4000000000000
     gdp_scope: 电力热力燃气及水生产供应业增加值
     gdp_source: 国家统计局增加值
@@ -564,7 +570,8 @@ partitions:
     aliases: [安防, 应急管理, 消防]
     cluster_basis: [付费方=财政+企业合规, 强资质]
     demand_side: [政府采购, 企业安防预算]
-    provider_mix: {ai: 30, hybrid: 35, human: 35}
+    provider_mix: {ai: 0, hybrid: 0, human: 0}   # 无成员职业 → 实测口径无数据
+    provider_mix_estimated: {ai: 30, hybrid: 35, human: 35}   # 人工估算留档，不参与展示
     gdp_cny: 1000000000000
     gdp_scope: 安防行业市场规模(量级估算)
     gdp_source: 安防协会报告(低置信)
@@ -578,7 +585,8 @@ partitions:
     aliases: [水利工程, 海洋经济]
     cluster_basis: [政府投资驱动, 工程属性]
     demand_side: [政府水利投资, 海洋产业收入]
-    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    provider_mix: {ai: 0, hybrid: 0, human: 0}   # 无成员职业 → 实测口径无数据
+    provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}   # 人工估算留档，不参与展示
     gdp_cny: 1500000000000
     gdp_scope: 水利环境与海洋产业相关投资/产值(口径杂, 量级参考)
     gdp_source: 水利部/自然资源部统计(量级估算)
@@ -593,7 +601,8 @@ partitions:
     aliases: [涉外服务, 国际组织, 外事]
     cluster_basis: [非市场付费, 政治/合规约束]
     demand_side: [国际组织预算, 政府外事预算]
-    provider_mix: {ai: 25, hybrid: 40, human: 35}
+    provider_mix: {ai: 0, hybrid: 0, human: 0}   # 无成员职业 → 实测口径无数据
+    provider_mix_estimated: {ai: 25, hybrid: 40, human: 35}   # 人工估算留档，不参与展示
     gdp_cny: null
     gdp_scope: 无市场产值口径
     gdp_source: 不适用，刻意留空

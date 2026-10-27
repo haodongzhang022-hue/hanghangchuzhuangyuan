@@ -42,6 +42,11 @@ unit（已注册的行业单元，真正能被路由到的执行体）
   （AI/混合/纯人各占多少条），汇总与分区行同源。分区手写的估算值降级为
   `provider_mix_estimated` 只作对账留档，偏差 > 25 个百分点 `validate()` 会报出来；
   没有成员职业的分区不给实测值（三个 0），**不把"无数据"伪装成"纯人供给"**。
+- **实测口径里没有值就是 0，不是估算。** `provider_mix` 的契约是"成员职业实测"，
+  所以无成员分区的 `provider_mix` 一律 `{ai:0, hybrid:0, human:0}`，
+  原人工估算搬进 `provider_mix_estimated`（5 个 `evaluated` 分区就是这么改的）。
+  `validate()` 会拦住"无成员却有非零实测值"这种手写值冒充实测的写法，
+  csv / sqlite 的 `provider_ai`（实测列）与 `provider_ai_declared`（留档列）也各归其位。
 - `gdp_cny`（年产值）：**量级参考，不是官方统计**，用于分区排序定权重。
   无市场口径的分区（行政办公、政务公共、国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
 - `baseline_occupation`：是否进覆盖分母。目标基线刻意收敛，避免把上千个细类职业
@@ -116,3 +121,33 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 | `unit_roles` | 分区无职业登记 → 回落注册岗位数 |
 | `target_roles` | 分区无职业登记 → 回落 coverage-target 手写岗位 |
 | `stale` | 分区有职业登记但**全部非基线** → 权威源失效，`compute()["problems"]` 会报 |
+
+职业库是权威源，但权威源坏掉不能让 `/api/coverage` 和 `coverage` 命令一起倒：
+`_occupation_baseline` / `_baseline_source` 走受保护的 `_check_partition` / `_members`，
+读取异常、返回 `None`、返回非列表一律按兜底口径返回**并写入 `problems`**
+（同一分区只记一条，避免两个读取点刷屏两遍）。
+
+`CoverageTracker(industry_db=...)` 是三态的，别再靠 `None`/`False` 猜：
+
+| 传入 | 行为 |
+|---|---|
+| `None`（默认） | 自动构造职业库 |
+| `DISABLED_DB`（`hanghang.engine.coverage` 导出） | 显式禁用，岗位基线一律走兜底 |
+| 其它对象 | 注入实例（测试替身/外部库），不自动构造；读取失败走降级 |
+
+## validate() 的 8 条校验
+
+| # | 校验点 | 说明 |
+|---|---|---|
+| 1 | 职业 `unit_id` 存在性 | 既非已注册单元也非已知分区 → 报错 |
+| 2 | 分区 `covered` 必须有 `unit_id` | 否则纸面覆盖 |
+| 3 | 分区 `unit_id` 必须已注册 | 指向不存在的单元 → 报错 |
+| 4 | 分区 `unit_id` 与成员挂靠分区一致 | 成员 `unit_id` 应等于分区 id |
+| 5 | 已建单元成员必须有 `unit_role` | 建了单元还没岗位名 → 路由永远命中不了 |
+| 6 | 未建单元成员填了 `unit_role` 必须在 `planned_roles` 里 | 堵住随手编角色名 |
+| 7 | `evaluated` 分区不得有 `unit_id` | 状态互斥，"不建单元"却又挂单元 |
+| 8 | `provider_mix` 对账 | 有成员看漂移 > 25pt；无成员必须 0/0/0 |
+
+第 5 条的现实意义：18 个待建分区、89 个成员的 `unit_role` 目前全为空，
+靠"分区没 `unit_id` 所以不校 unit_role"绕过去。一旦这些分区建单元，
+这条会立刻把缺口打出来——不是等到上线才发现路由命中不了。

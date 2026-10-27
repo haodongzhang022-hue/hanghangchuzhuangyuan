@@ -147,6 +147,82 @@ def test_stale_baseline_is_reported_not_silent():
     assert s["rows"][0]["roles"]["baseline"] == 0
 
 
+def test_broken_industry_db_degrades_visibly():
+    """权威源读取抛异常 → 覆盖统计仍能出结果，降级写进 problems（不静默）"""
+    from hanghang.engine.coverage import CoverageTracker as CT
+
+    class BrokenDB:
+        @staticmethod
+        def partition(pid):
+            return {"id": pid}
+
+        @staticmethod
+        def members_of(pid):
+            raise RuntimeError("disk gone")
+
+    class FakeTracker(CT):
+        def _load_targets(self):
+            self.targets = [{"id": "x", "name": "占位行业", "category": "c",
+                             "target_roles": ["a", "b"]}]
+            self.version, self.updated_at = "0", ""
+
+    t = FakeTracker(industry_db=BrokenDB())
+    s = t.compute()  # 旧实现这里会抛 RuntimeError
+    assert s["total_role_baseline"] == 2  # 回落 target_roles
+    assert any("降级" in p for p in s["problems"]), s["problems"]
+    # 降级时行级不得声称走了权威源
+    assert s["rows"][0]["roles"]["baseline_source"] != "occupation"
+
+
+def test_partial_industry_db_degrades():
+    """members_of 返回 None（不抛异常）也要降级，不能 TypeError"""
+    from hanghang.engine.coverage import CoverageTracker as CT
+
+    class PartialDB:
+        @staticmethod
+        def partition(pid):
+            return {"id": pid}
+
+        @staticmethod
+        def members_of(pid):
+            return None
+
+    t = CT(industry_db=PartialDB())
+    assert t._baseline_source("x", has_unit=True) == "unit_roles"
+    assert t._occupation_baseline("x") is None
+    assert any("降级" in p for p in t.compute()["problems"])
+
+
+def test_disable_industry_db_is_explicit():
+    """DISABLED_DB 显式禁用；注入 False 走兜底而不是静默自动构造"""
+    from hanghang.engine.coverage import CoverageTracker as CT, DISABLED_DB
+
+    assert CT(industry_db=DISABLED_DB).industry_db is None
+    # False 是"注入了一个假对象"，读取会失败降级，但不会被换成自动构造的真库
+    injected = CT(industry_db=False)
+    assert injected.industry_db is False
+    assert injected._occupation_baseline("dongjiagoushi") is None
+
+
+def test_degrade_note_not_duplicated_per_partition():
+    """两个读取点各读一次 members_of，同一分区只记一条降级"""
+    from hanghang.engine.coverage import CoverageTracker as CT
+
+    class BrokenDB:
+        @staticmethod
+        def partition(pid):
+            return {"id": pid}
+
+        @staticmethod
+        def members_of(pid):
+            raise RuntimeError("disk gone")
+
+    t = CT(industry_db=BrokenDB())
+    t._occupation_baseline("x")
+    t._baseline_source("x", True)
+    assert len([p for p in t._degrade_notes if "分区 x " in p]) == 1
+
+
 def test_text_render_smoke():
     """coverage 文本渲染可执行且包含核心口径"""
     t = CoverageTracker()
@@ -163,5 +239,9 @@ if __name__ == "__main__":
     test_occupation_db_is_baseline_authority()
     test_role_baseline_total_equals_occupation_db_sum()
     test_stale_baseline_is_reported_not_silent()
+    test_broken_industry_db_degrades_visibly()
+    test_partial_industry_db_degrades()
+    test_disable_industry_db_is_explicit()
+    test_degrade_note_not_duplicated_per_partition()
     test_text_render_smoke()
     print("✅ 行业岗位覆盖进度测试通过")

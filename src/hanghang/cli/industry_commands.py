@@ -38,21 +38,24 @@ def cmd_industry_partition(args):
     print("  聚类依据: " + "、".join(p.get("cluster_basis", [])))
     print("  付费方: " + "、".join(p.get("demand_side", [])))
     members = db.members_of(p.get("id", ""))
-    declared = p.get("provider_mix") or {}
+    # provider_mix 的契约是"成员职业实测"，无成员分区它就是 0/0/0；
+    # 人工估算单独存在 provider_mix_estimated，只用于标注 ~ 展示，不与实测混读。
+    estimated = p.get("provider_mix_estimated") or {}
     if members:
         mix = db.provider_distribution(members)
         print(f"  供给结构(实测): AI {mix['ai']}% / 混合 {mix['hybrid']}%"
-              f" / 纯人 {mix['human']}%")
-    else:
-        # 无成员职业 = 无实测数据，用估算值并标 ~，不伪装成实测
-        print(f"  供给结构(估算~): AI {declared.get('ai', '-')}% / "
-              f"混合 {declared.get('hybrid', '-')}% / "
-              f"纯人 {declared.get('human', '-')}%")
-    estimated = p.get("provider_mix_estimated") or {}
-    if members and estimated:
-        print(f"  对账留档(原估算): AI {estimated.get('ai', '-')}% / "
+              f" / 纯人 {mix['human']}%  (n={mix['n']})")
+        if estimated:
+            print(f"  对账留档(原估算): AI {estimated.get('ai', '-')}% / "
+                  f"混合 {estimated.get('hybrid', '-')}% / "
+                  f"纯人 {estimated.get('human', '-')}%")
+    elif estimated:
+        # 无成员职业 = 无实测数据，只展示人工估算并标 ~，不伪装成实测
+        print(f"  供给结构(估算~，无成员职业): AI {estimated.get('ai', '-')}% / "
               f"混合 {estimated.get('hybrid', '-')}% / "
               f"纯人 {estimated.get('human', '-')}%")
+    else:
+        print("  供给结构: 无成员职业，也无人工估算")
     print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
     if p.get("gdp_scope"):
         print(f"  产值口径: {p['gdp_scope']}")
