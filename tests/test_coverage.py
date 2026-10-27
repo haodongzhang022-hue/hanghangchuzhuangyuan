@@ -63,6 +63,23 @@ def test_pending_gaps_listed():
     assert "金融投资" in names  # 代表性子集(仍待补)
 
 
+def test_occupation_db_is_baseline_authority():
+    """岗位基线以 M11 职业库为准：coverage 分母不随 coverage-target 手写岗位漂移"""
+    from hanghang.engine.industry_db import IndustryDatabase
+    db = IndustryDatabase()
+    t = CoverageTracker(industry_db=db)
+    s = t.compute()
+    # 逐行业核对：已注册行业岗位基线 == 该分区基线职业数
+    for row in s["rows"]:
+        occ = db.partition(row["id"])
+        if occ is None or row["status"] != "registered":
+            continue
+        baseline_occs = [o for o in db.members_of(row["id"])
+                         if o.get("baseline_occupation")]
+        if baseline_occs:
+            assert row["roles"]["baseline"] == len(baseline_occs), row["id"]
+
+
 def test_text_render_smoke():
     """coverage 文本渲染可执行且包含核心口径"""
     t = CoverageTracker()
@@ -76,5 +93,6 @@ if __name__ == "__main__":
     test_covered_industries_positive_and_consistent()
     test_role_coverage_bounds()
     test_pending_gaps_listed()
+    test_occupation_db_is_baseline_authority()
     test_text_render_smoke()
     print("✅ 行业岗位覆盖进度测试通过")

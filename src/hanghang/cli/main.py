@@ -14,6 +14,10 @@ from hanghang.engine import (
     SessionBindingStore, SessionBoundRouter,
 )
 from hanghang.engine.coverage import CoverageTracker
+from hanghang.cli.industry_commands import (
+    cmd_industry_partitions, cmd_industry_partition,
+    cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
+)
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
@@ -382,6 +386,41 @@ def build_parser():
     ci = sub.add_parser("index", help="导出全量跨行业能力索引")
     ci.set_defaults(func=cmd_index)
 
+    # ---- M11 行业分区定义库（职业=最小单位，行业=聚类结果）----
+    ind = sub.add_parser("industry", help="M11 行业分区定义库：分区表/职业表/自检/导出")
+    ind_sub = ind.add_subparsers(dest="industry_cmd")
+
+    ipart = ind_sub.add_parser("partitions", help="列出行业分区定义表(按产值降序)")
+    ipart.add_argument("--top", type=int, default=0, help="仅看前 N 个(0=全部)")
+    ipart.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ipart.set_defaults(func=cmd_industry_partitions)
+
+    ione = ind_sub.add_parser("partition", help="查看单个分区详情(聚类依据/付费方/成员职业)")
+    ione.add_argument("id", help="分区ID，如 video-media")
+    ione.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ione.set_defaults(func=cmd_industry_partition)
+
+    iocc = ind_sub.add_parser("occupations", help="列出职业(可按分区/提供者/收费方式过滤)")
+    iocc.add_argument("--partition", default="", help="按分区ID过滤")
+    iocc.add_argument("--provider", default="", choices=["", "ai", "hybrid", "human"],
+                      help="按提供者类型过滤")
+    iocc.add_argument("--billing", default="",
+                      help="按收费方式过滤(subscription/hourly/project/commission/retainer/usage/salary/free/licensing)")
+    iocc.add_argument("--unassigned", action="store_true", help="仅看未挂分区的职业")
+    iocc.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iocc.set_defaults(func=cmd_industry_occupations)
+
+    icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
+    icheck.add_argument("--data-dir", default="", help="自定义 data 目录")
+    icheck.set_defaults(func=cmd_industry_check)
+
+    iexp = ind_sub.add_parser("export", help="导出扁平表(json/csv/sqlite)供制品库与知识库消费")
+    iexp.add_argument("--out", default="out/industry-db", help="输出目录")
+    iexp.add_argument("--format", default="all", choices=["all", "json", "csv", "sqlite"],
+                      help="导出格式(默认all)")
+    iexp.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iexp.set_defaults(func=cmd_industry_export)
+
     h = sub.add_parser("handoff", help="创建交接卡")
     h.add_argument("--source", required=True, help="源单元")
     h.add_argument("--target", required=True, help="目标单元")
@@ -576,6 +615,10 @@ def main():
     if args.command == "arb" and not getattr(args, "arb_cmd", None):
         print("请指定 arb 子命令：list / show / review / diff")
         print("示例: python3 src/hanghang/cli/main.py arb list")
+        sys.exit(1)
+    if args.command == "industry" and not getattr(args, "industry_cmd", None):
+        print("请指定 industry 子命令：partitions / partition / occupations / check / export")
+        print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):
         print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")

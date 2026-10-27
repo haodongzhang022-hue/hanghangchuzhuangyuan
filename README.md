@@ -72,6 +72,14 @@ python3 src/hanghang/cli/main.py binding --session "sess-x"
 python3 src/hanghang/cli/main.py bindings           # 列出全部绑定
 python3 src/hanghang/cli/main.py unbind --session "sess-x"
 
+# M11 行业分区定义库：职业是最小单位，行业是聚类结果
+python3 src/hanghang/cli/main.py industry partitions --top 10   # 分区定义表(按产值降序)
+python3 src/hanghang/cli/main.py industry partition video-media  # 单分区详情(聚类依据/付费方/成员职业)
+python3 src/hanghang/cli/main.py industry occupations --provider ai  # 按提供者/收费方式过滤职业
+python3 src/hanghang/cli/main.py industry occupations --unassigned    # 未挂分区的职业(=覆盖缺口)
+python3 src/hanghang/cli/main.py industry check                  # 职业↔单元岗位 双向对齐自检
+python3 src/hanghang/cli/main.py industry export --out out/industry-db  # 导出 json/csv/sqlite 扁平表
+
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
 
@@ -184,6 +192,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 | `/api/search?kw=..&mode=..` | GET | 能力索引搜索 |
 | `/api/index` | GET | 全量能力索引 |
 | `/api/metrics` | GET | 运行指标 |
+| `/api/industry-db` | GET | M11 行业分区定义库（分区表+职业表+覆盖率+自检，只读） |
 | `/api/handoffs` | GET | 待处理交接卡 |
 | `/api/prefixes` | GET | 稳定前缀档案 |
 | `/api/state` | GET | M9 编排/交接状态卡聚合（任务进度，只读） |
@@ -256,12 +265,15 @@ python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
+python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗位双向对齐/产值口径/扁平表导出）
 ```
 
 ## 数据文件
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
+- `data/industry-occupations.yaml` — M11 职业表（最小单目标，稳定主键，可跨分区复用）
+- `data/industry-partitions.yaml` — M11 行业分区表（聚类依据/付费方/供给结构/产值口径）
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
@@ -269,6 +281,27 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
 
+
+## 行业分区定义库（M11）
+
+**职业是解耦的最小单目标，行业是聚类结果。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
+
+- **职业表** `data/industry-occupations.yaml`：一职业一条 `id`，跨分区可复用；
+  未挂分区的职业照样登记 → 缺口永远可见，不会静默丢失。
+- **分区表** `data/industry-partitions.yaml`：只写清"为什么聚类"（聚类依据 / 付费方 /
+  供给结构 `provider_mix` / 产值口径 `gdp_cny`）。成员由 `occupation.unit_id` **反查**，
+  不存在第二份清单，不会两份数据打架。
+- **三层递进**：职业 → 分区（聚类）→ 单元（真正能被路由）。`status` 区分
+  `covered` 已建 / `pending` 待建 / `evaluated` 评估后不建（不计分母，避免永久缺口）。
+- **产值口径诚实**：`gdp_cny` 是量级参考，用于排序定权重；无市场口径的分区
+  （行政办公/政务公共/国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
+- **不引入外部数据库**：yaml 是权威源（可评审、可回滚、可被知识库切片），
+  `industry export` 一键生成 `industry.sqlite` + 两份 csv 扁平表，随 CNB 制品库发布，拿到即用。
+- **双向自检**：`industry check` 校验「注册单元每个岗位都有职业登记」+
+  「职业挂的分区与岗位真实存在」，防止"纸面覆盖"。
+
+`coverage` 的岗位基线现在**优先取职业库**，`coverage-target.yaml` 只作兜底，
+避免两处手写岗位各自漂移。详见 `docs/industry/industry-partition-db.md`。
 
 ## 行业覆盖进度与多渠道搜集
 
@@ -294,10 +327,11 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 
 - 顶层架构: `docs/architecture/ARCHITECTURE.md`
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
+- 行业分区定义库(M11): `docs/industry/industry-partition-db.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11行业分区定义库)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

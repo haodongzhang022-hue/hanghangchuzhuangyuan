@@ -55,6 +55,20 @@ class TestWebAPI:
         assert 0.0 < data["industry_coverage"] < 1.0
         assert "rows" in data
 
+    def test_industry_db_api(self):
+        """M11 分区定义库端点：只读，含自检结果与产值口径诚实性"""
+        code, data = self._get("/api/industry-db")
+        assert code == 200
+        assert data["covered_partitions"] > 0
+        assert data["buildable_partitions"] >= data["covered_partitions"]
+        assert data["problems"] == []          # 职业↔单元岗位 双向对齐
+        assert len(data["rows"]) == data["total_partitions"]
+        assert len(data["occupations"]) == data["total_occupations"]
+        # 无市场口径的分区不得伪造为 0
+        gdp = {r["id"]: r["gdp_cny"] for r in data["rows"]}
+        assert gdp["admin-office"] is None
+        assert gdp["dongjiagoushi"] > 0
+
     def test_route_api(self):
         code, data = self._get(
             "/api/route?text=" + urllib.parse.quote("既要架构设计又要落地开发"))

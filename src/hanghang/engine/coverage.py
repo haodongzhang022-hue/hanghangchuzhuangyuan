@@ -10,8 +10,13 @@ targets 追加一条声明即可纳入进度统计。
 覆盖率口径：
 - 行业覆盖率 = 已注册(registered) 目标行业数 / 目标行业总数
 - 岗位覆盖率 = 已覆盖岗位数 / 目标岗位基线数
-    * 已注册行业：其岗位基线 = 该单元实际注册岗位数(roles)
-    * 待覆盖行业：其岗位基线 = 声明在 target_roles 的代表性岗位数
+    * 已注册行业：优先取 M11 职业库里"已挂到该单元"的基线职业数
+      （职业是最小单位，可跨分区复用，不会被行业命名变化影响）；
+      职业库不可用时回落到该单元实际注册岗位数(roles)
+    * 待覆盖行业：优先取职业库里该分区的基线职业数；
+      职业库无登记时回落到 target_roles 声明的代表性岗位数
+
+职业库(industry-occupations.yaml)是岗位基线的权威来源，coverage-target 只兜底。
 """
 from __future__ import annotations
 
@@ -28,9 +33,19 @@ class CoverageTracker:
     """计算并汇报「目标全集 vs 当前覆盖」的行业/岗位覆盖率。"""
 
     def __init__(self, registry: Optional[Registry] = None,
-                 data_dir: Optional[str] = None):
+                 data_dir: Optional[str] = None, industry_db=None):
         self.registry = registry or Registry()
         self.data_dir = data_dir or self._find_data_dir()
+        # 延迟导入避免循环依赖：职业库是岗位基线的权威来源
+        if industry_db is None:
+            try:
+                from .industry_db import IndustryDatabase
+                industry_db = IndustryDatabase(data_dir=self.data_dir,
+                                               registry=self.registry)
+            except Exception as exc:  # 职业库不可用不应阻断覆盖统计
+                logging.warning(f"职业库不可用，岗位基线回落 coverage-target: {exc}")
+                industry_db = False
+        self.industry_db = industry_db or None
         self.target_path = os.path.join(self.data_dir, "coverage-target.yaml")
         self.targets: List[dict] = []
         self.version: str = "0.1"
@@ -73,6 +88,17 @@ class CoverageTracker:
             index.setdefault(unit.industry, unit)
         return index
 
+    def _occupation_baseline(self, partition_id: str) -> Optional[int]:
+        """职业库中该分区的基线职业数；职业库不可用或未登记时返回 None。"""
+        db = self.industry_db
+        if not db or not partition_id:
+            return None
+        if db.partition(partition_id) is None:
+            return None
+        baseline = [o for o in db.members_of(partition_id)
+                    if o.get("baseline_occupation")]
+        return len(baseline) if baseline else None
+
     # ------------------------------------------------------------ compute
     def compute(self) -> dict:
         """
@@ -101,14 +127,18 @@ class CoverageTracker:
             status = "registered" if unit else (t.get("status", "pending"))
             cat = t.get("category", "未归类")
 
+            occ_baseline = self._occupation_baseline(t.get("id", ""))
             if unit:  # 已注册单元覆盖该目标行业
                 covered_industry += 1
                 covered_roles = len(unit.roles)
-                # 已注册行业的岗位基线以实际注册岗位为准
-                role_baseline = len(unit.roles)
+                # 已注册行业：职业库基线优先，缺失时以实际注册岗位为准
+                role_baseline = occ_baseline if occ_baseline is not None \
+                    else len(unit.roles)
             else:
                 covered_roles = 0
-                role_baseline = len(t.get("target_roles", []) or [])
+                # 待覆盖行业：职业库基线优先，缺失时按 target_roles 声明计
+                role_baseline = occ_baseline if occ_baseline is not None \
+                    else len(t.get("target_roles", []) or [])
 
             covered_role_total += covered_roles
             role_baseline_total += role_baseline

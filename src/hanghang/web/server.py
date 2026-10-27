@@ -212,6 +212,8 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 self._api_metrics()
             elif path == "/api/coverage":
                 self._api_coverage()
+            elif path == "/api/industry-db":
+                self._api_industry_db()
             elif path == "/api/handoffs":
                 self._api_handoffs()
             elif path == "/api/prefixes":
@@ -285,6 +287,15 @@ class HanghangHandler(BaseHTTPRequestHandler):
         payload["rows"] = sorted(
             payload["rows"],
             key=lambda r: (r["status"] != "registered", r["name"]))
+        _json_response(self, 200, payload)
+
+    def _api_industry_db(self):
+        """GET /api/industry-db — M11 行业分区定义库（分区表+职业表+覆盖+产值，只读）"""
+        from hanghang.engine.industry_db import IndustryDatabase
+        db = IndustryDatabase(registry=self._get_registry())
+        payload = db.compute()
+        payload["occupations"] = db.occupations
+        payload["problems"] = db.validate()
         _json_response(self, 200, payload)
 
     def _do_route(self, text: str, record_metrics: bool = False) -> dict:

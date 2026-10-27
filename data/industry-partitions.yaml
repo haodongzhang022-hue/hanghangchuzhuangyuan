@@ -1,0 +1,570 @@
+# ============================================================================
+# 行业分区定义库 · 第二层：partition（行业分区 = 职业聚类结果）
+#
+# 设计立场（关键）：
+#   **职业是解耦的最小单目标，行业是聚类的结果。**
+#   所以本文件不"定义行业"，只记录「某一组职业为什么被聚在一起」：
+#     - 聚类依据 cluster_basis（交付物同源 / 付费方同行 / 技能栈重叠 / 交付链上下游）
+#     - 谁付钱 demand_side（付费方 = 需求侧）
+#     - 谁提供 provider_mix（人类/混合/AI 各自供给比重）
+#     - 这个分区在中国市场的年度规模产值_gdp_cny（口径：行业口径总产值/营业收入）
+#   命名变化只改 name / aliases，不动 members（职业 id），因此不会被命名方式影响。
+#
+# 字段说明：
+#   id            分区标识(=未来/现有 unit_id 一致性对齐键)
+#   name          分区名（可改，非主键）
+#   aliases       其它叫法（旧名/口语/英文，仅用于检索对齐）
+#   cluster_basis 聚类依据
+#   demand_side   付费方/需求侧（谁付钱）
+#   provider_mix  供给结构：{ai, hybrid, human} 占比，和为 100
+#   gdp_cny       年产值(元, 中国口径, 约占该产业规模)；null = 未可靠估算（禁止编造）
+#   gdp_scope     产值口径说明
+#   gdp_source    来源/估算方法
+#   unit_id       已承接该分区的注册单元（空=未建单元）
+#   priority      推进优先级
+#   channels      数据来源渠道（获取数据的路径，不只是补岗位）
+#   status        covered(已有单元) / pending(待建单元) / evaluated(仅评估不建单元)
+#   note
+#
+# 产值免责：gdp_* 为"量级参考"而非官方统计，用于给分区排序定权重，
+#           不可用于对外发布；校准以国家统计局分行业增加值/营业收入为准。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-10-27"
+gdp_unit: CNY
+gdp_year_basis: 2023-2024
+
+partitions:
+  # ---------------- 已有单元覆盖 ----------------
+  - id: dongjiagoushi
+    name: 软件研发
+    aliases: [软件和信息技术服务, 信息技术服务, IT服务, 软件开发]
+    cluster_basis: [交付物同源(代码/方案), 技能栈重叠]
+    demand_side: [企业IT预算, 政企信息化采购, 互联网公司研发投入]
+    provider_mix: {ai: 50, hybrid: 40, human: 10}
+    gdp_cny: 6000000000000
+    gdp_scope: 软件业务收入 + 信息技术服务收入（规上口径）
+    gdp_source: 工信部软件业统计公报(量级估算)
+    unit_id: dongjiagoushi
+    priority: 高
+    channels: [工信部软件业统计, 招聘平台研发岗, GitHub/开源社区]
+    status: covered
+    note: 旗舰单元
+
+  - id: game-dev-unit
+    name: 游戏研发
+    aliases: [游戏, 电子游戏, 互动娱乐]
+    cluster_basis: [交付物同源(游戏产品), 交付链上下游]
+    demand_side: [玩家付费, 发行分成, 广告变现]
+    provider_mix: {ai: 35, hybrid: 45, human: 20}
+    gdp_cny: 3300000000000
+    gdp_scope: 游戏市场实际销售收入
+    gdp_source: 中国音数协游戏工委年度报告(量级估算)
+    unit_id: game-dev-unit
+    priority: 中
+    channels: [游戏工委年报, 游戏公司招聘, 独立开发者社区]
+    status: covered
+
+  - id: legal-services
+    name: 法律咨询
+    aliases: [法律服务, 法务, 律师服务]
+    cluster_basis: [付费方同行(企业/个人纠纷), 资质门槛]
+    demand_side: [企业法务预算, 个人诉讼付费, 政府购买法律服务]
+    provider_mix: {ai: 40, hybrid: 50, human: 10}
+    gdp_cny: 270000000000
+    gdp_scope: 法律服务行业营业收入
+    gdp_source: 司法部/律协行业统计(量级估算)
+    unit_id: legal-services
+    priority: 中
+    channels: [律协行业统计, 法院公开文书, 法律服务机构目录]
+    status: covered
+
+  - id: content-creation
+    name: 内容创作
+    aliases: [新媒体, 内容运营, 自媒体, 文案]
+    cluster_basis: [交付物同源(图文/短视频), 付费方同为平台分成/品牌预算]
+    demand_side: [平台流量分成, 品牌内容预算, 用户订阅]
+    provider_mix: {ai: 60, hybrid: 35, human: 5}
+    gdp_cny: 500000000000
+    gdp_scope: 数字内容/新媒体内容生产相关收入(窄口径, 不含版权交易)
+    gdp_source: 平台公开口径+行业报告(量级估算, 低置信)
+    unit_id: content-creation
+    priority: 中
+    channels: [平台创作者生态报告, 内容平台岗位, MCN目录]
+    status: covered
+
+  - id: data-analytics
+    name: 数据分析
+    aliases: [大数据分析, 商业分析, 数据科学, BI]
+    cluster_basis: [技能栈重叠(数据/建模/可视化), 交付物同源(洞察报告)]
+    demand_side: [企业数据预算, 数字化改造项目]
+    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    gdp_cny: 800000000000
+    gdp_scope: 大数据产业市场规模中"分析服务"部分
+    gdp_source: 大数据产业生态报告(量级估算, 与软件研发存在重叠)
+    unit_id: data-analytics
+    priority: 高
+    channels: [大数据产业报告, 招聘平台数据岗, 高校统计学科目录]
+    status: covered
+
+  - id: e-commerce
+    name: 电子商务
+    aliases: [电商, 网络零售, 跨境电商]
+    cluster_basis: [交付链上下游(货-店-客), 付费方同行(成交佣金)]
+    demand_side: [消费者购买, 平台佣金/服务费, 品牌代运营预算]
+    provider_mix: {ai: 40, hybrid: 40, human: 20}
+    gdp_cny: 15000000000000
+    gdp_scope: 全国网上零售额(含平台交易额, 非增加值)
+    gdp_source: 国家统计局社零/网上零售额(量级估算)
+    unit_id: e-commerce
+    priority: 中
+    channels: [国家统计局网上零售额, 电商平台商家运营岗, 商家服务市场]
+    status: covered
+    note: 交易额口径会显著高估增加值，排序时只看相对量级
+
+  - id: finance-accounting
+    name: 财务会计
+    aliases: [财税, 会计服务, 代理记账, 财务共享]
+    cluster_basis: [交付物同源(账/税/报表), 法规一致性要求]
+    demand_side: [企业年度财税服务预算, 代账订阅费]
+    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    gdp_cny: 300000000000
+    gdp_scope: 代理记账/财税服务市场规模(窄口径)
+    gdp_source: 财政部代理记账行业与市场报告(量级估算)
+    unit_id: finance-accounting
+    priority: 高
+    channels: [财政部代理记账备案数据, 税务师协会, 代账SaaS厂商]
+    status: covered
+
+  - id: marketing
+    name: 市场营销
+    aliases: [市场推广, 品牌营销, 广告策划, 数字营销]
+    cluster_basis: [付费方同行(企业营销预算), 交付链上下游(策略-投放)]
+    demand_side: [企业市场预算, 广告主投放预算]
+    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    gdp_cny: 1200000000000
+    gdp_scope: 广告经营额 + 营销服务收入
+    gdp_source: 市场监管总局广告业统计(量级估算)
+    unit_id: marketing
+    priority: 中
+    channels: [广告业统计年报, 营销服务机构目录, 招聘平台市场岗]
+    status: covered
+
+  - id: education-training
+    name: 教育培训
+    aliases: [教育, 培训, 在线教育, 职业教育]
+    cluster_basis: [付费方同行(家长/学员/企业培训预算), 交付物同源(课程)]
+    demand_side: [家庭学费支出, 企业培训预算, 政府教育采购]
+    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    gdp_cny: 2000000000000
+    gdp_scope: 教育培训行业市场规模(含非学历培训)
+    gdp_source: 教育部/行业报告(量级估算)
+    unit_id: education-training
+    priority: 高
+    channels: [教育部教育统计, 培训机构目录, 招聘平台教师岗]
+    status: covered
+
+  - id: healthcare
+    name: 健康医疗
+    aliases: [医疗健康, 大健康, 健康管理, 互联网医疗]
+    cluster_basis: [付费方同行(医保/自费), 资质与合规门槛]
+    demand_side: [医保支付, 个人自费, 企业健康福利]
+    provider_mix: {ai: 30, hybrid: 45, human: 25}
+    gdp_cny: 9000000000000
+    gdp_scope: 卫生总费用(含公立医疗, 其中市场化服务仅一部分)
+    gdp_source: 国家卫健委卫生统计公报(量级估算)
+    unit_id: healthcare
+    priority: 高
+    channels: [卫健委统计公报, 医疗机构名录, 心理健康服务平台]
+    status: covered
+    note: 强监管，AI 承接边界需另设合规清单
+
+  - id: home-design
+    name: 家装设计
+    aliases: [装修, 室内设计, 家居家装, 全屋定制]
+    cluster_basis: [交付链上下游(设计-施工-软装), 付费方同行(业主)]
+    demand_side: [业主装修支出, 房企精装项目]
+    provider_mix: {ai: 35, hybrid: 45, human: 20}
+    gdp_cny: 4000000000000
+    gdp_scope: 家装家居市场规模(含材料与施工)
+    gdp_source: 建筑装饰协会/家装行业报告(量级估算)
+    unit_id: home-design
+    priority: 中
+    channels: [建筑装饰协会统计, 家装平台服务商目录]
+    status: covered
+
+  - id: hr-services
+    name: 人力资源
+    aliases: [人事, HR服务, 招聘服务, 人力资源服务]
+    cluster_basis: [付费方同行(企业人力预算), 交付物同源(人与制度)]
+    demand_side: [企业人力服务预算, 猎头佣金, HR SaaS 订阅]
+    provider_mix: {ai: 45, hybrid: 45, human: 10}
+    gdp_cny: 2500000000000
+    gdp_scope: 人力资源服务业营业收入
+    gdp_source: 人社部人力资源服务业统计(量级估算)
+    unit_id: hr-services
+    priority: 高
+    channels: [人社部行业统计, 招聘平台, HR SaaS 厂商目录]
+    status: covered
+
+  - id: admin-office
+    name: 行政办公
+    aliases: [行政, 综合办公, 后台职能]
+    cluster_basis: [技能栈重叠(事务/文书/协调), 付费方=内部预算]
+    demand_side: [企业内部行政预算]
+    provider_mix: {ai: 50, hybrid: 40, human: 10}
+    gdp_cny: null
+    gdp_scope: 无独立行业口径（属企业内部职能，产值计入各自主业）
+    gdp_source: 不适用，刻意留空不编造
+    unit_id: admin-office
+    priority: 高
+    channels: [招聘平台行政岗, 企业行政外包服务目录]
+    status: covered
+    note: 跨行业通用职能型分区，非国民经济独立行业
+
+  - id: design-visual
+    name: 视觉设计
+    aliases: [平面设计, 设计服务, UI设计, 品牌设计]
+    cluster_basis: [交付物同源(视觉稿/物料), 付费方同行(品牌预算)]
+    demand_side: [企业品牌/营销预算, 平台商家设计付费]
+    provider_mix: {ai: 55, hybrid: 40, human: 5}
+    gdp_cny: 500000000000
+    gdp_scope: 设计服务业营业收入(含工业设计/平面设计)
+    gdp_source: 设计行业报告(量级估算, 置信中等)
+    unit_id: design-visual
+    priority: 高
+    channels: [设计行业协会, 设计平台接单数据, 招聘平台设计岗]
+    status: covered
+
+  # ---------------- 待建单元 ----------------
+  - id: translation
+    name: 翻译本地化
+    aliases: [语言服务, 翻译服务, 本地化服务]
+    cluster_basis: [交付物同源(语言转换), 技能栈重叠(双语+术语)]
+    demand_side: [企业出海本地化预算, 出版/影视本地化项目]
+    provider_mix: {ai: 70, hybrid: 28, human: 2}
+    gdp_cny: 70000000000
+    gdp_scope: 语言服务行业总产值
+    gdp_source: 中国翻译协会年度报告(量级估算)
+    unit_id: ''
+    priority: 高
+    channels: [中国翻译协会行业报告, 语言服务平台岗位, 出海企业需求]
+    status: pending
+    note: AI 替代率最高的分区之一，适合优先数字化
+
+  - id: video-media
+    name: 视频影视
+    aliases: [影视制作, 短视频制作, 传媒, 视频内容]
+    cluster_basis: [交付链上下游(拍摄-剪辑-发行), 交付物同源(视频)]
+    demand_side: [平台分账, 品牌短视频预算, 影视投资]
+    provider_mix: {ai: 45, hybrid: 40, human: 15}
+    gdp_cny: 2500000000000
+    gdp_scope: 广播电视与网络视听行业收入
+    gdp_source: 广电总局统计公报(量级估算)
+    unit_id: ''
+    priority: 高
+    channels: [广电总局统计, 网络视听平台创作者生态, 影视制作公司目录]
+    status: pending
+
+  - id: finance-invest
+    name: 金融投资
+    aliases: [投资理财, 财富管理, 保险服务, 证券服务]
+    cluster_basis: [资质门槛, 付费方同行(佣金/管理费)]
+    demand_side: [个人财富管理费, 机构管理费/佣金]
+    provider_mix: {ai: 30, hybrid: 40, human: 30}
+    gdp_cny: 3000000000000
+    gdp_scope: 金融业增加值中财富管理/经纪相关部分
+    gdp_source: 央行/证监会统计(量级估算)
+    unit_id: ''
+    priority: 中
+    channels: [证券/基金/保险业协会统计, 金融机构岗位目录]
+    status: pending
+    note: 强牌照约束，AI 只做投顾辅助与合规内工作
+
+  - id: real-estate
+    name: 房产置业
+    aliases: [房地产服务, 中介, 物业服务]
+    cluster_basis: [付费方同行(佣金/物业费), 交付链上下游]
+    demand_side: [二手房佣金, 物业费, 开发商营销费]
+    provider_mix: {ai: 30, hybrid: 40, human: 30}
+    gdp_cny: 1500000000000
+    gdp_scope: 房地产服务业(中介/物业)收入
+    gdp_source: 住建部/行业协会统计(量级估算)
+    unit_id: ''
+    priority: 中
+    channels: [住建部统计, 中介协会, 物业服务平台]
+    status: pending
+
+  - id: tourism-hospitality
+    name: 旅游出行
+    aliases: [旅游, 酒店, 住宿, 文旅]
+    cluster_basis: [交付链上下游(行程-住宿-票务), 付费方同行(游客)]
+    demand_side: [游客消费, 商旅报销, 平台佣金]
+    provider_mix: {ai: 40, hybrid: 35, human: 25}
+    gdp_cny: 5000000000000
+    gdp_scope: 旅游业总收入(含住宿/餐饮/景区, 与餐饮有重叠)
+    gdp_source: 文旅部统计(量级估算)
+    unit_id: ''
+    priority: 中
+    channels: [文旅部统计公报, OTA平台岗位, 酒店集团目录]
+    status: pending
+
+  - id: food-beverage
+    name: 餐饮美食
+    aliases: [餐饮, 餐饮服务, 食品服务]
+    cluster_basis: [交付物同源(现制食品), 付费方同行(消费者)]
+    demand_side: [消费者餐饮支出, 外卖平台佣金]
+    provider_mix: {ai: 20, hybrid: 30, human: 50}
+    gdp_cny: 5000000000000
+    gdp_scope: 全国餐饮收入
+    gdp_source: 国家统计局社零餐饮收入
+    unit_id: ''
+    priority: 低
+    channels: [国家统计局餐饮收入, 餐饮连锁企业名录, 外卖平台商家]
+    status: pending
+    note: 线下交付为主，AI 只能覆盖运营/策划侧
+
+  - id: logistics-supply
+    name: 物流供应链
+    aliases: [物流, 供应链, 仓储运输, 快递]
+    cluster_basis: [交付链上下游(仓-运-配), 付费方同行(运费)]
+    demand_side: [运费收入, 供应链服务费, 电商履约费]
+    provider_mix: {ai: 45, hybrid: 30, human: 25}
+    gdp_cny: 18000000000000
+    gdp_scope: 社会物流总费用(成本口径, 非增加值)
+    gdp_source: 中国物流与采购联合会统计
+    unit_id: ''
+    priority: 中
+    channels: [物流与采购联合会统计, 物流企业目录, 供应链岗位库]
+    status: pending
+
+  - id: manufacturing
+    name: 智能制造
+    aliases: [制造业, 工业制造, 生产制造]
+    cluster_basis: [交付物同源(实物产品), 交付链上下游(计划-工艺-质控)]
+    demand_side: [制造企业订单收入, 工业服务费]
+    provider_mix: {ai: 30, hybrid: 30, human: 40}
+    gdp_cny: 33000000000000
+    gdp_scope: 制造业增加值(整行业口径, 其中管理与技术岗是 AI 可承接部分)
+    gdp_source: 国家统计局工业增加值
+    unit_id: ''
+    priority: 中
+    channels: [国家统计局工业统计, 工程师招聘平台, 工业软件厂商]
+    status: pending
+    note: 分区内需再按子行业(电子/机械/化工)二级聚类，目前只做一级
+
+  - id: construction-eng
+    name: 建筑工程
+    aliases: [建筑业, 工程建设, 施工]
+    cluster_basis: [交付链上下游(设计-造价-施工-监理), 项目制付费]
+    demand_side: [工程合同收入, 政府基建投资]
+    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    gdp_cny: 32000000000000
+    gdp_scope: 建筑业总产值
+    gdp_source: 国家统计局建筑业统计
+    unit_id: ''
+    priority: 中
+    channels: [住建部统计, 工程造价平台, 建筑企业名录]
+    status: pending
+
+  - id: energy-environment
+    name: 能源环保
+    aliases: [环保, 节能, 双碳, 环境服务]
+    cluster_basis: [法规驱动, 付费方同为合规成本/政府购买]
+    demand_side: [环评/碳核查服务费, 政府环保采购, 节能改造项目]
+    provider_mix: {ai: 35, hybrid: 35, human: 30}
+    gdp_cny: 800000000000
+    gdp_scope: 环保产业营业收入(含装备, 服务部分更小)
+    gdp_source: 生态环境部环保产业统计(量级估算)
+    unit_id: ''
+    priority: 低
+    channels: [生态环境部统计, 环保产业协会, 碳市场披露]
+    status: pending
+
+  - id: auto-service
+    name: 汽车服务
+    aliases: [汽车后市场, 汽车销售, 汽修]
+    cluster_basis: [交付链上下游(销售-金融-售后), 付费方同行(车主)]
+    demand_side: [整车销售佣金, 售后维修收入, 汽车金融返佣]
+    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    gdp_cny: 5000000000000
+    gdp_scope: 汽车后市场市场规模(不含整车制造)
+    gdp_source: 汽车流通协会/行业报告(量级估算)
+    unit_id: ''
+    priority: 低
+    channels: [汽车流通协会统计, 经销商集团目录]
+    status: pending
+
+  - id: personal-services
+    name: 生活服务
+    aliases: [家政, 居民服务, 到家服务, 养老照护]
+    cluster_basis: [交付物同源(上门服务), 付费方同行(家庭付费)]
+    demand_side: [家庭服务付费, 家政平台佣金, 长护险支付]
+    provider_mix: {ai: 25, hybrid: 25, human: 50}
+    gdp_cny: 1000000000000
+    gdp_scope: 家政服务业营业收入(量级估算)
+    gdp_source: 商务部家政服务业统计(量级估算)
+    unit_id: ''
+    priority: 中
+    channels: [商务部服务贸易/家政统计, 到家服务平台目录]
+    status: pending
+
+  - id: beauty-grooming
+    name: 美业美发
+    aliases: [美容美发, 美业, 形象设计]
+    cluster_basis: [交付物同源(线下形象服务), 付费方同行(个人消费)]
+    demand_side: [个人到店消费, 会员卡预付]
+    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    gdp_cny: 500000000000
+    gdp_scope: 美容美发行业市场规模(量级估算)
+    gdp_source: 行业协会报告(低置信)
+    unit_id: ''
+    priority: 低
+    channels: [美业协会报告, 美业SaaS平台商家数据]
+    status: pending
+
+  - id: agriculture
+    name: 农林牧渔
+    aliases: [农业, 现代农业, 农产品]
+    cluster_basis: [交付物同源(农产品), 政策驱动]
+    demand_side: [农产品销售收入, 农业补贴, 农技服务费]
+    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    gdp_cny: 9000000000000
+    gdp_scope: 农林牧渔业增加值
+    gdp_source: 国家统计局农业增加值
+    unit_id: ''
+    priority: 低
+    channels: [国家统计局农业统计, 农业农村部服务平台, 农科院目录]
+    status: pending
+
+  - id: culture-art
+    name: 文化艺术
+    aliases: [文化娱乐, 演艺, 出版, 艺术服务]
+    cluster_basis: [付费方同行(票务/版权), 交付物版权属性]
+    demand_side: [票务收入, 版权授权, 政府文化采购]
+    provider_mix: {ai: 40, hybrid: 35, human: 25}
+    gdp_cny: 1000000000000
+    gdp_scope: 文化及相关产业增加值中内容创作生产部分
+    gdp_source: 国家统计局文化产业统计
+    unit_id: ''
+    priority: 中
+    channels: [国家统计局文化及相关产业统计, 演出/出版机构目录]
+    status: pending
+
+  - id: public-affairs
+    name: 政务公共
+    aliases: [政务服务, 公共管理, 社区治理]
+    cluster_basis: [付费方=财政, 非市场付费]
+    demand_side: [财政预算, 政府购买服务]
+    provider_mix: {ai: 40, hybrid: 45, human: 15}
+    gdp_cny: null
+    gdp_scope: 无市场产值口径（公共管理增加值不构成市场付费分区）
+    gdp_source: 不适用，刻意留空
+    unit_id: ''
+    priority: 中
+    channels: [政务公开办事目录, 社工职业目录, 政府购买服务清单]
+    status: pending
+    note: 无市场付费，产值口径留空；AI 承接以内部效率提升为主
+
+  - id: sport-leisure
+    name: 体育健身
+    aliases: [体育, 健身, 赛事运营]
+    cluster_basis: [付费方同行(会员费/票务), 交付物同源(运动服务)]
+    demand_side: [健身会员费, 赛事票务与赞助, 体育培训费]
+    provider_mix: {ai: 25, hybrid: 30, human: 45}
+    gdp_cny: 3000000000000
+    gdp_scope: 体育产业总产出(含用品制造, 服务部分更小)
+    gdp_source: 国家体育总局体育产业统计
+    unit_id: ''
+    priority: 低
+    channels: [体育总局产业统计, 健身连锁/赛事公司目录]
+    status: pending
+
+  - id: research-academic
+    name: 科研学术
+    aliases: [科研服务, 学术出版, 研发外包]
+    cluster_basis: [交付链上下游(选题-申报-实验-发表), 经费驱动]
+    demand_side: [科研经费, 企业研发外包费, APC版面费]
+    provider_mix: {ai: 50, hybrid: 45, human: 5}
+    gdp_cny: 2500000000000
+    gdp_scope: 研究与试验发展(R&D)经费中外部服务部分(窄口径)
+    gdp_source: 国家统计局R&D经费投入统计
+    unit_id: ''
+    priority: 中
+    channels: [国家统计局R&D统计, 科研院所岗位, 学术出版平台]
+    status: pending
+    note: 与数据分析/软件研发高度复合，学界伦理边界需单列
+
+  - id: mining-resources
+    name: 矿业资源
+    aliases: [采矿, 矿产资源, 能源开采]
+    cluster_basis: [交付物同源(资源开采), 重资产+安全监管]
+    demand_side: [大宗商品销售, 资源开采权]
+    provider_mix: {ai: 15, hybrid: 20, human: 65}
+    gdp_cny: 5000000000000
+    gdp_scope: 采矿业增加值
+    gdp_source: 国家统计局采矿业增加值
+    unit_id: ''
+    priority: 低
+    channels: [国家统计局采矿业统计, 矿业集团目录]
+    status: evaluated
+    note: 评估后判定 AI 承接面极窄（现场作业为主），暂不建单元
+
+  - id: utilities
+    name: 电力热力燃气水
+    aliases: [公用事业, 电力, 燃气, 供水]
+    cluster_basis: [管网垄断, 强监管定价]
+    demand_side: [用户用能缴费, 政府定价]
+    provider_mix: {ai: 25, hybrid: 35, human: 40}
+    gdp_cny: 4000000000000
+    gdp_scope: 电力热力燃气及水生产供应业增加值
+    gdp_source: 国家统计局增加值
+    unit_id: ''
+    priority: 低
+    channels: [国家统计局增加值, 电网/燃气集团目录]
+    status: evaluated
+    note: AI 承接集中在客服/调度/计费，可并入能源环保二级分区
+
+  - id: public-safety
+    name: 公共安全应急
+    aliases: [安防, 应急管理, 消防]
+    cluster_basis: [付费方=财政+企业合规, 强资质]
+    demand_side: [政府采购, 企业安防预算]
+    provider_mix: {ai: 30, hybrid: 35, human: 35}
+    gdp_cny: 1000000000000
+    gdp_scope: 安防行业市场规模(量级估算)
+    gdp_source: 安防协会报告(低置信)
+    unit_id: ''
+    priority: 低
+    channels: [安防协会统计, 应急管理部门目录]
+    status: evaluated
+
+  - id: water-marine
+    name: 水利海洋
+    aliases: [水利工程, 海洋经济]
+    cluster_basis: [政府投资驱动, 工程属性]
+    demand_side: [政府水利投资, 海洋产业收入]
+    provider_mix: {ai: 20, hybrid: 25, human: 55}
+    gdp_cny: 1500000000000
+    gdp_scope: 水利环境与海洋产业相关投资/产值(口径杂, 量级参考)
+    gdp_source: 水利部/自然资源部统计(量级估算)
+    unit_id: ''
+    priority: 低
+    channels: [水利部统计公报, 海洋经济统计]
+    status: evaluated
+    note: 评估后判定与建筑工程高度重合，暂不单列单元
+
+  - id: international-org
+    name: 国际组织与对外事务
+    aliases: [涉外服务, 国际组织, 外事]
+    cluster_basis: [非市场付费, 政治/合规约束]
+    demand_side: [国际组织预算, 政府外事预算]
+    provider_mix: {ai: 25, hybrid: 40, human: 35}
+    gdp_cny: null
+    gdp_scope: 无市场产值口径
+    gdp_source: 不适用，刻意留空
+    unit_id: ''
+    priority: 低
+    channels: [国际组织岗位公告, 驻外机构目录]
+    status: evaluated
+    note: 评估后不建单元
