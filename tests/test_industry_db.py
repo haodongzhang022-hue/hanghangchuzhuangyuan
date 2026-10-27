@@ -387,6 +387,26 @@ def test_pending_partition_unit_role_must_be_in_planned_roles():
                for p in problems), problems
 
 
+def test_validate_survives_dirty_mix_values():
+    """provider_mix 里塞脏数据（非数值/布尔）时，validate 报问题而不是崩"""
+    db = IndustryDatabase()
+    db.partitions.append({"id": "dirty-mix", "status": "pending",
+                          "provider_mix": {"ai": "abc", "hybrid": True,
+                                           "human": 0}})
+    # 脏值不能被误读成非零（True 不是 1），也不能抛异常
+    db.partitions[-1]["provider_mix"] = {"ai": "30", "hybrid": None,
+                                         "human": 0}
+    problems = db.validate()
+    assert any("dirty-mix" in p for p in problems), problems
+    # 有成员时的漂移计算同样不能因脏值崩
+    db.partitions[-1]["provider_mix"] = {"ai": "abc", "hybrid": None,
+                                         "human": 0}
+    db.partitions[-1]["planned_roles"] = ["x"]
+    db.occupations.append({"id": "dirty-occ", "unit_id": "dirty-mix",
+                           "unit_role": "x", "provider": "ai"})
+    assert isinstance(db.validate(), list)
+
+
 def test_real_pending_partitions_are_not_flagged():
     """现实路径不被误伤：18 个待建分区成员 unit_role 为空不算错"""
     db = IndustryDatabase()
@@ -418,5 +438,6 @@ if __name__ == "__main__":
     test_validate_reports_unit_id_member_mismatch()
     test_validate_reports_evaluated_partition_with_unit()
     test_pending_partition_unit_role_must_be_in_planned_roles()
+    test_validate_survives_dirty_mix_values()
     test_real_pending_partitions_are_not_flagged()
     print("✅ 行业分区定义库测试通过")

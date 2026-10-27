@@ -236,6 +236,16 @@ class IndustryDatabase:
     # 分区手写 provider_mix 与实测分布的允许偏差（百分点），超出即报漂移
     DECLARED_MIX_TOLERANCE = 25.0
 
+    @staticmethod
+    def _as_float(value, default: float = 0.0) -> float:
+        """宽松转数：脏数据（字符串/None/布尔）转成默认值，校验本身不能因数据烂而崩。"""
+        if isinstance(value, bool):
+            return default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
     def validate(self) -> List[str]:
         """数据一致性自检：返回问题列表，空表示健康。
 
@@ -322,7 +332,7 @@ class IndustryDatabase:
             members = self.members_of(pid)
             if not members:
                 # 无成员职业 → 实测口径必须无数据；非零说明手写值又冒充实测了
-                if any(float(declared.get(k) or 0) for k in
+                if any(self._as_float(declared.get(k)) for k in
                        ("ai", "hybrid", "human")):
                     problems.append(
                         f"分区 {pid} 无成员职业，provider_mix(实测口径) 应为 "
@@ -332,7 +342,7 @@ class IndustryDatabase:
                 for k in ("ai", "hybrid", "human"):
                     if k not in declared:
                         continue
-                    drift = abs(float(declared.get(k) or 0) - measured[k])
+                    drift = abs(self._as_float(declared.get(k)) - measured[k])
                     if drift > self.DECLARED_MIX_TOLERANCE:
                         problems.append(
                             f"分区 {pid} 的 provider_mix.{k} 声明 "
