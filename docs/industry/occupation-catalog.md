@@ -63,6 +63,19 @@
 多个我们的职业可以指向同一个 code（翻译 / 口译员 / 字幕翻译 都归「翻译」），
 反向统计按 code 去重，不虚增。
 
+## 国际那一层：ISCO-08
+
+大典是本国口径，跨境对齐、海外招聘、国际统计比对都接不上。ISCO-08（ILO）
+是各国职业分类的公共母版，已落 `data/reference/occupation-catalog-isco08.yaml`：
+
+```bash
+python3 src/hanghang/cli/main.py reference isco --search nurse
+python3 src/hanghang/cli/main.py reference isco --code 2512
+```
+
+两套标准**各自独立**，不做"一套覆盖另一套"的假设（口径不同，硬套必然错挂）。
+四根轴的分工与接法见 `docs/industry/global-framework.md`。
+
 ## 怎么用
 
 ```bash

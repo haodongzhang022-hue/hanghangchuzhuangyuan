@@ -1,0 +1,277 @@
+# ============================================================================
+# 分类体系索引 · classification-sources（框架说明书，不是数据）
+#
+# 一张表回答三件事：
+#   1. 世界上到底有几套权威分类，各自管什么轴、谁维护、多少条、怎么拿；
+#   2. 我们仓库里已经落了哪几套、落在哪、接进代码了没有；
+#   3. 剩下的按什么顺序接，以及"接进来之后不许干什么"。
+#
+# 为什么集中放一处：分类体系最容易重复造词。同一个"行业"，统计局一套、
+# 证监会一套、税务一套、联合国一套，值都不一样。先把轴分清楚，再谈补数据。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-10-28"
+
+# 四根轴。职业轴和行业轴是两件事，混用会让"分区聚类"永远说不清依据。
+axes:
+  occupation:
+    question: 这个人在干什么活（按技能与任务划分，跨行业通用）
+    we_use: data/industry-occupations.yaml（我们自己收敛的 147 条执行口径）
+    anchors: [CN-OCC-2022, ISCO-08, US-SOC-2018, UK-SOC-2020, O-NET]
+  industry:
+    question: 这家单位在卖什么（按产出/主营活动划分，与职业正交）
+    we_use: data/industry-partitions.yaml（37 个分区的聚类口径，是我们自己的，不是标准口径）
+    anchors: [UN-ISIC-Rev4, CN-GBT4754-2017, NACE-Rev2.1, NAICS-2022]
+  tax:
+    question: 这笔钱按什么税目征、按什么行业归税务管理
+    we_use: 暂无（这是本轮之后要补的，见 docs/industry/global-framework.md 第四节）
+    anchors: [OECD-TAX, EU-VAT, CN-VAT-INDUSTRY]
+  output:
+    question: 这个行业一年有多大产值、多少人就业
+    we_use: data/industry-partitions.yaml 的 gdp_cny（量级参考，非官方统计）
+    anchors: [ILO-ILOSTAT, UNSD-NA, OECD-STAN, CN-NBS]
+
+# 已接入仓库的分类体系。field_map 说明"落到我们库里对应的字段"。
+sources:
+
+  - id: CN-OCC-2022
+    axis: occupation
+    name: 《中华人民共和国职业分类大典（2022 年版）》
+    maintainer: 中国人力资源和社会保障部 / 国家统计局
+    version: "2022"
+    updated: "2022（2021 公示稿，2022 年版）"
+    scale: {major: 8, middle: 79, minor: 449, unit: 1636}
+    code_shape: "大类-中类-小类-细类，如 4-14-02-02 健康管理师"
+    license: 政府公开信息
+    url: https://www.mohrss.gov.cn/
+    we_have: data/reference/occupation-catalog-2022.yaml
+    field_map: industry-occupations.yaml 的职业经 occupation-gb-map.yaml 挂 gb_code
+    status: integrated
+    note: >
+      国内唯一公共职业分类口径，含职业描述与 L(绿色)/S(数字) 标记。
+      招聘网站的 6 位内码（如 000392）是各家私库，不是标准，别拿它当锚点。
+
+  - id: ISCO-08
+    axis: occupation
+    name: International Standard Classification of Occupations（国际标准职业分类）
+    maintainer: ILO 国际劳工组织
+    version: ISCO-08
+    updated: "2008（ISCO-2028 在修订中）"
+    scale: {major: 10, sub_major: 43, minor: 130, unit: 436}
+    code_shape: "1/2/3/4 位分层，短码是长码前缀，如 2512 Software developers"
+    license: 公开（本表数据取自 EU ESCO 镜像，MIT）
+    url: https://ilostat.ilo.org/methods/concepts-and-definitions/classification-occupation/
+    we_have: data/reference/occupation-catalog-isco08.yaml
+    field_map: 暂未映射（本轮只落参考表，见 docs/industry/global-framework.md 第三节）
+    status: integrated
+    note: >
+      各国职业分类的公共母版：美国 SOC、英国 SOC、ANZSCO、加拿大 NOC、
+      德国 KldB、中国大典都按它对标。含 1931 条官方示例职位名
+      （examples 字段），是"某个工种在英文里叫什么"的最快入口。
+
+  - id: UN-ISIC-Rev4
+    axis: industry
+    name: International Standard Industrial Classification of All Economic Activities
+    maintainer: 联合国统计司 UNSD
+    version: Rev.4
+    updated: "2008（Rev.5 已于 2024 通过，分档更细）"
+    scale: {section: 21, division: 88, group: 238, class: 419}
+    code_shape: "字母大类 + 两位数字门类，如 A 农业 / 62 计算机编程与咨询"
+    license: 公开
+    url: https://unstats.un.org/unsd/classifications/Econ/isic
+    we_have: 暂无（本轮只登记，不落表）
+    field_map: 未来对应 industry-partitions.yaml 每行的 isic_code
+    status: to-add
+    note: >
+      行业轴的公共母版，NACE / NAICS / 中国 GB/T 4754 都与它交叉表。
+      接它的意义：让"37 个分区"能对上国际口径，做跨境比较时有共同语言。
+
+  - id: CN-GBT4754-2017
+    axis: industry
+    name: 《国民经济行业分类》GB/T 4754-2017（含 2019 修订）
+    maintainer: 国家统计局
+    version: "2017"
+    updated: "2017（2019 修订第 1 号单）"
+    scale: {门类: 20, 大类: 97, 中类: 473, 小类: 1380}
+    code_shape: "A-T 门类 + 四位数字，如 I-65 软件和信息技术服务业"
+    license: 国家标准公开
+    url: https://www.stats.gov.cn/
+    we_have: 暂无（本轮只登记，不落表）
+    field_map: 未来对应 industry-partitions.yaml 每行的 gb_industry_code
+    status: to-add
+    note: >
+      国内行业口径的正源，也是统计局增加值 / 税收分行业口径、四经普的底。
+      优先级高于 ISIC：先能对上税务和统计，再谈国际比较。
+
+  - id: US-SOC-2018
+    axis: occupation
+    name: Standard Occupational Classification（美国标准职业分类）
+    maintainer: U.S. Bureau of Labor Statistics
+    version: "2018"
+    updated: "2018（下一版 2028）"
+    scale: {major: 23, broad: 98, minor: 459, unit: 867, detail: 867}
+    code_shape: "xx-xxxx，如 15-1252 Software Developers"
+    license: 美国政府公开作品
+    url: https://www.bls.gov/soc/
+    we_have: 暂无
+    field_map: 未来与 ISCO 交叉映射（BLS 官方提供 SOC↔ISCO 交叉表）
+    status: to-add
+    note: >
+      价值不在"更多职业"，在于它连着 O*NET 的量化数据：就业人数、薪资、
+      未来十年增长率、任务/技能/工具清单。本仓库最缺的"某职业值多少钱、
+      有多大市场"只有 O*NET/OEWS 这条路能拿到可靠量级。
+
+  - id: O-NET
+    axis: occupation
+    name: O*NET 职业信息数据库
+    maintainer: U.S. Department of Labor
+    version: "29（随季度更新）"
+    updated: 季度
+    scale: {occupations: 923, descriptors: "技能/知识/能力/工作活动/工作情境/工作价值观等 8 类"}
+    code_shape: "SOC 8 位码 + .xx 扩展，如 15-1252.00"
+    license: CC BY 4.0（可商用，需署名）
+    url: https://www.onetcenter.org/database.html
+    we_have: 暂无
+    field_map: 未来给职业表补 skill/task 维度，不做成主键
+    status: candidate
+    note: >
+      ISCO 只告诉你职业叫什么，O*NET 告诉你这活要什么技能、用什么工具、
+      多少人在干、挣多少。它和 AI 替代风险研究（AIOE / GenAI exposure）同源，
+      是"provider: ai/hybrid/human"这个字段的外部校准依据。
+
+  - id: NACE-Rev2.1
+    axis: industry
+    name: Statistical Classification of Economic Activities in the European Community
+    maintainer: Eurostat
+    version: Rev.2.1
+    updated: "2024（2025 起用于 EU 统计）"
+    scale: {section: 21, division: 88, group: 284, class: 654}
+    code_shape: "字母 + 两位，如 J-62 计算机编程与咨询"
+    license: 公开
+    url: https://showvoc.op.europa.eu/
+    we_have: 暂无
+    field_map: 与 ISIC 同源，若接 ISIC 则 NACE 基本免费获得
+    status: candidate
+    note: 与 ISIC 高度对齐；EU 区域内做行业对标时用它，不额外维护第二套。
+
+  - id: NAICS-2022
+    axis: industry
+    name: North American Industry Classification System
+    maintainer: OMB / 美加墨三国联合
+    version: "2022"
+    updated: "2022（五年一修）"
+    scale: {sector: 20, subsector: 99, industry_group: 320, naics_industry: 1046}
+    code_shape: "2-6 位数字，如 541511 Custom Computer Programming Services"
+    license: 美国政府公开作品
+    url: https://www.census.gov/naics/
+    we_have: 暂无
+    field_map: 与 ISIC 交叉表（美方官方发布）
+    status: candidate
+    note: >
+      比 ISIC 细，尤其在新兴服务（软件、内容、平台）分得清。若要细分
+      我们这批"数字员工可承接"的服务业行业，NAICS 的 6 位码比 ISIC 好用。
+
+  - id: UK-SOC-2020
+    axis: occupation
+    name: Standard Occupational Classification（英国）
+    maintainer: ONS
+    version: "2020"
+    updated: "2020"
+    scale: {major: 9, sub_major: 26, minor: 104, unit: 411}
+    code_shape: "4 位数字，如 2134 Programmers and software development professionals"
+    license: Open Government Licence
+    url: https://onsdigital.github.io/dp-classification-tools/
+    we_have: 暂无
+    field_map: 与 ISCO-08 官方交叉表
+    status: candidate
+    note: 英联邦体系（含 ANZSCO）的近似对照物，ETS/职业评估场景常用。
+
+  - id: ILO-ILOSTAT
+    axis: output
+    name: ILOSTAT 国际劳工统计数据库（就业人数 / 职业结构 / 工时 / 收入）
+    maintainer: ILO 国际劳工组织
+    version: 持续更新
+    updated: 年度
+    scale: {indicators: "1000+", countries: "180+"}
+    code_shape: 指标码 + ISCO-08 职业码 + ISIC 行业码（与另两根轴天然联通）
+    license: 公开（CC BY 4.0）
+    url: https://ilostat.ilo.org/data/
+    we_have: 暂无（本轮只登记，不落表）
+    field_map: 未来给 partition 的就业规模与人均产出做外部校准
+    status: to-add
+    note: >
+      它是职业轴与行业轴的落点：同一张表里既有 ISCO 职业码又有 ISIC 行业码，
+      是"某职业全球有多少人在干"唯一公开可比的口径。
+
+  - id: CN-NBS-NA
+    axis: output
+    name: 国家统计局 分行业增加值 / 城镇单位就业人员分行业数据
+    maintainer: 国家统计局
+    version: 年度
+    updated: 年度（次年发布）
+    scale: {行业门类: 20, 指标: "增加值 / 就业人数 / 平均工资"}
+    code_shape: GB/T 4754 行业码
+    license: 政府公开信息
+    url: https://data.stats.gov.cn/
+    we_have: 暂无（本轮只登记，不落表）
+    field_map: industry-partitions.yaml 的 gdp_cny 逐年校准口径
+    status: to-add
+    note: >
+      现在 gdp_cny 是量级估算，只能排序不能对外。校准必须以这套数据为准，
+      并且保留"估算值 / 校准值"两列，不许用校准值悄悄覆盖历史估算。
+
+  - id: CN-VAT-INDUSTRY
+    axis: tax
+    name: 增值税税目 / 行业税收口径（含《销售服务、无形资产、不动产注释》）
+    maintainer: 国家税务总局
+    version: 现行
+    updated: 随政策变动
+    scale: {一级税目: 20, 税率档: "13/9/6/3/1/0"}
+    code_shape: 无统一编码，按税目名称 + 税率档（13/9/6/3/1/0）组织
+    license: 政府公开信息
+    url: https://www.chinatax.gov.cn/
+    we_have: 暂无
+    field_map: 未来新增 partition.tax_items / occupation.billing_tax
+    status: to-add
+    note: >
+      税收轴不能和行业轴混：同一行业里不同税目税率不同（软件产品 13%、
+      技术服务 6%），同一税目跨行业。所以要单独一张"税目表"，
+      用行业码 + 职业交付物两头去对，别塞进 partitions。
+
+  - id: OECD-TAX-EU-VAT
+    axis: tax
+    name: OECD 税收数据库 / EU VAT 指令（2006/112/EC）
+    maintainer: OECD / European Commission
+    version: 现行
+    updated: 年度
+    scale: {jurisdictions: "40+", scope: "跨境税负对照"}
+    code_shape: 无统一编码
+    license: OECD 部分开放 / EU 公开
+    url: https://www.oecd.org/tax/tax-policy/
+    we_have: 暂无
+    field_map: 未来只做"跨境税负对照"，不做计税
+    status: candidate
+    note: 跨境接单场景才用得上（数字服务税、VAT 注册地规则），优先级低于国内税目。
+
+# 硬规矩 —— 接任何一套表都不许破的底线
+rules:
+  - id: read-only-anchors
+    text: >
+      外部标准表只读。补职业、改聚类不许动参考文件；标准换版时整份替换，
+      并用映射表承接差异，不做"就地改几个字"。
+  - id: never-dilute-denominator
+    text: >
+      外部全集不能进 coverage 分母。大典 1636 条、ISCO 436 条都包住整个
+      国民经济，拿它当分母，覆盖率只会变成没意义的数字。
+  - id: crosswalk-is-manual
+    text: >
+      交叉映射必须人工核对，宁缺勿错。错挂比不挂坏得更彻底——挂上之后
+      反查、导出、统计全跟着错，而且没人会再去看第二遍。
+  - id: tax-not-industry
+    text: >
+      税目不是行业码。税率跟着"卖的是什么"（货物/服务/无形资产）走，
+      不跟着行业走；税收数据只做成本与定价参考，不参与分区聚类依据。
+  - id: one-axis-one-key
+    text: >
+      一个字段只装一根轴的码。职业表只放职业码，分区表只放行业码，
+      税目单独一列。混装会导致"改一次标准全库重算"。

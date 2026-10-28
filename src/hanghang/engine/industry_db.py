@@ -23,6 +23,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from .global_framework import ClassificationSources, IscoCatalog
 from .occupation_catalog import OccupationCatalog
 from .registry import Registry
 
@@ -46,6 +47,12 @@ class IndustryDatabase:
             self.catalog = OccupationCatalog(self.data_dir)
         except Exception as exc:  # noqa: BLE001 - 参考表坏掉不该拖垮主库
             logging.warning(f"职业大典参考表加载失败，相关统计降级: {exc}")
+        # 全球分类框架：ISCO-08 只读参考表 + 四根轴索引。同样降级不阻断主库，
+        # 但缺失/写错会进 validate() 的 problems（旁证坏了比没有旁证更坏）。
+        self.isco: Optional[IscoCatalog] = IscoCatalog(os.path.join(
+            self.data_dir, "reference"))
+        self.classification_sources: Optional[ClassificationSources] = \
+            ClassificationSources(os.path.join(self.data_dir, "reference"))
         self.occ_path = os.path.join(self.data_dir, "industry-occupations.yaml")
         self.part_path = os.path.join(self.data_dir, "industry-partitions.yaml")
         self.version = "0.1"
@@ -484,6 +491,12 @@ class IndustryDatabase:
         else:
             ids = [o.get("id", "") for o in self.occupations if o.get("id")]
             problems.extend(self.catalog.validate(ids))
+
+        # 15. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
+        if self.isco is not None:
+            problems.extend(self.isco.validate())
+        if self.classification_sources is not None:
+            problems.extend(self.classification_sources.validate())
         return problems
 
     def _check_primary_keys(self) -> List[str]:

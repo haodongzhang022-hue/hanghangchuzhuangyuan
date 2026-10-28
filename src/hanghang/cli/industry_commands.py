@@ -322,3 +322,82 @@ def cmd_industry_export(args):
     print(f"已导出 {len(written)} 个文件到 {out}/ :")
     for p in written:
         print("  - " + p)
+
+
+# ---- 全球分类框架（四根轴：职业 / 行业 / 税收 / 产出）----
+def cmd_reference_isco(args):
+    """查 ISCO-08 参考表：按编码看归属链路，或按名称/示例职位名检索。
+
+    ISCO-08 是各国职业分类的公共母版（SOC/ANZSCO/NOC/KldB/中国大典都按它对标），
+    用来回答"这个工种在英文里叫什么、国际口径归哪一类"。
+    它不参与 coverage 分母：436 个细类包住全球全行业，拿它当分母只会稀释覆盖率。
+    """
+    from hanghang.engine.global_framework import IscoCatalog, LEVEL_NAMES
+
+    cat = IscoCatalog()
+    if not cat.by_level[4] and not cat.by_level[1]:
+        print(f"未加载 ISCO-08 参考表: {cat.path}")
+        sys.exit(1)
+
+    code = getattr(args, "code", "") or ""
+    kw = getattr(args, "search", "") or ""
+    limit = getattr(args, "limit", 20) or 0
+
+    if code:
+        e = cat.entry(code)
+        if not e:
+            print(f"未找到 ISCO-08 编码: {code}")
+            sys.exit(1)
+        lvl = cat.level_of(code)
+        print(f"■ {code} {e.get('name')}  [{LEVEL_NAMES.get(lvl, '?')}]")
+        print(f"  归属: {cat.path_of(code)}")
+        print(f"  技能等级: {e.get('skill_level')}")
+        kids = cat.children_of(code)
+        if kids:
+            print(f"  下级({len(kids)}):")
+            for k in kids:
+                print(f"    - {k.get('code')} {k.get('name')}")
+        ex = e.get("examples") or []
+        if ex:
+            print(f"  官方示例职位({len(ex)}): " + "、".join(ex))
+        if e.get("description"):
+            print(f"  描述: {e['description']}")
+        return
+
+    if kw:
+        hits = cat.search(kw, limit=limit)
+        if not hits:
+            print(f"ISCO-08 里没有名称或示例职位名含「{kw}」的条目")
+            return
+        print(f"{'编码':<8}{'名称':<44}示例职位")
+        for e in hits:
+            ex = "、".join((e.get("examples") or [])[:3])
+            print(f"{e.get('code', ''):<8}{e.get('name', '')[:42]:<44}{ex}")
+        print(f"\n命中 {len(hits)} 条（--limit 0 看全部）")
+        return
+
+    s = cat.stats
+    print(f"ISCO-08 参考表（{cat.version}）")
+    print(f"  大类 {s.get('major_groups', 0)} / 次大类 {s.get('sub_major_groups', 0)}"
+          f" / 小类 {s.get('minor_groups', 0)} / 细类 {s.get('unit_groups', 0)}"
+          f" · 官方示例职位 {cat.example_count()} 条")
+    print("  口径提醒: 436 个细类包住全球全行业，是本表全集，不是待办清单")
+    for k in cat.by_level[1]:
+        n = len(cat.children_of(k.get("code", "")))
+        print(f"  - {k.get('code')} {k.get('name')}（次大类 {n}）")
+
+
+def cmd_reference_sources(args):
+    """分类体系索引：四根轴各自有哪些权威标准、已接入还是待接。"""
+    from hanghang.engine.global_framework import ClassificationSources
+
+    src = ClassificationSources()
+    if not src.sources:
+        print(f"未加载分类体系索引: {src.path}")
+        sys.exit(1)
+    problems = src.validate()
+    print(src.render_text(axis=getattr(args, "axis", "") or ""))
+    if problems:
+        print(f"\n⚠️ 索引自检发现 {len(problems)} 处问题：")
+        for p in problems:
+            print("  - " + p)

@@ -18,6 +18,7 @@ from hanghang.cli.industry_commands import (
     cmd_industry_partitions, cmd_industry_partition,
     cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
     cmd_industry_catalog,
+    cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
@@ -431,6 +432,20 @@ def build_parser():
     iexp.add_argument("--data-dir", default="", help="自定义 data 目录")
     iexp.set_defaults(func=cmd_industry_export)
 
+    # ---- 全球分类框架（职业/行业/税收/产出 四根轴）----
+    ref = sub.add_parser("reference", help="分类体系参考：ISCO-08 国际职业分类 / 四根轴索引")
+    ref_sub = ref.add_subparsers(dest="reference_cmd")
+
+    risco = ref_sub.add_parser("isco", help="查 ISCO-08(国际标准职业分类)：按编码看归属，或按名称/示例职位检索")
+    risco.add_argument("--code", default="", help="ISCO-08 编码，如 2512")
+    risco.add_argument("--search", default="", help="按英文名称或官方示例职位名搜索")
+    risco.add_argument("--limit", type=int, default=20, help="搜索返回条数(0=全部)")
+    risco.set_defaults(func=cmd_reference_isco)
+
+    rsrc = ref_sub.add_parser("sources", help="四根轴全景：职业/行业/税收/产出 各有哪些权威标准、接没接")
+    rsrc.add_argument("--axis", default="", help="只看某根轴：occupation / industry / tax / output")
+    rsrc.set_defaults(func=cmd_reference_sources)
+
     h = sub.add_parser("handoff", help="创建交接卡")
     h.add_argument("--source", required=True, help="源单元")
     h.add_argument("--target", required=True, help="目标单元")
@@ -629,6 +644,10 @@ def main():
     if args.command == "industry" and not getattr(args, "industry_cmd", None):
         print("请指定 industry 子命令：partitions / partition / occupations / catalog / check / export")
         print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
+        sys.exit(1)
+    if args.command == "reference" and not getattr(args, "reference_cmd", None):
+        print("请指定 reference 子命令：isco / sources")
+        print("示例: python3 src/hanghang/cli/main.py reference isco --search nurse")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):
         print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")

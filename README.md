@@ -81,6 +81,9 @@ python3 src/hanghang/cli/main.py industry catalog --search 护士   # 查职业�
 python3 src/hanghang/cli/main.py industry catalog --gaps        # 大典里还没被挂上的细类(候选池)
 python3 src/hanghang/cli/main.py industry check                  # 职业↔单元岗位 双向对齐自检
 python3 src/hanghang/cli/main.py industry export --out out/industry-db  # 导出 json/csv/sqlite 扁平表
+python3 src/hanghang/cli/main.py reference isco --search nurse   # 查 ISCO-08 国际职业分类(436 细类+1931 条官方示例职位名)
+python3 src/hanghang/cli/main.py reference isco --code 2512     # 按编码看国际归属链路
+python3 src/hanghang/cli/main.py reference sources               # 四根轴全景：职业/行业/税收/产出 各有哪些标准
 
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
@@ -269,6 +272,7 @@ python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
 python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗位双向对齐/产值口径/扁平表导出）
 python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码/映射外键/两个分母不混读）
+python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表/四根轴索引/副证缺失不静默）
 ```
 
 ## 数据文件
@@ -279,6 +283,8 @@ python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码
 - `data/industry-partitions.yaml` — M11 行业分区表（聚类依据/付费方/供给结构/产值口径）
 - `data/reference/occupation-catalog-2022.yaml` — 《职业分类大典（2022 年版）》参考表（8 大类/79 中类/449 小类/1636 细类，只读）
 - `data/reference/occupation-gb-map.yaml` — 职业 ↔ 大典细类编码的人工映射（宁缺勿错）
+- `data/reference/occupation-catalog-isco08.yaml` — ISCO-08 国际职业分类参考表（10/43/130/436 + 1931 条官方示例职位名，只读）
+- `data/reference/classification-sources.yaml` — 四根轴（职业/行业/税收/产出）分类体系索引：各标准规模、维护方、已接/待接
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
@@ -305,10 +311,14 @@ python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码
   （行政办公/政务公共/国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
 - **不引入外部数据库**：yaml 是权威源（可评审、可回滚、可被知识库切片），
   `industry export` 一键生成 `industry.sqlite` + 两份 csv 扁平表，随 CNB 制品库发布，拿到即用。
-- **双向自检**：`industry check` 跑 14 条校验（主键唯一/状态枚举/成员归属/职业↔岗位对齐/大典映射外键/
+- **双向自检**：`industry check` 跑 15 条校验（主键唯一/状态枚举/成员归属/职业↔岗位对齐/大典映射外键/
   供给结构对账/数据源存在），其中三条专守"分母被悄悄缩小"的暗沟——分区 id 写重、
   `status` 拼错、标了 `covered` 却没登记职业，这三种错不会让覆盖率变红，只会让它变好看。
   流水线在 PR 测试、合并门禁、main 全量回归三处都会跑它，数据漂移不靠自觉。
+
+**国际口径**：职业轴再接一层 ISCO-08（ILO，436 细类 + 1931 条官方示例职位名），
+行业轴与税收轴的口径与接法见 `docs/industry/global-framework.md`。
+外部标准一律只读、不进 coverage 分母——它们是"还能挑多少"，不是"还欠多少"。
 
 `coverage` 的岗位基线现在**优先取职业库**，`coverage-target.yaml` 只作兜底，
 避免两处手写岗位各自漂移。详见 `docs/industry/industry-partition-db.md`。
@@ -339,6 +349,7 @@ python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
 - 行业分区定义库(M11): `docs/industry/industry-partition-db.md`
 - 职业分类大典参考表: `docs/industry/occupation-catalog.md`
+- 全球分类框架（四根轴/国外体系/接法）: `docs/industry/global-framework.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
