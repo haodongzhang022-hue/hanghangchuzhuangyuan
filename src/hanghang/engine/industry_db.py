@@ -23,6 +23,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from .occupation_catalog import OccupationCatalog
 from .registry import Registry
 
 # 参与"应建设"分母的分区状态；evaluated 表示评估后明确不建单元
@@ -38,6 +39,13 @@ class IndustryDatabase:
                  registry: Optional[Registry] = None):
         self.data_dir = data_dir or self._find_data_dir()
         self.registry = registry or Registry()
+        # 大典参考表：只读旁证。缺失时降级为 None，映射率一类统计自动归零，
+        # 不让"没下参考表"把整个行业库变成不可用。
+        self.catalog: Optional[OccupationCatalog] = None
+        try:
+            self.catalog = OccupationCatalog(self.data_dir)
+        except Exception as exc:  # noqa: BLE001 - 参考表坏掉不该拖垮主库
+            logging.warning(f"职业大典参考表加载失败，相关统计降级: {exc}")
         self.occ_path = os.path.join(self.data_dir, "industry-occupations.yaml")
         self.part_path = os.path.join(self.data_dir, "industry-partitions.yaml")
         self.version = "0.1"
@@ -204,9 +212,36 @@ class IndustryDatabase:
                 "status": p.get("status", ""),
                 "members": [o.get("id") for o in members],
                 "member_count": len(members),
+                # 分区挂的大典类目：成员职业的 gb_code 去掉细类后的中类前缀，
+                # 用来看"这个分区大致落在大典哪几块"，不是权威归属。
+                "gb_majors": sorted({self.catalog.gb_code_of(m.get("id", ""))[:1]
+                                     for m in members
+                                     if self.catalog and self.catalog.gb_code_of(m.get("id", ""))}),
                 "note": p.get("note", ""),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
+
+        # 大典口径：只做旁证，不参与覆盖率分子分母。
+        # 两处数字说的不是一回事——映射率看"我们的职业名有没有国家标准锚点"，
+        # 大典覆盖度看"标准里还剩多少细类可选"，后者天然很小。
+        catalog_stat = {"available": False}
+        if self.catalog is not None:
+            ids = [o.get("id", "") for o in self.occupations if o.get("id")]
+            cov = self.catalog.coverage(ids)
+            catalog_stat = {
+                "available": True,
+                "version": cov["version"],
+                "total_catalog_occupations": cov["total_catalog_occupations"],
+                "mapped_occupations": cov["mapped_occupations"],
+                "map_rate": cov["map_rate"],
+                "catalog_codes_covered": cov["catalog_codes_covered"],
+                "catalog_coverage": cov["catalog_coverage"],
+                "digital_total": cov["digital_total"],
+                "digital_covered": cov["digital_covered"],
+                "green_total": cov["green_total"],
+                "green_covered": cov["green_covered"],
+                "by_major": cov["by_major"],
+            }
 
         return {
             "version": self.version,
@@ -229,6 +264,7 @@ class IndustryDatabase:
             "gdp_known_partitions": len(gdp_known),
             "provider_mix": provider_mix,
             "provider_mix_n": mix_n["n"],
+            "catalog": catalog_stat,
             "rows": rows,
         }
 
@@ -309,6 +345,9 @@ class IndustryDatabase:
             无成员分区 provider_mix 必须 0/0/0（估算值放 provider_mix_estimated）。
         12. 注册单元的每个 role 都要在职业库有登记。
         13. 数据文件缺失：空库必须显式报出，不能 0 分区 0 职业还"自检通过"。
+        14. 大典映射自洽：gb_code 必须真实存在于大典目录，映射的 occur_id 必须
+            真实存在于职业库（职业改名后映射会悬空，gb_code_of 静默返回空串）。
+            参考表整体缺失时单独报一条，不假装"没有映射所以没问题"。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -437,6 +476,14 @@ class IndustryDatabase:
                 if (unit.unit_id, role.name) not in occ_by_role:
                     problems.append(
                         f"单元 {unit.unit_id} 的岗位 {role.name} 未在职业库登记")
+
+        # 14. 大典映射自洽：参考表是旁证，但旁证错了比没有更坏
+        if self.catalog is None:
+            problems.append(
+                "职业大典参考表未加载（data/reference/），gb_code 映射无法校验")
+        else:
+            ids = [o.get("id", "") for o in self.occupations if o.get("id")]
+            problems.extend(self.catalog.validate(ids))
         return problems
 
     def _check_primary_keys(self) -> List[str]:

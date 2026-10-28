@@ -17,6 +17,7 @@ from hanghang.engine.coverage import CoverageTracker
 from hanghang.cli.industry_commands import (
     cmd_industry_partitions, cmd_industry_partition,
     cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
+    cmd_industry_catalog,
 )
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
@@ -390,6 +391,15 @@ def build_parser():
     ind = sub.add_parser("industry", help="M11 行业分区定义库：分区表/职业表/自检/导出")
     ind_sub = ind.add_subparsers(dest="industry_cmd")
 
+    icat = ind_sub.add_parser("catalog", help="查职业分类大典(2022)：按编码/名称检索，或看覆盖快照")
+    icat.add_argument("--code", default="", help="大典细类编码，如 4-14-02-02")
+    icat.add_argument("--search", default="", help="按职业名关键词搜索")
+    icat.add_argument("--gaps", action="store_true", help="列出还没被我们职业挂上的大典细类(候选池)")
+    icat.add_argument("--major", default="", help="配合 --gaps 限定大类，如 2")
+    icat.add_argument("--limit", type=int, default=20, help="搜索/缺口返回条数(0=全部)")
+    icat.add_argument("--data-dir", default="", help="自定义 data 目录")
+    icat.set_defaults(func=cmd_industry_catalog)
+
     ipart = ind_sub.add_parser("partitions", help="列出行业分区定义表(按产值降序)")
     ipart.add_argument("--top", type=int, default=0, help="仅看前 N 个(0=全部)")
     ipart.add_argument("--data-dir", default="", help="自定义 data 目录")
@@ -617,7 +627,7 @@ def main():
         print("示例: python3 src/hanghang/cli/main.py arb list")
         sys.exit(1)
     if args.command == "industry" and not getattr(args, "industry_cmd", None):
-        print("请指定 industry 子命令：partitions / partition / occupations / check / export")
+        print("请指定 industry 子命令：partitions / partition / occupations / catalog / check / export")
         print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):

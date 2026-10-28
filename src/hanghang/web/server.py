@@ -290,11 +290,25 @@ class HanghangHandler(BaseHTTPRequestHandler):
         _json_response(self, 200, payload)
 
     def _api_industry_db(self):
-        """GET /api/industry-db — M11 行业分区定义库（分区表+职业表+覆盖+产值，只读）"""
+        """GET /api/industry-db — M11 行业分区定义库（分区表+职业表+覆盖+产值，只读）
+
+        职业条目附带 gb_code（《职业分类大典 2022》细类编码）与大典中文名，
+        前端不必再自己维护一份编码表；`catalog` 段给映射率与分类覆盖快照。
+        """
         from hanghang.engine.industry_db import IndustryDatabase
         db = IndustryDatabase(registry=self._get_registry())
         payload = db.compute()
-        payload["occupations"] = db.occupations
+        occupations = []
+        for o in db.occupations:
+            row = dict(o)
+            gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
+            if gb:
+                entry = db.catalog.entry(gb) or {}
+                row["gb_code"] = gb
+                row["gb_name"] = entry.get("name", "")
+                row["gb_path"] = db.catalog.path_of(gb)
+            occupations.append(row)
+        payload["occupations"] = occupations
         payload["problems"] = db.validate()
         _json_response(self, 200, payload)
 

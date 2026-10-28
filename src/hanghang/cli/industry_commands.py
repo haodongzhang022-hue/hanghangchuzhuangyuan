@@ -91,14 +91,90 @@ def cmd_industry_occupations(args):
     if not rows:
         print("无匹配职业")
         return
-    print(f"{'职业ID':<26}{'名称':<14}{'分区':<16}{'交付物':<8}{'提供者':<8}{'收费':<12}基线")
+    print(f"{'职业ID':<26}{'名称':<14}{'分区':<16}{'交付物':<8}{'提供者':<8}"
+          f"{'收费':<12}{'大典编码':<13}基线")
     for o in rows:
         part = o.get("unit_id") or "-"
+        gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
         print(f"{o.get('id', ''):<26}{o.get('name', ''):<14}{part:<16}"
               f"{o.get('deliverable', '-'):<8}{o.get('provider', '-'):<8}"
-              f"{o.get('billing', '-'):<12}"
+              f"{o.get('billing', '-'):<12}{gb or '-':<13}"
               f"{'是' if o.get('baseline_occupation') else '否'}")
-    print(f"\n合计 {len(rows)} 个职业")
+    mapped = sum(1 for o in rows
+                 if db.catalog and db.catalog.gb_code_of(o.get("id", "")))
+    print(f"\n合计 {len(rows)} 个职业"
+          + (f"，其中 {mapped} 个已挂大典编码" if db.catalog else ""))
+
+
+def cmd_industry_catalog(args):
+    """查《职业分类大典（2022 年版）》参考表：编码/名称检索，或看覆盖快照。
+
+    "职业编码"指大典的细类编码（大类-中类-小类-细类，如 4-14-02-02）。
+    """
+    db = _db(args)
+    cat = db.catalog
+    if cat is None:
+        print("未加载职业大典参考表：data/reference/occupation-catalog-2022.yaml")
+        sys.exit(1)
+
+    kw = getattr(args, "search", "") or ""
+    code = getattr(args, "code", "") or ""
+    major = getattr(args, "major", "") or ""
+    gaps = getattr(args, "gaps", False)
+    limit = getattr(args, "limit", 20) or 0
+
+    if code:
+        e = cat.entry(code)
+        if not e:
+            print(f"未找到大典编码: {code}")
+            sys.exit(1)
+        print(f"■ {e.get('code')} {e.get('name')}")
+        print(f"  归属: {cat.path_of(code)}")
+        if e.get("gbm"):
+            print(f"  GBM 码: GBM{e['gbm']}")
+        marks = e.get("marks") or []
+        if marks:
+            tag = {"L": "绿色职业", "S": "数字职业"}
+            print("  标记: " + "、".join(tag.get(m, m) for m in marks))
+        if e.get("desc"):
+            print(f"  描述: {e['desc']}")
+        owners = [o for o in db.occupations
+                  if cat.gb_code_of(o.get("id", "")) == code]
+        if owners:
+            print("  已挂到我们职业库的:")
+            for o in owners:
+                print(f"    - {o.get('id'):<24}{o.get('name', '')}"
+                      f"  [{o.get('unit_id') or '未挂分区'}]")
+        else:
+            print("  已挂到我们职业库的: 无（该细类尚无对应行业职业）")
+        return
+
+    if kw:
+        hits = cat.search(kw, limit=limit)
+        if not hits:
+            print(f"大典里没有名称含「{kw}」的细类职业")
+            return
+        print(f"{'编码':<14}{'名称':<26}{'归属':<40}标记")
+        for e in hits:
+            marks = "/".join(x for x in ("L" if "L" in (e.get("marks") or []) else "",
+                                         "S" if "S" in (e.get("marks") or []) else "") if x)
+            print(f"{e.get('code', ''):<14}{e.get('name', '')[:24]:<26}"
+                  f"{cat.path_of(e.get('code', ''))[:38]:<40}{marks or '-'}")
+        print(f"\n命中 {len(hits)} 条（--limit 0 看全部）")
+        return
+
+    if gaps:
+        ids = [o.get("id", "") for o in db.occupations]
+        rows = cat.unmapped_gaps(ids, major=major, limit=limit)
+        print(f"{'编码':<14}{'名称':<26}归属")
+        for e in rows:
+            print(f"{e.get('code', ''):<14}{e.get('name', '')[:24]:<26}"
+                  f"{cat.path_of(e.get('code', ''))[:38]}")
+        print(f"\n未挂大典细类 {len(rows)} 条"
+              f"（这是候选池，不是待办：军队人员/采矿工种本就不该建数字员工单元）")
+        return
+
+    print(cat.render_coverage([o.get("id", "") for o in db.occupations]))
 
 
 def cmd_industry_check(args):
@@ -131,10 +207,20 @@ def cmd_industry_export(args):
 
     if fmt in ("all", "json"):
         path = os.path.join(out, "industry-db.json")
+        occs = []
+        for o in db.occupations:
+            row = dict(o)
+            if db.catalog is not None:
+                gb = db.catalog.gb_code_of(o.get("id", ""))
+                if gb:
+                    row["gb_code"] = gb
+                    row["gb_name"] = (db.catalog.entry(gb) or {}).get("name", "")
+                    row["gb_path"] = db.catalog.path_of(gb)
+            occs.append(row)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump({"meta": {k: v for k, v in snapshot.items() if k != "rows"},
                        "partitions": snapshot["rows"],
-                       "occupations": db.occupations}, fh,
+                       "occupations": occs}, fh,
                       ensure_ascii=False, indent=2)
         written.append(path)
 
@@ -166,14 +252,17 @@ def cmd_industry_export(args):
         with open(opath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["id", "name", "partition_id", "unit_role", "deliverable",
-                        "provider", "billing", "baseline_occupation", "note"])
+                        "provider", "billing", "baseline_occupation", "gb_code",
+                        "gb_name", "note"])
             for o in db.occupations:
+                gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
+                entry = db.catalog.entry(gb) if (db.catalog and gb) else None
                 w.writerow([o.get("id", ""), o.get("name", ""),
                             o.get("unit_id", ""), o.get("unit_role", ""),
                             o.get("deliverable", ""), o.get("provider", ""),
                             o.get("billing", ""),
                             "1" if o.get("baseline_occupation") else "0",
-                            o.get("note", "")])
+                            gb, (entry or {}).get("name", ""), o.get("note", "")])
         written.append(opath)
 
     if fmt in ("all", "sqlite"):
@@ -192,7 +281,7 @@ def cmd_industry_export(args):
         conn.execute("""CREATE TABLE occupation(
             id TEXT PRIMARY KEY, name TEXT, partition_id TEXT, unit_role TEXT,
             deliverable TEXT, provider TEXT, billing TEXT,
-            baseline INTEGER, note TEXT)""")
+            baseline INTEGER, gb_code TEXT, gb_name TEXT, note TEXT)""")
         for r in snapshot["rows"]:
             mix = r["provider_mix"] or {}
             dec = r.get("provider_mix_declared") or {}
@@ -206,11 +295,26 @@ def cmd_industry_export(args):
                           "|".join(r["cluster_basis"]), "|".join(r["channels"]),
                           r["note"]))
         for o in db.occupations:
-            conn.execute("INSERT INTO occupation VALUES (?,?,?,?,?,?,?,?,?)",
+            gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
+            entry = db.catalog.entry(gb) if (db.catalog and gb) else None
+            conn.execute("INSERT INTO occupation VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                          (o.get("id", ""), o.get("name", ""), o.get("unit_id", ""),
                           o.get("unit_role", ""), o.get("deliverable", ""),
                           o.get("provider", ""), o.get("billing", ""),
-                          1 if o.get("baseline_occupation") else 0, o.get("note", "")))
+                          1 if o.get("baseline_occupation") else 0,
+                          gb, (entry or {}).get("name", ""), o.get("note", "")))
+        # 大典参考表整表导出：补全缺口时不必再去找原始 PDF
+        if db.catalog is not None:
+            conn.execute("""CREATE TABLE gb_catalog(
+                code TEXT PRIMARY KEY, name TEXT, gbm TEXT, major TEXT,
+                middle TEXT, minor TEXT, marks TEXT, path TEXT, desc TEXT)""")
+            for e in db.catalog.occupations:
+                conn.execute("INSERT INTO gb_catalog VALUES (?,?,?,?,?,?,?,?,?)",
+                             (e.get("code", ""), e.get("name", ""), e.get("gbm", ""),
+                              e.get("major", ""), e.get("middle", ""),
+                              e.get("minor", ""), "|".join(e.get("marks") or []),
+                              db.catalog.path_of(e.get("code", "")),
+                              e.get("desc", "")))
         conn.commit()
         conn.close()
         written.append(spath)

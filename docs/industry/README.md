@@ -7,6 +7,8 @@
 ```
 docs/industry/
 ├── register-spec.md               # 单元接入规范（L1-M2 抓取 industry-register.yaml 的契约）
+├── industry-partition-db.md       # M11 行业分区定义库（职业=最小单位，行业=聚类结果）
+├── occupation-catalog.md          # 职业分类大典参考表（1636 个职业 + 国家标准编码）
 ├── dongjiagoushi-m1-routing.md    # 首行业单元外挂验证（dongjiagoushi × M1 自动路由）
 └── units/                         # 面向 AI Agent 的行业使用说明（按行业一份 README）
     ├── INDEX.md                   # 全行业汇总索引
