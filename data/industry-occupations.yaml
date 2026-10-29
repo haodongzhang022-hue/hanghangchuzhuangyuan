@@ -21,6 +21,28 @@
 #             避免把 1636 个细类职业全塞进来把覆盖率稀释成 meaningless 的数字。
 #   note      备注
 #
+# ---- 以下字段是「补全与视角分离」改造新增（字段只加不改，老数据无需回填）----
+#   access    需求侧承接通道，说明"这个职业靠什么和付费方接上"。默认现金市场直连
+#             （字段留空即 paid_direct）；非默认值必须显式写上：
+#               paid_direct  服务本身在市场上直接收费（默认）
+#               non_market   服务由财政/公共预算供养，终端用户不直接付费（军人/消防/
+#                            社区服务/政务窗口）。它**本身就是购买力**（财政采购），
+#                            不是"难付费"，所以照样进覆盖分母，只是需求侧走采购通道
+#               org_internal 企业内部职能（行政/前台/薪酬核算），产值计入主业，
+#                            无独立市场口径，需求侧是雇主预算
+#               household    家庭内部无酬劳动（家务/育儿/照护自己的家人），无现金交易，
+#                            但占实际劳动时间、构成家政/养老/托育市场的替代基准
+#   axis      （分区上）这个词在哪个视角下成立。**同一个 partition 可以被多根轴
+#             引用**，所以「多视角」不等于「多建分区」：
+#               occupation_axis  干活的人（数字员工是否承接这个职业）。默认
+#               industry_axis    卖东西的单位（GB/T 4754 行业口径、产值统计归口）
+#               tax_axis         钱按什么税目征（跟"卖的是什么"走，不跟行业走）
+#               output_axis      一年多大产值、多少人就业
+#             example: 露天采矿工 → 职业轴上成立（有雇主、有作业流程），
+#             行业轴上归 B 采矿业，tax_axis 跟矿石货物 13% 走，output_axis 走采矿业增加值。
+#             所以"采矿工不该被忽略"与"不必为采矿工建数字员工单元"并不矛盾：
+#             人留在画像与需求侧，单元按 AI 承接面另判。
+#
 # 大典编码在哪：本文件**不**存 gb_code。职业 ↔《职业分类大典（2022 年版）》细类码的
 #   映射单独放 data/reference/occupation-gb-map.yaml，理由：
 #   1) 大典是外部标准，会换版（2015→2022），映射要能整份替换而不动业务字段；
@@ -231,3 +253,55 @@ occupations:
   - {id: experiment-designer, unit_id: research-academic, name: 实验设计,  deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: "科研学术"}
   - {id: research-analyst,   unit_id: research-academic, name: 科研数据分析, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
   - {id: academic-editor,    unit_id: research-academic, name: 学术编辑,   deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}
+
+  # ==========================================================================
+  # 第三轮补全：按「交税/付费视角」扫出来的漏统职业
+  #   这批量不是为了多建单元，而是把"人"补回画像：谁在干活、谁付钱、
+  #   产值怎么算。漏掉的职业会让市场画像缺角（直播打赏刷出几千亿，之前
+  #   只登记了一个"新媒体运营"，等于看不见这个行业）。
+  #   access 字段见文件头说明；不写 = paid_direct。
+  # ==========================================================================
+
+  # ---------------- 直播/电竞/陪玩（数字经济新职业，大典已有编码） ----------------
+  - {id: streamer,            unit_id: esports-live, unit_role: streamer, name: 网络主播/直播带货, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "大典 4-01-06-02 互联网营销师；打赏+佣金双口径，2022 年 8 个新职业之一"}
+  - {id: live-stream-operator, unit_id: content-creation, unit_role: live_host, name: 直播运营,   deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "选品/排期/场控，属 MCN 内部职能"}
+  - {id: esports-player,     unit_id: sport-leisure, name: 电子竞技员, deliverable: 服务, provider: human, billing: salary,      baseline_occupation: true, note: "大典 4-14-05-07；收入=俱乐部工资+赛事奖金+直播分成"}
+  - {id: game-companion,     unit_id: sport-leisure, name: 游戏陪玩,   deliverable: 服务, provider: human, billing: usage,       baseline_occupation: true, note: "按局/按小时计价，平台抽佣；大典无独立细类，按电子竞技员近义口径挂"}
+  - {id: esports-operator,   unit_id: sport-leisure, name: 电子竞技运营师, deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "大典 4-14-05-06"}
+
+  # ---------------- 外卖/快递/网约车（平台零工，付费方与计件口径） ----------------
+  - {id: delivery-rider,     unit_id: logistics-supply, name: 外卖骑手/网约配送员, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: "大典 4-10-08-01 网约配送员；计件收入，平台/商家付费"}
+  - {id: courier,            unit_id: logistics-supply, name: 快递员,   deliverable: 服务, provider: human, billing: usage,       baseline_occupation: true, note: "大典 4-02-07-08"}
+  - {id: ride-hailing-driver, unit_id: tourism-hospitality, name: 网约车司机, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "大典 4-02-02-01 客运车辆驾驶员（网约车为近义）；交通出行付费方=乘客"}
+
+  # ---------------- 非市场付费（access=non_market）：不直接收费，但财政是购买力 ----------------
+  - {id: military-officer,   unit_id: public-safety, name: 军官/警官,   deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: "大典 7-01-00-00；兜底口径：不收费≠不值得分析，财政国防支出是真实购买力，需求侧走采购通道"}
+  - {id: soldier,            unit_id: public-safety, name: 义务兵,     deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: "大典 7-03-00-00"}
+  - {id: civilian-staff-mil, unit_id: public-safety, name: 军队文职,   deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: false, access: non_market, note: "大典 7-04-00-00；文职里有大量可数字化的科研/翻译/医护岗"}
+  - {id: firefighter,        unit_id: public-safety, name: 消防员/应急救援, deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: "大典 3-02-03-01 / 3-02-03-06 森林消防员"}
+  - {id: emergency-planner,  unit_id: public-safety, name: 应急管理/预案编制, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: false, access: non_market, note: "政府采购+企业合规两头付费；这是公共安全分区里 AI 承接面最大的一块"}
+  - {id: security-officer,   unit_id: public-safety, name: 安保/保安,   deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: "企业付费（物业/园区/商场），属现金市场"}
+
+  # ---------------- 采矿/资源（现场作业为主，单元角度不建，画像角度必须留） ----------------
+  - {id: mining-engineer,    unit_id: mining-resources, name: 采矿工程技术员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: false, note: "大典 2-02-03-02；矿山设计/安全规程/排水防滑，是采矿里少数非现场岗"}
+  - {id: underground-miner,  unit_id: mining-resources, name: 井下采矿工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "大典 6-16-01-05；井下作业不可数字交付，但矿工群体的职业病筛查/培训/家属服务是真实需求"}
+  - {id: open-pit-miner,     unit_id: mining-resources, name: 露天采矿工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "大典 6-16-01-01；同上，画像留、单元不建"}
+  - {id: mine-safety-inspector, unit_id: mining-resources, name: 矿山安全监察, deliverable: 方案, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "监管方口径，付费方是财政；AI 可承接文书与台账"}
+  - {id: mineral-processor,  unit_id: mining-resources, name: 矿物加工/选矿, deliverable: 实物, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "现场工艺岗"}
+
+  # ---------------- 公用事业/建筑现场（同属"人要看，单元另判"） ----------------
+  - {id: power-grid-operator, unit_id: utilities, name: 电网调度运行, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: false, access: non_market, note: "调度有 SOP 与规程，AI 承接面集中在这里"}
+  - {id: utility-billing-clerk, unit_id: utilities, name: 抄表/计费, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "被智能表计替代最快的一档"}
+  - {id: water-conservancy-engineer, unit_id: water-marine, name: 水利工程技术员, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: false, access: non_market, note: "政府投资驱动，付费方=财政"}
+  - {id: seafarer,            unit_id: water-marine, name: 船员/航海,  deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, note: "大典 5-04-03-02 渔业船员 / 4-02-03-01 客运船舶驾驶员；船东付费"}
+  - {id: marine-surveyor,    unit_id: water-marine, name: 海洋测绘/海事监督, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: false, access: non_market, note: "海事局口径"}
+  - {id: construction-worker, unit_id: construction-eng, name: 建筑工人/施工班组, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: "包工头/劳务公司付费，属工程款内部分账；班组长的排班与算量可数字化"}
+  - {id: factory-operator,   unit_id: manufacturing, name: 产线操作工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: "制造现场主力人群，画像与技能培训需求巨大"}
+
+  # ---------------- 家庭无酬劳动（access=household）：没现金交易，但是真实劳动时间 ----------------
+  - {id: homemaker,          unit_id: personal-services, name: 家务/持家者, deliverable: 服务, provider: human, billing: free, baseline_occupation: true, access: household, note: "无酬劳动，是家政/月嫂/育儿嫂市场的替代基准；本行业用人成本分析必须看这一档"}
+  - {id: family-caregiver,   unit_id: personal-services, name: 家庭照护者, deliverable: 服务, provider: human, billing: free, baseline_occupation: true, access: household, note: "照顾老人/病人/残障家人，长护险与居家照护市场的隐性分母"}
+
+  # ---------------- 政务/国际组织（财政与机构预算付费） ----------------
+  - {id: un-staff,           unit_id: international-org, name: 国际组织职员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: false, access: non_market, note: "雇方是机构预算；文书/翻译/项目申报是 AI 承接面"}
+  - {id: foreign-service-officer, unit_id: international-org, name: 外事/驻外人员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, access: non_market, note: "政府外事预算"}

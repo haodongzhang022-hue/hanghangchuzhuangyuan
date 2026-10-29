@@ -4,7 +4,7 @@
 1. ISCO-08 完整：10/43/130/436，stats 自述与实际条数一致，编码位数即层级。
 2. 归属链路不断：任何 4 位细类的上级三级都能查到（按码查归属不许断在半路）。
 3. 官方示例职位名是这套表最值钱的东西：1931 条，能当英文工种名的入口。
-4. **ISCO 不参与 coverage 分母**：加了 436 个细类，职业基线仍是 139。
+4. **ISCO 不参与 coverage 分母**：加了 436 个细类，职业基线不被稀释（<200，具体数随补全增长）。
 5. 四根轴齐全：职业/行业/税收/产出，税收必须单独成轴（不许当行业码用）。
 6. 索引自检有效：axis 写错、status 写错、integrated 没落地路径，都必须报出来。
 7. 参考表缺失不能被当成"没有映射所以没问题"——必须报 problems。
@@ -88,7 +88,8 @@ def test_isco_does_not_dilute_denominator():
     db2.isco = None
     after = db2.compute()["occupation_coverage"]
     assert before == after
-    assert db.compute()["baseline_occupations"] == 139
+    # 分母不被外部全集稀释：基线职业数远小于大典 1636（具体数字随补全增长）
+    assert db.compute()["baseline_occupations"] < 200
 
 
 # ------------------------------------------------------------ 四根轴索引
@@ -162,7 +163,7 @@ def test_missing_global_reference_is_a_problem():
     problems = db.validate()
     assert any("ISCO" in p for p in problems), problems
     # 主库本身不能因为旁证缺失就变成不可用
-    assert db.compute()["baseline_occupations"] == 139
+    assert db.compute()["baseline_occupations"] < 200
 
 
 def test_broken_isco_parent_is_a_problem():

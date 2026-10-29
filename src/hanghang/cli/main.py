@@ -17,7 +17,7 @@ from hanghang.engine.coverage import CoverageTracker
 from hanghang.cli.industry_commands import (
     cmd_industry_partitions, cmd_industry_partition,
     cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
-    cmd_industry_catalog,
+    cmd_industry_catalog, cmd_industry_axis, cmd_industry_access,
     cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
@@ -417,9 +417,25 @@ def build_parser():
                       help="按提供者类型过滤")
     iocc.add_argument("--billing", default="",
                       help="按收费方式过滤(subscription/hourly/project/commission/retainer/usage/salary/free/licensing)")
+    iocc.add_argument("--access", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"],
+                      help="按需求侧承接通道过滤（non_market=财政供养，household=家庭无酬）")
     iocc.add_argument("--unassigned", action="store_true", help="仅看未挂分区的职业")
     iocc.add_argument("--data-dir", default="", help="自定义 data 目录")
     iocc.set_defaults(func=cmd_industry_occupations)
+
+    iaxis = ind_sub.add_parser("axis", help="按视角看分区：职业/行业/税收/产出（同一分区可多轴可见）")
+    iaxis.add_argument("axis", nargs="?", default="",
+                       help="occupation / industry / tax / output（留空=全景）")
+    iaxis.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iaxis.set_defaults(func=cmd_industry_axis)
+
+    iacc = ind_sub.add_parser("access", help="按需求侧承接通道看职业：现金市场/财政/企业内部/家庭无酬")
+    iacc.add_argument("--side", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"],
+                      help="只看某个通道")
+    iacc.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iacc.set_defaults(func=cmd_industry_access)
 
     icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
     icheck.add_argument("--data-dir", default="", help="自定义 data 目录")
@@ -642,7 +658,8 @@ def main():
         print("示例: python3 src/hanghang/cli/main.py arb list")
         sys.exit(1)
     if args.command == "industry" and not getattr(args, "industry_cmd", None):
-        print("请指定 industry 子命令：partitions / partition / occupations / catalog / check / export")
+        print("请指定 industry 子命令：partitions / partition / occupations / catalog / "
+              "axis / access / check / export")
         print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
         sys.exit(1)
     if args.command == "reference" and not getattr(args, "reference_cmd", None):

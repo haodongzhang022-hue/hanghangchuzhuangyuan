@@ -32,6 +32,19 @@ _BUILDABLE = ("covered", "pending")
 # 合法状态全集：拼错/漏填的分区既不进分母也不报错，覆盖会静默变好看
 _STATUSES = ("covered", "pending", "evaluated")
 
+# 需求侧承接通道（occupation.access）。**只回答"怎么和付费方接上"，
+# 不回答"值不值得分析"** —— 后者由 status / 覆盖率各自回答。
+#   paid_direct  服务本身在市场上直接收费（缺省值，老数据不用回填）
+#   non_market   财政/公共预算供养，终端用户不直接付费（军人/消防/政务窗口）
+#   org_internal 企业内部职能（行政/前台/薪酬核算），需求侧是雇主预算
+#   household    家庭内部无酬劳动（家务/照护家人），无现金交易
+ACCESS_SIDES = ("paid_direct", "non_market", "org_internal", "household")
+# 缺省即现金市场直连：字段不写 = paid_direct，避免为 139 条老数据补字段
+DEFAULT_ACCESS = "paid_direct"
+
+# 四根轴（与 global_framework.AXES 对齐）。分区缺省即四轴都可看。
+AXES = ("occupation", "industry", "tax", "output")
+
 
 class IndustryDatabase:
     """行业分区定义库：occupation（最小单位）+ partition（聚类结果）。"""
@@ -127,6 +140,11 @@ class IndustryDatabase:
         if fp != self._fingerprint:
             self._reindex()
 
+    @staticmethod
+    def _round_mix(dist: dict, keys) -> dict:
+        """从实测分布里摘出指定键；n=0 时给三个 0，不伪装成"全部现金市场"。"""
+        return {k: dist.get(k, 0.0) for k in keys}
+
     # ------------------------------------------------------------- queries
     def occupation(self, occ_id: str) -> Optional[dict]:
         self._ensure_fresh()
@@ -169,6 +187,47 @@ class IndustryDatabase:
         mix["n"] = n
         return mix
 
+    @staticmethod
+    def access_of(occupation: dict) -> str:
+        """职业的需求侧承接通道；未填 = 现金市场直连（老数据不用回填）。"""
+        value = (occupation or {}).get("access") or DEFAULT_ACCESS
+        return value
+
+    def access_distribution(self, occupations: Optional[List[dict]] = None) -> dict:
+        """按职业 access 字段实测统计承接通道构成。
+
+        与 provider_distribution 同一立场：只统计实测，不读分区手写值。
+        这份分布回答的是"这份需求从哪条通道进来"，不是"谁该被忽略"——
+        非市场和家庭无酬两类同样计入 n。
+        """
+        occs = self.linked_occupations() if occupations is None else occupations
+        counts = {k: 0 for k in ACCESS_SIDES}
+        for o in occs:
+            key = self.access_of(o)
+            if key in counts:
+                counts[key] += 1
+            else:  # 未知通道不静默丢弃，按默认通道记并由 validate 报错
+                counts[DEFAULT_ACCESS] += 1
+        n = sum(counts.values())
+        mix = {k: (round(v / n * 100, 1) if n else 0.0) for k, v in counts.items()}
+        mix["n"] = n
+        return mix
+
+    def by_access(self, access: str) -> List[dict]:
+        want = access or DEFAULT_ACCESS
+        return [o for o in self.occupations if self.access_of(o) == want]
+
+    def axes_of(self, partition: dict) -> List[str]:
+        """分区在哪些轴上成立；缺省 = 四轴都可看（老数据不用回填）。"""
+        axes = (partition or {}).get("axes") or list(AXES)
+        return [a for a in axes if a in AXES]
+
+    def by_axis(self, axis: str = "") -> List[dict]:
+        """按视角取分区：同一个分区可以同时出现在多根轴下。"""
+        if not axis:
+            return list(self.partitions)
+        return [p for p in self.partitions if axis in self.axes_of(p)]
+
     def by_provider(self, provider: str) -> List[dict]:
         return [o for o in self.occupations if o.get("provider") == provider]
 
@@ -194,6 +253,14 @@ class IndustryDatabase:
         # 分区手写的 provider_mix 只作对账留档（provider_mix_declared），不参与展示。
         mix_n = self.provider_distribution()
         provider_mix = {k: mix_n[k] for k in ("ai", "hybrid", "human")}
+        # 承接通道：与供给结构并列的另一维，回答"需求从哪条路进来"
+        access_n = self.access_distribution()
+        access_mix = {k: access_n[k] for k in ACCESS_SIDES}
+
+        # 产出轴的就业口径：有人没产值（军队/家庭无酬）也算就业，
+        # "多少人吃饭"本身就是市场画像，不能因为没有 gdp 就一起丢掉。
+        emp_known = [p for p in self.partitions if p.get("employment") is not None]
+        employment_total = sum(p.get("employment") or 0 for p in self.partitions)
 
         rows = []
         for p in self.partitions:
@@ -213,6 +280,11 @@ class IndustryDatabase:
                 "gdp_cny": p.get("gdp_cny"),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
+                "employment": p.get("employment"),
+                "employment_source": p.get("employment_source", ""),
+                "access_mix": self._round_mix(
+                    self.access_distribution(members), ACCESS_SIDES),
+                "axes": self.axes_of(p),
                 "unit_id": p.get("unit_id", "") or "",
                 "priority": p.get("priority", ""),
                 "channels": p.get("channels", []) or [],
@@ -271,6 +343,12 @@ class IndustryDatabase:
             "gdp_known_partitions": len(gdp_known),
             "provider_mix": provider_mix,
             "provider_mix_n": mix_n["n"],
+            "access_mix": access_mix,
+            "access_mix_n": access_n["n"],
+            "access_sides": list(ACCESS_SIDES),
+            "axes_present": list(AXES),
+            "employment_total_wan": employment_total,
+            "employment_known_partitions": len(emp_known),
             "catalog": catalog_stat,
             "rows": rows,
         }
@@ -285,11 +363,16 @@ class IndustryDatabase:
             f"分区: {s['covered_partitions']}/{s['buildable_partitions']} 已建单元"
             f"  ({s['partition_coverage']:.1%})  另有 {s['evaluated_partitions']} 个"
             f"评估后不建单元(不计分母)",
-            f"职业: {s['linked_baseline_occupations']}/{s['baseline_occupations']} 基线"
-            f"  ({s['occupation_coverage']:.1%})  全量登记 {s['total_occupations']} 个",
+            f"职业登记: {s['linked_baseline_occupations']}/{s['baseline_occupations']} 基线"
+            f"  ({s['occupation_coverage']:.1%})  全量登记 {s['total_occupations']} 个"
+            f"（登记完整 ≠ 单元建好，这是两个分母）",
             f"供给结构({s['provider_mix_n']} 个已挂分区职业 provider 实测): "
             f"AI {s['provider_mix']['ai']}% / 混合 {s['provider_mix']['hybrid']}% / "
             f"纯人 {s['provider_mix']['human']}%",
+            f"承接通道({s['access_mix_n']} 个实测): "
+            + " / ".join(f"{k} {s['access_mix'][k]}%" for k in ACCESS_SIDES)
+            + f"   就业口径合计 {s['employment_total_wan']} 万人"
+              f"（{s['employment_known_partitions']} 个分区有数）",
             "-" * 72,
             f"{'状态':<5}{'分区':<14}{'职业':<6}{'产值(亿元)':<12}{'AI%':<6}付费方",
         ]
@@ -355,6 +438,12 @@ class IndustryDatabase:
         14. 大典映射自洽：gb_code 必须真实存在于大典目录，映射的 occur_id 必须
             真实存在于职业库（职业改名后映射会悬空，gb_code_of 静默返回空串）。
             参考表整体缺失时单独报一条，不假装"没有映射所以没问题"。
+        15. 职业 access 必须落在 ACCESS_SIDES 里：写错（比如 non-market 带连字符）
+            会静默落回 paid_direct，把"财政供养"念成"现金市场"，通道结构直接失真。
+        16. 分区 axes 必须是 AXES 子集且非空：写错等于这个分区在所有视角里都消失，
+            而覆盖率不会因此变红半格。
+        17. 分区 employment 若填了必须是非负数值；0 与"没口径"不是一回事，
+            没口径请留空（null），别填 0 冒充实测。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -492,7 +581,34 @@ class IndustryDatabase:
             ids = [o.get("id", "") for o in self.occupations if o.get("id")]
             problems.extend(self.catalog.validate(ids))
 
-        # 15. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
+        # 15. 承接通道枚举（写错会静默落回 paid_direct）
+        for o in self.occupations:
+            raw = o.get("access")
+            if raw is not None and raw not in ACCESS_SIDES:
+                problems.append(
+                    f"职业 {o.get('id')} 的 access={raw!r} 不在合法通道 "
+                    f"{list(ACCESS_SIDES)} 中（写错会被静默当成 {DEFAULT_ACCESS}）")
+
+        # 16/17. 分区视角与就业口径
+        for p in self.partitions:
+            pid = p.get("id") or "(空)"
+            axes = p.get("axes")
+            if axes is not None:
+                bad = [a for a in axes if a not in AXES]
+                if bad:
+                    problems.append(
+                        f"分区 {pid} 的 axes 含未知轴 {bad}（合法 {list(AXES)}）")
+                elif not axes:
+                    problems.append(
+                        f"分区 {pid} 的 axes 为空（空视角 = 任何看板都查不到它）")
+            emp = p.get("employment")
+            if emp is not None:
+                if isinstance(emp, bool) or not isinstance(emp, (int, float)) or emp < 0:
+                    problems.append(
+                        f"分区 {pid} 的 employment={emp!r} 不是非负数"
+                        f"（没口径请留空，别填 0 冒充实测）")
+
+        # 18. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
         if self.isco is not None:
             problems.extend(self.isco.validate())
         if self.classification_sources is not None:

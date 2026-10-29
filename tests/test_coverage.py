@@ -108,9 +108,16 @@ def test_role_baseline_total_equals_occupation_db_sum():
             continue
         fallback += len(unit.roles) if unit else len(
             target.get("target_roles", []) or [])
-    assert s["total_role_baseline"] == authoritative + fallback
+    # stale 行（有职业登记但全非基线）会回落 target_roles 兜底，但它同时进 problems；
+    # 这条断言只做"账能对上"，不把 stale 洗白。
+    stale_fallback = sum(r["roles"]["baseline"] for r in s["rows"]
+                         if r["roles"]["baseline_source"] == "stale")
+    assert s["total_role_baseline"] == authoritative + fallback + stale_fallback
+    # stale 必须可见：不许静默兜底
+    assert all(any(r["id"] in p for p in s["problems"])
+               for r in s["rows"] if r["roles"]["baseline_source"] == "stale")
     # 权威源必须真的被用上：总基线不得等于「全量兜底」
-    assert s["total_role_baseline"] != fallback_only
+    assert s["total_role_baseline"] != fallback_only + stale_fallback
     # 分子：已注册行业按实际注册岗位计
     assert s["covered_roles"] == sum(
         len(u.roles) for u in t._registered_map().values())

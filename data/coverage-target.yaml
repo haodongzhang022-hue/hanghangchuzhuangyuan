@@ -10,8 +10,8 @@
 # 参考基线：国民经济行业分类门类(GB/T 4754) + 高频可被 AI 数字员工承接的
 #           服务/职业场景。行业 name 与 unit-index.yaml 的 industry 对齐以自动判覆盖。
 # ============================================================================
-version: "0.2"        # 清单版本
-updated_at: "2026-09-08"
+version: "0.3"        # 清单版本
+updated_at: "2026-10-29"
 baseline_note: "初版基线，待各渠道搜集核实后迭代增补；注册单元自动判为已覆盖，无需手动维护"
 
 # 目标行业全集：每个条目 = 一个应可路由的行业单位(细粒度)。
@@ -128,3 +128,35 @@ targets:
      status: pending,
      target_roles: [文献综述, 课题申报, 实验设计, 数据分析师, 学术编辑],
      channels: [科研院所岗位, 高校专业目录], note: "与数据分析/软件高度复合"}
+
+  # ---------------- 补全第三轮：按"交税/付费视角"扫出来的漏项与误丢项 ----------------
+  # 说明：evaluated（评估后不建数字员工单元）的分区也进目标全集 —— 目标全集回答
+  # "哪些行业/人群必须看得见"，不等于"都要建单元"。把它们排除在外，等于让
+  # "评估完就不统计"变成合法操作，这才是最初忽略军队/采矿的原因。
+  - {id: esports-live,        name: 电竞直播陪玩, category: 文化/体育和娱乐业, priority: 高,
+     status: pending,
+     target_roles: [网络主播, 直播运营, 电子竞技员, 游戏陪玩, 电子竞技运营师],
+     channels: [网络表演(直播)行业年度报告, 电竞工委产业报告, 陪玩平台公开数据, MCN机构名录],
+     note: "旧口径整块漏掉：直播打赏/陪玩挂在互联网信息服务下面，不独立成行"}
+  - {id: mining-resources,    name: 矿业资源,     category: 采矿业, priority: 中,
+     status: pending,
+     target_roles: [采矿工程技术员, 井下采矿工, 露天采矿工, 矿山安全监察, 矿物加工],
+     channels: [国家统计局采矿业统计, 矿业集团目录, 矿山安全监察机构公告],
+     note: "不建数字员工单元（现场作业），但人群/付费方/就业必须进画像"}
+  - {id: utilities,           name: 电力热力燃气水, category: 电力热力燃气及水生产供应业, priority: 中,
+     status: pending,
+     target_roles: [电网调度运行, 抄表计费],
+     channels: [国家统计局增加值, 电网/燃气集团目录], note: "公用事业" }
+  - {id: public-safety,       name: 公共安全应急, category: 公共管理/社会保障, priority: 高,
+     status: pending,
+     target_roles: [军官, 义务兵, 军队文职, 消防员, 应急管理, 安保保安],
+     channels: [国防部/应急管理部公开编制信息, 安防协会统计, 政府采购服务清单],
+     note: "财政供养 ≠ 没有付费方：财政是购买力，AI 承接面在预案/文书/培训/家属服务"}
+  - {id: water-marine,        name: 水利海洋,     category: 水利/环境和公共设施管理业, priority: 中,
+     status: pending,
+     target_roles: [水利工程技术员, 船员, 海洋测绘海事监督],
+     channels: [水利部统计公报, 海洋经济统计, 海事局公告], note: "与建筑工程部分重合，但船员人群独立" }
+  - {id: international-org,   name: 国际组织与对外事务, category: 国际组织/涉外, priority: 低,
+     status: pending,
+     target_roles: [国际组织职员, 外事驻外人员],
+     channels: [国际组织岗位公告, 驻外机构目录], note: "机构预算付费，无市场税目口径" }

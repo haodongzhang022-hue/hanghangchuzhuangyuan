@@ -258,19 +258,83 @@ def test_partition_detail_marks_estimate():
     # 实测与对账留档同屏
     assert "对账留档" in out, out
 
-    A.id = "mining-resources"  # evaluated 且无成员
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        cmd_industry_partition(A)
-    assert "估算~" in buf.getvalue()
+    # 无成员分区（补全后真实数据里已无此情形，构造夹具而非硬编码 id）
+    import yaml
+    with tempfile.TemporaryDirectory() as td:
+        fixture = IndustryDatabase()
+        # 只摘掉目标分区的成员，其余职业保留（否则连"实测分支"一起测不到了）
+        target = next(p for p in fixture.partitions if fixture.members_of(p["id"]))
+        kept = {o["id"] for o in fixture.members_of(target["id"])}
+        fixture.occupations = [o for o in fixture.occupations
+                               if o["id"] not in kept]
+        target["provider_mix"] = {"ai": 0, "hybrid": 0, "human": 0}
+        target["provider_mix_estimated"] = {"ai": 15, "hybrid": 20, "human": 65}
+        with open(os.path.join(td, "industry-partitions.yaml"), "w",
+                  encoding="utf-8") as fh:
+            yaml.safe_dump({"version": "0", "partitions": fixture.partitions}, fh,
+                           allow_unicode=True)
+        with open(os.path.join(td, "industry-occupations.yaml"), "w",
+                  encoding="utf-8") as fh:
+            yaml.safe_dump({"version": "0", "occupations": fixture.occupations}, fh,
+                           allow_unicode=True)
+        A.data_dir = td
+        A.id = target["id"]
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            cmd_industry_partition(A)
+        assert "估算~" in buf.getvalue(), buf.getvalue()
+
+
+def _memberless_fixture_dir(td):
+    """在 td 里落一份"某分区无成员职业"的数据，返回 (分区id, 估算 AI 值)。
+
+    补全第三轮之后真实数据里已经没有无成员分区了（每个分区都登记了职业），
+    但"无成员分区不得有非零实测值、详情页要读估算列"这些契约仍要守住，
+    所以改成构造夹具，不再指望真实数据恰好长成测试需要的样子。
+    """
+    import yaml
+    fx = IndustryDatabase()
+    target = next(p for p in fx.partitions if fx.members_of(p["id"]))
+    kept = {o["id"] for o in fx.members_of(target["id"])}
+    fx.occupations = [o for o in fx.occupations if o["id"] not in kept]
+    target["provider_mix"] = {"ai": 0, "hybrid": 0, "human": 0}
+    target["provider_mix_estimated"] = {"ai": 15, "hybrid": 20, "human": 65}
+    with open(os.path.join(td, "industry-partitions.yaml"), "w",
+              encoding="utf-8") as fh:
+        yaml.safe_dump({"version": "0", "partitions": fx.partitions}, fh,
+                       allow_unicode=True)
+    with open(os.path.join(td, "industry-occupations.yaml"), "w",
+              encoding="utf-8") as fh:
+        yaml.safe_dump({"version": "0", "occupations": fx.occupations}, fh,
+                       allow_unicode=True)
+    return target["id"], 15
+
+
+def _make_one_partition_memberless(db):
+    """挑一个分区，把它的成员职业全部摘下来（构造"无成员"场景）。
+
+    补全第三轮之后真实数据里已经没有无成员分区了（每个分区都登记了职业），
+    但"无成员分区不得有非零实测值"这条契约仍然要守住 —— 所以改成构造夹具，
+    不再指望真实数据恰好长成测试需要的样子。
+    """
+    for p in db.partitions:
+        members = db.members_of(p["id"])
+        if members:
+            for o in members:
+                o["unit_id"] = ""
+            p["provider_mix"] = {"ai": 0, "hybrid": 0, "human": 0}
+            if not p.get("provider_mix_estimated"):
+                p["provider_mix_estimated"] = {"ai": 15, "hybrid": 20, "human": 65}
+            return db, p["id"]
+    raise AssertionError("没有可用的分区做夹具")
 
 
 def test_no_member_partition_has_zero_measured_mix():
     """无成员职业的分区，实测口径必须是 0/0/0；人工估算另存 estimated"""
-    db = IndustryDatabase()
+    db, _pid = _make_one_partition_memberless(IndustryDatabase())
     s = db.compute()
     no_member = [r for r in s["rows"] if r["member_count"] == 0]
-    assert no_member, "至少要有无成员分区才能校验这条"
+    assert no_member, "构造夹具后应存在无成员分区"
     for r in no_member:
         assert r["provider_mix"] == {"ai": 0.0, "hybrid": 0.0, "human": 0.0}, \
             f"{r['id']} 无成员却给了非零实测值（手写值又冒充实测了）"
@@ -290,7 +354,7 @@ def test_no_member_partition_has_zero_measured_mix():
 def test_no_member_partition_export_measured_as_zero():
     """导出实测列（csv/sqlite）对无成员分区必须是 0，手写值只能进 *_declared"""
     import csv as _csv
-    db = IndustryDatabase()
+    db, _pid = _make_one_partition_memberless(IndustryDatabase())
     no_member = {p["id"] for p in db.partitions if not db.members_of(p["id"])}
     assert no_member
     with tempfile.TemporaryDirectory() as td:
@@ -301,6 +365,17 @@ def test_no_member_partition_export_measured_as_zero():
             format = "all"
             data_dir = ""
 
+        # 导出走的是 CLI 自己构造的 db，所以夹具必须落成数据文件才生效
+        import yaml
+        with open(os.path.join(td, "industry-partitions.yaml"), "w",
+                  encoding="utf-8") as fh:
+            yaml.safe_dump({"version": "0", "partitions": db.partitions}, fh,
+                           allow_unicode=True)
+        with open(os.path.join(td, "industry-occupations.yaml"), "w",
+                  encoding="utf-8") as fh:
+            yaml.safe_dump({"version": "0", "occupations": db.occupations}, fh,
+                           allow_unicode=True)
+        A.data_dir = td
         cmd_industry_export(A)
         with open(os.path.join(td, "partitions.csv"), encoding="utf-8") as fh:
             for row in _csv.DictReader(fh):
@@ -328,14 +403,18 @@ def test_partition_detail_reads_estimated_not_declared():
     from hanghang.cli.industry_commands import cmd_industry_partition
 
     class A:
-        id = "mining-resources"
         data_dir = ""
+        id = ""
 
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        cmd_industry_partition(A)
-    out = buf.getvalue()
-    assert "估算~" in out and "15" in out, out
+    with tempfile.TemporaryDirectory() as td:
+        pid, est = _memberless_fixture_dir(td)
+        A.data_dir = td
+        A.id = pid
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            cmd_industry_partition(A)
+        out = buf.getvalue()
+    assert "估算~" in out and str(est) in out, out
     assert "供给结构(实测): AI 0%" not in out, out
 
 
@@ -525,11 +604,15 @@ def test_validate_reports_missing_data_source():
 
 def test_render_marks_no_member_as_dash_not_zero():
     """无成员分区的 AI% 显示 "-"，真实 0% 仍显示 0.0（两者不能混）"""
-    db = IndustryDatabase()
+    db, pid = _make_one_partition_memberless(IndustryDatabase())
     out = db.render_text()
-    mining = next(l for l in out.splitlines() if "矿业资源" in l)
-    health = next(l for l in out.splitlines() if "健康医疗" in l)
-    assert " - " in f" {mining} ", mining
+    # 无成员分区那一行：AI% 必须是 "-"（不是 0.0，也不是空）
+    name = db.partition(pid)["name"]
+    row = next(l for l in out.splitlines() if name in l)
+    assert " - " in f" {row} ", row
+    # 有成员且实测 0% 的分区仍显示 0.0（真实 0 与"无数据"不能混）
+    db2 = IndustryDatabase()
+    health = next(l for l in db2.render_text().splitlines() if "健康医疗" in l)
     assert "0.0" in health, health
 
 

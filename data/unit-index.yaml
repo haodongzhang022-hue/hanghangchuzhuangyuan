@@ -290,6 +290,8 @@ units:
   - 新媒体运营
   - 品牌内容
   - 图文编辑
+  - 直播话术
+  - 直播选品
   register_version: '1.1'
   roles:
   - name: copywriter
@@ -357,6 +359,23 @@ units:
     - 网页排版
     - 网站排版
     - 校对
+  - name: live_host
+    prefix: '[主播]'
+    handoff: relay
+    composite: true
+    description: 直播话术 直播脚本 直播选品 直播复盘 陪玩陪聊
+    keywords:
+    - 直播
+    - 主播
+    - 开播
+    - 直播脚本
+    - 直播话术
+    - 直播选品
+    - 直播复盘
+    - 带货
+    - 打赏
+    - 陪玩
+    - 陪聊
 - unit_id: data-analytics
   repo_ref: ''
   industry: 数据分析

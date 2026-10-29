@@ -88,6 +88,15 @@ python3 src/hanghang/cli/main.py reference sources               # 四根轴全�
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
 
+# 按视角看同一批分区：职业 / 行业 / 税收 / 产出（多视角 ≠ 多分区）
+python3 src/hanghang/cli/main.py industry axis output      # 产值 + 就业人数
+python3 src/hanghang/cli/main.py industry axis             # 四根轴全景
+
+# 需求侧承接通道：现金市场 / 财政供养 / 企业内部 / 家庭无酬
+# （不直接付费 ≠ 不值得分析：军人/消防/矿工/家务都在这里，画像照样统计）
+python3 src/hanghang/cli/main.py industry access
+python3 src/hanghang/cli/main.py industry access --side non_market
+
 # 查看「目标全集 vs 当前覆盖」行业/岗位覆盖进度表（覆盖率/待补缺口）
 python3 src/hanghang/cli/main.py coverage
 python3 src/hanghang/cli/main.py coverage --gaps   # 仅列出待通过渠道搜集补齐的行业缺口
@@ -285,7 +294,9 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 - `data/reference/occupation-gb-map.yaml` — 职业 ↔ 大典细类编码的人工映射（宁缺勿错）
 - `data/reference/occupation-catalog-isco08.yaml` — ISCO-08 国际职业分类参考表（10/43/130/436 + 1931 条官方示例职位名，只读）
 - `data/reference/classification-sources.yaml` — 四根轴（职业/行业/税收/产出）分类体系索引：各标准规模、维护方、已接/待接
-- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
+- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度（v0.3 起包含 `evaluated` 分区：目标全集回答"哪些人群必须看得见"，不等于"都要建单元"）
+- `data/industry-occupations.yaml` — 职业表（177 个，基线 152）；`access` 标承接通道
+- `data/industry-partitions.yaml` — 行业分区表（38 个）；`axes`/`employment`/`demand_side`
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
@@ -333,6 +344,24 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 
 `coverage-target.yaml` 每个待补行业均声明了 `priority`(优先度) 与 `channels`(建议搜集渠道)，用于引导通过各渠道（招聘岗位库、行业协会目录、职业分类大纲、服务机构目录、用户真实诉求沉淀等）充分搜集岗位/职业/行业后逐步建单元补齐。新增目标行业只需在 `targets` 追加一条声明即可自动纳入进度统计，无需改代码（数据驱动）。
 
+### 补全职业的四个尺子（别压成一个判断）
+
+补职业时最容易犯的错，是拿"**能不能向终端用户直接收费**"当唯一过滤器。一旦这么筛，
+会同时丢掉两类人：口径没扫到的（主播/陪玩挂在互联网信息服务下，不独立成行），
+和付费方不是终端用户的（军人/消防/矿工，财政或项目款付费）。两种错原因完全不同，
+所以现在拆成四个各管各的问题：
+
+| 尺子 | 回答什么 | 字段 |
+|---|---|---|
+| 职业 | 这个人在干什么活 | `industry-occupations.yaml` 一条记录 |
+| 承接通道 | 怎么和付费方接上 | `access`：`paid_direct`(缺省) / `non_market`(财政) / `org_internal`(雇主预算) / `household`(家庭无酬) |
+| 视角 | 在哪根轴成立 | `axes`：职业/行业/税收/产出，**一个分区可被多根轴引用** |
+| 单元 | 要不要建执行体 | `status`：`covered` / `pending` / `evaluated` |
+
+**`evaluated` 不等于忽略**：职业照样登记、通道照样统计、就业人数照样计入产出轴，
+只是不从数字员工这条产品线建单元。"该不该被分析"和"要不要建 AI 单元"是两件事 ——
+采矿工的画像影响市场，值得存；AI 能不能替他下井作业，是另一个问题。
+
 ## 复合装配的边界规则（评审补强① 已落实）
 
 同一行业多岗位复合时，自动按**依赖序**排列（如 `product → architect → developer → reviewer`）。
@@ -353,7 +382,7 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11行业分区定义库)
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11行业分区定义库) / `-v13.md`(补全与视角分离·承接通道)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

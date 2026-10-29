@@ -30,12 +30,38 @@ unit（已注册的行业单元，真正能被路由到的执行体）
 
 | 文件 | 内容 |
 |------|------|
-| `data/industry-occupations.yaml` | 职业表：`id/name/unit_id/unit_role/deliverable/provider/billing/baseline_occupation` |
-| `data/industry-partitions.yaml` | 分区表：`cluster_basis/demand_side/provider_mix/gdp_cny/gdp_scope/gdp_source/status` |
+| `data/industry-occupations.yaml` | 职业表：`id/name/unit_id/unit_role/deliverable/provider/billing/access/baseline_occupation` |
+| `data/industry-partitions.yaml` | 分区表：`cluster_basis/demand_side/provider_mix/access_sides/gdp_cny/employment/axes/status` |
+
+## 四个问题，四把尺子（别压成一个判断）
+
+上一版把"能不能直接向终端用户收费"当成唯一过滤器，结果同时丢掉两类人：
+**口径没扫到的**（主播/陪玩，挂在别的行业下）和**付费方不是终端用户的**
+（军人/消防/矿工，财政或项目款付费）。两种错混在一起，改起来互相打脸。
+
+现在拆开：
+
+```
+职业（什么活）     → 一律登记，不设门槛
+access（谁付钱）   → paid_direct / non_market / org_internal / household
+axes（哪根轴成立） → 同一分区可被多根轴引用，不复制数据
+status（建不建单元）→ covered / pending / evaluated
+```
+
+**`evaluated` 不等于忽略**：职业照样登记、画像照样统计、产值照样计入产出轴，
+只是不建数字员工单元。"该不该被分析"和"要不要建执行体"是两件事。
 
 ## 关键字段口径
 
 - `provider`（提供者）：`ai` / `hybrid` / `human` —— 该职业的供给主要来自谁。
+- `access`（承接通道）：**回答"怎么和付费方接上"，不回答"值不值得分析"**。
+  `paid_direct`（缺省，不写即此值）/ `non_market`（财政供养）/ `org_internal`（雇主预算）
+  / `household`（家庭无酬）。`non_market` 说的是"不经过现金市场"，不是"没有价值"——
+  财政本身就是购买力，只是采购通道不同。
+- `axes`（视角）：`occupation`/`industry`/`tax`/`output`，缺省四轴都可见。
+  **多视角 ≠ 多分区**：一份数据被多根轴引用，不是给每个视角复制一份。
+- `employment`（从业人员，万人）：产出轴的另一半。有人没产值（军队/家庭无酬）
+  也要有数；没口径请留空，**别填 0 冒充实测**。
 - `billing`（谁付钱）：`subscription`订阅 / `hourly`计时 / `project`项目 /
   `commission`佣金 / `retainer`顾问 / `usage`按次 / `salary`雇员工资 / `free`公共 / `licensing`授权。
 - `provider_mix`（分区供给结构）：**由成员职业的 `provider` 字段实测统计**
@@ -135,7 +161,7 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 | `DISABLED_DB`（`hanghang.engine.coverage` 导出） | 显式禁用，岗位基线一律走兜底 |
 | 其它对象 | 注入实例（测试替身/外部库），不自动构造；读取失败走降级 |
 
-## validate() 的 13 条校验
+## validate() 的 17 条校验
 
 编号与 `industry_db.py` 里 `validate()` 的注释逐条对应，改一处记得改两处。
 
@@ -154,12 +180,20 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 | 11 | `provider_mix` 对账 | 有成员看漂移 > 25pt；无成员必须 0/0/0 |
 | 12 | 注册单元的每个 role 都有登记职业 | 新增岗位不能漏登记 |
 | 13 | 数据文件必须读到 | 空库不能"自检通过"（0 分区 0 职业全绿才是最难发现的故障） |
+| 14 | 大典映射自洽 | `gb_code` 必须真实存在；映射的 `occur_id` 必须真实存在（职业改名后映射会悬空） |
+| 15 | `access` 枚举合法 | 写错（如 `non-market` 带连字符）会静默回落 `paid_direct`，把"财政供养"念成"现金市场" |
+| 16 | `axes` 是合法非空轴 | 空视角 = 任何看板都查不到它，而覆盖率不会变红半格 |
+| 17 | `employment` 非负数或留空 | 填 0 会把"没口径"伪装成实测；0 和 null 语义不同 |
 
 第 1、2、6 条是"数据看起来没问题、其实分母被悄悄缩小"的三条暗沟：分区 id 写重了、
 `status` 拼成 `coverd`、标了 `covered` 却没登记职业——三种错都不会让覆盖率变红，
 只会让它变好看。第 8 条尤其容易漏：`members_of()` 按分区 id 反查，
 挂错单元的职业在所有分区的成员列表里都查不到，必须在成员循环之外单独扫一遍全量职业。
 
-第 9 条的现实意义：18 个待建分区、89 个成员的 `unit_role` 目前全为空，
-靠"分区没 `unit_id` 所以不校 unit_role"绕过去。一旦这些分区建单元，
-这条会立刻把缺口打出来——不是等到上线才发现路由命中不了。
+第 9 条的现实意义：待建分区的成员 `unit_role` 目前为空（岗位名那时本来就不存在），
+靠"未建单元不校 `unit_role`"绕过去。一旦这些分区建单元，这条会立刻把缺口打出来
+——不是等到上线才发现路由命中不了。
+
+第 15、16 条是这一轮新增的两个暗沟，共同点是**错了不会变红，只会让数字失真**：
+`access` 写错 → 通道结构里凭空多出一堆"现金市场"；`axes` 写空 → 这个分区
+从所有视角看板里消失，但覆盖率一格都没掉。

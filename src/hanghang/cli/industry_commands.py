@@ -56,6 +56,18 @@ def cmd_industry_partition(args):
               f"纯人 {estimated.get('human', '-')}%")
     else:
         print("  供给结构: 无成员职业，也无人工估算")
+    # 承接通道：不付费 ≠ 不值得分析，这里把"从哪条路进来"摊开
+    sides = db.access_distribution(members) if members else None
+    if sides and sides.get("n"):
+        print(f"  承接通道(实测 n={sides['n']}): "
+              + " / ".join(f"{k} {sides[k]}%"
+                           for k in ("paid_direct", "non_market",
+                                     "org_internal", "household")
+                           if sides.get(k)))
+    emp = p.get("employment")
+    print(f"  从业人员: {f'{emp} 万人' if emp is not None else '无就业口径'}"
+          + (f"（{p['employment_source']}）" if p.get("employment_source") else ""))
+    print(f"  视角: {'/'.join(db.axes_of(p))}")
     print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
     if p.get("gdp_scope"):
         print(f"  产值口径: {p['gdp_scope']}")
@@ -76,6 +88,100 @@ def cmd_industry_partition(args):
         print("  成员职业: 未登记（该分区尚无职业入库，属覆盖缺口）")
 
 
+def cmd_industry_axis(args):
+    """按视角看同一批分区：职业 / 行业 / 税收 / 产出。
+
+    一个分区可以被多根轴同时引用，所以这不是"换个筛选器"，而是换一个问题：
+      occupation 这根分区里的人在干什么活（数字员工接不接得住）
+      industry   这家单位在卖什么（GB/T 4754 口径、产值归口）
+      tax        这笔钱按什么税目征（跟交付物走，不跟行业走）
+      output     一年多大产值、多少人就业（gdp_cny + employment）
+    """
+    from hanghang.engine.industry_db import AXES
+    db = _db(args)
+    axis = (getattr(args, "axis", "") or "").strip()
+    if axis and axis not in AXES:
+        print(f"未知视角: {axis}（合法 {list(AXES)}）")
+        sys.exit(1)
+
+    snap = db.compute()
+    rows = snap["rows"]
+    if axis:
+        rows = [r for r in rows if axis in r["axes"]]
+        head = {"occupation": "职业视角：这些分区里的人在干什么活",
+                "industry": "行业视角：这些单位在卖什么",
+                "tax": "税收视角：这笔钱按什么税目征",
+                "output": "产出视角：多大产值、多少人就业"}[axis]
+    else:
+        head = "四根轴全景：同一个分区可以同时出现在多根轴下"
+    print("=" * 78)
+    print(head)
+    print("-" * 78)
+    for r in rows:
+        mark = {"covered": "已建", "pending": "待建",
+                "evaluated": "不建"}.get(r["status"], r["status"])
+        if axis == "output":
+            gdp = f"{r['gdp_cny'] / 1e8:,.0f}亿" if r.get("gdp_cny") else "无口径"
+            emp = f"{r['employment']}万人" if r.get("employment") is not None else "无就业口径"
+            print(f"{mark:<5}{r['name']:<14}{gdp:<14}{emp:<12}"
+                  f"{'、'.join(r['demand_side'])[:26]}")
+        elif axis == "tax":
+            print(f"{mark:<5}{r['name']:<14}税目口径未接入(见 reference sources --axis tax)"
+                  f"  付费方: {'、'.join(r['demand_side'])[:30]}")
+        else:
+            mix = r["access_mix"] or {}
+            side = "、".join(f"{k}{mix.get(k, 0)}%" for k in
+                             ("paid_direct", "non_market", "org_internal", "household")
+                             if mix.get(k))
+            print(f"{mark:<5}{r['name']:<14}{r['member_count']:>3}职业  "
+                  f"通道: {side or '-'}")
+    print("-" * 78)
+    print(f"样本 {len(rows)} 个分区（缺省四轴都可见；axes 字段可按分区收窄）")
+    print("=" * 78)
+
+
+def cmd_industry_access(args):
+    """按需求侧承接通道看职业：现金市场 / 非市场(财政) / 企业内部 / 家庭无酬。
+
+    这张表专门回答"哪些职业不靠终端用户直接付费"——不付费不等于不值得分析：
+    财政供养和家庭无酬同样构成需求与人群画像，只是承接通道不同。
+    """
+    from hanghang.engine.industry_db import ACCESS_SIDES, DEFAULT_ACCESS
+    db = _db(args)
+    snap = db.compute()
+    side = (getattr(args, "side", "") or "").strip()
+    if side and side not in ACCESS_SIDES:
+        print(f"未知通道: {side}（合法 {list(ACCESS_SIDES)}）")
+        sys.exit(1)
+
+    mix = snap["access_mix"]
+    print("=" * 78)
+    print(f"需求侧承接通道（{snap['access_mix_n']} 个已挂分区职业实测；"
+          f"字段不写 = {DEFAULT_ACCESS}）")
+    print("-" * 78)
+    for k in ACCESS_SIDES:
+        print(f"  {k:<14}{mix.get(k, 0):>6}%   {_ACCESS_DESC[k]}")
+    print("-" * 78)
+    rows = db.occupations if not side else [o for o in db.occupations
+                                            if db.access_of(o) == side]
+    print(f"{'职业':<16}{'名称':<14}{'分区':<18}{'通道':<14}计费")
+    for o in rows:
+        print(f"{o.get('id', ''):<16}{o.get('name', '')[:12]:<14}"
+              f"{o.get('unit_id') or '-':<18}{db.access_of(o):<14}"
+              f"{o.get('billing', '-')}")
+    print(f"\n合计 {len(rows)} 个职业"
+          f"（覆盖分母只算 baseline_occupation，本表是全量登记）")
+    print("=" * 78)
+
+
+_ACCESS_DESC = {
+    "paid_direct": "服务本身直接收费（现金市场，缺省）",
+    "non_market": "财政/公共预算供养，终端用户不付费（≠ 不值得分析）",
+    "org_internal": "企业内部职能，需求侧=雇主预算",
+    "household": "家庭无酬劳动，无现金交易但是真实劳动时间",
+}
+
+
 def cmd_industry_occupations(args):
     """列出职业（可按分区/提供者/收费方式过滤）"""
     db = _db(args)
@@ -86,6 +192,8 @@ def cmd_industry_occupations(args):
         rows = [o for o in rows if o.get("provider") == args.provider]
     if getattr(args, "billing", ""):
         rows = [o for o in rows if o.get("billing") == args.billing]
+    if getattr(args, "access", ""):
+        rows = [o for o in rows if db.access_of(o) == args.access]
     if getattr(args, "unassigned", False):
         rows = [o for o in rows if not o.get("unit_id")]
     if not rows:
@@ -171,7 +279,8 @@ def cmd_industry_catalog(args):
             print(f"{e.get('code', ''):<14}{e.get('name', '')[:24]:<26}"
                   f"{cat.path_of(e.get('code', ''))[:38]}")
         print(f"\n未挂大典细类 {len(rows)} 条"
-              f"（这是候选池，不是待办：军队人员/采矿工种本就不该建数字员工单元）")
+              f"（这是候选池：大典全集不进分母；军队人员/采矿工种这类不是不登记，"
+              f"而是用 industry access 区分承接通道、由分区 status 单独回答要不要建单元）")
         return
 
     print(cat.render_coverage([o.get("id", "") for o in db.occupations]))
@@ -210,6 +319,7 @@ def cmd_industry_export(args):
         occs = []
         for o in db.occupations:
             row = dict(o)
+            row["access"] = db.access_of(o)   # 缺省 paid_direct 也显式给出
             if db.catalog is not None:
                 gb = db.catalog.gb_code_of(o.get("id", ""))
                 if gb:
@@ -232,7 +342,10 @@ def cmd_industry_export(args):
                         "member_count", "gdp_cny", "gdp_scope", "provider_ai",
                         "provider_hybrid", "provider_human", "provider_ai_declared",
                         "provider_hybrid_declared", "provider_human_declared",
-                        "demand_side", "cluster_basis", "channels", "note"])
+                        "access_paid_direct", "access_non_market",
+                        "access_org_internal", "access_household",
+                        "employment_wan", "axes", "demand_side", "cluster_basis",
+                        "channels", "note"])
             for r in snapshot["rows"]:
                 mix = r["provider_mix"] or {}
                 dec = r.get("provider_mix_declared") or {}
@@ -243,6 +356,12 @@ def cmd_industry_export(args):
                             mix.get("human", ""),
                             dec.get("ai", ""), dec.get("hybrid", ""),
                             dec.get("human", ""),
+                            (r.get("access_mix") or {}).get("paid_direct", ""),
+                            (r.get("access_mix") or {}).get("non_market", ""),
+                            (r.get("access_mix") or {}).get("org_internal", ""),
+                            (r.get("access_mix") or {}).get("household", ""),
+                            r.get("employment") if r.get("employment") is not None else "",
+                            "|".join(r.get("axes", [])),
                             "|".join(r["demand_side"]),
                             "|".join(r["cluster_basis"]),
                             "|".join(r["channels"]), r["note"]])
@@ -252,15 +371,15 @@ def cmd_industry_export(args):
         with open(opath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["id", "name", "partition_id", "unit_role", "deliverable",
-                        "provider", "billing", "baseline_occupation", "gb_code",
-                        "gb_name", "note"])
+                        "provider", "billing", "access", "baseline_occupation",
+                        "gb_code", "gb_name", "note"])
             for o in db.occupations:
                 gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
                 entry = db.catalog.entry(gb) if (db.catalog and gb) else None
                 w.writerow([o.get("id", ""), o.get("name", ""),
                             o.get("unit_id", ""), o.get("unit_role", ""),
                             o.get("deliverable", ""), o.get("provider", ""),
-                            o.get("billing", ""),
+                            o.get("billing", ""), db.access_of(o),
                             "1" if o.get("baseline_occupation") else "0",
                             gb, (entry or {}).get("name", ""), o.get("note", "")])
         written.append(opath)
@@ -277,32 +396,40 @@ def cmd_industry_export(args):
             gdp_source TEXT, provider_ai REAL, provider_hybrid REAL,
             provider_human REAL, provider_ai_declared REAL,
             provider_hybrid_declared REAL, provider_human_declared REAL,
+            access_paid_direct REAL, access_non_market REAL,
+            access_org_internal REAL, access_household REAL,
+            employment_wan REAL, axes TEXT,
             demand_side TEXT, cluster_basis TEXT, channels TEXT, note TEXT)""")
         conn.execute("""CREATE TABLE occupation(
             id TEXT PRIMARY KEY, name TEXT, partition_id TEXT, unit_role TEXT,
-            deliverable TEXT, provider TEXT, billing TEXT,
+            deliverable TEXT, provider TEXT, billing TEXT, access TEXT,
             baseline INTEGER, gb_code TEXT, gb_name TEXT, note TEXT)""")
         for r in snapshot["rows"]:
             mix = r["provider_mix"] or {}
             dec = r.get("provider_mix_declared") or {}
-            conn.execute("INSERT INTO partition VALUES "
-                         "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                         (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
-                          r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
-                          r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
-                          mix.get("human"), dec.get("ai"), dec.get("hybrid"),
-                          dec.get("human"), "|".join(r["demand_side"]),
-                          "|".join(r["cluster_basis"]), "|".join(r["channels"]),
-                          r["note"]))
+            acc = r.get("access_mix") or {}
+            conn.execute(
+                f"INSERT INTO partition VALUES ({','.join('?' * 25)})",
+                (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
+                 r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
+                 r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
+                 mix.get("human"), dec.get("ai"), dec.get("hybrid"),
+                 dec.get("human"), acc.get("paid_direct"), acc.get("non_market"),
+                 acc.get("org_internal"), acc.get("household"),
+                 r.get("employment"), "|".join(r.get("axes", [])),
+                 "|".join(r["demand_side"]),
+                 "|".join(r["cluster_basis"]), "|".join(r["channels"]),
+                 r["note"]))
         for o in db.occupations:
             gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
             entry = db.catalog.entry(gb) if (db.catalog and gb) else None
-            conn.execute("INSERT INTO occupation VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                         (o.get("id", ""), o.get("name", ""), o.get("unit_id", ""),
-                          o.get("unit_role", ""), o.get("deliverable", ""),
-                          o.get("provider", ""), o.get("billing", ""),
-                          1 if o.get("baseline_occupation") else 0,
-                          gb, (entry or {}).get("name", ""), o.get("note", "")))
+            conn.execute(
+                f"INSERT INTO occupation VALUES ({','.join('?' * 12)})",
+                (o.get("id", ""), o.get("name", ""), o.get("unit_id", ""),
+                 o.get("unit_role", ""), o.get("deliverable", ""),
+                 o.get("provider", ""), o.get("billing", ""), db.access_of(o),
+                 1 if o.get("baseline_occupation") else 0,
+                 gb, (entry or {}).get("name", ""), o.get("note", "")))
         # 大典参考表整表导出：补全缺口时不必再去找原始 PDF
         if db.catalog is not None:
             conn.execute("""CREATE TABLE gb_catalog(
