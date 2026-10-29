@@ -1,0 +1,29 @@
+# 需求与输入
+#
+# 客户、用户、业务方等需求侧，以及岗位拿到的输入
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: demand   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 需求方
+  用户: {kind: 需求方, index: {source: 会员主数据, query: [用户画像与分群]}}
+  客户: {kind: 需求方, index: {source: CRM, query: [客户档案]}}
+  业主: {kind: 需求方, index: {source: CRM, query: [业主档案]}}
+  学员: {kind: 需求方, index: {source: 学员主数据, query: [在册学员]}}
+  候选人: {kind: 需求方, index: {source: ATS, query: [候选人库]}}
+  品牌方: {kind: 需求方, index: {source: 客户库, query: [品牌客户]}}
+  业务方: {kind: 需求方, index: {source: 组织架构, query: [业务部门]}}
+  需求方: {kind: 需求方, index: {source: 组织架构, query: [需求提出部门]}}
+  市场与销售: {kind: 需求方, index: {source: 组织架构, query: [市场与销售部门]}}
+
+  # ---- kind: 需求
+  业主需求: {kind: 需求, index: null}
+  各处室需求: {kind: 需求, index: null}
+  需求方与文案: {kind: 需求, index: null}
+
+  # ---- kind: 输入
+  咨询者自述: {kind: 输入, index: null}
+  产品与用户洞察: {kind: 输入, index: null}
+  教学目标: {kind: 输入, index: null}
+  业务单据: {kind: 输入, index: null}

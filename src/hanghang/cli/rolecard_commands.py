@@ -6,6 +6,8 @@
   role context   渲染可注入提示词的岗位卡文本块（M10 素材）
   role coverage  画像覆盖总览
   role chain     利益链条（只看行业类；公司靠索引现查，不落库）+ 校验
+  role classes   行业类词表：按域看分布在哪个文件、检索方案接没接
+  role search    云仓检索（CNB 知识库）：一句话 → 命中哪些类目
 """
 from __future__ import annotations
 
@@ -14,7 +16,7 @@ import sys
 from typing import Optional
 
 from hanghang.engine import Registry
-from hanghang.rolecard import RoleCardStore
+from hanghang.rolecard import RoleCardStore, cloudstore
 
 
 def _store() -> RoleCardStore:
@@ -339,6 +341,77 @@ def cmd_role_chain(args):
     return 0
 
 
+# ------------------------------------------------------------------ role classes
+def cmd_role_classes(args):
+    """词表按域怎么分布、索引接没接 —— 一个 YAML 装不下的东西，这里看得见。"""
+    store = _store()
+    classes = store.classes
+    usage = store.class_usage()
+
+    if args.unregistered:
+        # 只列 index 为空的实体类目：这些是"知道该查公司但还没接源"的欠账
+        kinds = ("制造", "货品与流通", "需求方", "机构", "渠道", "岗位类")
+        hits = []
+        for name, spec in sorted(classes.classes.items()):
+            spec = spec or {}
+            if str(spec.get("kind")) in kinds and spec.get("index") is None:
+                hits.append((name, str(spec.get("kind")), classes.sources.get(name, "")))
+        for name, kind, src in hits:
+            print(f"· {name}  [{kind}]  {src}")
+        print(f"\n未接检索源的实体类目：{len(hits)} 条")
+        return 0
+
+    by_file: dict = {}
+    for name, spec in classes.classes.items():
+        src = classes.sources.get(name, "（未溯源）")
+        by_file.setdefault(src, []).append(name)
+
+    print(f"行业类词表 v{classes.version}：{len(classes.classes)} 个类目 / "
+          f"{sum(len(v) for v in classes.aliases.values())} 个别名")
+    print(f"分布在 {len(by_file)} 个文件（一个 YAML 装不下的东西）\n")
+    for src in sorted(by_file):
+        names = sorted(by_file[src])
+        indexed = sum(1 for n in names if (classes.classes.get(n) or {}).get("index"))
+        print(f"{src}")
+        print(f"  {len(names)} 个类目，{indexed} 个已接检索源，被引用 "
+              f"{sum(len((usage.get(n) or {}).get('used_by') or []) for n in names)} 处")
+        print(f"  {', '.join(names[:8])}" + (" …" if len(names) > 8 else ""))
+    print("\n想看某个类被谁用了：role chain --class <类目>")
+    print("想看实体类目还差哪些检索源：role classes --unregistered")
+    return 0
+
+
+# ------------------------------------------------------------------- role search
+def cmd_role_search(args):
+    """一句话问云仓（CNB 知识库），回命中的行业类目。"""
+    store = _store()
+    result = cloudstore.locate_class(args.text, store.classes, top_k=args.top_k)
+
+    print(f"查询: {args.text}")
+    print(f"通道: {result['source']}")
+    if result.get("note"):
+        print(f"  ! {result['note']}")
+
+    hits = result.get("classes") or []
+    print(f"\n命中类目（{len(hits)}）")
+    if not hits:
+        print("  —")
+    for name in hits:
+        spec = store.classes.classes.get(name) or {}
+        idx = spec.get("index") or {}
+        tail = (f"索引 → {idx.get('source')}（{'; '.join(idx.get('query') or [])}）"
+                if idx else "未接检索源")
+        print(f"  · {name}  [{spec.get('kind', '')}]  {tail}")
+
+    cloud = result.get("cloud") or []
+    if cloud:
+        print(f"\n云仓片段（{len(cloud)}）")
+        for hit in cloud[:args.top_k]:
+            first = (hit["chunk"].strip().splitlines() or [""])[0][:70]
+            print(f"  {hit['score']:.3f}  {first}")
+    return 0 if hits or cloud else 1
+
+
 def register_role_subcommands(sub) -> None:
     """把 role 组挂到主 parser（保持 main.py 组织简洁）。"""
     rp = sub.add_parser("role", help="M11 岗位画像：就绪度/六维评估/工作流 playbook")
@@ -376,6 +449,16 @@ def register_role_subcommands(sub) -> None:
     rch.add_argument("--class", dest="class_name", default="",
                      help="查某个行业类被哪些岗位引用、怎么检索")
     rch.set_defaults(func=cmd_role_chain)
+
+    rc = role_sub.add_parser("classes", help="行业类词表分布（目录化后各域在哪个文件）")
+    rc.add_argument("--unregistered", action="store_true",
+                    help="只列还没接检索源的实体类目")
+    rc.set_defaults(func=cmd_role_classes)
+
+    rs = role_sub.add_parser("search", help="云仓检索：一句话问知识库，回命中类目")
+    rs.add_argument("text", help="自然语言查询，如「钢材加工的上游」")
+    rs.add_argument("--top-k", type=int, default=5, help="返回条数（默认 5）")
+    rs.set_defaults(func=cmd_role_search)
 
     rv = role_sub.add_parser("coverage", help="岗位画像覆盖总览")
     rv.add_argument("--gaps", action="store_true", help="列出缺画像的岗位")

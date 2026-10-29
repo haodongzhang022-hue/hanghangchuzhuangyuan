@@ -1,0 +1,14 @@
+# 行业单元
+#
+# 跨单元引用时用的单元类目（单元 id 与中文行业名双向）
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: unit   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 单元
+  dongjiagoushi: {kind: 单元, label: 软件研发, index: null}
+  content-creation: {kind: 单元, label: 内容创作, index: null}
+  design-visual: {kind: 单元, label: 视觉设计, index: null}
+  marketing: {kind: 单元, label: 市场营销, index: null}
+  hr-services: {kind: 单元, label: 人力资源, index: null}

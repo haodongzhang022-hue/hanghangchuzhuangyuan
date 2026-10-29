@@ -1,0 +1,15 @@
+# 交付接口与渠道
+#
+# 没有公司主体的交接面：合并门禁、发布渠道、运维接口
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: delivery   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 接口
+  合并门禁: {kind: 接口, index: null}
+  测试与发布: {kind: 接口, index: null}
+  运维: {kind: 接口, index: null}
+
+  # ---- kind: 渠道
+  发布渠道: {kind: 渠道, index: {source: 渠道台账, query: [发布渠道]}}

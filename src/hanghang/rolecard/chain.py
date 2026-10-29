@@ -18,9 +18,10 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-import yaml
+from .yamlload import load as _yaml_load
 
 CLASS_FILE = "industry-classes.yaml"
+CLASS_DIR = "industry-classes"
 
 # 引用种类
 KIND_CLASS = "industry_class"
@@ -81,8 +82,11 @@ class IndustryClassIndex:
     def __init__(self, data_dir: str, unit_roles: Optional[Dict[str, List[str]]] = None):
         self.data_dir = data_dir
         self.path = os.path.join(data_dir, CLASS_FILE)
+        # 目录化：汇总文件用 !include 拼各域文件；没有 !include 的老版本单文件也能读
         raw = self._load(self.path)
         self.version = str(raw.get("version", "0"))
+        # 溯源：类目 → 声明它的文件（改词表时知道该动哪个文件，而不是满仓库找）
+        self.sources: Dict[str, str] = self._scan_sources()
         self.company_markers: Tuple[str, ...] = tuple(
             str(x) for x in (raw.get("company_markers") or []) if str(x).strip()
         )
@@ -110,13 +114,32 @@ class IndustryClassIndex:
 
     @staticmethod
     def _load(path: str) -> dict:
-        if not os.path.exists(path):
-            return {}
         try:
-            with open(path, "r", encoding="utf-8") as fh:
-                return yaml.safe_load(fh) or {}
+            return _yaml_load(path) or {}
         except Exception:
             return {}
+
+    def _scan_sources(self) -> Dict[str, str]:
+        """词表按域拆文件后，记下每个类目/别名是在哪个文件里写的。"""
+        out: Dict[str, str] = {}
+        cdir = os.path.join(self.data_dir, CLASS_DIR)
+        if not os.path.isdir(cdir):
+            return out
+        for name in sorted(os.listdir(cdir)):
+            if not name.endswith(".yaml") or name.startswith("_"):
+                continue
+            data = self._load(os.path.join(cdir, name))
+            rel = f"{CLASS_DIR}/{name}"
+            for key in (data.get("classes") or {}):
+                out[str(key)] = rel
+            for key in (data.get("aliases") or {}):
+                out.setdefault(str(key), rel)
+        return out
+
+    @property
+    def alias_map(self) -> Dict[str, str]:
+        """别名 → 统一类目名（只读视图，给检索/展示用）。"""
+        return dict(self._alias_map)
 
     # ------------------------------------------------------------ 归一口径
     def canonical(self, name: str) -> str:

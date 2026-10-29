@@ -1,0 +1,17 @@
+# 供应链与资源
+#
+# 上游供货、材料、货品、场地等资源侧类目
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: supply   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 制造
+  钢材加工: {kind: 制造, index: {source: 企业名录, query: ['钢材{加工|剪切|开平}', 金属材料加工]}}
+  金属材料加工: {kind: 制造, index: {source: 企业名录, query: [金属材料加工]}}
+
+  # ---- kind: 货品与流通
+  商品与供应链: {kind: 货品与流通, index: {source: 内部主数据, query: [SKU 类目, 供应商类目]}}
+
+  # ---- kind: 资源
+  房屋现状: {kind: 资源, index: null}

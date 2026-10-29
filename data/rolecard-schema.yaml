@@ -71,7 +71,12 @@ readiness:
 
 # ------------------------------------------------ 利益链条归一（M11.1）
 # 链上只写行业类目，具体公司靠 index 现查，名录不进本仓库。
-# 词表：data/industry-classes.yaml；归一与校验：src/hanghang/rolecard/chain.py
+# 词表（目录化）：data/industry-classes.yaml 汇总 + data/industry-classes/<域>.yaml 分域
+#   supply/demand/delivery/internal/institution/blocker/unit 七个域，按 kind 家族拆
+#   溯源：IndustryClassIndex.sources 记住每个类目声明在哪个文件
+# 归一与校验：src/hanghang/rolecard/chain.py
+# 数据库形态：data/db/*.sql（由 scripts/export_class_db.py 生成，不含公司名录）
+# 云仓检索：src/hanghang/rolecard/cloudstore.py（CNB 知识库只读，失败降级本地）
 chain:
   fields: [upstream, downstream, beneficiaries, blockers]
   ref_kinds: [industry_class, interface, role]
