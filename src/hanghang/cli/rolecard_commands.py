@@ -8,15 +8,17 @@
   role chain     利益链条（只看行业类；公司靠索引现查，不落库）+ 校验
   role classes   行业类词表：按域看分布在哪个文件、检索方案接没接
   role search    云仓检索（CNB 知识库）：一句话 → 命中哪些类目
+  role db        实库：建库 / 看表 / 只读查询（SQLite，换服务器只改方言）
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Optional
 
 from hanghang.engine import Registry
-from hanghang.rolecard import RoleCardStore, cloudstore
+from hanghang.rolecard import RoleCardStore, cloudstore, dbstore
 
 
 def _store() -> RoleCardStore:
@@ -412,6 +414,48 @@ def cmd_role_search(args):
     return 0 if hits or cloud else 1
 
 
+# --------------------------------------------------------------------- role db
+def cmd_role_db(args):
+    """实库入口：库要能开、能查、能统计，不是一份 DDL 文案。"""
+    db_path = args.db or dbstore.DEFAULT_DB_PATH
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(os.getcwd(), db_path)
+
+    if args.sql:
+        try:
+            rows = dbstore.query(db_path, args.sql)
+        except FileNotFoundError:
+            print(f"库不存在：{db_path}\n先跑：python3 scripts/build_role_db.py")
+            return 1
+        except PermissionError as exc:
+            print(f"✗ {exc}")
+            return 1
+        for row in rows:
+            print(" | ".join("" if v is None else str(v) for v in row))
+        print(f"\n（{len(rows)} 行）")
+        return 0
+
+    if args.build:
+        from hanghang.rolecard import RoleCardStore as _Store
+        counts = dbstore.build(_Store(), db_path)
+        print(f"已重建 {db_path}（{os.path.getsize(db_path) / 1024:.0f} KB）")
+        for name, rows in counts.items():
+            print(f"  {name:<22}{rows:>7}")
+        return 0
+
+    try:
+        info = dbstore.stats(db_path)
+    except FileNotFoundError:
+        print(f"库不存在：{db_path}\n建库：python3 scripts/build_role_db.py（或 role db --build）")
+        return 1
+    print(f"库: {info['path']}  {info['bytes'] / 1024:.0f} KB  结构 {info['version']}")
+    print(f"构建: {info['built_at']}  来源 {info['source']}")
+    print(f"{len(info['tables'])} 张表 / {info['total_rows']} 行")
+    for name, rows in info["tables"].items():
+        print(f"  {name:<22}{rows:>7}")
+    return 0
+
+
 def register_role_subcommands(sub) -> None:
     """把 role 组挂到主 parser（保持 main.py 组织简洁）。"""
     rp = sub.add_parser("role", help="M11 岗位画像：就绪度/六维评估/工作流 playbook")
@@ -459,6 +503,13 @@ def register_role_subcommands(sub) -> None:
     rs.add_argument("text", help="自然语言查询，如「钢材加工的上游」")
     rs.add_argument("--top-k", type=int, default=5, help="返回条数（默认 5）")
     rs.set_defaults(func=cmd_role_search)
+
+    rdb = role_sub.add_parser("db", help="实库：见库有哪张表 / 建库 / 只读查询")
+    rdb.add_argument("--db", default="", help=f"库路径（默认 {dbstore.DEFAULT_DB_PATH}）")
+    rdb.add_argument("--build", action="store_true", help="从画像数据重建库")
+    rdb.add_argument("--sql", default="", help="只读查询（select/with/pragma）")
+
+    rdb.set_defaults(func=cmd_role_db)
 
     rv = role_sub.add_parser("coverage", help="岗位画像覆盖总览")
     rv.add_argument("--gaps", action="store_true", help="列出缺画像的岗位")

@@ -13,6 +13,21 @@ L1 通用能力层  = 本仓库：识别路由(M1) / 注册表(M2) / 前缀档�
 L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 ```
 
+## 数据与库
+
+画像与词表的**事实来源**是 `data/` 下的 YAML（人工维护、评审看得见）；
+可查询的**结构**是用它建出来的真库：
+
+```bash
+python3 scripts/build_role_db.py            # 建 data/db/hanghang.db（17 张表 / 3500 行）
+python3 src/hanghang/cli/main.py role db    # 看库里有什么
+python3 src/hanghang/cli/main.py role db --sql "SELECT ..."
+```
+
+`data/db/00-schema.sqlite.sql` 与 `00-schema.postgresql.sql` 由同一份表定义渲染
+（改表只改一处）；库不进版本库，由 `--check` 在 CI 里保证不落后于数据。
+设计见 `docs/architecture/M11.3-实库-岗位与行业类落库.md`。
+
 ## 数据驱动设计（核心亮点）
 
 **新增行业单元只需更新注册数据，无需修改代码。**

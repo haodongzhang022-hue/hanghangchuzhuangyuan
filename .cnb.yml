@@ -59,6 +59,9 @@ $:
             # M11.2 词表目录化后，DDL 与数据字典是从域文件生成的产物：
             # 改了类目却忘了重导出，这里拦下（否则库里结构和仓库里的口径会分叉）。
             python3 scripts/export_class_db.py --check
+            # M11.3 实库：把画像 + 词表建成真库，再读回来逐字段比对。
+            # 改了画像忘了重建库 → 这里失败；库与仓库分叉不会静默发生。
+            python3 scripts/build_role_db.py --check
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""
@@ -119,6 +122,7 @@ $:
             python3 scripts/gen_rolecards.py --check
             python3 src/hanghang/cli/main.py role chain --check
             python3 scripts/export_class_db.py --check
+            python3 scripts/build_role_db.py --check
             bash scripts/change-aware-test.sh
         - name: 自动合并
           # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，

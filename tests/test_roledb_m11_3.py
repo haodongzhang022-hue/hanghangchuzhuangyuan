@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""M11.3 实库回归：库要能建、能开、能查、能回读，且不藏公司名录。
+
+盯五件事（都是「DDL 不是库」之后必须成立的前提）：
+  1. 库真的建出来了，表结构与单源定义一致（不是一份手抄的 SQL）
+  2. 库读回来的岗位卡与内存画像逐字段相同（否则库会静默和仓库分叉）
+  3. 列表型字段一条一行，能按值查、能 join、能统计（不是 JSON 塞一列）
+  4. 仍然没有公司名录表，也没有公司形态的值
+  5. 换服务器只改方言：PostgreSQL DDL 与 SQLite 同表同列
+"""
+from __future__ import annotations
+
+import os
+import sqlite3
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.join(ROOT, "src"))
+
+from hanghang.rolecard import RoleCardStore, dbstore, schema_sql   # noqa: E402
+
+DB = os.path.join(ROOT, dbstore.DEFAULT_DB_PATH)
+
+
+def _built() -> str:
+    """在临时目录建一份库（不污染工作区，也不依赖已提交的产物）。"""
+    tmp = tempfile.mkdtemp(prefix="hh-db-")
+    path = os.path.join(tmp, "t.db")
+    dbstore.build(RoleCardStore(), path, when="2026-01-01T00:00:00Z")
+    return path
+
+
+def test_db_builds_all_tables():
+    path = _built()
+    assert os.path.getsize(path) > 100 * 1024, "库太小，疑似没落数据"
+    conn = sqlite3.connect(path)
+    tables = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    for name in schema_sql.tables("sqlite"):
+        assert name in tables, f"缺表 {name}"
+    assert conn.execute("SELECT count(*) FROM industry_class").fetchone()[0] > 50
+    assert conn.execute("SELECT count(*) FROM role_profile").fetchone()[0] == 50
+    conn.close()
+
+
+def test_db_schema_single_source_matches_ddl():
+    """库里的列与 DDL 单源定义一致：改表只改一处，库和 DDL 不会各说各话。"""
+    path = _built()
+    conn = sqlite3.connect(path)
+    for table in schema_sql._TABLES:                      # noqa: SLF001 同包单源
+        cols = [r[1] for r in conn.execute(f'PRAGMA table_info("{table["name"]}")')]
+        want = [c[0] for c in table["columns"]]
+        assert cols == want, f"{table['name']} 列不一致: {cols} != {want}"
+    conn.close()
+
+
+def test_db_roundtrip_matches_profiles():
+    """库读回来的卡 == 内存里的卡：库不会静默落后于仓库里的画像。"""
+    path = _built()
+    cards = dbstore.read(path)
+    store = RoleCardStore()
+    for card in store.all_cards():
+        got = cards.get(f"{card.unit_id}::{card.role}")
+        assert got is not None, f"{card.unit_id}/{card.role} 库里有缺"
+        assert got.prefix == card.prefix
+        assert got.profile.analysis["mission"] == card.profile.analysis.get("mission")
+        assert got.capability().scoring == card.capability().scoring
+        assert [s.id for s in got.playbook()] == [s.id for s in card.playbook()], card.role
+        assert got.readiness.score == card.readiness.score, card.role
+        assert [c["value"] for c in got.chain_refs.get("upstream", [])] == \
+            [c["value"] for c in card.chain_refs.get("upstream", [])], card.role
+
+
+def test_db_list_fields_are_rows_not_json():
+    """交付物/KPI/上下游一条一行：能按值查、能 join，不是 JSON 塞一列。"""
+    path = _built()
+    conn = sqlite3.connect(path)
+    rows = conn.execute(
+        "SELECT DISTINCT field FROM role_profile_item ORDER BY field").fetchall()
+    fields = {r[0] for r in rows}
+    assert {"deliverables", "kpis", "constraints", "core"} <= fields, fields
+    # 同一个值在多处出现时能被检出（JSON 列做不到）
+    top = conn.execute(
+        "SELECT value, count(*) c FROM role_profile_item GROUP BY value"
+        " HAVING c > 3 ORDER BY c DESC LIMIT 1").fetchone()
+    assert top and top[1] > 3, top
+    # 岗位 × 类目的引用能 join 回类目表
+    joined = conn.execute(
+        "SELECT count(*) FROM role_chain_ref r JOIN industry_class c ON c.name = r.class_name")
+    assert joined.fetchone()[0] > 200
+    conn.close()
+
+
+def test_db_chain_refs_keep_role_and_interface_kinds():
+    """链条上「岗位/接口」两类落点也要进库，不能只存类目。"""
+    path = _built()
+    conn = sqlite3.connect(path)
+    kinds = {r[0] for r in conn.execute(
+        "SELECT DISTINCT ref_kind FROM role_chain_ref")}
+    assert {"industry_class", "role"} <= kinds, kinds
+    got = conn.execute(
+        "SELECT ref_unit FROM role_chain_ref WHERE ref_kind='role' LIMIT 1").fetchone()
+    assert got and got[0], "role 类落点应带出所属单元"
+    conn.close()
+
+
+def test_db_has_no_company_table_or_values():
+    path = _built()
+    conn = sqlite3.connect(path)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert not any(x in t for t in tables for x in ("company", "enterprise", "vendor")), tables
+    dump = "\n".join(conn.iterdump())
+    for marker in ("有限公司", "有限责任公司", "某某厂"):
+        assert marker not in dump, f"公司形态的值进了库：{marker}"
+    conn.close()
+
+
+def test_db_query_is_readonly():
+    path = _built()
+    rows = dbstore.query(path, "SELECT count(*) FROM industry_class")
+    assert rows[0][0] > 50
+    try:
+        dbstore.query(path, "DELETE FROM industry_class")
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("写语句必须被拒绝")
+
+
+def test_db_dialects_share_tables_and_columns():
+    """换服务器只改方言：两种 DDL 表名列名一致。"""
+    sq = schema_sql.ddl("sqlite")
+    pg = schema_sql.ddl("postgresql")
+    for name in schema_sql.tables("sqlite"):
+        assert f'"{name}"' in sq and f'"{name}"' in pg, name
+    assert "AUTOINCREMENT" in sq and "AUTOINCREMENT" not in pg
+    assert "IDENTITY" in pg
+    # PG 方言在建表语句层面可解析（不做真连库：无服务、无凭据）
+    assert pg.count("CREATE TABLE IF NOT EXISTS") == len(schema_sql._TABLES)  # noqa: SLF001
+
+
+def test_script_check_and_stats():
+    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--check"],
+                          cwd=ROOT, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "库与数据一致" in proc.stdout, proc.stdout
+
+    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--stats"],
+                          cwd=ROOT, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "张表" in proc.stdout and "role_profile" in proc.stdout, proc.stdout
+
+
+def test_cli_role_db():
+    proc = subprocess.run([sys.executable, "src/hanghang/cli/main.py", "role", "db",
+                           "--sql", "SELECT count(*) AS n FROM industry_class"],
+                          cwd=ROOT, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "（1 行）" in proc.stdout, proc.stdout
+
+
+if __name__ == "__main__":
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    failed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"  ✅ {t.__name__}")
+        except AssertionError as e:
+            failed += 1
+            print(f"  ❌ {t.__name__}: {e}")
+        except Exception as e:  # noqa: BLE001
+            failed += 1
+            print(f"  ❌ {t.__name__}: {type(e).__name__}: {e}")
+    print("✅ M11.3 实库测试全部通过" if not failed else f"❌ {failed} 个测试失败")
+    raise SystemExit(1 if failed else 0)

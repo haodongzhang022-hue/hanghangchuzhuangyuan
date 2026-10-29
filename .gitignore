@@ -27,3 +27,9 @@ data/state/context_baseline/
 .testcache/
 # 变更感知瞬时计划落盘（立即 rm；异常残留不入库）
 .ca-plan.json
+# 实库（M11.3）：SQLite 文件由 scripts/build_role_db.py 从 data/ 重建，
+# 重建是确定性的、秒级，所以库里那份「二进制」不进版本库 —— 进库只会变成
+# 每次改画像都要提交一个 .db 的二进制 diff，评审看不见、冲突解不了。
+# 产物形态（DDL / 数据字典）进库，随时可 rebuild。
+data/db/*.db
+data/db/*.db-journal

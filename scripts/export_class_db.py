@@ -9,6 +9,9 @@
   python3 scripts/export_class_db.py                 # 写 data/db/*.sql 与数据字典
   python3 scripts/export_class_db.py --check         # 只校验是否已过期（CI 用）
   python3 scripts/export_class_db.py --stdout ddl    # 打到标准输出（ddl|data|dict）
+
+注意：这里产的是**结构文本**；真正能开的库由 scripts/build_role_db.py 建。
+两者分工：这里回答「类目长什么样」，那边回答「数据怎么存、怎么 join」。
 """
 from __future__ import annotations
 
@@ -30,7 +33,9 @@ def build():
     store = RoleCardStore()
     usage = store.class_usage()
     return {
-        "00-schema.sql": HEADER + schema_sql.DDL,
+        # 旧的类目专用结构文本：完整库结构已由 build_role_db.py 双方言产出，
+        # 这里只保留「类目四表」那份口径快照，避免两处各写一套完整 DDL。
+        "00-class-tables.sql": HEADER + schema_sql.class_table_ddl(),
         "10-classes.sql": HEADER + schema_sql.data_sql(store.classes, usage),
         "README.md": schema_sql.dictionary_md(store.classes, usage),
     }
