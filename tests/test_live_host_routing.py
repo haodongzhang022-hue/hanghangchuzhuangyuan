@@ -12,11 +12,19 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
-from hanghang.engine.router import IntentRouter
+from hanghang.engine import Registry
+from hanghang.engine.router import IntentRouter, _superseded_cjk_hits
 
 
 def _route(text):
     return IntentRouter().route(text)
+
+
+def _unit_vocab(unit):
+    vocab = list(unit.industry_alias) + list(unit.capability_tags)
+    for role in unit.roles:
+        vocab.extend(role.get_keywords())
+    return vocab
 
 
 def test_live_product_selection_lands_on_live_host():
@@ -59,6 +67,61 @@ def test_routing_baseline_unchanged():
     assert getattr(r, "needs_manual", False), "外卖仍应回落人工"
     r = _route("既要架构设计又要写代码")
     assert set(r.roles or []) >= {"architect", "developer"}, r.roles
+
+
+# ---------- 数据层：组合词必须真注册（否则上面几条是靠引擎兜住的） ----------
+
+def test_live_host_has_compound_keywords_in_data():
+    """live_host 必须真注册组合词，不能只靠裸「直播」兜底"""
+    unit = Registry().get_unit("content-creation")
+    host = next(r for r in unit.roles if r.name == "live_host")
+    kws = set(host.get_keywords())
+    for kw in ("直播间", "直播带货", "直播选品", "直播话术", "直播脚本"):
+        assert kw in kws, f"live_host 缺少组合关键词: {kw}"
+
+
+def test_bare_selection_word_not_double_registered():
+    """裸词「选品」不得同时出现在直播侧与电商侧（歧义的真正来源）"""
+    reg = Registry()
+    for uid in ("content-creation", "e-commerce"):
+        unit = reg.get_unit(uid)
+        assert "选品" not in _unit_vocab(unit), f"{uid} 残留裸词「选品」"
+
+
+# ---------- 引擎层：汉字区间让位规则 ----------
+
+def test_covered_short_word_yields_to_longer_hit():
+    """短词每处出现都被外单元长词覆盖 → 让位"""
+    assert _superseded_cjk_hits("帮我做直播选品", "选品", ["直播选品"]) is True
+
+
+def test_independently_appearing_short_word_still_counts():
+    """短词有独立出现 → 照常计分（不许误杀）"""
+    assert _superseded_cjk_hits("直播间的选品和话术", "选品", ["直播选品"]) is False
+    assert _superseded_cjk_hits("直播选品和选品", "选品", ["直播选品"]) is False
+
+
+def test_supersede_only_applies_to_cjk_terms():
+    """英文/数字词边界靠空格，不参与区间让位"""
+    assert _superseded_cjk_hits("do SEO audit", "SEO", ["do SEO audit"]) is False
+
+
+def test_short_word_covered_by_foreign_long_word_does_not_score():
+    """被覆盖的短词不给别的单元送分：「核算工资」不该给财务侧送「工资」"""
+    router = IntentRouter()
+    scores = router._score_units("核算工资", router.registry.all_units())
+    finance = scores.get("finance-accounting", {})
+    assert "工资" not in finance.get("matched_terms", []), finance.get("fallback")
+
+    r = router.route("核算工资")
+    assert not getattr(r, "needs_manual", False), f"仍回落人工: {r.fallback_reason}"
+    assert r.unit_id == "hr-services", f"实际落 {r.unit_id}"
+
+
+def test_supersede_does_not_touch_same_unit_words():
+    """本单元内部的长短词口径不变（文案 / 品牌文案 各计一次）"""
+    r = _route("帮我写品牌文案")
+    assert r.unit_id == "content-creation", f"实际落 {r.unit_id}"
 
 
 if __name__ == "__main__":

@@ -8,6 +8,59 @@ from .models import IndustryUnit, RouteResult, Role
 from .registry import Registry
 
 
+_CJK_RANGES = (
+    (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
+    (0x3040, 0x30FF), (0xAC00, 0xD7AF),
+)
+
+
+def _is_cjk_char(ch: str) -> bool:
+    """是否汉字/假名/谚文（这些文字没有空格分词，才需要区间让位判定）"""
+    cp = ord(ch)
+    return any(lo <= cp <= hi for lo, hi in _CJK_RANGES)
+
+
+def _is_cjk_term(term: str) -> bool:
+    return bool(term) and all(_is_cjk_char(c) for c in term)
+
+
+def _match_spans(text: str, term: str) -> List[tuple]:
+    """term 在 text 中出现的所有 (start, end) 区间"""
+    spans = []
+    start = text.find(term)
+    while start >= 0:
+        spans.append((start, start + len(term)))
+        start = text.find(term, start + 1)
+    return spans
+
+
+def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool:
+    """
+    term 的每一处出现是否都被「别的单元的更长汉字词」整段覆盖。
+
+    覆盖 = 某一个更长词的某次出现区间完整包含 term 的这次出现区间。
+    只要有一处 term 是独立出现的（没有任何 foreign 长词盖住它），就返回 False
+    —— 独立的出现照常计分，否则会把「直播间和选品各干一件事」也误杀。
+
+    只对纯汉字词生效：英文/数字词边界靠空格，不需要也不适用这套判定。
+    """
+    if not _is_cjk_term(term):
+        return False
+    spans = _match_spans(text, term)
+    if not spans:
+        return False
+    covers = []
+    for other in foreign_terms:
+        if other == term or len(other) <= len(term) or not _is_cjk_term(other):
+            continue
+        if term not in other:
+            continue
+        covers.extend(_match_spans(text, other))
+    if not covers:
+        return False
+    return all(any(cs <= s and e <= ce for cs, ce in covers) for s, e in spans)
+
+
 class IntentRouter:
     """
     M1 自动识别路由：
@@ -296,23 +349,42 @@ class IntentRouter:
         """
         数据驱动：对每个单元做多维信号评分。
         信号来源：industry_alias + capability_tags + role keywords。
+
+        同一段汉字被别的单元的更长词整段认领时，本单元的短词不再重复计分
+        （见 _superseded_cjk_hits）。否则「核算工资」里财务侧的裸词「工资」
+        会被 HR 侧「算工资」重复认领，两侧同分 → 真信号被平均成伪歧义。
+        该让位只跨单元生效，本单元内部的长短词口径不变。
         """
+        # 先收集每个单元的词表，供跨单元让位判定（长词认领的区间）
+        unit_vocab = {}
+        for unit in units:
+            vocab = list(unit.industry_alias) + list(unit.capability_tags)
+            for role in unit.roles:
+                vocab.extend(role.get_keywords())
+            unit_vocab[unit.unit_id] = [t for t in vocab if t]
+
         scores = {}
         for unit in units:
             score = 0.0
             matched_signals = []
             matched_terms: List[str] = []  # 实际命中的词（用于歧义时区分泛化共享）
+            foreign_vocab = [t for uid, terms in unit_vocab.items()
+                             if uid != unit.unit_id for t in terms]
+
+            def _counted(term: str) -> bool:
+                """本单元的这个词是否仍应计分（被别的单元的更长词整段盖住时让位）"""
+                return not _superseded_cjk_hits(text, term, foreign_vocab)
 
             # 1. 行业别名直接命中（强信号，2.0）
             for alias in unit.industry_alias:
-                if alias and alias in text:
+                if alias and alias in text and _counted(alias):
                     score += 2.0
                     matched_signals.append(f"alias:{alias}")
                     matched_terms.append(alias)
 
             # 2. capability_tags 命中（中信号，1.0）
             for tag in unit.capability_tags:
-                if tag and tag in text:
+                if tag and tag in text and _counted(tag):
                     score += 1.0
                     matched_signals.append(f"tag:{tag}")
                     matched_terms.append(tag)
@@ -320,7 +392,7 @@ class IntentRouter:
             # 3. 单元内岗位关键词命中（强信号，1.5/岗位）
             for role in unit.roles:
                 for kw in role.get_keywords():
-                    if kw and kw in text:
+                    if kw and kw in text and _counted(kw):
                         score += 1.5
                         matched_signals.append(f"role:{role.name}:{kw}")
                         matched_terms.append(kw)
