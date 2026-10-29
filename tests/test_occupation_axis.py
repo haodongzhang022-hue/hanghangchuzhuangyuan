@@ -218,6 +218,50 @@ def test_legacy_unit_id_still_recognized():
     assert edges[0]["legacy"] is True
 
 
+
+
+# --------------------------------------------- 校验条数：一个数，一个来源
+def test_validate_check_count_is_single_source():
+    """校验条数只许有一个来源：代码常量。
+
+    README 说 15、文档标题说 17、代码实际 18 —— 这个数被手抄三份就会这样。
+    这里把"三个数必须相等"钉死：文档表格行数、文档标题、README 说法都读常量。
+    """
+    db = _db()
+    n = db.VALIDATE_CHECK_COUNT
+    root = os.path.join(os.path.dirname(__file__), "..")
+    doc = open(os.path.join(root, "docs/industry/industry-partition-db.md"),
+               encoding="utf-8").read()
+    readme = open(os.path.join(root, "README.md"), encoding="utf-8").read()
+    assert f"的 {n} 条校验" in doc, f"文档标题的条数不是 {n}"
+    assert f"跑 {n} 条校验" in readme, f"README 的条数不是 {n}"
+
+    import re
+    rows = [ln for ln in doc.splitlines() if re.match(r"^\| \d+ \|", ln)]
+    assert len(rows) == n, f"文档表格有 {len(rows)} 行，常量说 {n}"
+
+
+def test_docstring_check_points_are_contiguous():
+    """validate() docstring 里的校验点编号必须 1..N 连续，且与常量一致"""
+    import inspect
+    import re
+    src = inspect.getsource(IndustryDatabase.validate)
+    nums = [int(x) for x in re.findall(r"^        (\d+)\. ", src, re.M)]
+    assert nums == list(range(1, IndustryDatabase.VALIDATE_CHECK_COUNT + 1)), nums
+
+
+def test_cli_check_receipt_reads_constant():
+    """CLI 回执不许写死条数：改了常量，回执跟着变"""
+    import subprocess
+    root = os.path.join(os.path.dirname(__file__), "..")
+    out = subprocess.run(
+        [sys.executable, os.path.join(root, "src/hanghang/cli/main.py"),
+         "industry", "check"],
+        capture_output=True, text=True, cwd=root)
+    assert out.returncode == 0, out.stderr
+    assert f"{IndustryDatabase.VALIDATE_CHECK_COUNT} 条校验" in out.stdout, out.stdout
+
+
 if __name__ == "__main__":
     for name, fn in sorted(list(globals().items())):
         if name.startswith("test_") and callable(fn):

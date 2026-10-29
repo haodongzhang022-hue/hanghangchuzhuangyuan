@@ -515,6 +515,9 @@ class IndustryDatabase:
     # ------------------------------------------------------------ validate
     # 分区手写 provider_mix 与实测分布的允许偏差（百分点），超出即报漂移
     DECLARED_MIX_TOLERANCE = 25.0
+    # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
+    # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
+    VALIDATE_CHECK_COUNT = 17
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:

@@ -238,7 +238,9 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 
 ## validate() 的 17 条校验（软归属版）
 
-编号与 `industry_db.py` 里 `validate()` 的注释逐条对应，改一处记得改两处。
+编号与 `industry_db.py` 里 `validate()` 的注释逐条对应。**条数的唯一来源是代码里的
+`IndustryDatabase.VALIDATE_CHECK_COUNT`**，README、本文标题、CLI 回执都读它；
+表格行数由 `tests/test_industry_filter_partition.py` 断言与常量一致，抄漏一条会红。
 
 | # | 校验点 | 说明 |
 |---|---|---|---|

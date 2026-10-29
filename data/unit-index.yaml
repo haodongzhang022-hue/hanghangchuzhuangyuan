@@ -291,7 +291,7 @@ units:
   - 品牌内容
   - 图文编辑
   - 直播话术
-  - 直播选品
+  - 直播带货
   register_version: '1.1'
   roles:
   - name: copywriter
@@ -363,15 +363,20 @@ units:
     prefix: '[主播]'
     handoff: relay
     composite: true
-    description: 直播话术 直播脚本 直播选品 直播复盘 陪玩陪聊
+    description: 直播话术 直播脚本 直播选品 直播复盘 直播间运营 陪玩陪聊
+    # 裸「直播」保留（「直播复盘」「直播怎么做」这类短句还靠它），但排在组合词
+    # 之后：直播语境的选品归主播，不该被电商侧的裸「选品」同分抢走。
     keywords:
-    - 直播
-    - 主播
-    - 开播
-    - 直播脚本
+    - 直播间
+    - 直播带货
+    - 直播运营
     - 直播话术
+    - 直播脚本
     - 直播选品
     - 直播复盘
+    - 主播
+    - 开播
+    - 直播
     - 带货
     - 打赏
     - 陪玩
@@ -469,7 +474,7 @@ units:
   - 商品上架
   - 电商推广
   - 客服
-  - 选品
+  - 商品选品
   - 店铺装修
   register_version: '1.0'
   roles:
@@ -477,7 +482,7 @@ units:
     prefix: '[店长]'
     handoff: relay
     composite: true
-    description: 店铺运营 商品上架 店铺管理 选品
+    description: 店铺运营 商品上架 店铺管理 商品选品
     keywords:
     - 店铺运营
     - 商品上架
@@ -486,7 +491,8 @@ units:
     - 网店
     - 店铺
     - 电商运营
-    - 选品
+    - 商品选品
+    - 选品上架
     - 上架
     - 商品管理
     - 店铺装修

@@ -397,8 +397,10 @@ def cmd_industry_check(args):
     db = _db(args)
     problems = db.validate()
     if not problems:
-        print(f"✅ 分区/职业数据自检通过：{len(db.partitions)} 分区，"
-              f"{len(db.occupations)} 职业，双向对齐无缺口")
+        # 条数读常量，不手抄：手抄的后果是 README / 文档 / 回执三个数互相打架
+        print(f"✅ 分区/职业数据自检通过（{db.VALIDATE_CHECK_COUNT} 条校验）："
+              f"{len(db.partitions)} 分区，{len(db.occupations)} 职业，"
+              f"双向对齐无缺口")
         return
     print(f"❌ 发现 {len(problems)} 处不一致：")
     for p in problems:
