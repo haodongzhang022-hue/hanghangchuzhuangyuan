@@ -50,6 +50,9 @@ $:
             # 变更感知内核自校验：工具自身改动也会被护栏兜底（评审 #26 🟡2）。
             # ca-plan 属于"基建"，不会触发业务回归；故独立固定 fixture 校验其穿透逻辑不回退。
             python3 scripts/ca-plan-selfcheck.py
+            # M11 岗位卡一致性：改了 data/role-profiles 或 data/workflow-templates
+            # 却忘了重渲 data/rolecards 时，这里直接拦下（否则产物与数据静默分叉）。
+            python3 scripts/gen_rolecards.py --check
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""
@@ -107,6 +110,7 @@ $:
             pip install -q -r requirements.txt
             # 合并门禁同样采用变更感知选择，快速放行无风险的 PR；
             # 全量回归已由 main.push 事件保证。
+            python3 scripts/gen_rolecards.py --check
             bash scripts/change-aware-test.sh
         - name: 自动合并
           # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
