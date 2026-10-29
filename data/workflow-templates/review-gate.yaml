@@ -1,0 +1,40 @@
+# 评审门禁流：适用「审查/复核/质检」岗位，产出评审结论而非交付物。
+id: review-gate
+description: 四段式评审流（取件→逐项判定→结论分级→回传）
+flow:
+  name: 评审门禁流
+  trigger: 收到待评审的产物
+  handoff_out: 评审结论回传产出方或出口复核
+  steps:
+    - id: fetch
+      name: 取件与范围界定
+      playbook: 明确评审对象、版本与评审口径（只对本次改动或本次交付负责）
+      outputs:
+        - 评审范围
+      verify:
+        - 范围与版本已锁定
+      runtime: agent
+    - id: inspect
+      name: 逐项判定
+      playbook: 按清单逐项检查，只对事实性错误提意见，风格偏好放行
+      outputs:
+        - 问题清单
+      verify:
+        - 每条问题可定位到具体位置与依据
+      runtime: agent
+    - id: verdict
+      name: 结论分级
+      playbook: 按阻断/应修/建议/放行四级给结论，不模糊表态
+      outputs:
+        - 评审结论
+      verify:
+        - 每条问题都有级别
+      runtime: agent
+    - id: feedback
+      name: 回传与闭环
+      playbook: 生成回传清单，明确返工点与复评条件
+      outputs:
+        - 回传清单
+      verify:
+        - 返工点可执行、复评条件明确
+      runtime: agent

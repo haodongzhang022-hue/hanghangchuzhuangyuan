@@ -102,8 +102,13 @@ class IntentRouter:
         "电商网站", "企业网站",
     )
 
-    def __init__(self, registry: Optional[Registry] = None):
+    def __init__(self, registry: Optional[Registry] = None,
+                 rolecard_store=None):
         self.registry = registry or Registry()
+        # M11 岗位画像层（可选注入）：有画像卡时按 activation.weight 对岗位信号加权。
+        # 缺画像卡 → 权重恒为 1.0，路由行为与未接入 M11 前完全一致（向后兼容）。
+        self.rolecard_store = rolecard_store
+        self._weight_cache: Dict[str, float] = {}
 
     def route(self, text: str) -> RouteResult:
         """对用户意图做多级路由判定"""
@@ -317,12 +322,15 @@ class IntentRouter:
                     matched_signals.append(f"tag:{tag}")
                     matched_terms.append(tag)
 
-            # 3. 单元内岗位关键词命中（强信号，1.5/岗位）
+            # 3. 单元内岗位关键词命中（强信号，1.5/岗位 × M11 画像激活权重）
             for role in unit.roles:
                 for kw in role.get_keywords():
                     if kw and kw in text:
-                        score += 1.5
+                        weight = self._activation_weight(unit.unit_id, role.name)
+                        score += 1.5 * weight
                         matched_signals.append(f"role:{role.name}:{kw}")
+                        if weight != 1.0:
+                            matched_signals.append(f"role_weight:{role.name}:{weight}")
                         matched_terms.append(kw)
                         break  # 每岗位只计一次
 
@@ -333,6 +341,31 @@ class IntentRouter:
                 "unit": unit,
             }
         return scores
+
+    def _activation_weight(self, unit_id: str, role_name: str) -> float:
+        """M11：岗位画像的路由激活权重。
+
+        画像卡的 activation.weight 表达「该岗位承接该类诉求的意愿/适配度」，
+        由 data/role-profiles 声明（数据驱动）。无画像/无声明时返回 1.0，
+        保证没写画像的行业与接入前路由结果一致。
+        结果按 (unit, role) 缓存，避免每次评分重复读盘。
+        """
+        key = f"{unit_id}::{role_name}"
+        if key in self._weight_cache:
+            return self._weight_cache[key]
+        weight = 1.0
+        store = self.rolecard_store
+        if store is not None:
+            try:
+                card = store.get(unit_id, role_name)
+                if card and card.activation:
+                    raw = card.activation.get("weight", 1.0)
+                    if isinstance(raw, (int, float)) and raw > 0:
+                        weight = float(raw)
+            except Exception:  # 画像层异常不得影响路由主链路
+                weight = 1.0
+        self._weight_cache[key] = weight
+        return weight
 
     def _identify_roles(self, text: str, unit: IndustryUnit) -> List[Role]:
         """识别文本对应单元内的哪些岗位被命中（可能多个=复合）

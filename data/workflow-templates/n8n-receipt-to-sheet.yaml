@@ -1,0 +1,49 @@
+# n8n 形态示例：票据/单据 OCR → 结构化 → 入表 → 异常告警。
+# 说明：本模板只声明步骤与节点语义，re-export 到 n8n 时按节点名映射，不保存任何凭据。
+id: n8n-receipt-to-sheet
+description: 票据单据批处理（n8n 形态：收件→OCR→归一→入库→告警）
+flow:
+  name: 票据批处理流
+  trigger: 收到批量票据或单据文件
+  handoff_out: 结构化结果表与异常清单
+  steps:
+    - id: ingest
+      name: 收件
+      playbook: 收集单据文件与来源标识，丢弃不清晰或重复件并登记
+      outputs:
+        - 待处理清单
+      verify:
+        - 重复件已去重
+      runtime: n8n
+    - id: ocr
+      name: OCR 识别
+      playbook: 抽取字段（金额、日期、对方、税号），置信度低的进人工队列
+      outputs:
+        - 字段抽取结果
+      verify:
+        - 低置信度条目已入人工队列
+      runtime: n8n
+    - id: normalize
+      name: 结构化归一
+      playbook: 统一字段口径与金额格式，映射到目标表结构
+      outputs:
+        - 归一化记录
+      verify:
+        - 字段映射覆盖率百分之百
+      runtime: n8n
+    - id: persist
+      name: 入库
+      playbook: 幂等写入目标表，唯一键为票据号加金额加日期
+      outputs:
+        - 写入统计
+      verify:
+        - 重跑不产生重复行
+      runtime: n8n
+    - id: alert
+      name: 异常告警
+      playbook: 校验失败、金额异常或缺字段的记录汇总通知责任人
+      outputs:
+        - 异常清单
+      verify:
+        - 每条异常都有责任人与原因
+      runtime: n8n

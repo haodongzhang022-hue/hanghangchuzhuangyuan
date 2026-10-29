@@ -1,0 +1,63 @@
+# 通用交付工序模板：适用「有明确交付物、需自检、需交接下游」的岗位。
+# 岗位通过 profile.workflow.templates[].override 覆盖 steps 的 name/playbook/outputs/verify/runtime。
+# 写法约定：steps 用块状 YAML（不用 `verify: [a, b]` 行内写法——里面的逗号会被当成流式分隔符）。
+id: standard-delivery
+description: 六段式通用交付流（接单→取上下文→主作业→自检→交付→交接）
+flow:
+  name: 标准交付流
+  trigger: 用户提出一个需要交付物的诉求
+  handoff_out: 产物交下游岗位或直接出口复核
+  steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs:
+        - 诉求备忘
+        - 验收口径
+      verify:
+        - 目标与验收口径已复述确认
+      runtime: agent
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions:
+        - 诉求备忘已确认
+      outputs:
+        - 输入清单
+      verify:
+        - 每份输入都有来源
+      runtime: agent
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions:
+        - 输入清单齐备
+      outputs:
+        - 交付物主体
+      verify:
+        - 满足验收口径
+      runtime: agent
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs:
+        - 自检记录
+      verify:
+        - 不确定项已显式标注
+      runtime: agent
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs:
+        - 交付说明
+      verify:
+        - 结论可回溯到依据
+      runtime: agent
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs:
+        - 交接卡
+      verify:
+        - 交接卡含产物、约束、待决项
+      runtime: agent

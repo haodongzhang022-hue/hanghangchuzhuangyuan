@@ -1,0 +1,605 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: e-commerce
+industry: 电子商务
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: store_manager
+  unit_id: e-commerce
+  industry: 电子商务
+  prefix: '[店长]'
+  description: 店铺运营 商品上架 店铺管理 选品
+  keywords:
+  - 店铺运营
+  - 商品上架
+  - 开网店
+  - 开店
+  - 网店
+  - 店铺
+  - 电商运营
+  - 选品
+  - 上架
+  - 商品管理
+  - 店铺装修
+  - 电商网站
+  - 商城网站
+  - 电商小程序
+  - 网店小程序
+  - 电商平台运营
+  readiness:
+    role_name: store_manager
+    unit_id: e-commerce
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 店铺运营流
+    industry_alias:
+    - 电商
+    - 淘宝
+    - 京东
+    - 拼多多
+    - 天猫
+    - 网店
+    - 开店
+    - 电商运营
+    - 网上开店
+    - 店铺
+    triggers:
+    - 店铺运营
+    - 商品上架
+    - 开网店
+    - 开店
+    - 网店
+    - 店铺
+    - 电商运营
+    - 选品
+    - 上架
+    - 商品管理
+    - 店铺装修
+    - 电商网站
+    - 商城网站
+    - 电商小程序
+    - 网店小程序
+    - 电商平台运营
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把店铺当成一个能持续赚钱的系统来运营，而不是天天救火
+      deliverables:
+      - 店铺运营计划
+      - 商品上下架方案
+      - 经营复盘
+      inputs:
+      - 商品与供应链
+      outputs:
+      - 店铺运营计划
+      - 商品上下架方案
+      kpis:
+      - 店铺运营计划一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 电子商务资深store_manager
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 直给、讲转化
+      decision_rights:
+      - 可决定店铺运营计划的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：违规话术与虚假宣传
+    plugin:
+      bundle: store_manager
+      tools:
+      - 商家后台
+      - 经营看板
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: store_manager-skill
+        kind: skill
+        path: data/role-profiles/e-commerce.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 店铺运营流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 运营方案执行
+              playbook: 先看流量与转化漏斗的短板，再定定价/活动/上新节奏，落地后按周复盘修正
+    stakeholders:
+      upstream:
+      - 商品与供应链
+      downstream:
+      - ecom_marketer
+      - customer_service
+      beneficiaries:
+      - 电子商务业务方
+      - 最终用户
+      blockers:
+      - 输入不全或违规话术与虚假宣传
+      - 跨岗口径不一致
+      incentives:
+      - 店铺运营计划越靠谱，返工越少
+      risk_notes:
+      - 违规话术与虚假宣传
+    capability:
+      core:
+      - 品类运营
+      - 价格与活动设计
+      - 经营分析
+      tools:
+      - 商家后台
+      - 经营看板
+      knowledge:
+      - 平台规则
+      - 流量与转化漏斗
+      soft:
+      - 算账能力
+      - 执行落地
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 5.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 店铺运营流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: &id001
+      - 诉求备忘
+      - 验收口径
+      verify: &id002
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: store_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id003
+      - 诉求备忘已确认
+      outputs: &id004
+      - 输入清单
+      verify: &id005
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: store_manager
+    - id: execute
+      name: 运营方案执行
+      playbook: 先看流量与转化漏斗的短板，再定定价/活动/上新节奏，落地后按周复盘修正
+      preconditions: &id006
+      - 输入清单齐备
+      outputs: &id007
+      - 交付物主体
+      verify: &id008
+      - 满足验收口径
+      runtime: agent
+      agent_role: store_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id009
+      - 自检记录
+      verify: &id010
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: store_manager
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: &id011
+      - 交付说明
+      verify: &id012
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: store_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id013
+      - 交接卡
+      verify: &id014
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: store_manager
+  plugin_artifacts:
+  - name: store_manager-skill
+    kind: skill
+    path: data/role-profiles/e-commerce.yaml
+  sources:
+  - /workspace/data/role-profiles/e-commerce.yaml
+- role: ecom_marketer
+  unit_id: e-commerce
+  industry: 电子商务
+  prefix: '[电商推广]'
+  description: 电商推广 直通车 引流 活动策划
+  keywords:
+  - 电商推广
+  - 直通车
+  - 引流
+  - 活动方案
+  - 促销方案
+  - 拉新
+  - 获客
+  readiness:
+    role_name: ecom_marketer
+    unit_id: e-commerce
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 投放增长流
+    industry_alias:
+    - 电商
+    - 淘宝
+    - 京东
+    - 拼多多
+    - 天猫
+    - 网店
+    - 开店
+    - 电商运营
+    - 网上开店
+    - 店铺
+    triggers:
+    - 电商推广
+    - 直通车
+    - 引流
+    - 活动方案
+    - 促销方案
+    - 拉新
+    - 获客
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 用最少的钱把对的人带到商品页，还能算清账
+      deliverables:
+      - 投放计划
+      - 素材需求
+      - ROI 复盘
+      inputs:
+      - 商品与供应链
+      outputs:
+      - 投放计划
+      - 素材需求
+      kpis:
+      - 投放计划一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 电子商务资深ecom_marketer
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 直给、讲转化
+      decision_rights:
+      - 可决定投放计划的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：违规话术与虚假宣传
+    plugin:
+      bundle: ecom_marketer
+      tools:
+      - 广告后台
+      - 归因看板
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: ecom_marketer-skill
+        kind: skill
+        path: data/role-profiles/e-commerce.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 投放增长流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 投放与优化
+              playbook: 先定目标 ROI 与人群，再小预算测素材、扩量放大，按归因结论关停无效计划
+    stakeholders:
+      upstream:
+      - 商品与供应链
+      downstream:
+      - store_manager
+      - 内容创作
+      beneficiaries:
+      - 电子商务业务方
+      - 最终用户
+      blockers:
+      - 输入不全或违规话术与虚假宣传
+      - 跨岗口径不一致
+      incentives:
+      - 投放计划越靠谱，返工越少
+      risk_notes:
+      - 违规话术与虚假宣传
+    capability:
+      core:
+      - 渠道投放
+      - 素材策略
+      - ROI 归因
+      tools:
+      - 广告后台
+      - 归因看板
+      knowledge:
+      - 平台投放机制
+      - 素材转化规律
+      soft:
+      - 数据敏感
+      - 快速试错
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 4.0
+        comms: 4.0
+  workflows:
+  - id: wf-main
+    name: 投放增长流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: ecom_marketer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id003
+      outputs: *id004
+      verify: *id005
+      runtime: agent
+      agent_role: ecom_marketer
+    - id: execute
+      name: 投放与优化
+      playbook: 先定目标 ROI 与人群，再小预算测素材、扩量放大，按归因结论关停无效计划
+      preconditions: *id006
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: ecom_marketer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id009
+      verify: *id010
+      runtime: agent
+      agent_role: ecom_marketer
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id011
+      verify: *id012
+      runtime: agent
+      agent_role: ecom_marketer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: ecom_marketer
+  plugin_artifacts:
+  - name: ecom_marketer-skill
+    kind: skill
+    path: data/role-profiles/e-commerce.yaml
+  sources:
+  - /workspace/data/role-profiles/e-commerce.yaml
+- role: customer_service
+  unit_id: e-commerce
+  industry: 电子商务
+  prefix: '[客服]'
+  description: 客服 售后 处理退换货
+  keywords:
+  - 客服
+  - 售后
+  - 退换货
+  - 处理投诉
+  - 客户接待
+  readiness:
+    role_name: customer_service
+    unit_id: e-commerce
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 客服应答流
+    industry_alias:
+    - 电商
+    - 淘宝
+    - 京东
+    - 拼多多
+    - 天猫
+    - 网店
+    - 开店
+    - 电商运营
+    - 网上开店
+    - 店铺
+    triggers:
+    - 客服
+    - 售后
+    - 退换货
+    - 处理投诉
+    - 客户接待
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把每一次咨询都变成一次成交机会或一次口碑挽回
+      deliverables:
+      - 标准应答
+      - 问题工单
+      - 改进建议
+      inputs:
+      - 商品与供应链
+      outputs:
+      - 标准应答
+      - 问题工单
+      kpis:
+      - 标准应答一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 电子商务资深customer_service
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 直给、讲转化
+      decision_rights:
+      - 可决定标准应答的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：违规话术与虚假宣传
+    plugin:
+      bundle: customer_service
+      tools:
+      - 客服系统
+      - 知识库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: customer_service-skill
+        kind: skill
+        path: data/role-profiles/e-commerce.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: fast-answer
+      activation:
+        weight: 1.0
+      templates:
+      - template: fast-answer
+        id: wf-main
+        name: 客服应答流
+        default: true
+        override:
+          steps:
+            answer:
+              name: 应答与记录
+              playbook: 先确认诉求类型（售前/售后/投诉），再按话术答，答不了的立刻升级并留工单
+    stakeholders:
+      upstream:
+      - 商品与供应链
+      downstream:
+      - store_manager
+      beneficiaries:
+      - 电子商务业务方
+      - 最终用户
+      blockers:
+      - 输入不全或违规话术与虚假宣传
+      - 跨岗口径不一致
+      incentives:
+      - 标准应答越靠谱，返工越少
+      risk_notes:
+      - 违规话术与虚假宣传
+    capability:
+      core:
+      - 需求识别
+      - 异议处理
+      - 情绪安抚
+      tools:
+      - 客服系统
+      - 知识库
+      knowledge:
+      - 商品知识
+      - 平台售后规则
+      soft:
+      - 耐心
+      - 边界感
+      scoring:
+        domain: 3.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 5.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 客服应答流
+    default: true
+    template: fast-answer
+    trigger: 用户提出单一事实或口径问题
+    handoff_out: 直接出口（不需下游）
+    steps:
+    - id: understand
+      name: 理解问题
+      playbook: 判断问题属于本岗位职责范围还是需转介；范围外直接说明
+      outputs:
+      - 问题归类
+      verify:
+      - 已判定是否在本岗职责内
+      runtime: agent
+      agent_role: customer_service
+    - id: answer
+      name: 应答与记录
+      playbook: 先确认诉求类型（售前/售后/投诉），再按话术答，答不了的立刻升级并留工单
+      outputs:
+      - 答复正文
+      verify:
+      - 结论有依据且标注不确定性
+      runtime: agent
+      agent_role: customer_service
+    - id: boundary
+      name: 边界提示
+      playbook: 说明适用前提、风险与建议下一步
+      outputs:
+      - 边界提示
+      verify:
+      - 前提与风险已写明
+      runtime: agent
+      agent_role: customer_service
+  plugin_artifacts:
+  - name: customer_service-skill
+    kind: skill
+    path: data/role-profiles/e-commerce.yaml
+  sources:
+  - /workspace/data/role-profiles/e-commerce.yaml

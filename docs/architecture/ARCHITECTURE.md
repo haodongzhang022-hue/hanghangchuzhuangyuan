@@ -34,6 +34,7 @@ flowchart TB
         IDX["跨行业能力索引(M8)"]
         STA["状态管理层(M9)"]
         CTX["上下文装配器(M10)"]
+        ROL["岗位画像层(M11)"]
     end
     subgraph L0["L0 行业单元层（现有，原子化收编）"]
         U1["dongjiagoushi<br/>软件研发·架构团队"]
@@ -48,6 +49,7 @@ flowchart TB
     MTR --> REG & IDX
     STA --> CTX
     PREF --> CTX
+    ROL --> GATE & CTX
     U1 & U2 & UN --> OUT
 ```
 
@@ -67,6 +69,7 @@ flowchart TB
 | M8 | 跨行业能力索引 | 索引各单元能力入口供编排检索 | 注册表+日志 | 可检索索引 | M2 | 低 |
 | M9 | 状态管理层 | 任务状态卡+折叠索引+层级提交+秘书长多级树+秘书并发归属/冲突仲裁 | 任务/对话原文 | StateCard+渲染层+树拓扑 | M2/M5 | MED-折叠边界 |
 | M10 | 上下文装配器 | 三层拼装+规则表触发+缓存隔离（防提示词冗余） | 角色+StateCard+触发文本 | 分层上下文+缓存键 | M3/M9 | MED-规则覆盖不全 |
+| M11 | 岗位画像层 | 六维评估（分析/画像/插件/工作流/利益链条/核心能力）+可插件化就绪度+工作流 playbook 渲染（agent/n8n/code） | 画像基线+注册表+工作流模板+上游技能包 | 岗位卡+就绪度评级+缺口清单+分步 playbook | M2 | MED-画像质量靠人写 |
 
 ---
 
@@ -157,11 +160,13 @@ register_version: "1.0"
 | R15 | SLIB 会话级行业绑定 | ✅ SessionBindingStore + SessionBoundRouter + CLI route --session / bind / bindings。会话绑定行业后禁止同会话跨行业（触发交接），保证前缀稳定。 |
 | R16 | M9 编排/交接进度可视化 | ✅ GET /api/state 只读聚合 + 面板任务进度页，落 RFC-ECO-01 阶段3 |
 | R17 | 行业使用说明（Agent 对接文档） | ✅ docs/industry/units/ 按行业建 agent 使用说明（定位/能力/岗位/路由接入/约束）+ _template 模板。支持机制未完善行业先建占位目录，后续按全行业列表扩展。 |
+| R19 | M11 岗位画像层 | ✅ 14单元/50岗位六维画像基线 + 就绪度评分(均值95.0/全A) + 5套工作流模板 + 岗位卡渲染器(`scripts/gen_rolecards.py`) + CLI `role list/show/playbook/context/coverage` + M1 路由 `activation.weight` 加权 + M10 层A 注入岗位卡（缓存键稳定）。上游 knowledge-work-plugins 只读快照收编于 `vendor/upstream/` |
 | R18 | 单会话续传快照 | ✅ GET /api/session 只读快照+续传锚点(resume_key/pending)+交接反查，落 RFC-ECO-01 阶段4·轮询拉取形态 |
 
 **索引**
 - 顶层架构(本文件)：`docs/architecture/ARCHITECTURE.md`
 - 需求基线：`docs/architecture/通用能力-需求澄清基线.md`
+- 岗位画像层(M11)：`docs/architecture/M11-岗位画像层.md`
 - 单元接入规范：`docs/industry/register-spec.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
 - 电子书旧档(迁出)：`docs/legacy/ebook-sousuozengqiang/`
@@ -200,3 +205,9 @@ register_version: "1.0"
 > 📝 **CodeBuddy** | 2026-09-08: 新增 SLIB 会话级行业绑定（M4 强化）——SessionBindingStore 持久化绑定关系，
 > SessionBoundRouter 会话感知路由（首次路由自动绑定/跨行业触发交接/同行业正常编排）。
 > 详细设计见 `docs/architecture/SLIB-会话级行业绑定.md`。
+>
+> 📝 **CodeBuddy** | 2026-10-29: 新增 M11 岗位画像层（Issue #31）——行业单元之上补"岗位"这一层的评估表：
+> 六维（分析/画像/插件/工作流/利益链条/核心能力）画像基线落在 `data/role-profiles/`，
+> 经 `data/workflow-templates/` 渲染成可执行的岗位卡（`data/rolecards/`），给出就绪度与缺口；
+> 路由按画像 `activation.weight` 加权、M10 层A 注入岗位卡、playbook 可导出 text/json/n8n/code。
+> 设计见 `docs/architecture/M11-岗位画像层.md`。

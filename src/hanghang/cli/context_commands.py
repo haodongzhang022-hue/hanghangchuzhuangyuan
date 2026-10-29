@@ -61,6 +61,21 @@ def _rules_file():
     return _data_file("context-rules.yaml")
 
 
+def _rolecard_provider(unit_id: str, role_name: str):
+    """M11：把岗位画像卡渲染成静态层文本块。
+
+    只读 data/role-profiles + data/workflow-templates（+已渲染的 data/rolecards），
+    不写盘、不触网；无画像基线时返回 None（退回旧行为，不报错）。
+    """
+    try:
+        from hanghang.rolecard import RoleCardStore
+        store = RoleCardStore(registry=_load_registry())
+        card = store.get(unit_id, role_name)
+        return card.to_context_block() if card else None
+    except Exception:
+        return None
+
+
 def _auto_prefix_provider(unit_id: str, role_name: str):
     """从 data/prefix-archive.json 自动取某单元某岗位的稳定前缀。
 
@@ -184,6 +199,9 @@ def cmd_context_assemble(args):
         else RuleEngine(),
         static_prefix_provider=_auto_prefix_provider,
         slib_guard=SLIBAssemblyGuard(),
+        # M11：显式 --no-rolecard 可关闭岗位卡注入（对比排查/回归用）
+        rolecard_provider=None if getattr(args, "no_rolecard", False)
+        else _rolecard_provider,
     )
 
     try:

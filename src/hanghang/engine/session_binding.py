@@ -254,15 +254,18 @@ class SessionBoundRouter:
                  registry: Optional[Registry] = None,
                  state_manager=None,
                  binding_store: Optional[SessionBindingStore] = None,
-                 prefix_archive: Optional[PrefixArchive] = None):
+                 prefix_archive: Optional[PrefixArchive] = None,
+                 rolecard_store=None):
         from .router import IntentRouter, CompositePlanner
         self.registry = registry or Registry()
+        # M11 岗位画像层（可选）：透传给 M1 做岗位激活加权；None 时行为不变
+        self.rolecard_store = rolecard_store
         self.binding_store = binding_store or SessionBindingStore()
         # 惰性导入 StateManager（避免循环依赖）
         self._state_manager = state_manager
 
         # 会话感知的路由需要两个引擎：意图识别 + 会话编排
-        self._router = IntentRouter(self.registry)
+        self._router = IntentRouter(self.registry, rolecard_store=self.rolecard_store)
         self._planner = CompositePlanner(self.registry)
 
     @property

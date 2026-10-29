@@ -1,0 +1,32 @@
+# 纯代码化流：确定性工序（校验/计算/生成），不依赖模型判断。
+id: code-check
+description: 三段式代码化流（取数→规则计算→出报告）
+flow:
+  name: 代码校验流
+  trigger: 收到结构化数据或规则化诉求
+  handoff_out: 校验报告
+  steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs:
+        - 标准化数据集
+      verify:
+        - schema 校验通过
+      runtime: code
+    - id: compute
+      name: 规则计算
+      playbook: 按确定性规则计算（金额、税额、工时、评分）；规则未覆盖的情况抛出异常，不猜
+      outputs:
+        - 计算结果
+      verify:
+        - 结果可复算且一致
+      runtime: code
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs:
+        - 结果报告
+      verify:
+        - 报告含口径说明
+      runtime: code
