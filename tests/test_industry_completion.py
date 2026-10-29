@@ -176,10 +176,173 @@ def test_gdp_null_but_employment_present():
         assert p.get("employment")
 
 
+# ------------------------------------------------- CLI 走视角边，不读旧字段
+def _run_cli(*args):
+    import subprocess
+    root = os.path.join(os.path.dirname(__file__), "..")
+    return subprocess.run(
+        [sys.executable, os.path.join(root, "src/hanghang/cli/main.py"),
+         "industry", *args],
+        capture_output=True, text=True, cwd=root)
+
+
+def test_cli_occupations_partition_filter_uses_axis_view():
+    """`occupations --partition` 必须按边筛：软归属后职业身上没有 unit_id 了，
+    读旧字段的话这里恒返回「无匹配职业」——看着像"这个分区真的没人"。 """
+    db = _db()
+    expect = len(db.members_of("live-streaming"))
+    assert expect > 0
+    out = _run_cli("occupations", "--partition", "live-streaming")
+    assert out.returncode == 0, out.stderr
+    assert "无匹配职业" not in out.stdout, out.stdout
+    assert f"合计 {expect} 个职业" in out.stdout, out.stdout
+    assert "streamer" in out.stdout
+
+
+def test_cli_occupations_unassigned_is_not_whole_library():
+    """`--unassigned` 是"没有被任何视角引用"，不是"字段为空"——
+    旧实现给的是全表，等于把"全都没挂"这个假消息当结论。 """
+    db = _db()
+    free = len(db.unassigned_occupations())
+    assert 0 < free < len(db.occupations)
+    out = _run_cli("occupations", "--unassigned")
+    assert out.returncode == 0, out.stderr
+    assert f"合计 {free} 个职业" in out.stdout, out.stdout
+    # 已挂视角的职业不许混进来
+    assert "architect " not in out.stdout, out.stdout
+
+
+def test_cli_unknown_partition_is_reported_not_silently_empty():
+    out = _run_cli("occupations", "--partition", "no-such-partition")
+    assert out.returncode != 0
+    assert "未找到分区" in out.stdout, out.stdout
+
+
+def test_partition_detail_resolves_planned_roles_via_edges():
+    """骨架里的岗位名要带出中文名：反查必须走边，读 o['unit_id'] 恒 False"""
+    out = _run_cli("partition", "live-streaming")
+    assert out.returncode == 0, out.stderr
+    line = next(ln for ln in out.stdout.splitlines() if "计划岗位" in ln)
+    assert "streamer(网络主播/直播带货)" in line, line
+
+
+def test_access_view_resolves_partitions_via_edges():
+    """access 的"视角"列不许恒为 `-`"""
+    out = _run_cli("access", "--side", "non_market")
+    assert out.returncode == 0, out.stderr
+    body = [ln for ln in out.stdout.splitlines()
+            if ln.strip().startswith("factory-operator")]
+    assert body and "manufacturing" in body[0], body
+
+
+# ------------------------------------------------- 骨架双向反查（第 19 条）
+def test_dangling_planned_role_is_reported():
+    """骨架里有、本分区没有任何边填这个 unit_role → 骨架悬空。
+
+    旧实现只查成员侧（成员填的名字要在骨架里），骨架本身是自由变量：
+    凭空加一个岗位名，validate() 返回 []。
+    """
+    db = _db()
+    p = db.partition("live-streaming")
+    p["planned_roles"] = list(p.get("planned_roles") or []) + ["主播总监"]
+    problems = db.validate()
+    assert any("planned_roles" in x and "主播总监" in x for x in problems), problems
+
+
+def test_missing_planned_role_is_reported():
+    """把骨架里有人认领的岗位删掉 → 同样报出来（双向，不是单向）"""
+    db = _db()
+    p = db.partition("live-streaming")
+    p["planned_roles"] = ["streamer"]  # live_host 被删
+    db.partitions.append({"id": "skeleton-probe", "name": "骨架探针",
+                          "status": "pending", "planned_roles": ["ghost_role"]})
+    problems = db.validate()
+    assert any("skeleton-probe" in x and "ghost_role" in x for x in problems), problems
+
+
+def test_planned_role_cannot_borrow_edge_from_other_partition():
+    """岗位名是分区内命名：别处的同名边不能给本分区背书"""
+    db = _db()
+    db.partitions.append({"id": "borrow-probe", "name": "借用探针",
+                          "status": "pending",
+                          "planned_roles": ["live_host"]})  # live_host 只在 content-creation 有边
+    problems = db.validate()
+    assert any("borrow-probe" in x and "live_host" in x for x in problems), problems
+
+
+def test_evaluated_partition_skeleton_is_not_reported():
+    """evaluated = 评估后明确不建单元，骨架是留档，没人认领属预期"""
+    db = _db()
+    for p in db.partitions:
+        if p.get("status") == "evaluated":
+            assert not any(f"分区 {p['id']} 的 planned_roles" in x
+                           for x in db.validate()), p["id"]
+
+
+def test_covered_partition_skeleton_left_to_check_9():
+    """已建单元的分区不重复报骨架：成员缺 unit_role 由第 9 条负责"""
+    db = _db()
+    p = db.partition("live-streaming")
+    p["status"] = "covered"
+    p["unit_id"] = "dongjiagoushi"
+    problems = db.validate()
+    assert any("unit_role" in x for x in problems), problems
+    # 现实数据里其他 pending 分区的骨架还在报，所以只断言本分区不重复报
+    assert not any("分区 live-streaming 的 planned_roles" in x
+                   for x in problems), problems
+
+
 # --------------------------------------------------------------- 集成
 def test_real_data_still_self_consistent():
-    """补完数据后自检必须干净：新增字段不能引入新的脏数据"""
-    assert _db().validate() == []
+    """补完数据后自检只剩"骨架没人认领"这一类已知缺口。
+
+    第 19 条上线后暴露的真实现状：20 个待建分区、81 个骨架岗位没有对应原子岗位
+    （分区说了要建这些岗，职业库还没登记做这些活的人）。这不是代码缺陷，是
+    待建分区的补职业工作——这里钉住"不许有第二类问题混进来"，也让缺口数量可见。
+    """
+    problems = _db().validate()
+    others = [p for p in problems if "骨架悬空" not in p]
+    assert others == [], others
+
+
+def test_cli_check_exit_code_separates_known_gap_from_real_error():
+    """退出码分档：0 干净 / 2 只剩待建分区骨架缺口 / 1 真问题。
+
+    混成一档的后果是二选一：要么所有 PR 被同一批已知缺口卡死，要么把真错误也放过。
+    """
+    db = _db()
+    others = [p for p in db.validate() if "骨架悬空" not in p]
+    out = _run_cli("check")
+    if others:
+        assert out.returncode == 1, others
+    else:
+        assert out.returncode == 2, out.stdout
+        assert "待建分区" in out.stdout and "未完成" in out.stdout, out.stdout
+
+
+def test_pipeline_treats_known_gap_as_non_blocking():
+    """流水线必须允许退出码 2 通过，且不许把 1 也放过"""
+    root = os.path.join(os.path.dirname(__file__), "..")
+    yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
+    assert yml.count('"$rc" = "2"') >= 3, "PR 测试/合并门禁/main 回归三处都要放行 2"
+    assert '|| exit "$rc"' in yml
+
+
+def test_skeleton_gap_is_counted_not_silently_dropped():
+    """缺口是**一条一分区**报出来，且总数可算：不能悄悄缩水，也不能刷屏到淹掉别的错"""
+    db = _db()
+    gaps = [p for p in db.validate() if "骨架悬空" in p]
+    dangling = 0
+    for p in db.partitions:
+        if p.get("status") != "pending":
+            continue
+        planned = set(p.get("planned_roles") or [])
+        claimed = {m.get("unit_role") for m in db.axis_view.of_partition(p["id"])
+                   if m.get("unit_role")}
+        if planned - claimed:
+            dangling += 1
+    assert len(gaps) == dangling
+    assert dangling > 0, "缺口被补完了就把这个断言删掉，别留一条恒真的守卫"
 
 
 def test_coverage_denominators_unchanged_by_completion():

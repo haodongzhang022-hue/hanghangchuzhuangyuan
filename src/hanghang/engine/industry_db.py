@@ -525,7 +525,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 18
+    VALIDATE_CHECK_COUNT = 19
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -577,6 +577,11 @@ class IndustryDatabase:
         18. 职业 pending_partition 必须指向真实分区：note 里写"待补"是隐形契约，
             机器看不见；这个字段是显式的，写错了就是一句没人执行的承诺。
             已有归属边却还留着意向，说明字段没清——同样报出来。
+        19. planned_roles 骨架双向反查（第 10 条只查成员侧，骨架本身是自由变量）：
+            骨架里的岗位名必须能反查到本分区的一条边（悬空骨架 = 说了要建却没人
+            认领，建单元那天会直接对不上）；反过来，成员填了 unit_role 而骨架没
+            声明，由第 10 条报"缺骨架"。只认**本分区**的边：岗位名是分区内命名，
+            拿别处的同名边背书等于允许凭空加一个别处在用的名字。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -695,6 +700,31 @@ class IndustryDatabase:
                             f"分区 {pid} 的 provider_mix.{k} 声明 "
                             f"{declared.get(k)}% 与实测 {measured[k]}% "
                             f"偏差 {drift:.0f}pt（>{self.DECLARED_MIX_TOLERANCE:.0f}pt）")
+
+        # 19. 骨架双向反查：骨架里的岗位名必须在本分区有边认领。
+        # 第 10 条只保证"成员填的岗位名在骨架里"，骨架本身没人管——
+        # 从 planned_roles 删一项、或凭空加一项，旧实现都返回 []。
+        for p in self.partitions:
+            pid = p.get("id", "")
+            planned = p.get("planned_roles") or []
+            if not planned:
+                continue
+            # 只对**打算建单元**的 pending 分区报：已建单元的分区由第 9 条守着
+            # （成员缺 unit_role 必报）；evaluated 是评估后明确不建，骨架在那儿
+            # 是留档，没人认领属预期。
+            if p.get("status") != "pending":
+                continue
+            claimed_roles = {m.get("unit_role")
+                             for m in self.axis_view.of_partition(pid)
+                             if m.get("unit_role")}
+            dangling = [r for r in planned if r not in claimed_roles]
+            if dangling:
+                # 一条汇总而不是逐个刷屏：40 个待建分区骨架几乎都没人认领，
+                # 逐项报会把真问题（哪个分区在缺人）淹掉
+                problems.append(
+                    f"分区 {pid} 的 planned_roles 有 {len(dangling)} 个岗位没有任何"
+                    f"职业边认领 {dangling}（骨架悬空：声明要建的岗位没人负责，"
+                    f"建单元后岗位与职业对不上）")
 
         # 8. 软归属的边自检（悬空分区/未知轴/权重越界/同边重复/唯一编号）。
         # 老单值 unit_id 挂到"单元 id"的情形在这里不再报错：单元名与分区名同名

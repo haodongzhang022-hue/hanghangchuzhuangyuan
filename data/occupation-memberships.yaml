@@ -72,23 +72,23 @@ memberships:
   - {occupation: ui-designer, partition: design-visual, axis: occupation, weight: 1.0, unit_role: ui_designer}
   - {occupation: illustrator, partition: design-visual, axis: occupation, weight: 1.0, unit_role: illustrator}
   - {occupation: brand-designer, partition: design-visual, axis: occupation, weight: 1.0, unit_role: brand_designer}
-  - {occupation: simultaneous-interpreter, partition: interpretation, axis: occupation, weight: 1.0}
-  - {occupation: subtitle-translator, partition: translation, axis: occupation, weight: 1.0}
-  - {occupation: localizer, partition: translation, axis: occupation, weight: 1.0}
-  - {occupation: proofreader, partition: translation, axis: occupation, weight: 1.0}
-  - {occupation: video-editor, partition: video-media, axis: occupation, weight: 1.0}
-  - {occupation: cinematographer, partition: video-media, axis: occupation, weight: 1.0}
-  - {occupation: post-production, partition: video-media, axis: occupation, weight: 1.0}
-  - {occupation: director-assistant, partition: video-media, axis: occupation, weight: 1.0}
-  - {occupation: scriptwriter, partition: video-media, axis: occupation, weight: 1.0}
+  - {occupation: simultaneous-interpreter, partition: interpretation, axis: occupation, weight: 1.0, unit_role: interpreter}
+  - {occupation: subtitle-translator, partition: translation, axis: occupation, weight: 1.0, unit_role: subtitle}
+  - {occupation: localizer, partition: translation, axis: occupation, weight: 1.0, unit_role: localizer}
+  - {occupation: proofreader, partition: translation, axis: occupation, weight: 1.0, unit_role: proofreader}
+  - {occupation: video-editor, partition: video-media, axis: occupation, weight: 1.0, unit_role: video_editor}
+  - {occupation: cinematographer, partition: video-media, axis: occupation, weight: 1.0, unit_role: cinematographer}
+  - {occupation: post-production, partition: video-media, axis: occupation, weight: 1.0, unit_role: post_production}
+  - {occupation: director-assistant, partition: video-media, axis: occupation, weight: 1.0, unit_role: director_assistant}
+  - {occupation: scriptwriter, partition: video-media, axis: occupation, weight: 1.0, unit_role: scriptwriter}
   - {occupation: financial-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
   - {occupation: insurance-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
   - {occupation: securities-analyst, partition: finance-invest, axis: occupation, weight: 1.0}
   - {occupation: investment-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
   - {occupation: loan-officer, partition: finance-invest, axis: occupation, weight: 1.0}
-  - {occupation: realtor, partition: real-estate, axis: occupation, weight: 1.0}
+  - {occupation: realtor, partition: real-estate, axis: occupation, weight: 1.0, unit_role: realtor}
   - {occupation: property-consultant, partition: real-estate, axis: occupation, weight: 1.0}
-  - {occupation: appraiser, partition: real-estate, axis: occupation, weight: 1.0}
+  - {occupation: appraiser, partition: real-estate, axis: occupation, weight: 1.0, unit_role: appraiser}
   - {occupation: leasing-operator, partition: real-estate, axis: occupation, weight: 1.0}
   - {occupation: property-manager, partition: real-estate, axis: occupation, weight: 1.0}
   - {occupation: travel-planner, partition: tourism-hospitality, axis: occupation, weight: 1.0}
@@ -104,7 +104,7 @@ memberships:
   - {occupation: logistics-operator, partition: logistics-supply, axis: occupation, weight: 1.0}
   - {occupation: supply-chain-manager, partition: logistics-supply, axis: occupation, weight: 1.0}
   - {occupation: warehouse-manager, partition: logistics-supply, axis: occupation, weight: 1.0}
-  - {occupation: buyer, partition: logistics-supply, axis: occupation, weight: 1.0}
+  - {occupation: buyer, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: buyer}
   - {occupation: customs-broker, partition: logistics-supply, axis: occupation, weight: 1.0}
   - {occupation: production-planner, partition: manufacturing, axis: occupation, weight: 1.0}
   - {occupation: quality-engineer, partition: manufacturing, axis: occupation, weight: 1.0}
@@ -128,23 +128,23 @@ memberships:
   - {occupation: repair-advisor, partition: auto-service, axis: occupation, weight: 1.0}
   - {occupation: housekeeping-advisor, partition: personal-services, axis: occupation, weight: 1.0}
   - {occupation: cleaning-steward, partition: personal-services, axis: occupation, weight: 1.0}
-  - {occupation: nanny, partition: personal-services, axis: occupation, weight: 1.0}
+  - {occupation: nanny, partition: personal-services, axis: occupation, weight: 1.0, unit_role: nanny}
   - {occupation: maternity-matron, partition: personal-services, axis: occupation, weight: 1.0}
   - {occupation: elder-care, partition: personal-services, axis: occupation, weight: 1.0}
   - {occupation: makeup-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0}
-  - {occupation: hairstylist, partition: beauty-grooming, axis: occupation, weight: 1.0}
-  - {occupation: manicurist, partition: beauty-grooming, axis: occupation, weight: 1.0}
+  - {occupation: hairstylist, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: hairstylist}
+  - {occupation: manicurist, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: manicurist}
   - {occupation: beauty-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0}
   - {occupation: image-consultant, partition: beauty-grooming, axis: occupation, weight: 1.0}
   - {occupation: agri-consultant, partition: agriculture, axis: occupation, weight: 1.0}
   - {occupation: planting-planner, partition: agriculture, axis: occupation, weight: 1.0}
   - {occupation: agri-ecommerce, partition: agriculture, axis: occupation, weight: 1.0}
-  - {occupation: agronomist, partition: agriculture, axis: occupation, weight: 1.0}
+  - {occupation: agronomist, partition: agriculture, axis: occupation, weight: 1.0, unit_role: agronomist}
   - {occupation: ranch-operator, partition: agriculture, axis: occupation, weight: 1.0}
-  - {occupation: curator, partition: culture-art, axis: occupation, weight: 1.0}
+  - {occupation: curator, partition: culture-art, axis: occupation, weight: 1.0, unit_role: curator}
   - {occupation: talent-agent, partition: culture-art, axis: occupation, weight: 1.0}
   - {occupation: publisher-editor, partition: culture-art, axis: occupation, weight: 1.0}
-  - {occupation: playwright, partition: culture-art, axis: occupation, weight: 1.0}
+  - {occupation: playwright, partition: culture-art, axis: occupation, weight: 1.0, unit_role: playwright}
   - {occupation: music-producer, partition: culture-art, axis: occupation, weight: 1.0}
   - {occupation: policy-consultant, partition: public-affairs, axis: occupation, weight: 1.0}
   - {occupation: community-worker, partition: public-affairs, axis: occupation, weight: 1.0}
@@ -167,7 +167,7 @@ memberships:
   - {occupation: game-companion, partition: esports, axis: occupation, weight: 1.0}
   - {occupation: esports-operator, partition: esports, axis: occupation, weight: 1.0}
   - {occupation: delivery-rider, partition: logistics-supply, axis: occupation, weight: 1.0}
-  - {occupation: courier, partition: logistics-supply, axis: occupation, weight: 1.0}
+  - {occupation: courier, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: courier}
   - {occupation: ride-hailing-driver, partition: tourism-hospitality, axis: occupation, weight: 1.0}
   - {occupation: military-officer, partition: public-safety, axis: occupation, weight: 1.0}
   - {occupation: soldier, partition: public-safety, axis: occupation, weight: 1.0}

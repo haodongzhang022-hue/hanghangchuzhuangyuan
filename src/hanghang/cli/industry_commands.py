@@ -16,6 +16,37 @@ def _db(args):
     return IndustryDatabase(data_dir=data_dir)
 
 
+def _views_label(db, occ_id: str) -> str:
+    """职业被哪些视角引用（按权重降序，权重 < 1 标 *）。
+
+    归属是模糊的，所以这里不挑一个"主分区"假装它只有一处：
+    一个职业挂几处就列几处，没挂的说清楚是"还没被聚类看上"。
+    """
+    edges = db.views_of_occupation(occ_id)
+    if not edges:
+        return "未挂视角"
+    ranked = sorted(edges, key=lambda m: (-db.axis_view._weight(m),
+                                          m.get("partition", "")))
+    return "、".join(m.get("partition", "")
+                     + ("*" if db.axis_view._weight(m) < 0.999 else "")
+                     for m in ranked)
+
+
+def _planned_role_label(db, pid: str, role: str) -> str:
+    """骨架里的岗位名 → 能反查到中文就带上，反查不到原样给出。
+
+    岗位名是**分区内命名**，只认本分区的边：拿别处的同名边背书，等于
+    允许"凭空加一个别处在用的名字"。反查结果与第 19 条校验同一口径。
+    """
+    for m in db.axis_view.of_partition(pid):
+        if (m.get("unit_role") or "") != role:
+            continue
+        o = db.occupation(m.get("occupation", ""))
+        if o:
+            return f"{role}({o.get('name')})"
+    return role
+
+
 def cmd_industry_partitions(args):
     """列出分区定义表（按产值降序，0 表示全部）"""
     db = _db(args)
@@ -87,12 +118,7 @@ def cmd_industry_partition(args):
     if planned and not p.get("unit_id"):
         # 骨架里存的是 unit_role（岗位名），直接打印等于给内部命名；
         # 能反查到职业就带中文名，反查不到原样给出，方便对齐
-        named = []
-        for role in planned:
-            hit = next((o for o in db.occupations
-                        if o.get("unit_id") == p.get("id")
-                        and (o.get("unit_role") or "") == role), None)
-            named.append(f"{role}({hit.get('name')})" if hit else role)
+        named = [_planned_role_label(db, p.get("id", ""), r) for r in planned]
         print("  计划岗位(骨架): " + "、".join(named))
     if members:
         weights = db.weights_of(p.get("id", ""))
@@ -189,10 +215,10 @@ def cmd_industry_access(args):
     print("-" * 78)
     rows = db.occupations if not side else [o for o in db.occupations
                                             if db.access_of(o) == side]
-    print(f"{'职业':<16}{'名称':<14}{'分区':<18}{'通道':<14}计费")
+    print(f"{'职业':<16}{'名称':<14}{'视角':<18}{'通道':<14}计费")
     for o in rows:
         print(f"{o.get('id', ''):<16}{o.get('name', '')[:12]:<14}"
-              f"{o.get('unit_id') or '-':<18}{db.access_of(o):<14}"
+              f"{_views_label(db, o.get('id', '')):<18}{db.access_of(o):<14}"
               f"{o.get('billing', '-')}")
     print(f"\n合计 {len(rows)} 个职业"
           f"（覆盖分母只算 baseline_occupation，本表是全量登记）")
@@ -208,11 +234,20 @@ _ACCESS_DESC = {
 
 
 def cmd_industry_occupations(args):
-    """列出职业（可按分区/提供者/收费方式过滤）"""
+    """列出职业（可按分区/提供者/收费方式过滤）
+
+    过滤走 **视角边**，不读职业身上的归属字段 —— 软归属改造后职业已经没有
+    `unit_id` 了：一个职业挂几处是几条边，原子岗位本身不带"我在哪个分区"。
+    """
     db = _db(args)
-    rows = db.occupations
-    if getattr(args, "partition", ""):
-        rows = [o for o in rows if o.get("unit_id") == args.partition]
+    rows = list(db.occupations)
+    part = getattr(args, "partition", "") or ""
+    if part:
+        if not db.partition(part):
+            print(f"未找到分区: {part}")
+            print("可用分区: " + ", ".join(x.get("id", "") for x in db.partitions))
+            sys.exit(1)
+        rows = db.members_of(part)
     if getattr(args, "provider", ""):
         rows = [o for o in rows if o.get("provider") == args.provider]
     if getattr(args, "billing", ""):
@@ -220,23 +255,29 @@ def cmd_industry_occupations(args):
     if getattr(args, "access", ""):
         rows = [o for o in rows if db.access_of(o) == args.access]
     if getattr(args, "unassigned", False):
-        rows = [o for o in rows if not o.get("unit_id")]
+        # 未被任何视角引用（不是"字段为空"——那个字段已经不存在了）
+        free = {o.get("id") for o in db.unassigned_occupations()}
+        rows = [o for o in rows if o.get("id") in free]
     if not rows:
         print("无匹配职业")
         return
-    print(f"{'职业ID':<26}{'名称':<14}{'分区':<16}{'交付物':<8}{'提供者':<8}"
+    print(f"{'职业ID':<26}{'名称':<14}{'视角':<24}{'交付物':<8}{'提供者':<8}"
           f"{'收费':<12}{'大典编码':<13}基线")
     for o in rows:
-        part = o.get("unit_id") or "-"
+        views = _views_label(db, o.get("id", ""))
         gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
-        print(f"{o.get('id', ''):<26}{o.get('name', ''):<14}{part:<16}"
+        print(f"{o.get('id', ''):<26}{o.get('name', ''):<14}{views:<24}"
               f"{o.get('deliverable', '-'):<8}{o.get('provider', '-'):<8}"
               f"{o.get('billing', '-'):<12}{gb or '-':<13}"
               f"{'是' if o.get('baseline_occupation') else '否'}")
     mapped = sum(1 for o in rows
                  if db.catalog and db.catalog.gb_code_of(o.get("id", "")))
-    print(f"\n合计 {len(rows)} 个职业"
-          + (f"，其中 {mapped} 个已挂大典编码" if db.catalog else ""))
+    head = f"\n合计 {len(rows)} 个职业"
+    if part:
+        head += f"（分区 {part} 视角下筛出；同一职业可能同时出现在别的分区）"
+    elif getattr(args, "unassigned", False):
+        head += "（未挂任何视角；不是缺口，是还没被任何聚类看上）"
+    print(head + (f"，其中 {mapped} 个已挂大典编码" if db.catalog else ""))
 
 
 def cmd_industry_occupation(args):
@@ -358,7 +399,7 @@ def cmd_industry_catalog(args):
             print("  已挂到我们职业库的:")
             for o in owners:
                 print(f"    - {o.get('id'):<24}{o.get('name', '')}"
-                      f"  [{o.get('unit_id') or '未挂分区'}]")
+                      f"  [{_views_label(db, o.get('id', ''))}]")
         else:
             print("  已挂到我们职业库的: 无（该细类尚无对应行业职业）")
         return
@@ -393,19 +434,34 @@ def cmd_industry_catalog(args):
 
 
 def cmd_industry_check(args):
-    """数据一致性自检：职业↔单元岗位 双向对齐"""
+    """数据一致性自检：职业↔单元岗位 双向对齐
+
+    退出码分三档，别把"还没干完的活"和"数据真的坏了"混成一个红灯：
+      0  干净
+      1  存在需要人工登记的真问题（悬空/重复/状态矛盾/对账漂移…）
+      2  只剩「待建分区骨架没人认领」—— 声明要建的岗位还没有原子岗位对应。
+         这是待建分区的补职业工作，不是数据坏了；但也不能算通过，所以单列一档。
+    """
     db = _db(args)
     problems = db.validate()
+    skeleton = [p for p in problems if "骨架悬空" in p]
     if not problems:
         # 条数读常量，不手抄：手抄的后果是 README / 文档 / 回执三个数互相打架
         print(f"✅ 分区/职业数据自检通过（{db.VALIDATE_CHECK_COUNT} 条校验）："
               f"{len(db.partitions)} 分区，{len(db.occupations)} 职业，"
               f"双向对齐无缺口")
         return
-    print(f"❌ 发现 {len(problems)} 处不一致：")
-    for p in problems:
+    other = [p for p in problems if "骨架悬空" not in p]
+    if other:
+        print(f"❌ 发现 {len(problems)} 处不一致（其中需人工登记的 {len(other)} 处）：")
+        for p in problems:
+            print("  - " + p)
+        sys.exit(1)
+    print(f"⚠️  {db.VALIDATE_CHECK_COUNT} 条校验：无数据错误，但 {len(skeleton)} 个待建分区的"
+          f"岗位骨架还没有原子岗位认领（待建分区补职业，未完成）：")
+    for p in skeleton:
         print("  - " + p)
-    sys.exit(1)
+    sys.exit(2)
 
 
 # 导出：面向 CNB 制品库 / 知识库的扁平表
