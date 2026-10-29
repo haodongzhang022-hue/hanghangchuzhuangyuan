@@ -66,10 +66,10 @@ roles:
     - contract_advisor
     - 业务执行方
     beneficiaries:
-    - 法律咨询业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或事实不清即下结论会误导
+    - 事实不清即下结论会误导
     - 跨岗口径不一致
     incentives:
     - 法律意见越靠谱，返工越少
@@ -155,10 +155,10 @@ roles:
     - 业务执行方
     - compliance_advisor
     beneficiaries:
-    - 法律咨询业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或事实不清即下结论会误导
+    - 事实不清即下结论会误导
     - 跨岗口径不一致
     incentives:
     - 审查意见越靠谱，返工越少
@@ -244,10 +244,10 @@ roles:
     - 业务执行方
     - 管理层
     beneficiaries:
-    - 法律咨询业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或事实不清即下结论会误导
+    - 事实不清即下结论会误导
     - 跨岗口径不一致
     incentives:
     - 合规评估越靠谱，返工越少

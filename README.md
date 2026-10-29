@@ -60,11 +60,22 @@ python3 src/hanghang/cli/main.py role playbook accountant --format n8n
 python3 src/hanghang/cli/main.py role context data_analyst
 # 画像覆盖总览
 python3 src/hanghang/cli/main.py role coverage --gaps
+# 利益链条：只看行业类（公司靠索引现查、不落库）+ 校验 + 类目反查
+python3 src/hanghang/cli/main.py role chain architect --unit dongjiagoushi
+python3 src/hanghang/cli/main.py role chain --check
+python3 src/hanghang/cli/main.py role chain --class 用户
 ```
 
 已落地：14 个行业单元 / 50 个岗位全部有画像基线，就绪度均值 95.0，评级全 A。
 行业当前用不上也没关系 —— **先立卡、如实给缺口，成熟时补数据即可**，新增岗位不改一行代码。
-设计与口径见 `docs/architecture/M11-岗位画像层.md`、`data/rolecard-schema.yaml`。
+
+**利益链条只存类，不存公司**（M11.1）：链上写「钢材加工」「品牌方」「用人部门」这类行业类目，
+具体公司靠类目上的 `index`（企业名录 / CRM / ATS / 内部主数据）运行时检索，
+名录不进仓库。写成 `XX有限公司` 会被 `role chain --check` 在 CI 拦下——
+换一个客户，整张卡不用重写。
+
+设计与口径见 `docs/architecture/M11-岗位画像层.md`、`data/rolecard-schema.yaml`、
+`data/industry-classes.yaml`。
 
 ## 快速开始
 
@@ -302,6 +313,7 @@ python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则
 python3 tests/test_cli_context.py     # M10 × CLI context 三子命令（assemble/rules/validate）
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
 python3 tests/test_rolecard_m11.py  # M11 岗位画像层（渲染/就绪度/模板合并/路由加权/上下文注入）
+python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库/类目索引/叫法收敛/岗位引用）
 ```
 
 ## 数据文件
@@ -317,6 +329,7 @@ python3 tests/test_rolecard_m11.py  # M11 岗位画像层（渲染/就绪度/模
 - `data/role-profiles/<unit>.yaml` — M11 岗位画像**人工基线**（六维评估，人写慢变）
 - `data/workflow-templates/*.yaml` — M11 通用工作流模板（岗位只写 override）
 - `data/rolecards/<unit>.yaml` — M11 岗位卡**渲染产物**（`scripts/gen_rolecards.py` 生成，勿手改）
+- `data/industry-classes.yaml` — M11.1 行业类词表（类目 + 索引方案 + 叫法别名 + 公司形态标记）
 - `vendor/upstream/knowledge-work-plugins/` — 上游只读快照（Apache-2.0，仅离线渲染参考）
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
 
@@ -348,7 +361,7 @@ python3 tests/test_rolecard_m11.py  # M11 岗位画像层（渲染/就绪度/模
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 岗位画像层(M11): `docs/architecture/M11-岗位画像层.md`
+- 岗位画像层(M11): `docs/architecture/M11-岗位画像层.md`（含 §9 M11.1 利益链条归一）
 - 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11 岗位画像)
 - POC验证记录: `poc/`
 

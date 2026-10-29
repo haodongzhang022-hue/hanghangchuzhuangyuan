@@ -133,10 +133,10 @@ roles:
       - finance_analyst
       - tax_advisor
       beneficiaries:
-      - 财务会计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径错一处全表皆错
+      - 口径错一处全表皆错
       - 跨岗口径不一致
       incentives:
       - 记账凭证越靠谱，返工越少
@@ -203,6 +203,54 @@ roles:
     path: data/role-profiles/finance-accounting.yaml
   sources:
   - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: finance_analyst
+      value: finance_analyst
+      kind: role
+      ref: role:finance-accounting/finance_analyst
+      unit: finance-accounting
+    - raw: tax_advisor
+      value: tax_advisor
+      kind: role
+      ref: role:finance-accounting/tax_advisor
+      unit: finance-accounting
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id007
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id008
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: tax_advisor
   unit_id: finance-accounting
   industry: 财务会计
@@ -322,10 +370,10 @@ roles:
       - 管理层
       - accountant
       beneficiaries:
-      - 财务会计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径错一处全表皆错
+      - 口径错一处全表皆错
       - 跨岗口径不一致
       incentives:
       - 申报表越靠谱，返工越少
@@ -386,6 +434,48 @@ roles:
     path: data/role-profiles/finance-accounting.yaml
   sources:
   - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    - raw: accountant
+      value: accountant
+      kind: role
+      ref: role:finance-accounting/accountant
+      unit: finance-accounting
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: finance_analyst
   unit_id: finance-accounting
   industry: 财务会计
@@ -512,10 +602,10 @@ roles:
       downstream:
       - 管理层
       beneficiaries:
-      - 财务会计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径错一处全表皆错
+      - 口径错一处全表皆错
       - 跨岗口径不一致
       incentives:
       - 财务报表越靠谱，返工越少
@@ -614,6 +704,43 @@ roles:
     path: data/role-profiles/finance-accounting.yaml
   sources:
   - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: payroll_processor
   unit_id: finance-accounting
   industry: 财务会计
@@ -729,10 +856,10 @@ roles:
       - 员工
       - hr-services
       beneficiaries:
-      - 财务会计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径错一处全表皆错
+      - 口径错一处全表皆错
       - 跨岗口径不一致
       incentives:
       - 工资表越靠谱，返工越少
@@ -793,3 +920,45 @@ roles:
     path: data/role-profiles/finance-accounting.yaml
   sources:
   - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 员工
+      value: 员工
+      kind: industry_class
+      ref: industry_class:员工
+      note: 内部组织
+    - raw: hr-services
+      value: 人力资源
+      kind: industry_class
+      ref: industry_class:hr-services
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

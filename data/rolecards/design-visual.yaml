@@ -170,10 +170,10 @@ roles:
       - 需求方
       - ui_designer
       beneficiaries:
-      - 视觉设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或只讲好看不讲可用
+      - 只讲好看不讲可用
       - 跨岗口径不一致
       incentives:
       - 视觉稿越靠谱，返工越少
@@ -210,59 +210,59 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: &id001
+      outputs: &id003
       - 诉求备忘
       - 验收口径
-      verify: &id002
+      verify: &id004
       - 目标与验收口径已复述确认
       runtime: agent
       agent_role: graphic_designer
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: &id003
+      preconditions: &id005
       - 诉求备忘已确认
-      outputs: &id004
+      outputs: &id006
       - 输入清单
-      verify: &id005
+      verify: &id007
       - 每份输入都有来源
       runtime: agent
       agent_role: graphic_designer
     - id: execute
       name: 视觉方案
       playbook: 先抓唯一视觉主体与信息层级，再定版式与配色，出稿时附取舍说明
-      preconditions: &id006
+      preconditions: &id008
       - 输入清单齐备
-      outputs: &id007
+      outputs: &id009
       - 交付物主体
-      verify: &id008
+      verify: &id010
       - 满足验收口径
       runtime: agent
       agent_role: graphic_designer
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: &id009
+      outputs: &id011
       - 自检记录
-      verify: &id010
+      verify: &id012
       - 不确定项已显式标注
       runtime: agent
       agent_role: graphic_designer
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: &id011
+      outputs: &id013
       - 交付说明
-      verify: &id012
+      verify: &id014
       - 结论可回溯到依据
       runtime: agent
       agent_role: graphic_designer
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: &id013
+      outputs: &id015
       - 交接卡
-      verify: &id014
+      verify: &id016
       - 交接卡含产物、约束、待决项
       runtime: agent
       agent_role: graphic_designer
@@ -272,6 +272,58 @@ roles:
     path: data/role-profiles/design-visual.yaml
   sources:
   - /workspace/data/role-profiles/design-visual.yaml
+  chain_refs:
+    upstream:
+    - raw: 需求方与文案
+      value: 需求方与文案
+      kind: industry_class
+      ref: industry_class:需求方与文案
+      note: 需求
+    downstream:
+    - raw: 需求方
+      value: 需求方
+      kind: industry_class
+      ref: industry_class:需求方
+      index:
+        source: 组织架构
+        query:
+        - 需求提出部门
+      note: 需求方
+    - raw: ui_designer
+      value: ui_designer
+      kind: role
+      ref: role:design-visual/ui_designer
+      unit: design-visual
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id001
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id002
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 只讲好看不讲可用
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: ui_designer
   unit_id: design-visual
   industry: 视觉设计
@@ -429,10 +481,10 @@ roles:
       downstream:
       - 前端开发
       beneficiaries:
-      - 视觉设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或只讲好看不讲可用
+      - 只讲好看不讲可用
       - 跨岗口径不一致
       incentives:
       - 界面方案越靠谱，返工越少
@@ -469,36 +521,36 @@ roles:
     - id: fetch
       name: 取件与范围界定
       playbook: 明确评审对象、版本与评审口径（只对本次改动或本次交付负责）
-      outputs: &id015
+      outputs: &id017
       - 评审范围
-      verify: &id016
+      verify: &id018
       - 范围与版本已锁定
       runtime: agent
       agent_role: ui_designer
     - id: inspect
       name: 界面与规范
       playbook: 先梳理任务流与状态（空/错/加载），再出界面与组件，交付出可实现的标注
-      outputs: &id017
+      outputs: &id019
       - 问题清单
-      verify: &id018
+      verify: &id020
       - 每条问题可定位到具体位置与依据
       runtime: agent
       agent_role: ui_designer
     - id: verdict
       name: 结论分级
       playbook: 按阻断/应修/建议/放行四级给结论，不模糊表态
-      outputs: &id019
+      outputs: &id021
       - 评审结论
-      verify: &id020
+      verify: &id022
       - 每条问题都有级别
       runtime: agent
       agent_role: ui_designer
     - id: feedback
       name: 回传与闭环
       playbook: 生成回传清单，明确返工点与复评条件
-      outputs: &id021
+      outputs: &id023
       - 回传清单
-      verify: &id022
+      verify: &id024
       - 返工点可执行、复评条件明确
       runtime: agent
       agent_role: ui_designer
@@ -508,6 +560,47 @@ roles:
     path: data/role-profiles/design-visual.yaml
   sources:
   - /workspace/data/role-profiles/design-visual.yaml
+  chain_refs:
+    upstream:
+    - raw: 需求方与文案
+      value: 需求方与文案
+      kind: industry_class
+      ref: industry_class:需求方与文案
+      note: 需求
+    downstream:
+    - raw: 前端开发
+      value: 前端开发
+      kind: industry_class
+      ref: industry_class:前端开发
+      index:
+        source: 组织架构
+        query:
+        - 前端团队
+      note: 岗位类
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 只讲好看不讲可用
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: illustrator
   unit_id: design-visual
   industry: 视觉设计
@@ -654,10 +747,10 @@ roles:
       - 内容创作
       - 品牌
       beneficiaries:
-      - 视觉设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或只讲好看不讲可用
+      - 只讲好看不讲可用
       - 跨岗口径不一致
       incentives:
       - 插画稿越靠谱，返工越少
@@ -694,45 +787,45 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id001
-      verify: *id002
+      outputs: *id003
+      verify: *id004
       runtime: agent
       agent_role: illustrator
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
+      preconditions: *id005
+      outputs: *id006
+      verify: *id007
       runtime: agent
       agent_role: illustrator
     - id: execute
       name: 绘制与调整
       playbook: 先确认用途与尺寸与风格锚点，再起草稿定构图，最后分层上色并保留可改结构
-      preconditions: *id006
-      outputs: *id007
-      verify: *id008
+      preconditions: *id008
+      outputs: *id009
+      verify: *id010
       runtime: agent
       agent_role: illustrator
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: *id009
-      verify: *id010
+      outputs: *id011
+      verify: *id012
       runtime: agent
       agent_role: illustrator
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id013
+      verify: *id014
       runtime: agent
       agent_role: illustrator
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id015
+      verify: *id016
       runtime: agent
       agent_role: illustrator
   plugin_artifacts:
@@ -741,6 +834,48 @@ roles:
     path: data/role-profiles/design-visual.yaml
   sources:
   - /workspace/data/role-profiles/design-visual.yaml
+  chain_refs:
+    upstream:
+    - raw: 需求方与文案
+      value: 需求方与文案
+      kind: industry_class
+      ref: industry_class:需求方与文案
+      note: 需求
+    downstream:
+    - raw: 内容创作
+      value: 内容创作
+      kind: industry_class
+      ref: industry_class:content-creation
+      note: 单元
+    - raw: 品牌
+      value: 品牌
+      kind: industry_class
+      ref: industry_class:品牌
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 只讲好看不讲可用
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: brand_designer
   unit_id: design-visual
   industry: 视觉设计
@@ -903,10 +1038,10 @@ roles:
       - design-visual
       - marketing
       beneficiaries:
-      - 视觉设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或只讲好看不讲可用
+      - 只讲好看不讲可用
       - 跨岗口径不一致
       incentives:
       - 品牌规范越靠谱，返工越少
@@ -943,29 +1078,29 @@ roles:
     - id: fetch
       name: 取件与范围界定
       playbook: 明确评审对象、版本与评审口径（只对本次改动或本次交付负责）
-      outputs: *id015
-      verify: *id016
+      outputs: *id017
+      verify: *id018
       runtime: agent
       agent_role: brand_designer
     - id: inspect
       name: 规范与审查
       playbook: 先定标志/色彩/字体/版式四件套规范，再逐项审查落地物料，偏离即提整改
-      outputs: *id017
-      verify: *id018
+      outputs: *id019
+      verify: *id020
       runtime: agent
       agent_role: brand_designer
     - id: verdict
       name: 结论分级
       playbook: 按阻断/应修/建议/放行四级给结论，不模糊表态
-      outputs: *id019
-      verify: *id020
+      outputs: *id021
+      verify: *id022
       runtime: agent
       agent_role: brand_designer
     - id: feedback
       name: 回传与闭环
       playbook: 生成回传清单，明确返工点与复评条件
-      outputs: *id021
-      verify: *id022
+      outputs: *id023
+      verify: *id024
       runtime: agent
       agent_role: brand_designer
   plugin_artifacts:
@@ -974,3 +1109,45 @@ roles:
     path: data/role-profiles/design-visual.yaml
   sources:
   - /workspace/data/role-profiles/design-visual.yaml
+  chain_refs:
+    upstream:
+    - raw: 需求方与文案
+      value: 需求方与文案
+      kind: industry_class
+      ref: industry_class:需求方与文案
+      note: 需求
+    downstream:
+    - raw: design-visual
+      value: 视觉设计
+      kind: industry_class
+      ref: industry_class:design-visual
+      note: 单元
+    - raw: marketing
+      value: 市场营销
+      kind: industry_class
+      ref: industry_class:marketing
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 只讲好看不讲可用
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

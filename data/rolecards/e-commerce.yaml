@@ -131,10 +131,10 @@ roles:
       - ecom_marketer
       - customer_service
       beneficiaries:
-      - 电子商务业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或违规话术与虚假宣传
+      - 违规话术与虚假宣传
       - 跨岗口径不一致
       incentives:
       - 店铺运营计划越靠谱，返工越少
@@ -233,6 +233,59 @@ roles:
     path: data/role-profiles/e-commerce.yaml
   sources:
   - /workspace/data/role-profiles/e-commerce.yaml
+  chain_refs:
+    upstream:
+    - raw: 商品与供应链
+      value: 商品与供应链
+      kind: industry_class
+      ref: industry_class:商品与供应链
+      index: &id015
+        source: 内部主数据
+        query:
+        - SKU 类目
+        - 供应商类目
+      note: 货品与流通
+    downstream:
+    - raw: ecom_marketer
+      value: ecom_marketer
+      kind: role
+      ref: role:e-commerce/ecom_marketer
+      unit: e-commerce
+    - raw: customer_service
+      value: customer_service
+      kind: role
+      ref: role:e-commerce/customer_service
+      unit: e-commerce
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id016
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id017
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 违规话术与虚假宣传
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: ecom_marketer
   unit_id: e-commerce
   industry: 电子商务
@@ -342,10 +395,10 @@ roles:
       - store_manager
       - 内容创作
       beneficiaries:
-      - 电子商务业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或违规话术与虚假宣传
+      - 违规话术与虚假宣传
       - 跨岗口径不一致
       incentives:
       - 投放计划越靠谱，返工越少
@@ -429,6 +482,49 @@ roles:
     path: data/role-profiles/e-commerce.yaml
   sources:
   - /workspace/data/role-profiles/e-commerce.yaml
+  chain_refs:
+    upstream:
+    - raw: 商品与供应链
+      value: 商品与供应链
+      kind: industry_class
+      ref: industry_class:商品与供应链
+      index: *id015
+      note: 货品与流通
+    downstream:
+    - raw: store_manager
+      value: store_manager
+      kind: role
+      ref: role:e-commerce/store_manager
+      unit: e-commerce
+    - raw: 内容创作
+      value: 内容创作
+      kind: industry_class
+      ref: industry_class:content-creation
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id016
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id017
+      note: 需求方
+    blockers:
+    - raw: 违规话术与虚假宣传
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: customer_service
   unit_id: e-commerce
   industry: 电子商务
@@ -533,10 +629,10 @@ roles:
       downstream:
       - store_manager
       beneficiaries:
-      - 电子商务业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或违规话术与虚假宣传
+      - 违规话术与虚假宣传
       - 跨岗口径不一致
       incentives:
       - 标准应答越靠谱，返工越少
@@ -603,3 +699,41 @@ roles:
     path: data/role-profiles/e-commerce.yaml
   sources:
   - /workspace/data/role-profiles/e-commerce.yaml
+  chain_refs:
+    upstream:
+    - raw: 商品与供应链
+      value: 商品与供应链
+      kind: industry_class
+      ref: industry_class:商品与供应链
+      index: *id015
+      note: 货品与流通
+    downstream:
+    - raw: store_manager
+      value: store_manager
+      kind: role
+      ref: role:e-commerce/store_manager
+      unit: e-commerce
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id016
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id017
+      note: 需求方
+    blockers:
+    - raw: 违规话术与虚假宣传
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

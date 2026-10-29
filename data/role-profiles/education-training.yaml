@@ -65,10 +65,10 @@ roles:
     downstream:
     - teacher
     beneficiaries:
-    - 教育培训业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或不符合教学规律会适得其反
+    - 不符合教学规律会适得其反
     - 跨岗口径不一致
     incentives:
     - 课程大纲越靠谱，返工越少
@@ -153,10 +153,10 @@ roles:
     downstream:
     - learning_advisor
     beneficiaries:
-    - 教育培训业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或不符合教学规律会适得其反
+    - 不符合教学规律会适得其反
     - 跨岗口径不一致
     incentives:
     - 教学实施越靠谱，返工越少
@@ -241,10 +241,10 @@ roles:
     downstream:
     - teacher
     beneficiaries:
-    - 教育培训业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或不符合教学规律会适得其反
+    - 不符合教学规律会适得其反
     - 跨岗口径不一致
     incentives:
     - 学习计划越靠谱，返工越少

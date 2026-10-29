@@ -5,6 +5,7 @@
   role playbook  取岗位工作流的分步 playbook（Agent 照着干 / 导出 n8n / 导出代码桩）
   role context   渲染可注入提示词的岗位卡文本块（M10 素材）
   role coverage  画像覆盖总览
+  role chain     利益链条（只看行业类；公司靠索引现查，不落库）+ 校验
 """
 from __future__ import annotations
 
@@ -248,6 +249,96 @@ def cmd_role_coverage(args):
     return 0
 
 
+# ------------------------------------------------------------------ role chain
+def cmd_role_chain(args):
+    store = _store()
+    classes = store.classes
+
+    # --check：守门（链上写了公司 / 未登记类目 → 非 0 退出）
+    if args.check:
+        issues = store.chain_issues(args.unit or "", args.role or "")
+        errors = [i for i in issues if i.level == "error"]
+        warns = [i for i in issues if i.level == "warn"]
+        for i in errors + warns:
+            print(i)
+        print(f"\n链条校验：error {len(errors)} / warn {len(warns)}"
+              f" / 公司形态标记 {len(classes.company_markers)} 个")
+        if errors:
+            print("链上只写行业类目；具体公司靠 index 现查，不进画像。")
+            return 1
+        return 0
+
+    # --class：类目 → 引用它的岗位 + 索引方案（类落到列表和索引的那份列表）
+    if args.class_name:
+        usage = store.class_usage()
+        key = classes.canonical(args.class_name)
+        if key not in usage:
+            if classes.has_class(key):
+                spec = classes.classes.get(key) or {}
+                print(f"行业类: {key}  [{spec.get('kind', '')}]")
+                idx = spec.get("index")
+                print(f"  索引: {idx.get('source')} → {'; '.join(idx.get('query') or [])}"
+                      if idx else "  索引: 未接（index: null）")
+                print("  被引用: 0 处（已登记，当前没有岗位用它）")
+                return 0
+            print(f"类目「{args.class_name}」未登记"
+                  f"（先在 data/industry-classes.yaml 登记，再在岗位链条上引用）")
+            return 1
+        item = usage[key]
+        print(f"行业类: {item['class']}  [{item['kind']}]")
+        idx = item.get("index")
+        if idx:
+            print(f"  索引: {idx.get('source')} → {'; '.join(idx.get('query') or [])}")
+            print("  说明: 只存检索方式，不存公司名录")
+        else:
+            print("  索引: 未接（index: null）")
+        print(f"  被引用: {len(item['used_by'])} 处")
+        for u in item["used_by"]:
+            print(f"    - {u['unit']}/{u['role']}.{u['field']}")
+        return 0
+
+    # 默认：看某岗位的链条归一结果
+    if not args.role:
+        print("用法: role chain <岗位名> [--unit X] | role chain --check | role chain --class 钢材加工")
+        return 1
+
+    cards = _resolve(store, args.role, args.unit or None)
+    if not cards:
+        print(f"未找到岗位: {args.role}")
+        return 1
+    card = cards[0]
+    print(f"利益链条: {card.role}（{card.unit_id} / {card.industry}）")
+    labels = {"upstream": "上游", "downstream": "下游",
+              "beneficiaries": "受益方", "blockers": "阻碍方"}
+    for field, label in labels.items():
+        entries = (card.chain_refs or {}).get(field) or []
+        print(f"\n{label}（{len(entries)}）")
+        if not entries:
+            print("  —")
+            continue
+        for e in entries:
+            kind = e.get("kind", "")
+            tail = ""
+            if kind == "role":
+                tail = f"岗位 → {e.get('unit') or card.unit_id}"
+            elif e.get("index"):
+                tail = f"索引 → {e['index'].get('source')}"
+            elif kind == "industry_class":
+                tail = "未接索引"
+            print(f"  · {e.get('value')}  [{kind}]"
+                  + (f"  {tail}" if tail else "")
+                  + ("" if e.get("raw") == e.get("value")
+                     else f"  （原文「{e.get('raw')}」已归一）"))
+    issues = store.chain_issues(card.unit_id, card.role)
+    if issues:
+        print("\n校验:")
+        for i in issues:
+            print(f"  {i}")
+    else:
+        print("\n校验: ✅ 无公司名、无未登记类目")
+    return 0
+
+
 def register_role_subcommands(sub) -> None:
     """把 role 组挂到主 parser（保持 main.py 组织简洁）。"""
     rp = sub.add_parser("role", help="M11 岗位画像：就绪度/六维评估/工作流 playbook")
@@ -276,6 +367,15 @@ def register_role_subcommands(sub) -> None:
     rc.add_argument("--unit", default="", help="行业单元")
     rc.add_argument("--workflow", default="", help="指定工作流 id")
     rc.set_defaults(func=cmd_role_context)
+
+    rch = role_sub.add_parser("chain", help="利益链条：行业类归一 + 校验（公司不落库）")
+    rch.add_argument("role", nargs="?", default="", help="岗位名（不给则只看 --check/--class）")
+    rch.add_argument("--unit", default="", help="行业单元")
+    rch.add_argument("--check", action="store_true",
+                     help="校验全量链条：公司形态/未登记类目 → 失败")
+    rch.add_argument("--class", dest="class_name", default="",
+                     help="查某个行业类被哪些岗位引用、怎么检索")
+    rch.set_defaults(func=cmd_role_chain)
 
     rv = role_sub.add_parser("coverage", help="岗位画像覆盖总览")
     rv.add_argument("--gaps", action="store_true", help="列出缺画像的岗位")

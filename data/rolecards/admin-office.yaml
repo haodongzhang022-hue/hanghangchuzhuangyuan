@@ -163,10 +163,10 @@ roles:
       downstream:
       - 全体成员
       beneficiaries:
-      - 行政办公业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或流程遗漏导致来回补件
+      - 流程遗漏导致来回补件
       - 跨岗口径不一致
       incentives:
       - 事务方案越靠谱，返工越少
@@ -203,27 +203,27 @@ roles:
     - id: load
       name: 取数与校验
       playbook: 读取数据源，校验 schema 与必填字段
-      outputs: &id001
+      outputs: &id003
       - 标准化数据集
-      verify: &id002
+      verify: &id004
       - schema 校验通过
       runtime: code
       agent_role: admin_specialist
     - id: compute
       name: 流程执行
       playbook: 先确认需求与预算权限，再按标准流程走审批，完毕后登记台账并归档凭证
-      outputs: &id003
+      outputs: &id005
       - 计算结果
-      verify: &id004
+      verify: &id006
       - 结果可复算且一致
       runtime: code
       agent_role: admin_specialist
     - id: report
       name: 出报告
       playbook: 按模板生成结果报告与异常清单
-      outputs: &id005
+      outputs: &id007
       - 结果报告
-      verify: &id006
+      verify: &id008
       - 报告含口径说明
       runtime: code
       agent_role: admin_specialist
@@ -233,6 +233,49 @@ roles:
     path: data/role-profiles/admin-office.yaml
   sources:
   - /workspace/data/role-profiles/admin-office.yaml
+  chain_refs:
+    upstream:
+    - raw: 各处室需求
+      value: 各处室需求
+      kind: industry_class
+      ref: industry_class:各处室需求
+      note: 需求
+    downstream:
+    - raw: 全体成员
+      value: 全体成员
+      kind: industry_class
+      ref: industry_class:全体成员
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id001
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id002
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 流程遗漏导致来回补件
+      value: 流程遗漏
+      kind: industry_class
+      ref: industry_class:流程遗漏
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: receptionist
   unit_id: admin-office
   industry: 行政办公
@@ -362,10 +405,10 @@ roles:
       downstream:
       - 全体成员
       beneficiaries:
-      - 行政办公业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或流程遗漏导致来回补件
+      - 流程遗漏导致来回补件
       - 跨岗口径不一致
       incentives:
       - 接待记录越靠谱，返工越少
@@ -432,6 +475,43 @@ roles:
     path: data/role-profiles/admin-office.yaml
   sources:
   - /workspace/data/role-profiles/admin-office.yaml
+  chain_refs:
+    upstream:
+    - raw: 各处室需求
+      value: 各处室需求
+      kind: industry_class
+      ref: industry_class:各处室需求
+      note: 需求
+    downstream:
+    - raw: 全体成员
+      value: 全体成员
+      kind: industry_class
+      ref: industry_class:全体成员
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 流程遗漏导致来回补件
+      value: 流程遗漏
+      kind: industry_class
+      ref: industry_class:流程遗漏
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: document_archivist
   unit_id: admin-office
   industry: 行政办公
@@ -589,10 +669,10 @@ roles:
       downstream:
       - 全体成员
       beneficiaries:
-      - 行政办公业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或流程遗漏导致来回补件
+      - 流程遗漏导致来回补件
       - 跨岗口径不一致
       incentives:
       - 归档目录越靠谱，返工越少
@@ -629,22 +709,22 @@ roles:
     - id: load
       name: 取数与校验
       playbook: 读取数据源，校验 schema 与必填字段
-      outputs: *id001
-      verify: *id002
+      outputs: *id003
+      verify: *id004
       runtime: code
       agent_role: document_archivist
     - id: compute
       name: 归档入库
       playbook: 先按归档规范分类命名，再登记版本与生效日期，涉密件按等级限权
-      outputs: *id003
-      verify: *id004
+      outputs: *id005
+      verify: *id006
       runtime: code
       agent_role: document_archivist
     - id: report
       name: 出报告
       playbook: 按模板生成结果报告与异常清单
-      outputs: *id005
-      verify: *id006
+      outputs: *id007
+      verify: *id008
       runtime: code
       agent_role: document_archivist
   plugin_artifacts:
@@ -653,6 +733,43 @@ roles:
     path: data/role-profiles/admin-office.yaml
   sources:
   - /workspace/data/role-profiles/admin-office.yaml
+  chain_refs:
+    upstream:
+    - raw: 各处室需求
+      value: 各处室需求
+      kind: industry_class
+      ref: industry_class:各处室需求
+      note: 需求
+    downstream:
+    - raw: 全体成员
+      value: 全体成员
+      kind: industry_class
+      ref: industry_class:全体成员
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 流程遗漏导致来回补件
+      value: 流程遗漏
+      kind: industry_class
+      ref: industry_class:流程遗漏
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: meeting_coordinator
   unit_id: admin-office
   industry: 行政办公
@@ -804,10 +921,10 @@ roles:
       downstream:
       - 全体成员
       beneficiaries:
-      - 行政办公业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或流程遗漏导致来回补件
+      - 流程遗漏导致来回补件
       - 跨岗口径不一致
       incentives:
       - 会议议程越靠谱，返工越少
@@ -906,3 +1023,40 @@ roles:
     path: data/role-profiles/admin-office.yaml
   sources:
   - /workspace/data/role-profiles/admin-office.yaml
+  chain_refs:
+    upstream:
+    - raw: 各处室需求
+      value: 各处室需求
+      kind: industry_class
+      ref: industry_class:各处室需求
+      note: 需求
+    downstream:
+    - raw: 全体成员
+      value: 全体成员
+      kind: industry_class
+      ref: industry_class:全体成员
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    blockers:
+    - raw: 流程遗漏导致来回补件
+      value: 流程遗漏
+      kind: industry_class
+      ref: industry_class:流程遗漏
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

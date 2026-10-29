@@ -66,10 +66,10 @@ roles:
     - content_editor
     - media_operator
     beneficiaries:
-    - 内容创作业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或夸大表述带来合规风险
+    - 夸大表述带来合规风险
     - 跨岗口径不一致
     incentives:
     - 文案正文越靠谱，返工越少
@@ -154,10 +154,10 @@ roles:
     downstream:
     - content_editor
     beneficiaries:
-    - 内容创作业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或夸大表述带来合规风险
+    - 夸大表述带来合规风险
     - 跨岗口径不一致
     incentives:
     - 发布计划越靠谱，返工越少
@@ -242,10 +242,10 @@ roles:
     downstream:
     - 发布渠道
     beneficiaries:
-    - 内容创作业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或夸大表述带来合规风险
+    - 夸大表述带来合规风险
     - 跨岗口径不一致
     incentives:
     - 终稿越靠谱，返工越少

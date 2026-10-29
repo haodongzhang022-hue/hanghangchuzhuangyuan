@@ -150,10 +150,10 @@ roles:
       - content_editor
       - media_operator
       beneficiaries:
-      - 内容创作业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或夸大表述带来合规风险
+      - 夸大表述带来合规风险
       - 跨岗口径不一致
       incentives:
       - 文案正文越靠谱，返工越少
@@ -252,6 +252,64 @@ roles:
     path: data/role-profiles/content-creation.yaml
   sources:
   - /workspace/data/role-profiles/content-creation.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id001
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    - raw: 品牌方
+      value: 品牌方
+      kind: industry_class
+      ref: industry_class:品牌方
+      index: &id002
+        source: 客户库
+        query:
+        - 品牌客户
+      note: 需求方
+    downstream:
+    - raw: content_editor
+      value: content_editor
+      kind: role
+      ref: role:content-creation/content_editor
+      unit: content-creation
+    - raw: media_operator
+      value: media_operator
+      kind: role
+      ref: role:content-creation/media_operator
+      unit: content-creation
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id003
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id001
+      note: 需求方
+    blockers:
+    - raw: 夸大表述带来合规风险
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: media_operator
   unit_id: content-creation
   industry: 内容创作
@@ -363,10 +421,10 @@ roles:
       downstream:
       - content_editor
       beneficiaries:
-      - 内容创作业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或夸大表述带来合规风险
+      - 夸大表述带来合规风险
       - 跨岗口径不一致
       incentives:
       - 发布计划越靠谱，返工越少
@@ -451,6 +509,50 @@ roles:
     path: data/role-profiles/content-creation.yaml
   sources:
   - /workspace/data/role-profiles/content-creation.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id001
+      note: 需求方
+    - raw: 品牌方
+      value: 品牌方
+      kind: industry_class
+      ref: industry_class:品牌方
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: content_editor
+      value: content_editor
+      kind: role
+      ref: role:content-creation/content_editor
+      unit: content-creation
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id003
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id001
+      note: 需求方
+    blockers:
+    - raw: 夸大表述带来合规风险
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: content_editor
   unit_id: content-creation
   industry: 内容创作
@@ -568,10 +670,10 @@ roles:
       downstream:
       - 发布渠道
       beneficiaries:
-      - 内容创作业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或夸大表述带来合规风险
+      - 夸大表述带来合规风险
       - 跨岗口径不一致
       incentives:
       - 终稿越靠谱，返工越少
@@ -647,3 +749,51 @@ roles:
     path: data/role-profiles/content-creation.yaml
   sources:
   - /workspace/data/role-profiles/content-creation.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id001
+      note: 需求方
+    - raw: 品牌方
+      value: 品牌方
+      kind: industry_class
+      ref: industry_class:品牌方
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: 发布渠道
+      value: 发布渠道
+      kind: interface
+      ref: industry_class:发布渠道
+      index:
+        source: 渠道台账
+        query:
+        - 发布渠道
+      note: 渠道
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id003
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id001
+      note: 需求方
+    blockers:
+    - raw: 夸大表述带来合规风险
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

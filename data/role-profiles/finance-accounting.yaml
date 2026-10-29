@@ -64,10 +64,10 @@ roles:
     - finance_analyst
     - tax_advisor
     beneficiaries:
-    - 财务会计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径错一处全表皆错
+    - 口径错一处全表皆错
     - 跨岗口径不一致
     incentives:
     - 记账凭证越靠谱，返工越少
@@ -151,10 +151,10 @@ roles:
     - 管理层
     - accountant
     beneficiaries:
-    - 财务会计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径错一处全表皆错
+    - 口径错一处全表皆错
     - 跨岗口径不一致
     incentives:
     - 申报表越靠谱，返工越少
@@ -237,10 +237,10 @@ roles:
     downstream:
     - 管理层
     beneficiaries:
-    - 财务会计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径错一处全表皆错
+    - 口径错一处全表皆错
     - 跨岗口径不一致
     incentives:
     - 财务报表越靠谱，返工越少
@@ -324,10 +324,10 @@ roles:
     - 员工
     - hr-services
     beneficiaries:
-    - 财务会计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径错一处全表皆错
+    - 口径错一处全表皆错
     - 跨岗口径不一致
     incentives:
     - 工资表越靠谱，返工越少

@@ -107,6 +107,8 @@ def card_to_dict(card: RoleCard) -> dict:
         "workflows": card.workflows,
         "plugin_artifacts": card.plugin_artifacts,
         "sources": card.sources,
+        # M11.1 归一后的链条引用（行业类 + index / 岗位 + unit），与六维原始字符串并列落盘
+        "chain_refs": card.chain_refs,
     }
     if p:
         data["six_dims"] = {

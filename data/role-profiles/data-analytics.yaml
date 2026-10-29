@@ -64,10 +64,10 @@ roles:
     - 决策者
     - bi_engineer
     beneficiaries:
-    - 数据分析业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径不一致得出错误结论
+    - 口径不一致得出错误结论
     - 跨岗口径不一致
     incentives:
     - 分析结论越靠谱，返工越少
@@ -151,10 +151,10 @@ roles:
     - 决策者
     - bi_engineer
     beneficiaries:
-    - 数据分析业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径不一致得出错误结论
+    - 口径不一致得出错误结论
     - 跨岗口径不一致
     incentives:
     - 模型方案越靠谱，返工越少
@@ -239,10 +239,10 @@ roles:
     - 业务方
     - data_analyst
     beneficiaries:
-    - 数据分析业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或口径不一致得出错误结论
+    - 口径不一致得出错误结论
     - 跨岗口径不一致
     incentives:
     - 数据模型越靠谱，返工越少

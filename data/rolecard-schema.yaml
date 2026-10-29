@@ -69,5 +69,18 @@ readiness:
     plugin: 0.10      # 插件就绪度（bundle/tools/artifacts 是否落地）
     beneficiaries: 0.10  # 利益链条清晰度（受益方/阻碍方/风险是否写明）
 
+# ------------------------------------------------ 利益链条归一（M11.1）
+# 链上只写行业类目，具体公司靠 index 现查，名录不进本仓库。
+# 词表：data/industry-classes.yaml；归一与校验：src/hanghang/rolecard/chain.py
+chain:
+  fields: [upstream, downstream, beneficiaries, blockers]
+  ref_kinds: [industry_class, interface, role]
+  rules:
+    - 公司形态（XX有限公司/某某厂/XX集团）→ error，禁止落库
+    - 未登记类目 → error，先登记再引用
+    - 类目无 index 且本该可查 → warn，如实暴露未接索引
+    - 跨单元岗位引用 → warn，须写明 unit
+  marker_source: data/industry-classes.yaml#company_markers
+
 # ------------------------------------------------ 路由激活（M1 用）
 activation_fields: [workflows, industry_alias, triggers, weight]

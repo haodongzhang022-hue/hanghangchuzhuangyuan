@@ -107,6 +107,12 @@ class RoleProfile:
         return getattr(self, name, None)
 
 
+def _chain_values(card, field: str) -> List[str]:
+    """优先用归一后的说法（统一叫法），没有则回落到原始值。"""
+    refs = (card.chain_refs or {}).get(field) or []
+    return [str(r.get("value", "")) for r in refs if r.get("value")]
+
+
 @dataclass
 class RoleCard:
     """
@@ -125,6 +131,8 @@ class RoleCard:
     activation: Dict[str, Any] = field(default_factory=dict)
     readiness: Optional[ReadinessReport] = None
     sources: List[str] = field(default_factory=list)
+    # M11.1 归一后的利益链条：链上只留行业类，具体公司靠 index 现查，不落库
+    chain_refs: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
 
     # -------------------------------------------------- 查询便捷方法
     def capability(self) -> CapabilityProfile:
@@ -191,8 +199,10 @@ class RoleCard:
             if cap.core:
                 lines.append(f"- 核心能力: {'、'.join(cap.core)}")
             ch = p.stakeholders
+            if ch.upstream:
+                lines.append(f"- 上游输入: {'、'.join(_chain_values(self, 'upstream') or ch.upstream)}")
             if ch.downstream:
-                lines.append(f"- 下游承接: {'、'.join(ch.downstream)}")
+                lines.append(f"- 下游承接: {'、'.join(_chain_values(self, 'downstream') or ch.downstream)}")
             if ch.blockers:
                 lines.append(f"- 常见阻碍: {'、'.join(ch.blockers)}")
         steps = self.playbook(wf_id)

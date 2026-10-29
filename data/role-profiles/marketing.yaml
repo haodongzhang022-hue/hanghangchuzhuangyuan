@@ -64,10 +64,10 @@ roles:
     - brand_planner
     - campaign_planner
     beneficiaries:
-    - 市场营销业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或效果不可归因导致预算浪费
+    - 效果不可归因导致预算浪费
     - 跨岗口径不一致
     incentives:
     - 市场洞察报告越靠谱，返工越少
@@ -151,10 +151,10 @@ roles:
     - campaign_planner
     - design-visual
     beneficiaries:
-    - 市场营销业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或效果不可归因导致预算浪费
+    - 效果不可归因导致预算浪费
     - 跨岗口径不一致
     incentives:
     - 品牌定位越靠谱，返工越少
@@ -238,10 +238,10 @@ roles:
     - content-creation
     - design-visual
     beneficiaries:
-    - 市场营销业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或效果不可归因导致预算浪费
+    - 效果不可归因导致预算浪费
     - 跨岗口径不一致
     incentives:
     - 活动方案越靠谱，返工越少
@@ -325,10 +325,10 @@ roles:
     - 管理层
     - marketing
     beneficiaries:
-    - 市场营销业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或效果不可归因导致预算浪费
+    - 效果不可归因导致预算浪费
     - 跨岗口径不一致
     incentives:
     - 传播口径越靠谱，返工越少

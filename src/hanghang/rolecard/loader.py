@@ -16,6 +16,9 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from .chain import (
+    CHAIN_FIELDS, IndustryClassIndex, Issue, unit_roles_from_registry,
+)
 from .models import (
     CapabilityProfile, RoleCard, RoleProfile, StakeholderChain,
 )
@@ -51,6 +54,9 @@ class RoleCardStore:
         self.renderer = WorkflowRenderer(self._load_templates())
         self.scorer = ReadinessScorer(self._schema_weights(), self._schema_bands())
         self.profiles: Dict[str, Dict[str, RoleProfile]] = self._load_profiles()
+        # M11.1：行业类词表（链上只存类，公司靠索引现查）
+        self.classes = IndustryClassIndex(
+            self.data_dir, unit_roles_from_registry(self.registry))
         self._cards: Dict[str, RoleCard] = {}
 
     # ---------------------------------------------------------- 基础加载
@@ -183,9 +189,46 @@ class RoleCardStore:
             activation={},
             sources=[profile.source] if profile and profile.source else [],
         )
+        card.chain_refs = self._normalize_chain(card, unit.unit_id)
         card.activation = self._derive_activation(card, unit)
         self.scorer.score(card)
         return card
+
+    def _normalize_chain(self, card: RoleCard, unit_id: str) -> Dict[str, List[dict]]:
+        """把利益链条归一：行业类目带 ref/index，岗位带 unit，公司不落库。"""
+        if card.profile is None:
+            return {}
+        raw = {f: list(getattr(card.profile.stakeholders, f) or []) for f in CHAIN_FIELDS}
+        return {f: [e.as_dict() for e in entries]
+                for f, entries in self.classes.normalize_chain(raw, unit_id).items()}
+
+    # ---------------------------------------------------------- M11.1 链条校验
+    def chain_issues(self, unit_id: str = "", role_name: str = "") -> List[Issue]:
+        """校验链上引用：公司名/未登记类目 → error，未接索引 → warn。
+
+        这是「把类落到列表和索引」的守门人：链上写死公司，这里就拦住。
+        """
+        issues: List[Issue] = []
+        for uid, roles in sorted(self.profiles.items()):
+            if unit_id and uid != unit_id:
+                continue
+            for rname, profile in sorted(roles.items()):
+                if role_name and rname != role_name:
+                    continue
+                for field in CHAIN_FIELDS:
+                    issues.extend(self.classes.validate(
+                        uid, rname, field, getattr(profile.stakeholders, field)))
+        return issues
+
+    def class_usage(self) -> Dict[str, dict]:
+        """行业类 → 被哪些岗位引用（类目列表 + 索引方案的落地视图）。"""
+        view: Dict[str, Dict[str, Dict[str, list]]] = {}
+        for uid, roles in self.profiles.items():
+            for rname, profile in roles.items():
+                view.setdefault(uid, {})[rname] = {
+                    f: list(getattr(profile.stakeholders, f) or []) for f in CHAIN_FIELDS
+                }
+        return self.classes.class_usage(view)
 
     def _derive_activation(self, card: RoleCard, unit) -> dict:
         """路由激活条件：能干什么活（workflows）+ 什么行业语境（alias）+ 触发词 + 权重。"""

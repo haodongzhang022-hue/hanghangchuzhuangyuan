@@ -121,10 +121,10 @@ roles:
       - brand_planner
       - campaign_planner
       beneficiaries:
-      - 市场营销业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或效果不可归因导致预算浪费
+      - 效果不可归因导致预算浪费
       - 跨岗口径不一致
       incentives:
       - 市场洞察报告越靠谱，返工越少
@@ -223,6 +223,54 @@ roles:
     path: data/role-profiles/marketing.yaml
   sources:
   - /workspace/data/role-profiles/marketing.yaml
+  chain_refs:
+    upstream:
+    - raw: 产品与用户洞察
+      value: 产品与用户洞察
+      kind: industry_class
+      ref: industry_class:产品与用户洞察
+      note: 输入
+    downstream:
+    - raw: brand_planner
+      value: brand_planner
+      kind: role
+      ref: role:marketing/brand_planner
+      unit: marketing
+    - raw: campaign_planner
+      value: campaign_planner
+      kind: role
+      ref: role:marketing/campaign_planner
+      unit: marketing
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id015
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id016
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 效果不可归因导致预算浪费
+      value: 效果不可归因
+      kind: industry_class
+      ref: industry_class:效果不可归因
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: brand_planner
   unit_id: marketing
   industry: 市场营销
@@ -336,10 +384,10 @@ roles:
       - campaign_planner
       - design-visual
       beneficiaries:
-      - 市场营销业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或效果不可归因导致预算浪费
+      - 效果不可归因导致预算浪费
       - 跨岗口径不一致
       incentives:
       - 品牌定位越靠谱，返工越少
@@ -423,6 +471,48 @@ roles:
     path: data/role-profiles/marketing.yaml
   sources:
   - /workspace/data/role-profiles/marketing.yaml
+  chain_refs:
+    upstream:
+    - raw: 产品与用户洞察
+      value: 产品与用户洞察
+      kind: industry_class
+      ref: industry_class:产品与用户洞察
+      note: 输入
+    downstream:
+    - raw: campaign_planner
+      value: campaign_planner
+      kind: role
+      ref: role:marketing/campaign_planner
+      unit: marketing
+    - raw: design-visual
+      value: 视觉设计
+      kind: industry_class
+      ref: industry_class:design-visual
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 效果不可归因导致预算浪费
+      value: 效果不可归因
+      kind: industry_class
+      ref: industry_class:效果不可归因
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: campaign_planner
   unit_id: marketing
   industry: 市场营销
@@ -572,10 +662,10 @@ roles:
       - content-creation
       - design-visual
       beneficiaries:
-      - 市场营销业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或效果不可归因导致预算浪费
+      - 效果不可归因导致预算浪费
       - 跨岗口径不一致
       incentives:
       - 活动方案越靠谱，返工越少
@@ -659,6 +749,48 @@ roles:
     path: data/role-profiles/marketing.yaml
   sources:
   - /workspace/data/role-profiles/marketing.yaml
+  chain_refs:
+    upstream:
+    - raw: 产品与用户洞察
+      value: 产品与用户洞察
+      kind: industry_class
+      ref: industry_class:产品与用户洞察
+      note: 输入
+    downstream:
+    - raw: content-creation
+      value: 内容创作
+      kind: industry_class
+      ref: industry_class:content-creation
+      note: 单元
+    - raw: design-visual
+      value: 视觉设计
+      kind: industry_class
+      ref: industry_class:design-visual
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 效果不可归因导致预算浪费
+      value: 效果不可归因
+      kind: industry_class
+      ref: industry_class:效果不可归因
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: pr_manager
   unit_id: marketing
   industry: 市场营销
@@ -772,10 +904,10 @@ roles:
       - 管理层
       - marketing
       beneficiaries:
-      - 市场营销业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或效果不可归因导致预算浪费
+      - 效果不可归因导致预算浪费
       - 跨岗口径不一致
       incentives:
       - 传播口径越靠谱，返工越少
@@ -842,3 +974,45 @@ roles:
     path: data/role-profiles/marketing.yaml
   sources:
   - /workspace/data/role-profiles/marketing.yaml
+  chain_refs:
+    upstream:
+    - raw: 产品与用户洞察
+      value: 产品与用户洞察
+      kind: industry_class
+      ref: industry_class:产品与用户洞察
+      note: 输入
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    - raw: marketing
+      value: 市场营销
+      kind: industry_class
+      ref: industry_class:marketing
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 效果不可归因导致预算浪费
+      value: 效果不可归因
+      kind: industry_class
+      ref: industry_class:效果不可归因
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

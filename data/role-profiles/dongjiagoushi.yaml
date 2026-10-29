@@ -73,18 +73,18 @@ roles:
                 playbook: 把各岗位产物收敛成一份结论，列出未闭合项与风险
     stakeholders:
       upstream:
-        - 用户（人）
+        - 用户
       downstream:
         - product
         - architect
         - developer
         - reviewer
       beneficiaries:
-        - 用户（省心）
-        - 各执行岗位（少扯皮）
+        - 用户
+        - 各执行岗位
       blockers:
-        - 用户诉求本身模糊且不肯澄清
-        - 岗位产物口径不一致导致返工
+        - 需求模糊
+        - 跨岗口径不一致
       incentives:
         - 流程越顺，秘书越少被返工拖住
       risk_notes:
@@ -171,14 +171,14 @@ roles:
       upstream:
         - 用户
         - secretary
-        - 市场与销售（业务目标）
+        - 市场与销售
       downstream:
         - architect
         - developer
         - reviewer
       beneficiaries:
-        - 用户（不被错交付）
-        - 开发（少返工）
+        - 用户
+        - 开发
       blockers:
         - 目标不清晰却强推排期
         - 需求方中途改口径
@@ -278,8 +278,8 @@ roles:
         - developer
         - reviewer
       beneficiaries:
-        - 开发（边界清晰）
-        - 运维（可维护）
+        - 开发
+        - 运维
       blockers:
         - 需求仍在变却要求定架构
         - 既有系统债务不可动
@@ -383,11 +383,11 @@ roles:
         - reviewer
         - 运维
       beneficiaries:
-        - 用户（拿到能用的东西）
+        - 用户
         - 后续维护者
       blockers:
         - 方案与需求打架
-        - 测试基建缺失导致无法自证
+        - 测试基建缺失
       incentives:
         - 一次过评审比返工省三倍时间
       risk_notes:
@@ -473,8 +473,8 @@ roles:
         - 合并门禁
         - 运维
       beneficiaries:
-        - 用户（少踩坑）
-        - 团队（少背锅）
+        - 用户
+        - 团队
       blockers:
         - 变更过大无法审
         - 无测试导致无法判断行为

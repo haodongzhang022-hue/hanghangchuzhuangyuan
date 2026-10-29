@@ -66,10 +66,10 @@ roles:
     - soft_furnish
     - project_manager
     beneficiaries:
-    - 家装设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或预算与工期估算失真
+    - 预算与工期估算失真
     - 跨岗口径不一致
     incentives:
     - 平面方案越靠谱，返工越少
@@ -154,10 +154,10 @@ roles:
     downstream:
     - project_manager
     beneficiaries:
-    - 家装设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或预算与工期估算失真
+    - 预算与工期估算失真
     - 跨岗口径不一致
     incentives:
     - 软装清单越靠谱，返工越少
@@ -242,10 +242,10 @@ roles:
     downstream:
     - 业主
     beneficiaries:
-    - 家装设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或预算与工期估算失真
+    - 预算与工期估算失真
     - 跨岗口径不一致
     incentives:
     - 施工计划越靠谱，返工越少

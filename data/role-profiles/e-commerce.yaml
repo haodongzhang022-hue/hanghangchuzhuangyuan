@@ -64,10 +64,10 @@ roles:
     - ecom_marketer
     - customer_service
     beneficiaries:
-    - 电子商务业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或违规话术与虚假宣传
+    - 违规话术与虚假宣传
     - 跨岗口径不一致
     incentives:
     - 店铺运营计划越靠谱，返工越少
@@ -151,10 +151,10 @@ roles:
     - store_manager
     - 内容创作
     beneficiaries:
-    - 电子商务业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或违规话术与虚假宣传
+    - 违规话术与虚假宣传
     - 跨岗口径不一致
     incentives:
     - 投放计划越靠谱，返工越少
@@ -237,10 +237,10 @@ roles:
     downstream:
     - store_manager
     beneficiaries:
-    - 电子商务业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或违规话术与虚假宣传
+    - 违规话术与虚假宣传
     - 跨岗口径不一致
     incentives:
     - 标准应答越靠谱，返工越少

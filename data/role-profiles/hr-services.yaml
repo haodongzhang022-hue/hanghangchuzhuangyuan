@@ -66,10 +66,10 @@ roles:
     - comp_benefits
     - 用人经理
     beneficiaries:
-    - 人力资源业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或触碰隐私与歧视红线
+    - 触碰隐私与歧视红线
     - 跨岗口径不一致
     incentives:
     - 人才画像越靠谱，返工越少
@@ -155,10 +155,10 @@ roles:
     - employee_relations
     - 财务
     beneficiaries:
-    - 人力资源业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或触碰隐私与歧视红线
+    - 触碰隐私与歧视红线
     - 跨岗口径不一致
     incentives:
     - 薪酬结构方案越靠谱，返工越少
@@ -244,10 +244,10 @@ roles:
     - 管理层
     - 法务
     beneficiaries:
-    - 人力资源业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或触碰隐私与歧视红线
+    - 触碰隐私与歧视红线
     - 跨岗口径不一致
     incentives:
     - 处理方案越靠谱，返工越少
@@ -332,10 +332,10 @@ roles:
     downstream:
     - 管理层
     beneficiaries:
-    - 人力资源业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或触碰隐私与歧视红线
+    - 触碰隐私与歧视红线
     - 跨岗口径不一致
     incentives:
     - 组织诊断越靠谱，返工越少

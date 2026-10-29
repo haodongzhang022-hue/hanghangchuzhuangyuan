@@ -66,10 +66,10 @@ roles:
     - level_designer
     - game_dev
     beneficiaries:
-    - 游戏研发业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或玩法验证不足导致返工
+    - 玩法验证不足导致返工
     - 跨岗口径不一致
     incentives:
     - 玩法设计文档越靠谱，返工越少
@@ -154,10 +154,10 @@ roles:
     downstream:
     - game_dev
     beneficiaries:
-    - 游戏研发业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或玩法验证不足导致返工
+    - 玩法验证不足导致返工
     - 跨岗口径不一致
     incentives:
     - 关卡布局越靠谱，返工越少
@@ -242,10 +242,10 @@ roles:
     downstream:
     - 测试与发布
     beneficiaries:
-    - 游戏研发业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或玩法验证不足导致返工
+    - 玩法验证不足导致返工
     - 跨岗口径不一致
     incentives:
     - 可运行版本越靠谱，返工越少

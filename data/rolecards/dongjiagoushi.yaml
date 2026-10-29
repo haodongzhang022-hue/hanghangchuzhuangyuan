@@ -124,18 +124,18 @@ roles:
               playbook: 把各岗位产物收敛成一份结论，列出未闭合项与风险
     stakeholders:
       upstream:
-      - 用户（人）
+      - 用户
       downstream:
       - product
       - architect
       - developer
       - reviewer
       beneficiaries:
-      - 用户（省心）
-      - 各执行岗位（少扯皮）
+      - 用户
+      - 各执行岗位
       blockers:
-      - 用户诉求本身模糊且不肯澄清
-      - 岗位产物口径不一致导致返工
+      - 需求模糊
+      - 跨岗口径不一致
       incentives:
       - 流程越顺，秘书越少被返工拖住
       risk_notes:
@@ -173,7 +173,7 @@ roles:
     - id: intake
       name: 诉求拆解
       playbook: 把原话拆成可交付的工序，标出依赖与不可并行项
-      outputs: &id002
+      outputs: &id003
       - 诉求备忘
       - 验收口径
       verify: *id001
@@ -182,49 +182,49 @@ roles:
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: &id003
+      preconditions: &id004
       - 诉求备忘已确认
-      outputs: &id004
+      outputs: &id005
       - 输入清单
-      verify: &id005
+      verify: &id006
       - 每份输入都有来源
       runtime: agent
       agent_role: secretary
     - id: execute
       name: 分派与盯进
       playbook: 按依赖序分派岗位，逐项回收产物，卡住立刻降级重试而非等人
-      preconditions: &id006
+      preconditions: &id007
       - 输入清单齐备
-      outputs: &id016
+      outputs: &id017
       - 交付物主体
-      verify: &id017
+      verify: &id018
       - 满足验收口径
       runtime: agent
       agent_role: secretary
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: &id009
+      outputs: &id010
       - 自检记录
-      verify: &id010
+      verify: &id011
       - 不确定项已显式标注
       runtime: agent
       agent_role: secretary
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: &id011
+      outputs: &id012
       - 交付说明
-      verify: &id012
+      verify: &id013
       - 结论可回溯到依据
       runtime: agent
       agent_role: secretary
     - id: handoff
       name: 收敛汇总
       playbook: 把各岗位产物收敛成一份结论，列出未闭合项与风险
-      outputs: &id013
+      outputs: &id014
       - 交接卡
-      verify: &id014
+      verify: &id015
       - 交接卡含产物、约束、待决项
       runtime: agent
       agent_role: secretary
@@ -234,6 +234,61 @@ roles:
     path: docs/industry/units/dongjiagoushi/README.md
   sources:
   - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id002
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    downstream:
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    blockers:
+    - raw: 需求模糊
+      value: 需求模糊
+      kind: industry_class
+      ref: industry_class:需求模糊
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: architect
   unit_id: dongjiagoushi
   industry: 软件研发
@@ -342,10 +397,10 @@ roles:
             execute:
               name: 方案设计
               playbook: 先列约束与非功能要求，再出候选方案，最后给出推荐与代价
-              outputs: &id007
+              outputs: &id008
               - 架构方案
               - 权衡记录
-              verify: &id008
+              verify: &id009
               - 每项关键选择都写明了代价
             selfcheck:
               name: 可落地性自检
@@ -358,8 +413,8 @@ roles:
       - developer
       - reviewer
       beneficiaries:
-      - 开发（边界清晰）
-      - 运维（可维护）
+      - 开发
+      - 运维
       blockers:
       - 需求仍在变却要求定架构
       - 既有系统债务不可动
@@ -400,46 +455,46 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id002
-      verify: &id015
+      outputs: *id003
+      verify: &id016
       - 目标与验收口径已复述确认
       runtime: agent
       agent_role: architect
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
       runtime: agent
       agent_role: architect
     - id: execute
       name: 方案设计
       playbook: 先列约束与非功能要求，再出候选方案，最后给出推荐与代价
-      preconditions: *id006
-      outputs: *id007
-      verify: *id008
+      preconditions: *id007
+      outputs: *id008
+      verify: *id009
       runtime: agent
       agent_role: architect
     - id: selfcheck
       name: 可落地性自检
       playbook: 检查方案能否被开发直接执行、接口是否闭合、失败路径是否定义
-      outputs: *id009
-      verify: *id010
+      outputs: *id010
+      verify: *id011
       runtime: agent
       agent_role: architect
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id012
+      verify: *id013
       runtime: agent
       agent_role: architect
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id014
+      verify: *id015
       runtime: agent
       agent_role: architect
   plugin_artifacts:
@@ -451,6 +506,56 @@ roles:
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/system-design/SKILL.md
   sources:
   - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 开发
+      value: 开发
+      kind: industry_class
+      ref: industry_class:开发
+      index: &id021
+        source: 组织架构
+        query:
+        - 研发团队
+      note: 岗位类
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    blockers:
+    - raw: 需求仍在变却要求定架构
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍
+    - raw: 既有系统债务不可动
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
 - role: developer
   unit_id: dongjiagoushi
   industry: 软件研发
@@ -624,7 +729,7 @@ roles:
             selfcheck:
               name: 测试与自检
               playbook: 跑自动化测试与静态检查，确认失败路径也有覆盖
-              verify: &id018
+              verify: &id019
               - 测试全部通过
               - 变更范围与需求一致
     stakeholders:
@@ -635,11 +740,11 @@ roles:
       - reviewer
       - 运维
       beneficiaries:
-      - 用户（拿到能用的东西）
+      - 用户
       - 后续维护者
       blockers:
       - 方案与需求打架
-      - 测试基建缺失导致无法自证
+      - 测试基建缺失
       incentives:
       - 一次过评审比返工省三倍时间
       risk_notes:
@@ -677,45 +782,45 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id002
-      verify: *id015
+      outputs: *id003
+      verify: *id016
       runtime: agent
       agent_role: developer
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
       runtime: agent
       agent_role: developer
     - id: execute
       name: 实现
       playbook: 按接口约定实现，边写边补测试，遇到方案漏洞先反馈不硬改
-      preconditions: *id006
-      outputs: *id016
-      verify: *id017
+      preconditions: *id007
+      outputs: *id017
+      verify: *id018
       runtime: agent
       agent_role: developer
     - id: selfcheck
       name: 测试与自检
       playbook: 跑自动化测试与静态检查，确认失败路径也有覆盖
-      outputs: *id009
-      verify: *id018
+      outputs: *id010
+      verify: *id019
       runtime: agent
       agent_role: developer
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id012
+      verify: *id013
       runtime: agent
       agent_role: developer
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id014
+      verify: *id015
       runtime: agent
       agent_role: developer
   plugin_artifacts:
@@ -730,6 +835,56 @@ roles:
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/debug/SKILL.md
   sources:
   - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    downstream:
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 后续维护者
+      value: 后续维护者
+      kind: industry_class
+      ref: industry_class:后续维护者
+      index:
+        source: 代码仓库
+        query:
+        - CODEOWNERS
+      note: 岗位类
+    blockers:
+    - raw: 方案与需求打架
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
+    - raw: 测试基建缺失
+      value: 测试基建缺失
+      kind: industry_class
+      ref: industry_class:测试基建缺失
+      note: 阻碍
 - role: reviewer
   unit_id: dongjiagoushi
   industry: 软件研发
@@ -837,8 +992,8 @@ roles:
       - 合并门禁
       - 运维
       beneficiaries:
-      - 用户（少踩坑）
-      - 团队（少背锅）
+      - 用户
+      - 团队
       blockers:
       - 变更过大无法审
       - 无测试导致无法判断行为
@@ -916,6 +1071,52 @@ roles:
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
   sources:
   - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    downstream:
+    - raw: 合并门禁
+      value: 合并门禁
+      kind: interface
+      ref: industry_class:合并门禁
+      note: 接口
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 团队
+      value: 团队
+      kind: industry_class
+      ref: industry_class:团队
+      note: 内部组织
+    blockers:
+    - raw: 变更过大无法审
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
+    - raw: 无测试导致无法判断行为
+      value: 测试基建缺失
+      kind: industry_class
+      ref: industry_class:测试基建缺失
+      note: 阻碍
 - role: product
   unit_id: dongjiagoushi
   industry: 软件研发
@@ -1017,21 +1218,21 @@ roles:
             execute:
               name: 需求与验收口径
               playbook: 输出需求清单与可验证的验收标准，明确不做什么
-              verify: &id019
+              verify: &id020
               - 每条需求都有验收标准
               - 范围外已显式排除
     stakeholders:
       upstream:
       - 用户
       - secretary
-      - 市场与销售（业务目标）
+      - 市场与销售
       downstream:
       - architect
       - developer
       - reviewer
       beneficiaries:
-      - 用户（不被错交付）
-      - 开发（少返工）
+      - 用户
+      - 开发
       blockers:
       - 目标不清晰却强推排期
       - 需求方中途改口径
@@ -1070,45 +1271,45 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id002
-      verify: *id015
+      outputs: *id003
+      verify: *id016
       runtime: agent
       agent_role: product
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
       runtime: agent
       agent_role: product
     - id: execute
       name: 需求与验收口径
       playbook: 输出需求清单与可验证的验收标准，明确不做什么
-      preconditions: *id006
-      outputs: *id016
-      verify: *id019
+      preconditions: *id007
+      outputs: *id017
+      verify: *id020
       runtime: agent
       agent_role: product
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: *id009
-      verify: *id010
+      outputs: *id010
+      verify: *id011
       runtime: agent
       agent_role: product
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id012
+      verify: *id013
       runtime: agent
       agent_role: product
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id014
+      verify: *id015
       runtime: agent
       agent_role: product
   plugin_artifacts:
@@ -1117,3 +1318,65 @@ roles:
     path: docs/industry/units/dongjiagoushi/README.md
   sources:
   - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: secretary
+      value: secretary
+      kind: role
+      ref: role:dongjiagoushi/secretary
+      unit: dongjiagoushi
+    - raw: 市场与销售
+      value: 市场与销售
+      kind: industry_class
+      ref: industry_class:市场与销售
+      index:
+        source: 组织架构
+        query:
+        - 市场与销售部门
+      note: 需求方
+    downstream:
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 开发
+      value: 开发
+      kind: industry_class
+      ref: industry_class:开发
+      index: *id021
+      note: 岗位类
+    blockers:
+    - raw: 目标不清晰却强推排期
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍
+    - raw: 需求方中途改口径
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍

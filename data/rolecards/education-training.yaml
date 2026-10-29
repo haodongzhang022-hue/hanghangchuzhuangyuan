@@ -151,10 +151,10 @@ roles:
       downstream:
       - teacher
       beneficiaries:
-      - 教育培训业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或不符合教学规律会适得其反
+      - 不符合教学规律会适得其反
       - 跨岗口径不一致
       incentives:
       - 课程大纲越靠谱，返工越少
@@ -253,6 +253,58 @@ roles:
     path: data/role-profiles/education-training.yaml
   sources:
   - /workspace/data/role-profiles/education-training.yaml
+  chain_refs:
+    upstream:
+    - raw: 学员
+      value: 学员
+      kind: industry_class
+      ref: industry_class:学员
+      index: &id015
+        source: 学员主数据
+        query:
+        - 在册学员
+      note: 需求方
+    - raw: 教学目标
+      value: 教学目标
+      kind: industry_class
+      ref: industry_class:教学目标
+      note: 输入
+    downstream:
+    - raw: teacher
+      value: teacher
+      kind: role
+      ref: role:education-training/teacher
+      unit: education-training
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id016
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id017
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 不符合教学规律会适得其反
+      value: 违反教学规律
+      kind: industry_class
+      ref: industry_class:违反教学规律
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: teacher
   unit_id: education-training
   industry: 教育培训
@@ -404,10 +456,10 @@ roles:
       downstream:
       - learning_advisor
       beneficiaries:
-      - 教育培训业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或不符合教学规律会适得其反
+      - 不符合教学规律会适得其反
       - 跨岗口径不一致
       incentives:
       - 教学实施越靠谱，返工越少
@@ -491,6 +543,49 @@ roles:
     path: data/role-profiles/education-training.yaml
   sources:
   - /workspace/data/role-profiles/education-training.yaml
+  chain_refs:
+    upstream:
+    - raw: 学员
+      value: 学员
+      kind: industry_class
+      ref: industry_class:学员
+      index: *id015
+      note: 需求方
+    - raw: 教学目标
+      value: 教学目标
+      kind: industry_class
+      ref: industry_class:教学目标
+      note: 输入
+    downstream:
+    - raw: learning_advisor
+      value: learning_advisor
+      kind: role
+      ref: role:education-training/learning_advisor
+      unit: education-training
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id016
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id017
+      note: 需求方
+    blockers:
+    - raw: 不符合教学规律会适得其反
+      value: 违反教学规律
+      kind: industry_class
+      ref: industry_class:违反教学规律
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: learning_advisor
   unit_id: education-training
   industry: 教育培训
@@ -682,10 +777,10 @@ roles:
       downstream:
       - teacher
       beneficiaries:
-      - 教育培训业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或不符合教学规律会适得其反
+      - 不符合教学规律会适得其反
       - 跨岗口径不一致
       incentives:
       - 学习计划越靠谱，返工越少
@@ -769,3 +864,46 @@ roles:
     path: data/role-profiles/education-training.yaml
   sources:
   - /workspace/data/role-profiles/education-training.yaml
+  chain_refs:
+    upstream:
+    - raw: 学员
+      value: 学员
+      kind: industry_class
+      ref: industry_class:学员
+      index: *id015
+      note: 需求方
+    - raw: 教学目标
+      value: 教学目标
+      kind: industry_class
+      ref: industry_class:教学目标
+      note: 输入
+    downstream:
+    - raw: teacher
+      value: teacher
+      kind: role
+      ref: role:education-training/teacher
+      unit: education-training
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id016
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id017
+      note: 需求方
+    blockers:
+    - raw: 不符合教学规律会适得其反
+      value: 违反教学规律
+      kind: industry_class
+      ref: industry_class:违反教学规律
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

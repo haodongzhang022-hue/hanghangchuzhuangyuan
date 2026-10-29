@@ -142,10 +142,10 @@ roles:
       - 决策者
       - bi_engineer
       beneficiaries:
-      - 数据分析业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径不一致得出错误结论
+      - 口径不一致得出错误结论
       - 跨岗口径不一致
       incentives:
       - 分析结论越靠谱，返工越少
@@ -182,59 +182,59 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: &id001
+      outputs: &id002
       - 诉求备忘
       - 验收口径
-      verify: &id002
+      verify: &id003
       - 目标与验收口径已复述确认
       runtime: agent
       agent_role: data_analyst
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: &id003
+      preconditions: &id004
       - 诉求备忘已确认
-      outputs: &id004
+      outputs: &id005
       - 输入清单
-      verify: &id005
+      verify: &id006
       - 每份输入都有来源
       runtime: agent
       agent_role: data_analyst
     - id: execute
       name: 取数与分析
       playbook: 先对齐指标口径与时间窗，再取数做对比与拆解，结论必须写清口径与置信边界
-      preconditions: &id006
+      preconditions: &id007
       - 输入清单齐备
-      outputs: &id007
+      outputs: &id008
       - 交付物主体
-      verify: &id008
+      verify: &id009
       - 满足验收口径
       runtime: agent
       agent_role: data_analyst
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: &id009
+      outputs: &id010
       - 自检记录
-      verify: &id010
+      verify: &id011
       - 不确定项已显式标注
       runtime: agent
       agent_role: data_analyst
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: &id011
+      outputs: &id012
       - 交付说明
-      verify: &id012
+      verify: &id013
       - 结论可回溯到依据
       runtime: agent
       agent_role: data_analyst
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: &id013
+      outputs: &id014
       - 交接卡
-      verify: &id014
+      verify: &id015
       - 交接卡含产物、约束、待决项
       runtime: agent
       agent_role: data_analyst
@@ -244,6 +244,55 @@ roles:
     path: data/role-profiles/data-analytics.yaml
   sources:
   - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id001
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    downstream:
+    - raw: 决策者
+      value: 决策者
+      kind: industry_class
+      ref: industry_class:决策者
+      note: 内部组织
+    - raw: bi_engineer
+      value: bi_engineer
+      kind: role
+      ref: role:data-analytics/bi_engineer
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id016
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: data_scientist
   unit_id: data-analytics
   industry: 数据分析
@@ -350,10 +399,10 @@ roles:
       - 决策者
       - bi_engineer
       beneficiaries:
-      - 数据分析业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径不一致得出错误结论
+      - 口径不一致得出错误结论
       - 跨岗口径不一致
       incentives:
       - 模型方案越靠谱，返工越少
@@ -390,45 +439,45 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id001
-      verify: *id002
+      outputs: *id002
+      verify: *id003
       runtime: agent
       agent_role: data_scientist
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
       runtime: agent
       agent_role: data_scientist
     - id: execute
       name: 建模与评估
       playbook: 先定标签与评估指标，再建基线模型，逐轮改进并如实报告离线/在线差异
-      preconditions: *id006
-      outputs: *id007
-      verify: *id008
+      preconditions: *id007
+      outputs: *id008
+      verify: *id009
       runtime: agent
       agent_role: data_scientist
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: *id009
-      verify: *id010
+      outputs: *id010
+      verify: *id011
       runtime: agent
       agent_role: data_scientist
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id012
+      verify: *id013
       runtime: agent
       agent_role: data_scientist
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id014
+      verify: *id015
       runtime: agent
       agent_role: data_scientist
   plugin_artifacts:
@@ -437,6 +486,49 @@ roles:
     path: data/role-profiles/data-analytics.yaml
   sources:
   - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 决策者
+      value: 决策者
+      kind: industry_class
+      ref: industry_class:决策者
+      note: 内部组织
+    - raw: bi_engineer
+      value: bi_engineer
+      kind: role
+      ref: role:data-analytics/bi_engineer
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: bi_engineer
   unit_id: data-analytics
   industry: 数据分析
@@ -544,10 +636,10 @@ roles:
       - 业务方
       - data_analyst
       beneficiaries:
-      - 数据分析业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或口径不一致得出错误结论
+      - 口径不一致得出错误结论
       - 跨岗口径不一致
       incentives:
       - 数据模型越靠谱，返工越少
@@ -615,3 +707,47 @@ roles:
     path: data/role-profiles/data-analytics.yaml
   sources:
   - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: data_analyst
+      value: data_analyst
+      kind: role
+      ref: role:data-analytics/data_analyst
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

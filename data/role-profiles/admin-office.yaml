@@ -63,10 +63,10 @@ roles:
     downstream:
     - 全体成员
     beneficiaries:
-    - 行政办公业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或流程遗漏导致来回补件
+    - 流程遗漏导致来回补件
     - 跨岗口径不一致
     incentives:
     - 事务方案越靠谱，返工越少
@@ -149,10 +149,10 @@ roles:
     downstream:
     - 全体成员
     beneficiaries:
-    - 行政办公业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或流程遗漏导致来回补件
+    - 流程遗漏导致来回补件
     - 跨岗口径不一致
     incentives:
     - 接待记录越靠谱，返工越少
@@ -235,10 +235,10 @@ roles:
     downstream:
     - 全体成员
     beneficiaries:
-    - 行政办公业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或流程遗漏导致来回补件
+    - 流程遗漏导致来回补件
     - 跨岗口径不一致
     incentives:
     - 归档目录越靠谱，返工越少
@@ -321,10 +321,10 @@ roles:
     downstream:
     - 全体成员
     beneficiaries:
-    - 行政办公业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或流程遗漏导致来回补件
+    - 流程遗漏导致来回补件
     - 跨岗口径不一致
     incentives:
     - 会议议程越靠谱，返工越少

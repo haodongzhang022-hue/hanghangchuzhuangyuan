@@ -151,10 +151,10 @@ roles:
       - contract_advisor
       - 业务执行方
       beneficiaries:
-      - 法律咨询业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或事实不清即下结论会误导
+      - 事实不清即下结论会误导
       - 跨岗口径不一致
       incentives:
       - 法律意见越靠谱，返工越少
@@ -221,6 +221,65 @@ roles:
     path: data/role-profiles/legal-services.yaml
   sources:
   - /workspace/data/role-profiles/legal-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id001
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id002
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: contract_advisor
+      value: contract_advisor
+      kind: role
+      ref: role:legal-services/contract_advisor
+      unit: legal-services
+    - raw: 业务执行方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id003
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 事实不清即下结论会误导
+      value: 事实不清
+      kind: industry_class
+      ref: industry_class:事实不清
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: contract_advisor
   unit_id: legal-services
   industry: 法律咨询
@@ -352,10 +411,10 @@ roles:
       - 业务执行方
       - compliance_advisor
       beneficiaries:
-      - 法律咨询业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或事实不清即下结论会误导
+      - 事实不清即下结论会误导
       - 跨岗口径不一致
       incentives:
       - 审查意见越靠谱，返工越少
@@ -431,6 +490,56 @@ roles:
     path: data/role-profiles/legal-services.yaml
   sources:
   - /workspace/data/role-profiles/legal-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: 业务执行方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: compliance_advisor
+      value: compliance_advisor
+      kind: role
+      ref: role:legal-services/compliance_advisor
+      unit: legal-services
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 事实不清即下结论会误导
+      value: 事实不清
+      kind: industry_class
+      ref: industry_class:事实不清
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: compliance_advisor
   unit_id: legal-services
   industry: 法律咨询
@@ -542,10 +651,10 @@ roles:
       - 业务执行方
       - 管理层
       beneficiaries:
-      - 法律咨询业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或事实不清即下结论会误导
+      - 事实不清即下结论会误导
       - 跨岗口径不一致
       incentives:
       - 合规评估越靠谱，返工越少
@@ -644,3 +753,53 @@ roles:
     path: data/role-profiles/legal-services.yaml
   sources:
   - /workspace/data/role-profiles/legal-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: 业务执行方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 事实不清即下结论会误导
+      value: 事实不清
+      kind: industry_class
+      ref: industry_class:事实不清
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

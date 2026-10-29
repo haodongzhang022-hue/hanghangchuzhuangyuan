@@ -169,10 +169,10 @@ roles:
       - comp_benefits
       - 用人经理
       beneficiaries:
-      - 人力资源业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或触碰隐私与歧视红线
+      - 触碰隐私与歧视红线
       - 跨岗口径不一致
       incentives:
       - 人才画像越靠谱，返工越少
@@ -209,59 +209,59 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: &id001
+      outputs: &id004
       - 诉求备忘
       - 验收口径
-      verify: &id002
+      verify: &id005
       - 目标与验收口径已复述确认
       runtime: agent
       agent_role: recruiter
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: &id003
+      preconditions: &id006
       - 诉求备忘已确认
-      outputs: &id004
+      outputs: &id007
       - 输入清单
-      verify: &id005
+      verify: &id008
       - 每份输入都有来源
       runtime: agent
       agent_role: recruiter
     - id: execute
       name: 筛选与面试
       playbook: 先把岗位要求拆成可验证的能力项，再按能力项设计问题与评分锚点，避免主观印象
-      preconditions: &id006
+      preconditions: &id009
       - 输入清单齐备
-      outputs: &id007
+      outputs: &id010
       - 交付物主体
-      verify: &id008
+      verify: &id011
       - 满足验收口径
       runtime: agent
       agent_role: recruiter
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: &id009
+      outputs: &id012
       - 自检记录
-      verify: &id010
+      verify: &id013
       - 不确定项已显式标注
       runtime: agent
       agent_role: recruiter
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: &id011
+      outputs: &id014
       - 交付说明
-      verify: &id012
+      verify: &id015
       - 结论可回溯到依据
       runtime: agent
       agent_role: recruiter
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: &id013
+      outputs: &id016
       - 交接卡
-      verify: &id014
+      verify: &id017
       - 交接卡含产物、约束、待决项
       runtime: agent
       agent_role: recruiter
@@ -271,6 +271,63 @@ roles:
     path: data/role-profiles/hr-services.yaml
   sources:
   - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: &id001
+        source: ATS
+        query:
+        - 候选人库
+      note: 需求方
+    downstream:
+    - raw: comp_benefits
+      value: comp_benefits
+      kind: role
+      ref: role:hr-services/comp_benefits
+      unit: hr-services
+    - raw: 用人经理
+      value: 用人经理
+      kind: industry_class
+      ref: industry_class:用人经理
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id002
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id003
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: comp_benefits
   unit_id: hr-services
   industry: 人力资源
@@ -428,10 +485,10 @@ roles:
       - employee_relations
       - 财务
       beneficiaries:
-      - 人力资源业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或触碰隐私与歧视红线
+      - 触碰隐私与歧视红线
       - 跨岗口径不一致
       incentives:
       - 薪酬结构方案越靠谱，返工越少
@@ -498,6 +555,54 @@ roles:
     path: data/role-profiles/hr-services.yaml
   sources:
   - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: employee_relations
+      value: employee_relations
+      kind: role
+      ref: role:hr-services/employee_relations
+      unit: hr-services
+    - raw: 财务
+      value: 财务
+      kind: industry_class
+      ref: industry_class:财务
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: employee_relations
   unit_id: hr-services
   industry: 人力资源
@@ -659,10 +764,10 @@ roles:
       - 管理层
       - 法务
       beneficiaries:
-      - 人力资源业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或触碰隐私与歧视红线
+      - 触碰隐私与歧视红线
       - 跨岗口径不一致
       incentives:
       - 处理方案越靠谱，返工越少
@@ -729,6 +834,54 @@ roles:
     path: data/role-profiles/hr-services.yaml
   sources:
   - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    - raw: 法务
+      value: 法务
+      kind: industry_class
+      ref: industry_class:法务
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: hr_advisor
   unit_id: hr-services
   industry: 人力资源
@@ -895,10 +1048,10 @@ roles:
       downstream:
       - 管理层
       beneficiaries:
-      - 人力资源业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或触碰隐私与歧视红线
+      - 触碰隐私与歧视红线
       - 跨岗口径不一致
       incentives:
       - 组织诊断越靠谱，返工越少
@@ -935,45 +1088,45 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs: *id001
-      verify: *id002
+      outputs: *id004
+      verify: *id005
       runtime: agent
       agent_role: hr_advisor
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions: *id003
-      outputs: *id004
-      verify: *id005
-      runtime: agent
-      agent_role: hr_advisor
-    - id: execute
-      name: 诊断与方案
-      playbook: 先从业务目标反推人力需求，再诊断组织堵点，方案按「先止血后调结构」排序
       preconditions: *id006
       outputs: *id007
       verify: *id008
       runtime: agent
       agent_role: hr_advisor
+    - id: execute
+      name: 诊断与方案
+      playbook: 先从业务目标反推人力需求，再诊断组织堵点，方案按「先止血后调结构」排序
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: hr_advisor
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs: *id009
-      verify: *id010
+      outputs: *id012
+      verify: *id013
       runtime: agent
       agent_role: hr_advisor
     - id: deliver
       name: 交付与说明
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
-      outputs: *id011
-      verify: *id012
+      outputs: *id014
+      verify: *id015
       runtime: agent
       agent_role: hr_advisor
     - id: handoff
       name: 交接下游
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
-      outputs: *id013
-      verify: *id014
+      outputs: *id016
+      verify: *id017
       runtime: agent
       agent_role: hr_advisor
   plugin_artifacts:
@@ -982,3 +1135,46 @@ roles:
     path: data/role-profiles/hr-services.yaml
   sources:
   - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

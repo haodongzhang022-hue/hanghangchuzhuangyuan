@@ -53,6 +53,9 @@ $:
             # M11 岗位卡一致性：改了 data/role-profiles 或 data/workflow-templates
             # 却忘了重渲 data/rolecards 时，这里直接拦下（否则产物与数据静默分叉）。
             python3 scripts/gen_rolecards.py --check
+            # M11.1 链条守门：链上出现公司名 / 未登记行业类 → 直接失败。
+            # 「类落到列表和索引，公司靠检索查」这条规矩由数据校验兜住，不靠人盯。
+            python3 src/hanghang/cli/main.py role chain --check
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""
@@ -111,6 +114,7 @@ $:
             # 合并门禁同样采用变更感知选择，快速放行无风险的 PR；
             # 全量回归已由 main.push 事件保证。
             python3 scripts/gen_rolecards.py --check
+            python3 src/hanghang/cli/main.py role chain --check
             bash scripts/change-aware-test.sh
         - name: 自动合并
           # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，

@@ -64,10 +64,10 @@ roles:
     - medical_advisor
     - fitness_coach
     beneficiaries:
-    - 健康医疗业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或越过医疗边界给出诊断结论
+    - 越过医疗边界给出诊断结论
     - 跨岗口径不一致
     incentives:
     - 评估与建议越靠谱，返工越少
@@ -150,10 +150,10 @@ roles:
     downstream:
     - 医疗与专业机构
     beneficiaries:
-    - 健康医疗业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或越过医疗边界给出诊断结论
+    - 越过医疗边界给出诊断结论
     - 跨岗口径不一致
     incentives:
     - 情绪评估越靠谱，返工越少
@@ -236,10 +236,10 @@ roles:
     downstream:
     - 医疗机构
     beneficiaries:
-    - 健康医疗业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或越过医疗边界给出诊断结论
+    - 越过医疗边界给出诊断结论
     - 跨岗口径不一致
     incentives:
     - 医学信息解读越靠谱，返工越少
@@ -322,10 +322,10 @@ roles:
     downstream:
     - health_consultant
     beneficiaries:
-    - 健康医疗业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或越过医疗边界给出诊断结论
+    - 越过医疗边界给出诊断结论
     - 跨岗口径不一致
     incentives:
     - 训练计划越靠谱，返工越少

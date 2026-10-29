@@ -64,10 +64,10 @@ roles:
     - 需求方
     - ui_designer
     beneficiaries:
-    - 视觉设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或只讲好看不讲可用
+    - 只讲好看不讲可用
     - 跨岗口径不一致
     incentives:
     - 视觉稿越靠谱，返工越少
@@ -150,10 +150,10 @@ roles:
     downstream:
     - 前端开发
     beneficiaries:
-    - 视觉设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或只讲好看不讲可用
+    - 只讲好看不讲可用
     - 跨岗口径不一致
     incentives:
     - 界面方案越靠谱，返工越少
@@ -237,10 +237,10 @@ roles:
     - 内容创作
     - 品牌
     beneficiaries:
-    - 视觉设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或只讲好看不讲可用
+    - 只讲好看不讲可用
     - 跨岗口径不一致
     incentives:
     - 插画稿越靠谱，返工越少
@@ -324,10 +324,10 @@ roles:
     - design-visual
     - marketing
     beneficiaries:
-    - 视觉设计业务方
-    - 最终用户
+    - 业务方
+    - 用户
     blockers:
-    - 输入不全或只讲好看不讲可用
+    - 只讲好看不讲可用
     - 跨岗口径不一致
     incentives:
     - 品牌规范越靠谱，返工越少

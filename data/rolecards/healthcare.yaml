@@ -139,10 +139,10 @@ roles:
       - medical_advisor
       - fitness_coach
       beneficiaries:
-      - 健康医疗业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或越过医疗边界给出诊断结论
+      - 越过医疗边界给出诊断结论
       - 跨岗口径不一致
       incentives:
       - 评估与建议越靠谱，返工越少
@@ -209,6 +209,54 @@ roles:
     path: data/role-profiles/healthcare.yaml
   sources:
   - /workspace/data/role-profiles/healthcare.yaml
+  chain_refs:
+    upstream:
+    - raw: 咨询者自述
+      value: 咨询者自述
+      kind: industry_class
+      ref: industry_class:咨询者自述
+      note: 输入
+    downstream:
+    - raw: medical_advisor
+      value: medical_advisor
+      kind: role
+      ref: role:healthcare/medical_advisor
+      unit: healthcare
+    - raw: fitness_coach
+      value: fitness_coach
+      kind: role
+      ref: role:healthcare/fitness_coach
+      unit: healthcare
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id007
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id008
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 越过医疗边界给出诊断结论
+      value: 越过医疗边界
+      kind: industry_class
+      ref: industry_class:越过医疗边界
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: psychologist
   unit_id: healthcare
   industry: 健康医疗
@@ -339,10 +387,10 @@ roles:
       downstream:
       - 医疗与专业机构
       beneficiaries:
-      - 健康医疗业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或越过医疗边界给出诊断结论
+      - 越过医疗边界给出诊断结论
       - 跨岗口径不一致
       incentives:
       - 情绪评估越靠谱，返工越少
@@ -403,6 +451,47 @@ roles:
     path: data/role-profiles/healthcare.yaml
   sources:
   - /workspace/data/role-profiles/healthcare.yaml
+  chain_refs:
+    upstream:
+    - raw: 咨询者自述
+      value: 咨询者自述
+      kind: industry_class
+      ref: industry_class:咨询者自述
+      note: 输入
+    downstream:
+    - raw: 医疗与专业机构
+      value: 医疗与专业机构
+      kind: industry_class
+      ref: industry_class:医疗与专业机构
+      index:
+        source: 医疗机构名录
+        query:
+        - 医疗机构
+      note: 机构
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 越过医疗边界给出诊断结论
+      value: 越过医疗边界
+      kind: industry_class
+      ref: industry_class:越过医疗边界
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: medical_advisor
   unit_id: healthcare
   industry: 健康医疗
@@ -531,10 +620,10 @@ roles:
       downstream:
       - 医疗机构
       beneficiaries:
-      - 健康医疗业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或越过医疗边界给出诊断结论
+      - 越过医疗边界给出诊断结论
       - 跨岗口径不一致
       incentives:
       - 医学信息解读越靠谱，返工越少
@@ -595,6 +684,47 @@ roles:
     path: data/role-profiles/healthcare.yaml
   sources:
   - /workspace/data/role-profiles/healthcare.yaml
+  chain_refs:
+    upstream:
+    - raw: 咨询者自述
+      value: 咨询者自述
+      kind: industry_class
+      ref: industry_class:咨询者自述
+      note: 输入
+    downstream:
+    - raw: 医疗机构
+      value: 医疗机构
+      kind: industry_class
+      ref: industry_class:医疗机构
+      index:
+        source: 医疗机构名录
+        query:
+        - 医疗机构
+      note: 机构
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 越过医疗边界给出诊断结论
+      value: 越过医疗边界
+      kind: industry_class
+      ref: industry_class:越过医疗边界
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: fitness_coach
   unit_id: healthcare
   industry: 健康医疗
@@ -727,10 +857,10 @@ roles:
       downstream:
       - health_consultant
       beneficiaries:
-      - 健康医疗业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或越过医疗边界给出诊断结论
+      - 越过医疗边界给出诊断结论
       - 跨岗口径不一致
       incentives:
       - 训练计划越靠谱，返工越少
@@ -829,3 +959,40 @@ roles:
     path: data/role-profiles/healthcare.yaml
   sources:
   - /workspace/data/role-profiles/healthcare.yaml
+  chain_refs:
+    upstream:
+    - raw: 咨询者自述
+      value: 咨询者自述
+      kind: industry_class
+      ref: industry_class:咨询者自述
+      note: 输入
+    downstream:
+    - raw: health_consultant
+      value: health_consultant
+      kind: role
+      ref: role:healthcare/health_consultant
+      unit: healthcare
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 越过医疗边界给出诊断结论
+      value: 越过医疗边界
+      kind: industry_class
+      ref: industry_class:越过医疗边界
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

@@ -176,10 +176,10 @@ roles:
       - soft_furnish
       - project_manager
       beneficiaries:
-      - 家装设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或预算与工期估算失真
+      - 预算与工期估算失真
       - 跨岗口径不一致
       incentives:
       - 平面方案越靠谱，返工越少
@@ -278,6 +278,59 @@ roles:
     path: data/role-profiles/home-design.yaml
   sources:
   - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: soft_furnish
+      value: soft_furnish
+      kind: role
+      ref: role:home-design/soft_furnish
+      unit: home-design
+    - raw: project_manager
+      value: project_manager
+      kind: role
+      ref: role:home-design/project_manager
+      unit: home-design
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id015
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id016
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: soft_furnish
   unit_id: home-design
   industry: 家装设计
@@ -419,10 +472,10 @@ roles:
       downstream:
       - project_manager
       beneficiaries:
-      - 家装设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或预算与工期估算失真
+      - 预算与工期估算失真
       - 跨岗口径不一致
       incentives:
       - 软装清单越靠谱，返工越少
@@ -506,6 +559,48 @@ roles:
     path: data/role-profiles/home-design.yaml
   sources:
   - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: project_manager
+      value: project_manager
+      kind: role
+      ref: role:home-design/project_manager
+      unit: home-design
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
 - role: project_manager
   unit_id: home-design
   industry: 家装设计
@@ -639,10 +734,10 @@ roles:
       downstream:
       - 业主
       beneficiaries:
-      - 家装设计业务方
-      - 最终用户
+      - 业务方
+      - 用户
       blockers:
-      - 输入不全或预算与工期估算失真
+      - 预算与工期估算失真
       - 跨岗口径不一致
       incentives:
       - 施工计划越靠谱，返工越少
@@ -726,3 +821,49 @@ roles:
     path: data/role-profiles/home-design.yaml
   sources:
   - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: 业主
+      value: 业主
+      kind: industry_class
+      ref: industry_class:业主
+      index:
+        source: CRM
+        query:
+        - 业主档案
+      note: 需求方
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
