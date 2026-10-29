@@ -133,6 +133,14 @@ python3 src/hanghang/cli/main.py arb review --ticket ARB-xxx --decision keep_a -
 #       检测到冲突时走 M9+ 版本化仲裁：保存双方版本 → 字段级差异分析，
 #       非重叠自动合并、重叠则生成 ReviewTicket 待 arb review 审核。
 
+# M10 上下文装配（context: 三层隔离装配 / 规则表 / 缓存隔离校验）
+# 说明：M10 防提示词冗余——静态层(缓存键) / 会话态层 / 按规则注入层，三层物理隔离。
+python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjiagoushi --role developer --text "修改代码实现测试" --objective "装配演示"   # SLIB 会话级三层装配(前缀自动取)
+python3 src/hanghang/cli/main.py context assemble --session ctx-1 --unit dongjiagoushi --static-prefix "[自定义]"   # 也可显式传静态前缀
+python3 src/hanghang/cli/main.py context rules --list                                        # 列出规则表(从 data/context-rules.yaml 动态加载)
+python3 src/hanghang/cli/main.py context rules --match "帮我修改代码实现测试"                  # 命中测试：返回需装配哪些上下文
+python3 src/hanghang/cli/main.py context validate --layer-a "[架构] | session_context_static=true" --session demo   # 缓存隔离校验(层A内容合规 + 同session签名稳定)
+
 # M9 POC 量化验证（状态管理 vs 全量历史对比）
 python3 poc/state_m9_benchmark.py --steps 50 --verbose
 ```
@@ -255,6 +263,7 @@ python3 tests/test_state_arbiter.py   # M9+ 版本化冲突仲裁与审核
 python3 tests/test_state_cli_e2e.py   # M9 × CLI 全链路联调回归
 python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验证
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
+python3 tests/test_cli_context.py     # M10 × CLI context 三子命令（assemble/rules/validate）
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
 ```
 
