@@ -100,13 +100,26 @@ class CoverageTracker:
         return index
 
     def _check_partition(self, partition_id: str) -> dict:
-        """带保护的 ``db.partition()``：异常按"分区未登记"处理并记录降级。"""
+        """带保护的 ``db.partition()``：任何异常形态都记一次降级。
+
+        ``None`` 与"分区真的没登记"在返回值上同形，但语义不同：前者是权威源
+        答不出话，后者是它明确说"没有这个分区"。全都当"未登记"处理会让
+        "分区存在但读不出来"一个 problems 都不留 —— 无声兜底比报错更坏。
+        """
         db = self.industry_db
         try:
-            return db.partition(partition_id) or {}
+            got = db.partition(partition_id)
         except Exception as exc:  # 权威源坏掉不能让覆盖统计整体倒
             self._degrade(partition_id, f"partition() 异常: {exc}")
             return {}
+        if got is None:
+            self._degrade(partition_id, "partition() 返回 None（分区读不出来）")
+            return {}
+        if not isinstance(got, dict):
+            self._degrade(partition_id,
+                          f"partition() 返回 {type(got).__name__}（应为 dict）")
+            return {}
+        return got
 
     def _members(self, partition_id: str) -> List[dict]:
         """带保护的 ``db.members_of()``：异常/非列表一律降级为空成员。"""
@@ -172,12 +185,14 @@ class CoverageTracker:
         }
         """
         registered = self._registered_map()
+        _baseline_ids = set()   # 全库去重口径：一个职业只算一次
 
         total = len(self.targets)
         covered_industry = 0
         covered_role_total = 0          # 分子：已覆盖岗位数
         role_baseline_total = 0         # 分母：目标岗位基线数
         by_category: Dict[str, dict] = {}
+        role_baseline_distinct = 0      # 去重后的在册基线岗位数
         rows: List[dict] = []
         problems: List[str] = []
 
@@ -207,6 +222,11 @@ class CoverageTracker:
 
             covered_role_total += covered_roles
             role_baseline_total += role_baseline
+            # 同一职业多归属时，这里只记一次，用来给出"实际有多少个岗位在册"
+            if self.industry_db:
+                for o in self._members(t.get("id", "")):
+                    if isinstance(o, dict) and o.get("baseline_occupation"):
+                        _baseline_ids.add(o.get("id"))
 
             # 按大类聚合
             bc = by_category.setdefault(cat, {"total": 0, "covered": 0})
@@ -234,6 +254,8 @@ class CoverageTracker:
         problems.extend(self._degrade_notes)
         covered_industry_out = covered_industry
         pending = total - covered_industry_out
+        role_baseline_distinct = len(_baseline_ids) if _baseline_ids \
+            else role_baseline_total
         return {
             "version": self.version,
             "updated_at": self.updated_at,
@@ -245,6 +267,11 @@ class CoverageTracker:
             "covered_roles": covered_role_total,
             "role_coverage": (covered_role_total / role_baseline_total)
                              if role_baseline_total else 0.0,
+            # 软归属下"岗位基线按分区累加"与"全库去重"必然不等：
+            # 一个职业挂三条边，就在三个分区里各算一次。这不是错，是两种口径。
+            # 两个数都露出来，免得下游拿 169 去和职业库的 164 对账对不上。
+            "role_baseline_distinct": role_baseline_distinct,
+            "role_baseline_shared": role_baseline_total - role_baseline_distinct,
             "by_category": by_category,
             "problems": problems,
             "rows": rows,
@@ -265,6 +292,11 @@ class CoverageTracker:
         lines.append(
             f"岗位覆盖: {s['covered_roles']}/{s['total_role_baseline']}  "
             f"({s['role_coverage']:.1%})")
+        # 两个口径必须同屏：按分区累加 ≠ 全库去重，差的那几个是多视角职业
+        lines.append(
+            f"  在册岗位去重后 {s['role_baseline_distinct']} 个，"
+            f"另有 {s['role_baseline_shared']} 条因多视角归属被重复计入"
+            f"（一个岗位挂几处就算几次，不是重复登记）")
         lines.append("-" * 60)
         lines.append(f"{'状态':<4}{'目标行业':<12}{'覆盖岗位/基线':<16}类别")
         for r in sorted(s["rows"], key=lambda x: (x["status"] != "registered",

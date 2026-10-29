@@ -92,6 +92,10 @@ def _init_engines():
         # GET /api/state 仅做只读聚合，绝不在此路径写入。
         from hanghang.state.manager import StateManager
         _engine_cache["state"] = StateManager()
+        # M11 行业库：yaml 是静态数据，每次请求重新读盘构造纯属浪费。
+        # 复用缓存的 registry，避免同一份 unit-index 被读两遍。
+        from hanghang.engine.industry_db import IndustryDatabase
+        _engine_cache["industry_db"] = IndustryDatabase(registry=registry)
         _engine_cache["initialized"] = True
 
 
@@ -295,8 +299,10 @@ class HanghangHandler(BaseHTTPRequestHandler):
         职业条目附带 gb_code（《职业分类大典 2022》细类编码）与大典中文名，
         前端不必再自己维护一份编码表；`catalog` 段给映射率与分类覆盖快照。
         """
-        from hanghang.engine.industry_db import IndustryDatabase
-        db = IndustryDatabase(registry=self._get_registry())
+        _init_engines()
+        db = _engine_cache["industry_db"]
+        # compute()/validate() 仍每次现算：它们是"当前数据的一致性快照"，
+        # 缓存的是实例（含读盘后的 yaml），不是结论。
         payload = db.compute()
         occupations = []
         for o in db.occupations:

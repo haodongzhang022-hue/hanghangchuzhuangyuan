@@ -521,6 +521,90 @@ def test_pending_partition_unit_role_must_be_in_planned_roles():
                for p in problems), problems
 
 
+def test_missing_planned_roles_is_reported_not_silently_skipped():
+    """第10条曾被 planned_roles 为空短路掉：判据缺失不能等于没问题"""
+    db = IndustryDatabase()
+    pending = next(p for p in db.partitions
+                   if p.get("status") == "pending" and not p.get("unit_id")
+                   and db.members_of(p["id"]))
+    pending["planned_roles"] = []          # 骨架缺失
+    edge = next(m for m in db.axis_view.memberships
+                if m["partition"] == pending["id"])
+    edge["unit_role"] = "随手编的角色"
+    problems = db.validate()
+    # 旧实现（role and planned and ...）在这里会返回 []
+    assert any(pending["id"] in p and "planned_roles" in p
+               for p in problems), problems
+
+
+def test_pending_partition_field_must_point_to_real_partition():
+    """pending_partition 写错分区 = 一句没人执行的承诺"""
+    db = IndustryDatabase()
+    occ = next(o for o in db.occupations if not db.views_of_occupation(o["id"]))
+    occ["pending_partition"] = "no-such-partition"
+    problems = db.validate()
+    assert any(occ["id"] in p and "pending_partition" in p
+               for p in problems), problems
+
+
+def test_pending_partition_must_be_cleared_once_fulfilled():
+    """意向已兑现（已有归属边）却还留着 pending_partition → 字段没清"""
+    db = IndustryDatabase()
+    linked = next(o for o in db.occupations if db.views_of_occupation(o["id"]))
+    linked["pending_partition"] = db.views_of_occupation(linked["id"])[0]["partition"]
+    problems = db.validate()
+    assert any(linked["id"] in p and "pending_partition" in p
+               for p in problems), problems
+
+
+def test_note_only_intent_is_now_explicit_data():
+    """8 个原本只在 note 里"待补"的孤立职业，现在必须带 pending_partition
+
+    note 是给人看的备忘，机器看不见；这条守的是"意向不能只活在注释里"。
+    """
+    db = IndustryDatabase()
+    free = db.axis_view.free_occupations()
+    missing = [o["id"] for o in free if not o.get("pending_partition")]
+    assert not missing, f"孤立职业缺少 pending_partition: {missing}"
+    # 明细要能查，只给个数字等于把"谁掉了队"藏起来
+    details = db.compute()["free_occupation_details"]
+    assert len(details) == len(free)
+    assert all("pending_partition" in d for d in details)
+
+
+def test_export_exposes_estimated_mix_columns():
+    """估算值必须有出口：sqlite/csv 只给实测列，下游只拿到一堆 0"""
+    import sqlite3
+    db = IndustryDatabase()
+    estimated = [p for p in db.partitions if p.get("provider_mix_estimated")]
+    assert estimated, "测试前提：至少一个分区有估算值"
+    with tempfile.TemporaryDirectory() as td:
+        from hanghang.cli.industry_commands import cmd_industry_export
+
+        class A:
+            out = td
+            format = "all"
+            data_dir = ""
+
+        cmd_industry_export(A)
+        with open(os.path.join(td, "partitions.csv"), encoding="utf-8") as fh:
+            header = fh.readline().strip().split(",")
+        for col in ("provider_ai_estimated", "provider_hybrid_estimated",
+                    "provider_human_estimated"):
+            assert col in header, col
+        conn = sqlite3.connect(os.path.join(td, "industry.sqlite"))
+        cols = {r[1] for r in conn.execute("pragma table_info(partition)")}
+        pid = estimated[0]["id"]
+        row = conn.execute(
+            "select provider_ai, provider_ai_estimated from partition where id=?",
+            (pid,)).fetchone()
+        conn.close()
+        assert {"provider_ai_estimated", "provider_hybrid_estimated",
+                "provider_human_estimated"} <= cols
+        # mining 这类无成员分区：实测 0，估算是真值 —— 两者必须分开
+        assert row[0] in (0, 0.0) and row[1] not in (None, 0, 0.0), row
+
+
 def test_validate_survives_dirty_mix_values():
     """provider_mix 里塞脏数据（非数值/布尔）时，validate 报问题而不是崩"""
     db = IndustryDatabase()
@@ -825,6 +909,11 @@ if __name__ == "__main__":
     test_validate_reports_occupation_attached_to_unit_not_partition()
     test_validate_reports_evaluated_partition_with_unit()
     test_pending_partition_unit_role_must_be_in_planned_roles()
+    test_missing_planned_roles_is_reported_not_silently_skipped()
+    test_pending_partition_field_must_point_to_real_partition()
+    test_pending_partition_must_be_cleared_once_fulfilled()
+    test_note_only_intent_is_now_explicit_data()
+    test_export_exposes_estimated_mix_columns()
     test_validate_survives_dirty_mix_values()
     test_real_pending_partitions_are_not_flagged()
     test_validate_reports_covered_partition_without_members()

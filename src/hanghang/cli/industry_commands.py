@@ -450,6 +450,8 @@ def cmd_industry_export(args):
                         "member_count", "gdp_cny", "gdp_scope", "provider_ai",
                         "provider_hybrid", "provider_human", "provider_ai_declared",
                         "provider_hybrid_declared", "provider_human_declared",
+                        "provider_ai_estimated", "provider_hybrid_estimated",
+                        "provider_human_estimated",
                         "access_paid_direct", "access_non_market",
                         "access_org_internal", "access_household",
                         "employment_wan", "axes", "axis_edges", "demand_side",
@@ -457,6 +459,7 @@ def cmd_industry_export(args):
             for r in snapshot["rows"]:
                 mix = r["provider_mix"] or {}
                 dec = r.get("provider_mix_declared") or {}
+                est = r.get("provider_mix_estimated") or {}
                 w.writerow([r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                             r["unit_id"], r["priority"], r["member_count"],
                             r["gdp_cny"] if r["gdp_cny"] is not None else "",
@@ -464,6 +467,10 @@ def cmd_industry_export(args):
                             mix.get("human", ""),
                             dec.get("ai", ""), dec.get("hybrid", ""),
                             dec.get("human", ""),
+                            # 估算列：无人味的实测是 0，唯一带人味的数在这里，
+                            # 不给出口下游就只拿到一堆 0
+                            est.get("ai", ""), est.get("hybrid", ""),
+                            est.get("human", ""),
                             (r.get("access_mix") or {}).get("paid_direct", ""),
                             (r.get("access_mix") or {}).get("non_market", ""),
                             (r.get("access_mix") or {}).get("org_internal", ""),
@@ -513,6 +520,8 @@ def cmd_industry_export(args):
             gdp_source TEXT, provider_ai REAL, provider_hybrid REAL,
             provider_human REAL, provider_ai_declared REAL,
             provider_hybrid_declared REAL, provider_human_declared REAL,
+            provider_ai_estimated REAL, provider_hybrid_estimated REAL,
+            provider_human_estimated REAL,
             access_paid_direct REAL, access_non_market REAL,
             access_org_internal REAL, access_household REAL,
             employment_wan REAL, axes TEXT, axis_edges TEXT,
@@ -529,13 +538,16 @@ def cmd_industry_export(args):
             mix = r["provider_mix"] or {}
             dec = r.get("provider_mix_declared") or {}
             acc = r.get("access_mix") or {}
+            est = r.get("provider_mix_estimated") or {}
             conn.execute(
-                f"INSERT INTO partition VALUES ({','.join('?' * 26)})",
+                f"INSERT INTO partition VALUES ({','.join('?' * 29)})",
                 (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                  r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
                  r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
                  mix.get("human"), dec.get("ai"), dec.get("hybrid"),
-                 dec.get("human"), acc.get("paid_direct"), acc.get("non_market"),
+                 dec.get("human"),
+                 est.get("ai"), est.get("hybrid"), est.get("human"),
+                 acc.get("paid_direct"), acc.get("non_market"),
                  acc.get("org_internal"), acc.get("household"),
                  r.get("employment"), "|".join(r.get("axes", [])),
                  "|".join(f"{k}:{v}" for k, v in

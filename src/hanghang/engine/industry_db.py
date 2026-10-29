@@ -423,6 +423,14 @@ class IndustryDatabase:
                 total_edges / len(self.occupations), 2)
                 if self.occupations else 0.0),
             "free_occupations": len(free_occs),
+            # 未被任何视角引用的职业，逐条列出来并带上它在等什么。
+            # 只给个数字等于把"谁掉了队"藏起来，翻盘点不进去。
+            "free_occupation_details": [
+                {"id": o.get("id", ""),
+                 "name": o.get("name", ""),
+                 "pending_partition": o.get("pending_partition", "") or "",
+                 "note": o.get("note", "")}
+                for o in free_occs],
             "occupation_axes_present": list(OCC_AXES),
             "employment_known_partitions": len(emp_known),
             "catalog": catalog_stat,
@@ -517,7 +525,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 17
+    VALIDATE_CHECK_COUNT = 18
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -551,7 +559,8 @@ class IndustryDatabase:
            按"单元名=分区名是缺省"识别，不硬报错——同一个名字不会因为
            多贴了一个标签就变成另一种东西。
         9. 已建单元的分区成员必须填 unit_role（否则路由永远命中不了）。
-        10. 未建单元的成员 unit_role 可空，但填了必须在该分区 planned_roles 里。
+        10. 未建单元的成员 unit_role 可空；填了必须在该分区 planned_roles 里，
+            且分区必须有 planned_roles 骨架（骨架为空等于没有判据，不能静默跳过）。
         11. 声明 provider_mix 与实测偏差 > DECLARED_MIX_TOLERANCE → 报漂移；
             无成员分区 provider_mix 必须 0/0/0（估算值放 provider_mix_estimated）。
         12. 注册单元的每个 role 都要在职业库有登记。
@@ -565,6 +574,9 @@ class IndustryDatabase:
             而覆盖率不会因此变红半格。
         17. 分区 employment 若填了必须是非负数值；0 与"没口径"不是一回事，
             没口径请留空（null），别填 0 冒充实测。
+        18. 职业 pending_partition 必须指向真实分区：note 里写"待补"是隐形契约，
+            机器看不见；这个字段是显式的，写错了就是一句没人执行的承诺。
+            已有归属边却还留着意向，说明字段没清——同样报出来。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -636,6 +648,13 @@ class IndustryDatabase:
             # 一个职业在两处干活，两处的岗位名本来就该不同。
             role_edge = {m.get("occupation"): m.get("unit_role") or ""
                          for m in self.axis_view.of_partition(pid)}
+            # 10-b. 有成员、有人填了 unit_role，但分区压根没写 planned_roles 骨架：
+            # 旧实现用 `role and planned and ...` 短路，planned 为空就整条跳过，
+            # 于是"该填没填"变成静默通过 —— 校验写着在跑，实际覆盖面是 0。
+            if unit is None and members and not planned and any(role_edge.values()):
+                problems.append(
+                    f"分区 {pid} 未建单元但成员填了 unit_role，却没有 planned_roles "
+                    f"岗位骨架（无法判断岗位名是否有效，请先声明骨架）")
             for o in members:
                 role = role_edge.get(o.get("id"), "")
                 if unit is None:
@@ -707,6 +726,26 @@ class IndustryDatabase:
                 problems.append(
                     f"职业 {o.get('id')} 的 access={raw!r} 不在合法通道 "
                     f"{list(ACCESS_SIDES)} 中（写错会被静默当成 {DEFAULT_ACCESS}）")
+
+        # 18. pending_partition：把 note 里的隐形契约变成可校验的数据
+        part_ids_now = {x.get("id") for x in self.partitions if x.get("id")}
+        edge_occs = {m.get("occupation") for m in self.axis_view.memberships}
+        for o in self.occupations:
+            want = o.get("pending_partition")
+            if not want:
+                continue
+            oid = o.get("id")
+            if want not in part_ids_now:
+                problems.append(
+                    f"职业 {oid} 的 pending_partition={want} 不是已知分区"
+                    f"（意向指向不存在的地方，等于没登记）")
+            elif oid in edge_occs:
+                problems.append(
+                    f"职业 {oid} 已有归属边，但仍留着 pending_partition={want}"
+                    f"（意向已兑现，字段该删了）")
+            # 分区已建单元但没有边：这是"等该单元建出对应岗位"，属合法等待态
+            # （硬塞一条没有 unit_role 的边会让路由永远命中不了，比不挂更坏）。
+            # 登记在 free_occupations 里，不当作错误。
 
         # 16/17. 分区视角与就业口径
         for p in self.partitions:

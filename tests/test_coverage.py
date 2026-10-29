@@ -223,6 +223,43 @@ def test_partial_industry_db_degrades():
     assert any("降级" in p for p in t.compute()["problems"])
 
 
+def test_baseline_distinct_reported_beside_partition_sum():
+    """按分区累加 ≠ 全库去重：两个口径都要露出来，别让下游拿去做无效对账"""
+    t = CoverageTracker()
+    s = t.compute()
+    assert s["role_baseline_distinct"] <= s["total_role_baseline"]
+    assert (s["role_baseline_distinct"] + s["role_baseline_shared"]
+            == s["total_role_baseline"])
+    # 去重口径必须等于职业库里的基线职业数（权威源）
+    from hanghang.engine.industry_db import IndustryDatabase
+    db = IndustryDatabase()
+    expect = len([o for o in db.occupations if o.get("baseline_occupation")])
+    assert s["role_baseline_distinct"] == expect, (
+        s["role_baseline_distinct"], expect)
+    # 差异行必须在文本渲染里出现，否则数字对不上时没人知道为什么
+    assert "去重后" in t.render_text()
+
+
+def test_partition_returning_none_is_recorded_as_degrade():
+    """partition() 返回 None 与"分区真的没登记"返回值同形，但语义不同：
+    前者是权威源答不出话，必须留 problem；否则分区存在却读不出来会无声兜底。
+    """
+    from hanghang.engine.coverage import CoverageTracker as CT
+
+    class NonePartitionDB:
+        @staticmethod
+        def partition(pid):
+            return None
+
+        @staticmethod
+        def members_of(pid):
+            return []
+
+    t = CT(industry_db=NonePartitionDB())
+    assert t._occupation_baseline("some-part") is None
+    assert any("降级" in p and "some-part" in p for p in t.compute()["problems"])
+
+
 def test_disable_industry_db_is_explicit():
     """DISABLED_DB 显式禁用；注入 False 走兜底而不是静默自动构造"""
     from hanghang.engine.coverage import CoverageTracker as CT, DISABLED_DB
@@ -271,6 +308,8 @@ if __name__ == "__main__":
     test_stale_baseline_is_reported_not_silent()
     test_broken_industry_db_degrades_visibly()
     test_partial_industry_db_degrades()
+    test_baseline_distinct_reported_beside_partition_sum()
+    test_partition_returning_none_is_recorded_as_degrade()
     test_disable_industry_db_is_explicit()
     test_degrade_note_not_duplicated_per_partition()
     test_text_render_smoke()
