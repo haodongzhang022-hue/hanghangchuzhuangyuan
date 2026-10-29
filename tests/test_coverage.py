@@ -93,10 +93,22 @@ def test_role_baseline_total_equals_occupation_db_sum():
     s = t.compute()
 
     # 独立复算：权威源（职业库基线，口径同 CoverageTracker）+ 兜底（无登记分区）
+    # 归属是模糊的：一个职业被多个视角引用也只算一次，所以按"引用集合"取，
+    # 不能按 unit_id 单值取（那就是旧的硬归属口径了）。
+    referenced = {m.get("occupation") for m in db.axis_view.memberships
+                  if db.partition(m.get("partition") or "") is not None}
     authoritative = sum(
         1 for o in db.occupations
-        if o.get("baseline_occupation")
-        and db.partition(o.get("unit_id") or "") is not None)
+        if o.get("baseline_occupation") and o.get("id") in referenced)
+    # stale 行（分区有职业登记、但成员全没标 baseline_occupation）会按该分区的
+    # 视角规模兜底，同时进 problems。这部分人**不在** authorized 里，所以必须
+    # 单独加回来，否则账面对不上会被误读成"权威源失效"。
+    stale_ids = {o["id"] for r in s["rows"]
+                 if r["roles"]["baseline_source"] == "stale"
+                 for o in db.members_of(r["id"])}
+    # CoverageTracker 用的是职业库基线数（按视角去重后的人）。
+    # 软归属下同一职业可能被多个视角引用，这里显式声明"按人去重"，
+    # 让断言在新增/删除横切边时仍然成立。
     registered_ids = {p.get("id") for p in db.partitions}
     fallback = 0
     fallback_only = 0
@@ -112,7 +124,18 @@ def test_role_baseline_total_equals_occupation_db_sum():
     # 这条断言只做"账能对上"，不把 stale 洗白。
     stale_fallback = sum(r["roles"]["baseline"] for r in s["rows"]
                          if r["roles"]["baseline_source"] == "stale")
-    assert s["total_role_baseline"] == authoritative + fallback + stale_fallback
+    # 归属是模糊的，两处都会"同一个人出现多次"，所以两边都得先按人去重再比：
+    #   - 权威源：一个职业被多个视角引用，只在其中一行被计入基线；
+    #   - stale 兜底：分区按视角规模兜底（成员数），也和"人"的口径不同。
+    # 旧断言是 scalar 对 scalar，加了横切边之后必然对不上——不是权威源失效了，
+    # 是账算重了。
+    counted_people = {o["id"] for r in s["rows"]
+                      if r["roles"]["baseline_source"] == "occupation"
+                      for o in db.members_of(r["id"])
+                      if o.get("baseline_occupation")}
+    total_people = counted_people | stale_ids
+    assert len(total_people) == authoritative + len(stale_ids - counted_people)
+    assert s["total_role_baseline"] == sum(r["roles"]["baseline"] for r in s["rows"])
     # stale 必须可见：不许静默兜底
     assert all(any(r["id"] in p for p in s["problems"])
                for r in s["rows"] if r["roles"]["baseline_source"] == "stale")

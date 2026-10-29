@@ -37,8 +37,9 @@ def test_streaming_and_esports_occupations_registered():
     assert {"esports-player", "game-companion", "esports-operator"} <= \
         {o["id"] for o in db.members_of("esports")}
     # 直播运营挂在内容创作（带货/内容侧），不挤进电竞分区
-    op = db.occupation("live-stream-operator")
-    assert op["unit_id"] == "content-creation"
+    op_views = {m["partition"] for m in db.views_of_occupation("live-stream-operator")}
+    assert "content-creation" in op_views
+    assert "esports-live" not in op_views
 
 
 def test_gig_and_platform_occupations_registered():
@@ -47,7 +48,10 @@ def test_gig_and_platform_occupations_registered():
     ids = {o["id"]: o for o in db.occupations}
     for oid in ("delivery-rider", "courier", "ride-hailing-driver"):
         assert oid in ids, oid
-    assert ids["delivery-rider"]["unit_id"] == "logistics-supply"
+    # 归属是模糊的：问"被哪个视角看见"，不再问"归属于谁"
+    db2 = _db()
+    assert "logistics-supply" in {m["partition"] for m in
+                                  db2.views_of_occupation("delivery-rider")}
 
 
 def test_no_market_occupations_are_registered_not_dropped():

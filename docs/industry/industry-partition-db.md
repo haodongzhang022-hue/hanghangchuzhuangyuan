@@ -1,37 +1,82 @@
-# 行业分区定义库（M11）· 职业是单目标，行业是聚类
+# 行业分区定义库（M11）· 岗位原子化，分类是筛选器
 
 > 解决的问题：过去行业靠"命名"堆叠，命名一变就漏、就重、就分不清谁是谁。
-> 这里把**职业**定成解耦的最小单目标，**行业分区**只记录"这批职业为什么聚在一起"。
+> 这里把**岗位**定成原子的最小单位，**分类**只是"一种看法"，不是户籍。
 
-## 两层结构
+## 三层结构（归属不再写在岗位身上）
 
 ```
-occupation（职业，最小单位，稳定主键）
-        │  occupation.unit_id / unit_role
-        ▼
-partition（行业分区 = 职业聚类结果：聚类依据 + 付费方 + 供给结构 + 产值口径）
-        │  partition.unit_id
-        ▼
-unit（已注册的行业单元，真正能被路由到的执行体）
+occupation   原子岗位：唯一编号 OCC-000001 + slug，**没有归属字段**
+      │
+      ├── membership  边：岗位 × 视角 × 轴 × 权重（occupation-memberships.yaml）
+      │
+      ├── partition   视角/聚类：聚类依据 + 付费方 + 供给结构 + 产值口径
+      │
+      └── unit        执行体：真正能被路由到的行业单元（分区.unit_id）
 ```
 
 三层各管一件事：
 
-- **职业层**：一个职业一条记录，`id` 是主键（如 `translator`）。行业改名不动它。
-  职业通过**单值** `unit_id` 挂到唯一分区；多归属暂不支持（要扩成 `partition_ids`
-  并同步 `members_of`/`validate`/导出，本轮不做）。没挂分区的职业照样登记
-  → **缺口永远可见，不会静默丢失**。
-- **分区层**：不写职业清单，只写清"为什么聚类"。成员由 `occupation.unit_id` 反查得到，
-  **不存在第二份清单**，也就不会两份数据打架。
+- **岗位层**：一个岗位一条记录，`code`（OCC-######）是唯一编号，`id` 是稳定 slug。
+  **它不写"我属于哪个分区"**——改名、拆分、合并、重新聚类都不动这条记录。
+- **边层**：岗位和视角之间的关系全部落在这里，带 `axis`（职业/行业/税收/产出）
+  和 `weight`。同一岗位可以被任意多个视角同时引用；权重**不必相加为 1**：
+  `0.6 + 0.5` 不是错误，是"两件活都真干"。想只看主要归属就按 `--min-weight 0.5` 筛。
+- **分区层**：不写成员清单。成员是"按这个视角筛出来的结果"，不是"归属于它的东西"。
 - **单元层**：只有建了单元的分区才能真正被路由。`status` 区分
   `covered`（已建）/ `pending`（待建）/ `evaluated`（评估后明确不建，不计入分母）。
+
+### 为什么不再用单值 `unit_id`
+
+单值归属是**硬分类**，它有三个躲不掉的毛病：
+
+1. **丢信息**：写着"字幕翻译属于翻译本地化"，就再也表达不了"同一个人也接视频影视的活"。
+2. **被管理绑架**：分区成了岗位的容器，改分区就得批量改岗位，改错了没人发现。
+3. **假装确定**：现实里大多数岗位本来就跨多个行业（会计跨所有行业、客服跨所有行业），
+   强制单选一个"正确归属"必然错，而且错了看不出来。
+
+所以：**岗位原子化，归属模糊化，分类当筛选器用。**
 
 ## 数据文件
 
 | 文件 | 内容 |
 |------|------|
-| `data/industry-occupations.yaml` | 职业表：`id/name/unit_id/unit_role/deliverable/provider/billing/access/baseline_occupation` |
-| `data/industry-partitions.yaml` | 分区表：`cluster_basis/demand_side/provider_mix/access_sides/gdp_cny/employment/axes/status` |
+| `data/industry-occupations.yaml` | 岗位表：`code/id/name/deliverable/provider/billing/access/baseline_occupation`（**无归属字段**） |
+| `data/occupation-memberships.yaml` | 边的表：`occupation/partition/axis/weight/unit_role` |
+| `data/industry-partitions.yaml` | 分区表：`cluster_basis/demand_side/provider_mix/gdp_cny/employment/axes/status` |
+
+老数据的 `occupation.unit_id` 仍被识别（推成一条 `weight=1` 的边），但它的含义是
+"这份数据以前只有这一个说法"，**不是"只能属于这里"**。
+
+## 用法：从"归属"改成"筛选"
+
+```bash
+# 一个岗位被哪些视角看见（多归属的正面表达）
+python3 src/hanghang/cli/main.py industry occupation OCC-000021
+python3 src/hanghang/cli/main.py industry occupation data-analyst
+
+# 按任意维度组合筛，不需要先决定"归到哪"
+python3 src/hanghang/cli/main.py industry filter --partition e-commerce
+python3 src/hanghang/cli/main.py industry filter --provider ai --min-weight 0.5
+python3 src/hanghang/cli/main.py industry filter --axis tax --access non_market
+
+# 视角内的成员按权重降序，权重 < 1 标出来（那是"顺带干"，不是不合格）
+python3 src/hanghang/cli/main.py industry partition e-commerce
+```
+
+## 自检守的是什么
+
+`industry check` 在软归属模型下改守这几条（不守"归属唯一"这种伪命题）：
+
+1. 唯一编号必须唯一、格式 `OCC-######`、与登记序号一致（编号漂移 = 跨表对齐全错）。
+2. 边必须指向真实存在的分区（悬空边 = 这个角度静默什么都查不到）。
+3. 边上的轴必须是已知轴（写错 = 这条边在任何视角下都不可见）。
+4. `weight` 必须落在 `(0, 1]`（写 0 只是噪音，不想归属就别写这条边）。
+5. 同一 `(岗位, 分区, 轴)` 不得重复（同一件事说了两遍）。
+6. 建了单元的分区，其边上的 `unit_role` 必填且必须是该单元的岗位名。
+
+**不校验**的：权重和是否为 1、一个岗位能挂几个视角、哪个视角是"正确归属"。
+这些都是模糊的，硬管就是把人骗了。
 
 ## 四个问题，四把尺子（别压成一个判断）
 
@@ -114,9 +159,10 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 ## 新增一个分区或职业
 
 ```yaml
-# 1) 先登记职业（哪怕还没有单元）
-- {id: podcast-editor, name: 播客剪辑师, deliverable: 物料, provider: hybrid,
-   billing: project, baseline_occupation: false, note: "音频内容，待归分区"}
+# 1) 先登记岗位（哪怕还没有任何视角引用它）——注意没有归属字段
+- {code: OCC-000178, id: podcast-editor, name: 播客剪辑师, deliverable: 物料,
+   provider: hybrid, billing: project, baseline_occupation: false,
+   note: "音频内容，还没被任何聚类看上"}
 
 # 2) 再登记分区聚类（成员自动反查，无需手写）
 - id: audio-content
@@ -131,7 +177,14 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
   status: pending
 ```
 
-然后把职业的 `unit_id: audio-content` 填上，`industry check` 会立刻告诉你还缺什么。
+最后在 `data/occupation-memberships.yaml` 里加一条边，把这个岗位**看见**：
+
+```yaml
+- {occupation: podcast-editor, partition: audio-content, axis: occupation, weight: 0.8}
+```
+
+注意这不会改变岗位本身。同一个岗位以后要是也接视频的活，再加一条
+`{partition: video-media, weight: 0.5}` 就行——两条并存，不是二选一。
 
 ### 什么该合成一个分区，什么必须拆开
 
@@ -183,29 +236,32 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 | `DISABLED_DB`（`hanghang.engine.coverage` 导出） | 显式禁用，岗位基线一律走兜底 |
 | 其它对象 | 注入实例（测试替身/外部库），不自动构造；读取失败走降级 |
 
-## validate() 的 17 条校验
+## validate() 的 17 条校验（软归属版）
 
 编号与 `industry_db.py` 里 `validate()` 的注释逐条对应，改一处记得改两处。
 
 | # | 校验点 | 说明 |
-|---|---|---|
+|---|---|---|---|
 | 1 | 主键唯一且非空 | 空 id 让分子分母一起虚增；重复 id 让成员被静默丢弃、覆盖率一起失明 |
 | 2 | `status` 必须是 `covered`/`pending`/`evaluated` | 拼错或漏填的分区既不进分母也不报错，覆盖率会静默变好看 |
-| 3 | 职业 `unit_id` 存在性 | 既非已注册单元也非已知分区 → 报错 |
+| 3 | 老单值 `unit_id` 存在性 | 既非已注册单元也非已知分区 → 报错（仅对没有 `profile` 的老数据） |
 | 4 | 分区 `covered` 必须有 `unit_id` | 否则纸面覆盖 |
 | 5 | 分区 `unit_id` 必须已注册 | 指向不存在的单元 → 报错 |
-| 6 | 分区 `covered` 必须有成员职业 | 有单元却没登记岗位 = 纸面覆盖，数值不失真但缺口必须可见 |
+| 6 | 分区 `covered` 必须有成员职业 | 有单元却筛不出岗位 = 纸面覆盖，数值不失真但缺口必须可见 |
 | 7 | `evaluated` 分区不得有 `unit_id` | 状态互斥，"不建单元"却又挂单元 |
-| 8 | 职业挂靠必须落在分区上 | 成员反查按 `unit_id == 分区 id`，挂到单元 id 的职业不属于任何分区 |
-| 9 | 已建单元成员必须有 `unit_role` | 建了单元还没岗位名 → 路由永远命中不了 |
-| 10 | 未建单元成员填了 `unit_role` 必须在 `planned_roles` 里 | 堵住随手编角色名 |
+| 8 | 软归属的边自检 | 悬空视角 / 未知轴 / 权重越界 / 同边重复 / 唯一编号缺失或重号，逐条报出 |
+| 9 | 已建单元的边必须有 `unit_role` | 建了单元还没岗位名 → 路由永远命中不了 |
+| 10 | 未建单元的边填了 `unit_role` 必须在 `planned_roles` 里 | 堵住随手编角色名 |
 | 11 | `provider_mix` 对账 | 有成员看漂移 > 25pt；无成员必须 0/0/0 |
-| 12 | 注册单元的每个 role 都有登记职业 | 新增岗位不能漏登记 |
+| 12 | 注册单元的每个 role 都有职业认领 | 新增岗位不能漏登记 |
 | 13 | 数据文件必须读到 | 空库不能"自检通过"（0 分区 0 职业全绿才是最难发现的故障） |
 | 14 | 大典映射自洽 | `gb_code` 必须真实存在；映射的 `occur_id` 必须真实存在（职业改名后映射会悬空） |
 | 15 | `access` 枚举合法 | 写错（如 `non-market` 带连字符）会静默回落 `paid_direct`，把"财政供养"念成"现金市场" |
 | 16 | `axes` 是合法非空轴 | 空视角 = 任何看板都查不到它，而覆盖率不会变红半格 |
 | 17 | `employment` 非负数或留空 | 填 0 会把"没口径"伪装成实测；0 和 null 语义不同 |
+
+**明确不校验**：权重和是否为 1、一个岗位能挂几个视角、哪个视角是它的"正确归属"。
+这些在现实里本来就是模糊的，硬管只会让数据说谎。
 
 第 1、2、6 条是"数据看起来没问题、其实分母被悄悄缩小"的三条暗沟：分区 id 写重了、
 `status` 拼成 `coverd`、标了 `covered` 却没登记职业——三种错都不会让覆盖率变红，

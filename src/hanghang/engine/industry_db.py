@@ -1,19 +1,24 @@
 """M11 行业分区定义库 · industry-db
 
-设计立场：**职业(occupation) 是解耦的最小单目标，行业(partition) 是聚类结果。**
+设计立场（2026-10 用户拍板后改版）：
 
-- 职业登记在 data/industry-occupations.yaml，主键 id 稳定，不受行业命名影响；
-  职业通过单值 unit_id 挂到唯一分区（多归属暂不支持：需要扩成 partition_ids 并
-  同步 members_of/validate/导出，本轮不做），因此"改行业名"不会导致职业缺漏。
-- 分区登记在 data/industry-partitions.yaml，只记录"为什么把这批职业聚在一起"：
-  聚类依据 / 付费方 / 供给结构 / 产值口径。members 由 occupation.unit_id 反查，
-  分区自身不重复存职业名，避免两份清单分叉。
-- 覆盖口径（与 coverage-target 互补）：
-    * 职业覆盖率 = 已挂到注册单元的职业数 / 基线职业数
-    * 分区覆盖率 = 已建单元的分区数 / (covered + pending) 分区数
-    * evaluated 分区（评估后判定不建单元）不计入分母，避免永久缺口。
+- **岗位原子化**：occupation 是最小单目标，带唯一编号 ``code``（OCC-000001）。
+  它**不存归属字段**——"我在哪个分区"不写在职业身上。
+- **归属模糊化**：partition 只是"一种看法"。一个职业可以同时落在任意多个
+  分区里、各有各的权重（0.7/0.2/0.1），也允许同时落在同一根轴的多个视角里。
+  分类是**筛选器**，不是户籍；不追求"确定的单一归属"，因为现实里本来没有。
+- 因此 data/industry-partitions.yaml 不存成员清单，data/industry-occupations.yaml
+  不存 unit_id；两者之间的边单独放在 data/occupation-memberships.yaml
+  （由 occupation.profile 派生，见 engine/occupation_axis.py）。
+- 覆盖口径拆成两个，别混读：
+    * 登记完整率 = 有唯一编号且在册的职业数 / 在册职业数（恒 100%，防漏登）
+    * 分区覆盖 = 已建单元的分区数 / (covered + pending) 分区数
+    * 归属边数**不是**覆盖率的分母：一个职业挂三个分区不代表覆盖变好。
+- ``status`` 只回答"要不要建数字员工单元"，**不回答"这个职业是否存在、值不值得分析"**：
+  evaluated（评估后不建单元）分区的职业照样登记、照样进画像与统计。
 
-本模块只读数据，不做落盘；导出面向 CNB 制品库/知识库的扁平表由 CLI 负责。
+兼容：旧的单值 ``occupation.unit_id`` 仍被识别（推成一条 weight=1 的边），
+但它是"这份数据以前只有这一个说法"，不再代表"只能属于这里"。
 """
 from __future__ import annotations
 
@@ -25,6 +30,7 @@ from typing import Dict, List, Optional
 import yaml
 
 from .global_framework import ClassificationSources, IscoCatalog
+from .occupation_axis import AXES as OCC_AXES, OccupationAxis
 from .occupation_catalog import OccupationCatalog
 from .registry import Registry
 
@@ -69,10 +75,14 @@ class IndustryDatabase:
             ClassificationSources(os.path.join(self.data_dir, "reference"))
         self.occ_path = os.path.join(self.data_dir, "industry-occupations.yaml")
         self.part_path = os.path.join(self.data_dir, "industry-partitions.yaml")
+        # 归属边（occupation × partition × axis）。缺失不报错：老数据仍能用
+        # occupation.unit_id 单值推出等价的一条边，别让"没这个文件"变成不可用。
+        self.member_path = os.path.join(self.data_dir, "occupation-memberships.yaml")
         self.version = "0.1"
         self.updated_at = ""
         self.occupations: List[dict] = []
         self.partitions: List[dict] = []
+        self._memberships_raw: List[dict] = []
         self._load()
 
     # ---------------------------------------------------------------- load
@@ -104,6 +114,13 @@ class IndustryDatabase:
         else:
             logging.warning(f"缺少分区清单: {self.part_path}")
 
+        if os.path.exists(self.member_path):
+            with open(self.member_path, "r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh) or {}
+            rows = data.get("memberships")
+            # 没有 memberships 段就当作"没写这张表"，交给 profile 派生
+            self._memberships_raw = rows if isinstance(rows, list) else []
+
         self._reindex()
 
     def _reindex(self) -> None:
@@ -115,6 +132,14 @@ class IndustryDatabase:
         """
         self._occ_by_id = self._index(self.occupations, "职业")
         self._part_by_id = self._index(self.partitions, "分区")
+        # 软归属视图：职业↔分区的边一律由它给出，成员反查不再读单值字段。
+        # 已有视图时先固化"当前生效的边"（profile 派生与显式边可能混用，
+        # 直接拿 _memberships_raw 重建会把派生边丢掉）。
+        prev = getattr(self, "axis_view", None)
+        if prev is not None:
+            self._memberships_raw = [dict(m) for m in prev.memberships]
+        self.axis_view = OccupationAxis(self.occupations, self.partitions,
+                                        self._memberships_raw)
         self._fingerprint = (len(self.occupations), len(self.partitions),
                              sum(id(o) for o in self.occupations),
                              sum(id(o) for o in self.partitions))
@@ -155,23 +180,44 @@ class IndustryDatabase:
         self._ensure_fresh()
         return self._part_by_id.get(part_id)
 
-    def members_of(self, part_id: str) -> List[dict]:
-        """分区成员 = 通过 occupation.unit_id 反查的职业（聚类结果，非手写清单）。"""
-        return [o for o in self.occupations if o.get("unit_id") == part_id]
+    def members_of(self, part_id: str, axis: str = "", min_weight: float = 0.0) -> List[dict]:
+        """某视角下能看到的职业。
+
+        注意**不是**"属于这个分区的职业"——归属是模糊的，这里给的是
+        "按这个视角筛出来的结果"，同一个职业可以同时出现在别的视角里。
+        同一分区内按 weight 降序；同职业在该视角下按最高权重去重（一个职业
+        不会因为同轴挂了两个视角就在同一张表里出现两次以上）。
+        """
+        return self.axis_view.occupations_of(part_id, axis, min_weight)
+
+    def weights_of(self, part_id: str, axis: str = "") -> Dict[str, float]:
+        """视角内 职业 -> 权重（同轴同分区只保留最高权重，避免一条边被算两遍）。"""
+        out: Dict[str, float] = {}
+        for m in self.axis_view.of_partition(part_id, axis):
+            occ = m.get("occupation", "")
+            w = max(out.get(occ, 0.0), self.axis_view._weight(m))
+            out[occ] = w
+        return out
+
+    def views_of_occupation(self, occ_id: str, axis: str = "",
+                            min_weight: float = 0.0) -> List[dict]:
+        """这个职业被哪些视角引用过（含权重），用来解释"为什么它出现在那里"。"""
+        return self.axis_view.of_occupation(occ_id, axis, min_weight)
 
     def unassigned_occupations(self) -> List[dict]:
-        """尚未挂到任何分区的职业：既可能是缺口，也可能是刻意不归属的孤立职业。"""
-        return [o for o in self.occupations if not o.get("unit_id")]
+        """没有被任何视角引用的职业：不是缺口，是"还没被任何聚类看上"。"""
+        return self.axis_view.free_occupations()
 
     def linked_occupations(self) -> List[dict]:
-        """已挂到分区且分区真实存在的职业：供给结构与覆盖率的有效分母。
+        """至少被一个真实分区引用的职业（去重）：供给结构与通道统计的分母。
 
-        unit_id 悬空的职业（分区不存在）不进分母，避免脏数据污染占比；
-        这类数据由 validate() 单独报错。
+        用集合而不是边数：一个职业挂三个分区，人还是一个人。
+        指向不存在分区的边（悬空）不进分母，由 validate() 单独报错。
         """
         known = {p.get("id") for p in self.partitions if p.get("id")}
-        return [o for o in self.occupations
-                if o.get("unit_id") and o.get("unit_id") in known]
+        ids = {m.get("occupation", "") for m in self.axis_view.memberships
+               if m.get("partition") in known}
+        return [o for o in self.occupations if o.get("id") in ids]
 
     def provider_distribution(self, occupations: Optional[List[dict]] = None) -> dict:
         """按职业自身的 provider 实测统计供给结构（不读分区手写值）。"""
@@ -242,7 +288,12 @@ class IndustryDatabase:
         covered_parts = [p for p in buildable if p.get("status") == "covered"]
 
         baseline_occs = [o for o in self.occupations if o.get("baseline_occupation")]
-        linked_baseline = [o for o in baseline_occs if o.get("unit_id")]
+        # 分母是"在册基线职业"，分子是"至少被一个真实视角引用过的基线职业"。
+        # 注意归属是模糊的：这里只问"有没有被看见"，不问"归谁"。
+        known_parts = {p.get("id") for p in self.partitions if p.get("id")}
+        referred = {m.get("occupation") for m in self.axis_view.memberships
+                    if m.get("partition") in known_parts}
+        linked_baseline = [o for o in baseline_occs if o.get("id") in referred]
 
         # 产值只统计"有市场口径"的分区；None 表示刻意留空，不当作 0 参与排序
         gdp_known = [p for p in self.partitions if p.get("gdp_cny")]
@@ -262,6 +313,13 @@ class IndustryDatabase:
         # "多少人吃饭"本身就是市场画像，不能因为没有 gdp 就一起丢掉。
         emp_known = [p for p in self.partitions if p.get("employment") is not None]
         employment_total = sum(p.get("employment") or 0 for p in self.partitions)
+
+        # 软归属统计：边数 ≠ 职业数。一个职业挂三个视角，人还是一个。
+        total_edges = len(self.axis_view.memberships)
+        multi_view = [o for o in self.occupations
+                      if len({m.get("partition") for m in
+                              self.axis_view.of_occupation(o.get("id", ""))}) > 1]
+        free_occs = self.axis_view.free_occupations()
 
         rows = []
         for p in self.partitions:
@@ -294,7 +352,12 @@ class IndustryDatabase:
                 "planned_roles": p.get("planned_roles", []) or [],
                 "status": p.get("status", ""),
                 "members": [o.get("id") for o in members],
+                # 权重是"这份看法有多重"，不是概率：不要把它当成归属的唯一答案
+                "member_weights": {o.get("id"): self.weights_of(p.get("id", "")).get(
+                    o.get("id"), 1.0) for o in members},
                 "member_count": len(members),
+                # 几维视角：这个分区在几根轴上被引用（同一分区可多轴成立）
+                "axis_edges": self.axis_view.axis_mix(p.get("id", "")),
                 # 分区挂的大典类目：成员职业的 gb_code 去掉细类后的中类前缀，
                 # 用来看"这个分区大致落在大典哪几块"，不是权威归属。
                 "gb_majors": sorted({self.catalog.gb_code_of(m.get("id", ""))[:1]
@@ -352,6 +415,15 @@ class IndustryDatabase:
             "access_sides": list(ACCESS_SIDES),
             "axes_present": list(AXES),
             "employment_total_wan": employment_total,
+            # 软归属口径：边数、多视角职业数、未挂任何视角的职业数。
+            # 这三个数只描述"看法有多少种"，不参与覆盖率分母。
+            "membership_edges": total_edges,
+            "multi_view_occupations": len(multi_view),
+            "avg_views_per_occupation": (round(
+                total_edges / len(self.occupations), 2)
+                if self.occupations else 0.0),
+            "free_occupations": len(free_occs),
+            "occupation_axes_present": list(OCC_AXES),
             "employment_known_partitions": len(emp_known),
             "catalog": catalog_stat,
             "rows": rows,
@@ -370,6 +442,10 @@ class IndustryDatabase:
             f"职业登记: {s['linked_baseline_occupations']}/{s['baseline_occupations']} 基线"
             f"  ({s['occupation_coverage']:.1%})  全量登记 {s['total_occupations']} 个"
             f"（登记完整 ≠ 单元建好，这是两个分母）",
+            f"视角边: {s['membership_edges']} 条，被多个视角同时引用的岗位 "
+            f"{s['multi_view_occupations']} 个，未被任何视角引用的 "
+            f"{s['free_occupations']} 个（归属是模糊的：边数不是覆盖率，"
+            f"也不是重复登记）",
             f"供给结构({s['provider_mix_n']} 个已挂分区职业 provider 实测): "
             f"AI {s['provider_mix']['ai']}% / 混合 {s['provider_mix']['hybrid']}% / "
             f"纯人 {s['provider_mix']['human']}%",
@@ -455,7 +531,8 @@ class IndustryDatabase:
 
         校验点（编号与 docs/industry/industry-partition-db.md 的表格一一对应）：
         1. 主键唯一且非空：职业/分区的 id 为空或重复 → 报错（空 id 让分母虚增，
-           重复 id 让成员被静默丢弃、覆盖率一起失明）。
+           重复 id 让成员被静默丢弃、覆盖率一起失明）。职业还必须有唯一编号
+           code（OCC-####），缺了就无法跨表对齐。
         2. 分区 status 必须在 _STATUSES 里：拼错/漏填的分区既不进分母也不报错，
            覆盖率会静默变好看。
         3. 职业 unit_id 必须指向已注册单元或已知分区（悬空即脏数据，既不进
@@ -465,9 +542,11 @@ class IndustryDatabase:
         6. 分区 covered 必须有成员职业（纸面覆盖：数值上不失真，但该行业岗位
            其实没登记）。
         7. evaluated（评估后明确不建单元）不得带 unit_id → 状态互斥。
-        8. 成员职业挂靠的 id 必须是分区 id 或分区指向的单元，其它一律报错。
-           注意反查口径：members_of(pid) 按 unit_id == pid 匹配，挂错的成员压根
-           不出现在 members 里，所以这条要独立扫全量职业才看得见。
+        8. 归属边只能指向真实存在的分区，且同一 (职业,分区,轴) 不得重复；
+           weight 必须落在 (0,1]（写 0 只会制造噪音，不想归属就别写这条边）。
+           旧数据里 occupation.unit_id 挂到单元 id 而非分区 id 的情形，
+           按"单元名=分区名是缺省"识别，不硬报错——同一个名字不会因为
+           多贴了一个标签就变成另一种东西。
         9. 已建单元的分区成员必须填 unit_role（否则路由永远命中不了）。
         10. 未建单元的成员 unit_role 可空，但填了必须在该分区 planned_roles 里。
         11. 声明 provider_mix 与实测偏差 > DECLARED_MIX_TOLERANCE → 报漂移；
@@ -486,6 +565,11 @@ class IndustryDatabase:
         """
         problems: List[str] = []
         self._ensure_fresh()
+        # 归属视图跟着列表/边一起刷新：validate 必须看"当前数据"，
+        # 不能拿加载期快照判悬空（那会让构造出来的脏数据静默通过）
+        self._memberships_raw = [dict(m) for m in self.axis_view.memberships]
+        self.axis_view = OccupationAxis(self.occupations, self.partitions,
+                                        self._memberships_raw)
 
         # 13. 数据源可用：yaml 缺失时不能静默当"健康空库"
         for path, label in ((self.occ_path, "职业清单"),
@@ -508,11 +592,14 @@ class IndustryDatabase:
         # 分区集合按当前列表现算：加载期索引会因追加/改动而过期
         part_by_id = {x.get("id", ""): x for x in self.partitions if x.get("id")}
 
-        # 3. 职业 unit_id 存在性
+        # 3. 旧单值 unit_id 的存在性（只对"没有 profile 的老数据"生效，
+        # 软归属的边由第 8 条统一校验，两条路不重复报）
         for o in self.occupations:
+            if o.get("profile"):
+                continue
             uid = o.get("unit_id") or ""
             if not uid:
-                continue  # 未挂分区是显式登记的缺口，不算错
+                continue  # 没有任何视角引用是允许的：原子岗位不靠归属活着
             if uid not in unit_ids and uid not in part_by_id:
                 problems.append(
                     f"职业 {o.get('id')} 的 unit_id={uid} "
@@ -542,15 +629,12 @@ class IndustryDatabase:
 
             unit = self.registry.get_unit(uid) if uid else None
             planned = set(p.get("planned_roles", []) or [])
+            # 岗位名现在挂在**边上**（membership.unit_role），不在职业身上：
+            # 一个职业在两处干活，两处的岗位名本来就该不同。
+            role_edge = {m.get("occupation"): m.get("unit_role") or ""
+                         for m in self.axis_view.of_partition(pid)}
             for o in members:
-                o_uid = o.get("unit_id") or ""
-                # 3 已报悬空，这里不重复刷屏
-                if o_uid and o_uid not in unit_ids and o_uid not in part_by_id:
-                    continue
-                # 注：members_of 按 unit_id == pid 反查，走进这个循环的职业天然
-                # o_uid == pid，"成员挂靠一致性"在这里判不出东西；真正会错挂的
-                # 情形（挂到单元 id）由下面第 8 条独立扫描覆盖。
-                role = o.get("unit_role")
+                role = role_edge.get(o.get("id"), "")
                 if unit is None:
                     # 10. 未建单元：unit_role 可空，填了必须落在 planned_roles 骨架里
                     if role and planned and role not in planned:
@@ -590,27 +674,20 @@ class IndustryDatabase:
                             f"{declared.get(k)}% 与实测 {measured[k]}% "
                             f"偏差 {drift:.0f}pt（>{self.DECLARED_MIX_TOLERANCE:.0f}pt）")
 
-        # 8. 独立扫全量职业：成员反查按 unit_id == 分区 id 匹配，挂到单元 id 或
-        # 挂到"不指向该单元的分区"的职业都不会出现在 members 里，只在成员循环
-        # 里查永远看不见这类错挂。
-        for o in self.occupations:
-            o_uid = o.get("unit_id") or ""
-            if not o_uid or o_uid in part_by_id:
-                continue  # 未挂 / 正常挂在分区上（含单元与分区同名的情形）
-            if o_uid in unit_ids:
-                problems.append(
-                    f"职业 {o.get('id')} 的 unit_id={o_uid} 是注册单元 id 而非分区 id"
-                    f"（成员反查按分区 id 匹配，挂单元会让该职业不属于任何分区）")
-            # 悬空已由第 3 条报出，这里不重复
+        # 8. 软归属的边自检（悬空分区/未知轴/权重越界/同边重复/唯一编号）。
+        # 老单值 unit_id 挂到"单元 id"的情形在这里不再报错：单元名与分区名同名
+        # 是缺省约定，同一个名字不该因为多贴了个标签就被判成错挂。
+        problems.extend(self.axis_view.validate())
 
-        # 12. 注册单元的每个 role 都应有登记职业
-        occ_by_role = {(o.get("unit_id"), o.get("unit_role")): o
-                       for o in self.occupations if o.get("unit_id")}
+        # 12. 注册单元的每个 role 都要有职业在该单元名下认领（按边查，不按字段）
+        claimed = {(m.get("partition"), m.get("unit_role"))
+                   for m in self.axis_view.memberships if m.get("unit_role")}
         for unit in self.registry.all_units():
             for role in unit.roles:
-                if (unit.unit_id, role.name) not in occ_by_role:
+                if (unit.unit_id, role.name) not in claimed:
                     problems.append(
-                        f"单元 {unit.unit_id} 的岗位 {role.name} 未在职业库登记")
+                        f"单元 {unit.unit_id} 的岗位 {role.name} 未在职业库登记"
+                        f"（需要在 occupation-memberships.yaml 里有一条带该 unit_role 的边）")
 
         # 14. 大典映射自洽：参考表是旁证，但旁证错了比没有更坏
         if self.catalog is None:

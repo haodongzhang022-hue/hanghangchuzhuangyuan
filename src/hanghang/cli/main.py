@@ -18,6 +18,7 @@ from hanghang.cli.industry_commands import (
     cmd_industry_partitions, cmd_industry_partition,
     cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
     cmd_industry_catalog, cmd_industry_axis, cmd_industry_access,
+    cmd_industry_occupation, cmd_industry_filter,
     cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
@@ -424,6 +425,26 @@ def build_parser():
     iocc.add_argument("--data-dir", default="", help="自定义 data 目录")
     iocc.set_defaults(func=cmd_industry_occupations)
 
+    ioccone = ind_sub.add_parser("occupation", help="看一个岗位被哪些视角引用过(多归属的正面表达)")
+    ioccone.add_argument("id", help="职业 slug 或编号 OCC-000001")
+    ioccone.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ioccone.set_defaults(func=cmd_industry_occupation)
+
+    iflt = ind_sub.add_parser("filter", help="按任意维度组合筛职业(分类是筛选器,不是户籍)")
+    iflt.add_argument("--partition", default="", help="只看被该视角引用的职业")
+    iflt.add_argument("--axis", default="", choices=["", "occupation", "industry", "tax", "output"],
+                      help="限定轴")
+    iflt.add_argument("--provider", default="", choices=["", "ai", "hybrid", "human"])
+    iflt.add_argument("--billing", default="", help="按收费方式筛")
+    iflt.add_argument("--access", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"])
+    iflt.add_argument("--deliverable", default="", help="按交付物筛")
+    iflt.add_argument("--min-weight", type=float, default=0,
+                      help="只看权重不低于该值的视角引用（0.5 = 主要归属）")
+    iflt.add_argument("--baseline-only", action="store_true", help="只看基线职业")
+    iflt.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iflt.set_defaults(func=cmd_industry_filter)
+
     iaxis = ind_sub.add_parser("axis", help="按视角看分区：职业/行业/税收/产出（同一分区可多轴可见）")
     iaxis.add_argument("axis", nargs="?", default="",
                        help="occupation / industry / tax / output（留空=全景）")
@@ -658,7 +679,8 @@ def main():
         print("示例: python3 src/hanghang/cli/main.py arb list")
         sys.exit(1)
     if args.command == "industry" and not getattr(args, "industry_cmd", None):
-        print("请指定 industry 子命令：partitions / partition / occupations / catalog / "
+        print("请指定 industry 子命令：partitions / partition / occupations / occupation / "
+              "filter / catalog / "
               "axis / access / check / export")
         print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
         sys.exit(1)

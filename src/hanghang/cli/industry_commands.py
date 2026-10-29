@@ -74,6 +74,11 @@ def cmd_industry_partition(args):
     if p.get("gdp_source"):
         print(f"  来源: {p['gdp_source']}")
     print(f"  单元: {p.get('unit_id') or '未建'}")
+    edges = db.axis_view.of_partition(p.get("id", ""))
+    if edges:
+        mix = db.axis_view.axis_mix(p.get("id", ""))
+        print("  视角边: " + "、".join(f"{k} {v}" for k, v in mix.items() if v)
+              + "（同一职业可同时被多个视角引用，权重不代表概率）")
     if p.get("channels"):
         print("  数据渠道: " + "、".join(p["channels"]))
     if p.get("note"):
@@ -90,15 +95,19 @@ def cmd_industry_partition(args):
             named.append(f"{role}({hit.get('name')})" if hit else role)
         print("  计划岗位(骨架): " + "、".join(named))
     if members:
-        print(f"  成员职业({len(members)}):")
+        weights = db.weights_of(p.get("id", ""))
+        print(f"  成员职业({len(members)}，按权重降序):")
         for o in members:
             flag = "基线" if o.get("baseline_occupation") else "扩展"
-            print("    - " + db._pad(o.get("id", ""), 26)
+            w = weights.get(o.get("id"), 1.0)
+            # 权重 < 1 说明"这份活只是顺带干"，不是归属不合格
+            wtxt = "1.00" if w >= 0.999 else f" {w:.2f}"
+            print("    - " + db._pad(o.get("code", "-"), 12)
+                  + db._pad(o.get("id", ""), 26)
                   + db._pad(o.get("name", ""), 20)
-                  + db._pad(o.get("provider", "-"), 8)
-                  + db._pad(o.get("billing", "-"), 14) + flag)
+                  + db._pad(o.get("provider", "-"), 8) + wtxt + " " + flag)
     else:
-        print("  成员职业: 未登记（该分区尚无职业入库，属覆盖缺口）")
+        print("  成员职业: 该视角下筛不出职业（不是缺口，是这个角度看过去没人）")
 
 
 def cmd_industry_axis(args):
@@ -228,6 +237,87 @@ def cmd_industry_occupations(args):
                  if db.catalog and db.catalog.gb_code_of(o.get("id", "")))
     print(f"\n合计 {len(rows)} 个职业"
           + (f"，其中 {mapped} 个已挂大典编码" if db.catalog else ""))
+
+
+def cmd_industry_occupation(args):
+    """看一个职业被哪些视角引用过：这是"多归属"的正面表达。
+
+    单值归属时代这里只能打印一个分区；现在会列出所有视角与权重，
+    并标出权重 >= 0.5 的主要归属。职业本身没有任何归属字段——
+    改分区、拆分区、重命名都不会动到这条记录。
+    """
+    db = _db(args)
+    o = db.occupation(args.id)
+    if not o:
+        by_code = db.axis_view._occ_by_code.get(args.id.upper())
+        o = by_code
+    if not o:
+        print(f"未找到职业: {args.id}（slug 或 OCC-编号均可）")
+        return
+    gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
+    print(f"■ {o.get('code', '-')}  {o.get('name')}  ({o.get('id')})")
+    print(f"  交付物: {o.get('deliverable', '-')}   提供者: {o.get('provider', '-')}"
+          f"   收费: {o.get('billing', '-')}   通道: {db.access_of(o)}")
+    print(f"  基线: {'是（进覆盖分母）' if o.get('baseline_occupation') else '否'}"
+          f"   大典编码: {gb or '-'}")
+    if o.get("note"):
+        print(f"  备注: {o['note']}")
+    edges = db.views_of_occupation(o.get("id", ""))
+    if not edges:
+        print("  视角: 无 —— 这个岗位还没被任何聚类看上（不是缺口，原子岗位不靠归属活着）")
+        return
+    print(f"  视角({len(edges)}，权重不是概率，也不要求相加为 100):")
+    for m in sorted(edges, key=lambda x: (-db.axis_view._weight(x),
+                                          x.get("partition", ""))):
+        w = db.axis_view._weight(m)
+        part = db.partition(m.get("partition", "")) or {}
+        mark = "主要" if w >= 0.5 else "次要"
+        role = f"  岗位名={m['unit_role']}" if m.get("unit_role") else ""
+        print(f"    - {db._pad(m.get('partition', ''), 24)}"
+              f"{db._pad(part.get('name', '(未登记)'), 20)}"
+              f"轴={db._pad(m.get('axis', ''), 12)}权重={w:.2f} {mark}{role}")
+
+
+def cmd_industry_filter(args):
+    """筛选器语义：按任意维度组合筛职业，不需要先决定"归到哪"。
+
+    这就是"分类是筛选器不是户籍"的落地形态 —— 同一个职业会因为条件不同
+    出现在不同结果里，没有哪个结果是"它的正确归属"。
+    """
+    db = _db(args)
+    min_w = float(getattr(args, "min_weight", 0) or 0)
+    rows = db.axis_view.filter(
+        partition=getattr(args, "partition", "") or "",
+        axis=getattr(args, "axis", "") or "",
+        provider=getattr(args, "provider", "") or "",
+        billing=getattr(args, "billing", "") or "",
+        access=getattr(args, "access", "") or "",
+        deliverable=getattr(args, "deliverable", "") or "",
+        min_weight=min_w,
+        baseline_only=getattr(args, "baseline_only", False))
+    cond = " ".join(f"{k}={v}" for k, v in {
+        "分区": getattr(args, "partition", ""), "轴": getattr(args, "axis", ""),
+        "提供者": getattr(args, "provider", ""), "收费": getattr(args, "billing", ""),
+        "通道": getattr(args, "access", ""), "交付物": getattr(args, "deliverable", ""),
+        "基线": "是" if getattr(args, "baseline_only", False) else "",
+    }.items() if v)
+    print("=" * 78)
+    print(f"筛选: {cond or '(无条件)'}"
+          + (f"  权重>={min_w}" if min_w else ""))
+    print("-" * 78)
+    if not rows:
+        print("无匹配职业")
+    for o in rows:
+        views = "、".join(sorted({m.get("partition", "") for m in
+                                  db.views_of_occupation(o.get("id", ""))}))
+        print(f"{db._pad(o.get('code', '-'), 12)}"
+              f"{db._pad(o.get('id', ''), 26)}"
+              f"{db._pad(o.get('name', ''), 18)}"
+              f"{db._pad(o.get('provider', '-'), 7)}"
+              f"视角: {views or '-'}")
+    print("-" * 78)
+    print(f"命中 {len(rows)} 个职业（同一职业在不同条件下可重复出现，这不是重复登记）")
+    print("=" * 78)
 
 
 def cmd_industry_catalog(args):
@@ -360,8 +450,8 @@ def cmd_industry_export(args):
                         "provider_hybrid_declared", "provider_human_declared",
                         "access_paid_direct", "access_non_market",
                         "access_org_internal", "access_household",
-                        "employment_wan", "axes", "demand_side", "cluster_basis",
-                        "channels", "note"])
+                        "employment_wan", "axes", "axis_edges", "demand_side",
+                        "cluster_basis", "channels", "note"])
             for r in snapshot["rows"]:
                 mix = r["provider_mix"] or {}
                 dec = r.get("provider_mix_declared") or {}
@@ -379,6 +469,8 @@ def cmd_industry_export(args):
                             (r.get("employment") if r.get("employment") is not None
                              else "-"),   # "-" = 无统计口径，与 0 区分
                             "|".join(r.get("axes", [])),
+                            "|".join(f"{k}:{v}" for k, v in
+                                     (r.get("axis_edges") or {}).items() if v),
                             "|".join(r["demand_side"]),
                             "|".join(r["cluster_basis"]),
                             "|".join(r["channels"]), r["note"]])
@@ -387,18 +479,24 @@ def cmd_industry_export(args):
         opath = os.path.join(out, "occupations.csv")
         with open(opath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
-            w.writerow(["id", "name", "partition_id", "unit_role", "deliverable",
-                        "provider", "billing", "access", "baseline_occupation",
-                        "gb_code", "gb_name", "note"])
+            w.writerow(["code", "id", "name", "views", "primary_view",
+                        "deliverable", "provider", "billing", "access",
+                        "baseline_occupation", "gb_code", "gb_name", "note"])
             for o in db.occupations:
                 gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
                 entry = db.catalog.entry(gb) if (db.catalog and gb) else None
-                w.writerow([o.get("id", ""), o.get("name", ""),
-                            o.get("unit_id", ""), o.get("unit_role", ""),
-                            o.get("deliverable", ""), o.get("provider", ""),
-                            o.get("billing", ""), db.access_of(o),
-                            "1" if o.get("baseline_occupation") else "0",
-                            gb, (entry or {}).get("name", ""), o.get("note", "")])
+                views = db.views_of_occupation(o.get("id", ""))
+                primary = db.axis_view.primary_of(o.get("id", ""))
+                w.writerow([
+                    o.get("code", ""), o.get("id", ""), o.get("name", ""),
+                    # 一个职业多行视角：用"分区:轴:权重"串起来，扁平表也能还原
+                    "|".join(f"{m['partition']}:{m['axis']}:{m['weight']}"
+                             for m in views),
+                    primary[0]["partition"] if primary else "",
+                    o.get("deliverable", ""), o.get("provider", ""),
+                    o.get("billing", ""), db.access_of(o),
+                    "1" if o.get("baseline_occupation") else "0",
+                    gb, (entry or {}).get("name", ""), o.get("note", "")])
         written.append(opath)
 
     if fmt in ("all", "sqlite"):
@@ -415,18 +513,22 @@ def cmd_industry_export(args):
             provider_hybrid_declared REAL, provider_human_declared REAL,
             access_paid_direct REAL, access_non_market REAL,
             access_org_internal REAL, access_household REAL,
-            employment_wan REAL, axes TEXT,
+            employment_wan REAL, axes TEXT, axis_edges TEXT,
             demand_side TEXT, cluster_basis TEXT, channels TEXT, note TEXT)""")
         conn.execute("""CREATE TABLE occupation(
-            id TEXT PRIMARY KEY, name TEXT, partition_id TEXT, unit_role TEXT,
+            code TEXT PRIMARY KEY, id TEXT UNIQUE, name TEXT,
             deliverable TEXT, provider TEXT, billing TEXT, access TEXT,
             baseline INTEGER, gb_code TEXT, gb_name TEXT, note TEXT)""")
+        # 边单独一张表：多视角是常态，塞进 occupation 行里就退化成单值归属
+        conn.execute("""CREATE TABLE membership(
+            occupation TEXT, partition TEXT, axis TEXT, weight REAL,
+            unit_role TEXT, PRIMARY KEY (occupation, partition, axis))""")
         for r in snapshot["rows"]:
             mix = r["provider_mix"] or {}
             dec = r.get("provider_mix_declared") or {}
             acc = r.get("access_mix") or {}
             conn.execute(
-                f"INSERT INTO partition VALUES ({','.join('?' * 25)})",
+                f"INSERT INTO partition VALUES ({','.join('?' * 26)})",
                 (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                  r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
                  r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
@@ -434,6 +536,8 @@ def cmd_industry_export(args):
                  dec.get("human"), acc.get("paid_direct"), acc.get("non_market"),
                  acc.get("org_internal"), acc.get("household"),
                  r.get("employment"), "|".join(r.get("axes", [])),
+                 "|".join(f"{k}:{v}" for k, v in
+                          (r.get("axis_edges") or {}).items() if v),
                  "|".join(r["demand_side"]),
                  "|".join(r["cluster_basis"]), "|".join(r["channels"]),
                  r["note"]))
@@ -441,12 +545,17 @@ def cmd_industry_export(args):
             gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
             entry = db.catalog.entry(gb) if (db.catalog and gb) else None
             conn.execute(
-                f"INSERT INTO occupation VALUES ({','.join('?' * 12)})",
-                (o.get("id", ""), o.get("name", ""), o.get("unit_id", ""),
-                 o.get("unit_role", ""), o.get("deliverable", ""),
-                 o.get("provider", ""), o.get("billing", ""), db.access_of(o),
+                f"INSERT INTO occupation VALUES ({','.join('?' * 11)})",
+                (o.get("code", ""), o.get("id", ""), o.get("name", ""),
+                 o.get("deliverable", ""), o.get("provider", ""),
+                 o.get("billing", ""), db.access_of(o),
                  1 if o.get("baseline_occupation") else 0,
                  gb, (entry or {}).get("name", ""), o.get("note", "")))
+        for m in db.axis_view.memberships:
+            conn.execute("INSERT OR REPLACE INTO membership VALUES (?,?,?,?,?)",
+                         (m.get("occupation", ""), m.get("partition", ""),
+                          m.get("axis", ""), m.get("weight", 1.0),
+                          m.get("unit_role", "")))
         # 大典参考表整表导出：补全缺口时不必再去找原始 PDF
         if db.catalog is not None:
             conn.execute("""CREATE TABLE gb_catalog(

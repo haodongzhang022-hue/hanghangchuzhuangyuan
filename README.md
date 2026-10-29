@@ -288,14 +288,15 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
-- `data/industry-occupations.yaml` — M11 职业表（最小单目标，稳定主键，单值 `unit_id` 挂唯一分区）
+- `data/industry-occupations.yaml` — M11 岗位表（原子单位：唯一编号 `OCC-######` + 稳定 slug，**不存归属字段**）
+- `data/occupation-memberships.yaml` — M11 归属边（岗位 × 视角 × 轴 × 权重；一个岗位可被多个视角同时引用）
 - `data/industry-partitions.yaml` — M11 行业分区表（聚类依据/付费方/供给结构/产值口径）
 - `data/reference/occupation-catalog-2022.yaml` — 《职业分类大典（2022 年版）》参考表（8 大类/79 中类/449 小类/1636 细类，只读）
 - `data/reference/occupation-gb-map.yaml` — 职业 ↔ 大典细类编码的人工映射（宁缺勿错）
 - `data/reference/occupation-catalog-isco08.yaml` — ISCO-08 国际职业分类参考表（10/43/130/436 + 1931 条官方示例职位名，只读）
 - `data/reference/classification-sources.yaml` — 四根轴（职业/行业/税收/产出）分类体系索引：各标准规模、维护方、已接/待接
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度（v0.3 起包含 `evaluated` 分区：目标全集回答"哪些人群必须看得见"，不等于"都要建单元"）
-- `data/industry-occupations.yaml` — 职业表（177 个，基线 152）；`access` 标承接通道
+- `data/industry-occupations.yaml` — 岗位表（177 个，基线 152，带唯一编号 `OCC-######`）；`access` 标承接通道
 - `data/industry-partitions.yaml` — 行业分区表（41 个）；`axes`/`employment`/`demand_side`
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
@@ -306,16 +307,22 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 
 ## 行业分区定义库（M11）
 
-**职业是解耦的最小单目标，行业是聚类结果。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
+**岗位原子化，分类是筛选器。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
 
-- **职业表** `data/industry-occupations.yaml`：147 条是**能被行业单元承接的收敛基线**，不是职业全集；
+- **岗位表** `data/industry-occupations.yaml`：原子单位，唯一编号 `OCC-######` + 稳定 slug，
+  **不写"我属于哪个分区"**。177 条是**能被行业单元承接的收敛基线**，不是职业全集；
   全集在 `data/reference/occupation-catalog-2022.yaml`（大典 1636 个细类，带国标编码），
-  补职业时照表挑、用 `gb_code` 挂回标准，别现编名字。一职业一条 `id`，通过单值 `unit_id`
-  挂到唯一分区（多归属暂不支持，需扩 `partition_ids` 并同步 `members_of`/`validate`/导出）；
-  未挂分区的职业照样登记 → 缺口永远可见，不会静默丢失。
+  补岗位时照表挑、用 `gb_code` 挂回标准，别现编名字。
+- **归属边** `data/occupation-memberships.yaml`：岗位和视角之间的关系全在这里，
+  带轴和权重。**一个岗位可以被任意多个视角同时引用，权重不必相加为 100**——
+  0.6+0.5 不是错误，是"两件活都真干"。想只看主要归属就 `--min-weight 0.5`。
 - **分区表** `data/industry-partitions.yaml`：只写清"为什么聚类"（聚类依据 / 付费方 /
-  供给结构 `provider_mix` / 产值口径 `gdp_cny`）。成员由 `occupation.unit_id` **反查**，
-  不存在第二份清单，不会两份数据打架。
+  供给结构 `provider_mix` / 产值口径 `gdp_cny`）。成员是**按视角筛出来的结果**，
+  不是"归属于它的东西"；分区不存清单，岗位不存归属，两边永远不会分叉。
+
+  单值归属是硬分类，有三个躲不掉的毛病：丢信息（无法表达跨行业）、被管理绑架
+  （改分区就得批量改岗位）、假装确定（现实里大多数岗位本来就跨行业）。
+  所以分类只当筛选器用：`industry filter --partition X --provider ai --min-weight 0.5`。
 - **聚类粒度**：付费方与交付方式同一件事才合并，否则必须拆。口译/笔译、直播/电竞、
   健身/赛事三组已按这条拆开；拆分分区没有独立产值口径就留 `null`，不按比例切一份
   （切一份等于同一批钱算两遍）。旧折叠 id 有回归测试盯着，不许复活。
@@ -325,9 +332,10 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
   （行政办公/政务公共/国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
 - **不引入外部数据库**：yaml 是权威源（可评审、可回滚、可被知识库切片），
   `industry export` 一键生成 `industry.sqlite` + 两份 csv 扁平表，随 CNB 制品库发布，拿到即用。
-- **双向自检**：`industry check` 跑 15 条校验（主键唯一/状态枚举/成员归属/职业↔岗位对齐/大典映射外键/
-  供给结构对账/数据源存在），其中三条专守"分母被悄悄缩小"的暗沟——分区 id 写重、
-  `status` 拼错、标了 `covered` 却没登记职业，这三种错不会让覆盖率变红，只会让它变好看。
+- **双向自检**：`industry check` 跑 17 条校验（唯一编号/主键唯一/状态枚举/归属边悬空/权重越界/
+  同边重复/职业↔岗位对齐/大典映射外键/供给结构对账/数据源存在），其中三条专守"分母被悄悄缩小"
+  的暗沟——分区 id 写重、`status` 拼错、标了 `covered` 却没登记岗位，这三种错不会让覆盖率变红，
+  只会让它变好看。明确**不校验**"归属是否唯一"：那是伪命题。
   流水线在 PR 测试、合并门禁、main 全量回归三处都会跑它，数据漂移不靠自觉。
 
 **国际口径**：职业轴再接一层 ISCO-08（ILO，436 细类 + 1931 条官方示例职位名），

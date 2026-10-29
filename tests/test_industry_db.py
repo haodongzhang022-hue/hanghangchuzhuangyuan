@@ -1,9 +1,10 @@
 """M11 行业分区定义库测试
 
 核心断言（对应用户要求）：
-1. 职业是解耦最小单位：职业 id 稳定、单值 unit_id 挂唯一分区（多归属暂不支持）、
+1. 职业是解耦最小单位：职业带唯一编号 OCC-####，**自身不存归属字段**，
    不受行业命名影响。
-2. 行业是聚类结果：分区成员由 occupation.unit_id 反查得到，不手写第二份清单。
+2. 归属是模糊的：职业↔分区是带权重的边（occupation-memberships.yaml），
+   一个职业可被任意多个视角同时引用；分区不手写成员清单。
 3. 双向对齐：注册单元每个岗位都有职业登记；职业挂的分区/单元必须真实存在且岗位匹配。
 4. 产值口径诚实：无市场口径的分区必须留 null，不得填 0 假装有数据。
 5. 供给结构诚实：由成员职业 provider 实测，手写值只作对账留档。
@@ -29,15 +30,23 @@ def test_partition_and_occupation_loaded():
 
 
 def test_members_are_derived_not_duplicated():
-    """分区成员 = 反查 occupation.unit_id，数据里不重复存职业清单"""
+    """分区成员由归属边反查，分区定义里不重复存职业清单"""
     db = IndustryDatabase()
     p = db.partition("dongjiagoushi")
     assert p is not None
     members = db.members_of("dongjiagoushi")
-    assert {o["unit_role"] for o in members} == {
-        "secretary", "architect", "developer", "reviewer", "product"}
+    # 岗位名挂在边上：同一个职业在别的视角下可以是别的岗位名
+    roles = {m["partition"]: m["unit_role"]
+             for m in db.views_of_occupation("architect")}
+    assert roles["dongjiagoushi"] == "architect"
+    assert {o["id"] for o in members} == {
+        "dev-secretary", "architect", "developer", "code-reviewer", "product-manager"}
     # 分区定义本身不含 members 字段，避免两份清单分叉
     assert "members" not in p
+    # 职业自身也不存归属字段（否则又变回"唯一归属"了）
+    for o in db.occupations:
+        assert "unit_id" not in o, f"{o['id']} 还残留单值归属字段"
+        assert "unit_role" not in o, f"{o['id']} 还残留单值岗位名字段"
 
 
 def test_bidirectional_alignment():
@@ -46,14 +55,12 @@ def test_bidirectional_alignment():
     assert db.validate() == []
 
 
-def test_every_occupation_anchored_to_known_partition():
-    """职业要么 explicitly 未挂分区（登记的缺口），要么挂到真实存在的分区"""
+def test_every_membership_edge_points_to_known_partition():
+    """每条归属边都必须指向真实存在的分区；职业可以一条边都没有"""
     db = IndustryDatabase()
     known = {p["id"] for p in db.partitions}
-    for o in db.occupations:
-        uid = o.get("unit_id")
-        if uid:
-            assert uid in known, f"{o['id']} 的 unit_id={uid} 不存在"
+    for m in db.axis_view.memberships:
+        assert m["partition"] in known, f"{m['occupation']} 的边指向 {m['partition']}"
 
 
 def test_coverage_ratio_consistent():
@@ -123,8 +130,10 @@ def test_row_provider_mix_same_source_as_summary():
         assert r["provider_mix"] == {k: expected[k]
                                      for k in ("ai", "hybrid", "human")}, r["id"]
         assert "provider_mix_declared" in r
-    # 全部行成员数之和 == 汇总样本量
-    assert sum(r["member_count"] for r in s["rows"]) == s["provider_mix_n"]
+    # 汇总样本量是"被任何视角看见过的职业数"，不是各行成员数相加：
+    # 软归属下一个职业可以出现在多行里，相加会把同一个人数两遍
+    assert s["provider_mix_n"] == len(db.linked_occupations())
+    assert sum(r["member_count"] for r in s["rows"]) >= s["provider_mix_n"]
 
 
 def test_dangling_unit_id_is_reported():
@@ -207,9 +216,9 @@ def test_export_flat_tables():
         conn = sqlite3.connect(os.path.join(td, "industry.sqlite"))
         n_part = conn.execute("select count(*) from partition").fetchone()[0]
         n_occ = conn.execute("select count(*) from occupation").fetchone()[0]
-        # sqlite 可直接按分区聚合成员数
+        # sqlite 可直接按视角聚合成员数（边在 membership 表里）
         row = conn.execute(
-            "select count(*) from occupation where partition_id='dongjiagoushi'"
+            "select count(*) from membership where partition='dongjiagoushi'"
         ).fetchone()[0]
         # 实测列与留档列同时存在
         cols = {r[1] for r in conn.execute("pragma table_info(partition)")}
@@ -316,12 +325,17 @@ def _make_one_partition_memberless(db):
     补全第三轮之后真实数据里已经没有无成员分区了（每个分区都登记了职业），
     但"无成员分区不得有非零实测值"这条契约仍然要守住 —— 所以改成构造夹具，
     不再指望真实数据恰好长成测试需要的样子。
+
+    归属改成"边"之后，摘成员 = 删掉指向该分区的边（职业本身不受影响，
+    这正好说明原子岗位不会被分类改动牵连）。
     """
     for p in db.partitions:
-        members = db.members_of(p["id"])
-        if members:
-            for o in members:
-                o["unit_id"] = ""
+        edges = [m for m in db.axis_view.memberships if m["partition"] == p["id"]]
+        if edges:
+            db.axis_view.refresh([
+                m for m in db.axis_view.memberships if m["partition"] != p["id"]])
+            db._memberships_raw = [dict(m) for m in db.axis_view.memberships]
+            db._reindex()
             p["provider_mix"] = {"ai": 0, "hybrid": 0, "human": 0}
             if not p.get("provider_mix_estimated"):
                 p["provider_mix_estimated"] = {"ai": 15, "hybrid": 20, "human": 65}
@@ -418,31 +432,46 @@ def test_partition_detail_reads_estimated_not_declared():
     assert "供给结构(实测): AI 0%" not in out, out
 
 
+def _add_edge_db(partition, occupation, unit_role=""):
+    """构造夹具：加一个分区 + 一个职业 + 一条归属边（软归属的最小单元）。"""
+    db = IndustryDatabase()
+    db.partitions.append(partition)
+    db.occupations.append(occupation)
+    # _reindex 会拿"当前生效的边"覆盖 _memberships_raw，所以要先 refresh 再追加
+    db.axis_view.refresh([
+        {"occupation": occupation["id"], "partition": partition["id"],
+         "axis": "occupation", "weight": 1.0, "unit_role": unit_role}]
+        + list(db.axis_view.memberships))
+    db._reindex()
+    return db
+
+
+def _fake_occ(seq, **kw):
+    """构造夹具用的职业：编号必须与登记序号一致，否则会被唯一编号校验抓住"""
+    row = {"id": f"fake-occ-{seq}", "code": f"OCC-{seq:06d}", "name": "假职业",
+           "deliverable": "服务", "provider": "ai", "billing": "usage",
+           "baseline_occupation": True}
+    row.update(kw)
+    return row
+
+
 def test_validate_reports_missing_unit_role_on_registered_unit():
     """a) 已建单元的分区，成员缺 unit_role → 报错（建单元后路由命中不了）"""
-    db = IndustryDatabase()
-    db.partitions.append({"id": "fake-part-x", "name": "假分区",
-                          "status": "covered", "unit_id": "dongjiagoushi"})
-    db.occupations.append({"id": "fake-occ", "name": "假职业",
-                           "unit_id": "fake-part-x", "unit_role": None,
-                           "provider": "ai", "billing": "usage"})
+    db = _add_edge_db(
+        {"id": "fake-part-x", "name": "假分区", "status": "covered",
+         "unit_id": "dongjiagoushi", "planned_roles": ["architect"]},
+        _fake_occ(len(IndustryDatabase().occupations) + 1))
     problems = db.validate()
     assert any("fake-occ" in p and "unit_role" in p for p in problems), problems
 
 
-def test_validate_reports_unit_id_member_mismatch():
-    """校验点 8/9：成员挂在本分区但角色不属于分区指向的单元 → 报 unit_role
-
-    反查口径是 unit_id == 分区 id，所以"成员挂错到别的单元"根本进不了
-    members_of()；那类错挂由 validate 的全量扫描覆盖（见下一条）。
-    这条守的是"分区指向单元 A、成员角色却是单元 B 的岗位"。
-    """
-    db = IndustryDatabase()
-    db.partitions.append({"id": "fake-part-y", "name": "假分区",
-                          "status": "covered", "unit_id": "dongjiagoushi"})
-    db.occupations.append({"id": "fake-occ-y", "name": "假职业",
-                           "unit_id": "fake-part-y", "unit_role": "game_planner",
-                           "provider": "ai", "billing": "usage"})
+def test_validate_reports_unit_role_not_in_unit():
+    """分区指向单元 A、边上的岗位名却是单元 B 的岗位 → 必须报出来"""
+    db = _add_edge_db(
+        {"id": "fake-part-y", "name": "假分区", "status": "covered",
+         "unit_id": "dongjiagoushi"},
+        _fake_occ(len(IndustryDatabase().occupations) + 1, id="fake-occ-y"),
+        unit_role="game_planner")
     problems = db.validate()
     assert any("fake-occ-y" in p and "game_planner" in p for p in problems), problems
 
@@ -482,8 +511,11 @@ def test_pending_partition_unit_role_must_be_in_planned_roles():
                    and not p.get("unit_id")
                    and db.members_of(p["id"]))
     pending["planned_roles"] = ["declared_role_only"]
+    # 岗位名现在挂在边上：改边，不改职业
+    edge = next(m for m in db.axis_view.memberships
+                if m["partition"] == pending["id"])
+    edge["unit_role"] = "随手编的角色"
     member = db.members_of(pending["id"])[0]
-    member["unit_role"] = "随手编的角色"
     problems = db.validate()
     assert any(member["id"] in p and "planned_roles" in p
                for p in problems), problems
@@ -581,9 +613,10 @@ def test_duplicate_occupation_not_dropped_from_mix():
     db = IndustryDatabase()
     first = db.occupations[0]
     db.occupations.append(dict(first))  # 同 id 再塞一条
-    target = first["unit_id"]
+    target = db.views_of_occupation(first["id"])[0]["partition"]
     ids = [o["id"] for o in db.members_of(target)]
-    assert ids.count(first["id"]) == 2, ids
+    # 成员按视角筛出来的是"人"，同 id 的两条记录只算一个人
+    assert ids.count(first["id"]) == 1, ids
 
 
 def test_index_refreshes_after_dynamic_append():
@@ -770,7 +803,7 @@ if __name__ == "__main__":
     test_partition_and_occupation_loaded()
     test_members_are_derived_not_duplicated()
     test_bidirectional_alignment()
-    test_every_occupation_anchored_to_known_partition()
+    test_every_membership_edge_points_to_known_partition()
     test_coverage_ratio_consistent()
     test_gdp_null_is_not_zero()
     test_provider_mix_present()
@@ -788,7 +821,7 @@ if __name__ == "__main__":
     test_no_member_partition_export_measured_as_zero()
     test_partition_detail_reads_estimated_not_declared()
     test_validate_reports_missing_unit_role_on_registered_unit()
-    test_validate_reports_unit_id_member_mismatch()
+    test_validate_reports_unit_role_not_in_unit()
     test_validate_reports_occupation_attached_to_unit_not_partition()
     test_validate_reports_evaluated_partition_with_unit()
     test_pending_partition_unit_role_must_be_in_planned_roles()

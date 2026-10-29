@@ -162,7 +162,7 @@ partitions:
     aliases: [电商, 网络零售, 跨境电商]
     cluster_basis: [交付链上下游(货-店-客), 付费方同行(成交佣金)]
     demand_side: [消费者购买, 平台佣金/服务费, 品牌代运营预算]
-    provider_mix: {ai: 33.3, hybrid: 33.3, human: 33.3}
+    provider_mix: {ai: 20.0, hybrid: 60.0, human: 20.0}
     provider_mix_estimated: {ai: 40, hybrid: 40, human: 20}
     gdp_cny: 15000000000000
     gdp_scope: 全国网上零售额(含平台交易额, 非增加值)
