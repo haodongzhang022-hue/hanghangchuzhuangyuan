@@ -323,25 +323,52 @@ partitions:
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
 
   # ---------------- 待建单元 ----------------
+  - id: interpretation
+    name: 口译服务
+    aliases: [口译, 同传, 陪同翻译, 语言服务-现场交付]
+    cluster_basis: [交付物同源(口头语言转换), 交付方式同源(现场/同步在场)]
+    demand_side: [会议主办方预算, 商务陪同付费, 司法/医疗口译采购]
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 10, hybrid: 35, human: 55}
+    gdp_cny: null
+    gdp_scope: 并入语言服务总收入，本分区无独立口径（刻意留空，不按比例拍脑袋切分）
+    gdp_source: 不适用，刻意留空；口径见 翻译本地化(translation)
+    employment: null
+    employment_source: 并入翻译协会口径，本分区无独立就业数
+    unit_id: ''
+    priority: 中
+    channels: [中国翻译协会行业报告(口译分项), 会议服务公司名录, 译员平台]
+    status: pending
+    axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
+    planned_roles: [interpreter]
+    note: >
+      从 translation 拆出的原因：同传/陪同是**现场同步交付**，AI 替代率远低于笔译，
+      时薪制、按场计费、资质门槛高；塞进"翻译本地化"会把它按整体 AI 替代率摊薄，
+      需求侧的付费方（会议主办/司法采购）也不一样。两者共用行业口径，但承接面与
+      计费逻辑不同，属于被错误折叠成一类的典型。
+
   - id: translation
     name: 翻译本地化
-    aliases: [语言服务, 翻译服务, 本地化服务]
-    cluster_basis: [交付物同源(语言转换), 技能栈重叠(双语+术语)]
-    demand_side: [企业出海本地化预算, 出版/影视本地化项目]
+    aliases: [笔译, 字幕翻译, 本地化, 语言服务-文本交付]
+    cluster_basis: [交付物同源(文本/字幕转换), 交付方式同源(异步交付)]
+    demand_side: [企业出海本地化预算, 出版/影视本地化项目, 平台字幕外包]
     provider_mix: {ai: 50.0, hybrid: 25.0, human: 25.0}
     provider_mix_estimated: {ai: 70, hybrid: 28, human: 2}
     gdp_cny: 70000000000
-    gdp_scope: 语言服务行业总产值
+    gdp_scope: 语言服务行业总产值(含口译，口径未拆)
     gdp_source: 中国翻译协会年度报告(量级估算)
     employment: 50
-    employment_source: 翻译协会口径从业人数(含兼职)
+    employment_source: 翻译协会口径从业人数(含兼职，含口译)
     unit_id: ''
     priority: 高
     channels: [中国翻译协会行业报告, 语言服务平台岗位, 出海企业需求]
     status: pending
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
-    planned_roles: [interpreter, subtitle, localizer, proofreader]
-    note: AI 替代率最高的分区之一，适合优先数字化
+    planned_roles: [subtitle, localizer, proofreader]
+    note: >
+      本分区只放**异步文本交付**（笔译/字幕/本地化）。口译已拆到 interpretation：
+      两者 AI 承接面差一个量级，混在一起会让"AI 替代率最高"的结论套到同传头上。
+      gdp/employment 为语言服务合并口径，故口译分区刻意留空，不在两者间拍比例。
 
   - id: video-media
     name: 视频影视
@@ -632,49 +659,102 @@ partitions:
     planned_roles: [policy_consultant, community_worker, gov_service_clerk, records_manager, civic_agent]
     note: 无市场付费，产值口径留空；AI 承接以内部效率提升为主
 
-  - id: esports-live
-    name: 电竞直播陪玩
-    aliases: [直播打赏, 电竞, 陪玩, 网红经济, 主播经济]
-    cluster_basis: [交付物同源(实时互动服务), 付费方同为打赏/订阅/平台分成,
-                    技能栈重叠(表达/游戏/社群运营)]
-    demand_side: [观众打赏与订阅, 品牌坑位费与广告, 平台流量分成, 赛事奖金与俱乐部工资]
+  - id: live-streaming
+    name: 直播与网络表演
+    aliases: [直播打赏, 网红经济, 主播经济, 网络表演]
+    cluster_basis: [交付物同源(实时陪伴型内容), 付费方同为打赏/订阅/平台分成,
+                    技能栈重叠(表达/选品/社群运营)]
+    demand_side: [观众打赏与订阅, 品牌坑位费与广告, 平台流量分成]
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 20, hybrid: 15, human: 65}
     gdp_cny: 2000000000000
-    gdp_scope: 直播打赏+电竞产业+陪玩平台流水(含交易额口径，非增加值)
-    gdp_source: 中国演出行业协会网络表演分会年度报告 / 音数协电竞报告(量级估算，低置信)
-    employment: 200
-    employment_source: 电竞与网络表演从业人数(含兼职主播，低置信)
+    gdp_scope: 网络表演(直播)行业营收(含打赏流水口径，非增加值)；不含电竞与陪玩
+    gdp_source: 中国演出行业协会网络表演分会年度报告(量级估算，低置信)
+    employment: null
+    employment_source: 网络表演从业人数与其他直播形态混统，故留空；口径见 note
     unit_id: ''
     priority: 高
-    channels: [网络表演(直播)行业年度报告, 电竞工委产业报告, 陪玩平台公开数据, MCN机构名录]
+    channels: [网络表演(直播)行业年度报告, MCN机构名录, 直播平台公开数据]
     status: pending
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
-    planned_roles: [streamer]
+    planned_roles: [streamer, live_host]
     note: >
-      典型的口径漏项：这个行业 2020 年后规模已超过多数传统文化行业，但只看
-      "企业名录/国民经济行业分类"就会整个漏掉——因为它挂在"互联网信息服务"下面，
-      不独立成行。补它的意义不是建单元（内容创作好、体育健身好，都接不住陪玩），
-      而是让市场画像里出现这几百万人和这份付费结构。
+      口径漏项的典型：这个行业 2020 年后规模已超过多数传统文化行业，但只看
+      "企业名录/国民经济行业分类"就会整个漏掉——它挂在"互联网信息服务"下面，不独立成行。
+      从 esports-live 拆出的原因：直播的付费方是**观众打赏+品牌坑位**，交付是
+      "人在场的内容陪伴"；电竞的付费方是**赛事奖金+俱乐部工资+票务赞助**，交付是
+      竞技成绩与赛事产品。两者共用一份"2000 亿"是把两种商业模式捏成一个，
+      所以产值按网络表演口径单独给，电竞/陪玩的那部分不并进来。
 
-  - id: sport-leisure
+  - id: esports
+    name: 电竞竞技
+    aliases: [电子竞技, 电竞俱乐部, 电竞运营, 陪玩平台]
+    cluster_basis: [付费方同源(赛事奖金/俱乐部工资/票务赞助), 交付物同源(竞技成绩与赛事产品),
+                    技能栈重叠(竞技水平/战术/赛事组织)]
+    demand_side: [赛事奖金与俱乐部工资, 票务与赞助, 平台转播权, 陪玩平台分成]
+    provider_mix: {ai: 0.0, hybrid: 25.0, human: 75.0}
+    provider_mix_estimated: {ai: 15, hybrid: 30, human: 55}
+    gdp_cny: null
+    gdp_scope: 并入文体娱乐业口径，本分区无独立统计（刻意留空，不与直播打赏合并算一份）
+    gdp_source: 不适用，刻意留空；年度口径见音数协电竞报告(低置信)
+    employment: null
+    employment_source: 无独立就业统计口径（电竞选手/陪玩多为兼职与平台众包）
+    unit_id: ''
+    priority: 中
+    channels: [电竞工委产业报告, 赛事主办方与俱乐部名录, 陪玩平台公开数据]
+    status: pending
+    axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
+    planned_roles: [esports_player, esports_operator, game_companion]
+    note: >
+      与直播的差别不只是"赛道不同"：这里卖的是**竞技成绩与赛事产品**，收入来自奖金、
+      工资、票务、转播与陪玩平台抽成；直播卖的是**打赏与坑位**。混在一个分区里
+      会让"供给结构 100% 纯人"这类结论同时套到两种完全不同的用工形态上。
+
+  - id: sport-fitness
     name: 体育健身
-    aliases: [体育, 健身, 赛事运营]
-    cluster_basis: [付费方同行(会员费/票务), 交付物同源(运动服务)]
-    demand_side: [健身会员费, 赛事票务与赞助, 体育培训费]
-    provider_mix: {ai: 0.0, hybrid: 12.5, human: 87.5}
+    aliases: [健身, 体育培训, 运动康复]
+    cluster_basis: [付费方同行(会员费/课时费), 交付物同源(运动指导与训练服务)]
+    demand_side: [健身会员费, 私教课时费, 体育培训费, 康复训练自费]
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
-    gdp_cny: 3000000000000
-    gdp_scope: 体育产业总产出(含用品制造, 服务部分更小)
-    gdp_source: 国家体育总局体育产业统计
-    employment: 500
-    employment_source: 体育产业从业人数
+    gdp_cny: null
+    gdp_scope: 体育服务业中健身/培训分项，无单独发布口径（刻意留空）
+    gdp_source: 不适用，刻意留空；体育产业总产出口径见 sport-games
+    employment: null
+    employment_source: 无独立就业统计，故留空；口径见 note
     unit_id: ''
     priority: 低
-    channels: [体育总局产业统计, 健身连锁/赛事公司目录]
+    channels: [体育总局产业统计(健身分项), 健身连锁名录, 体育培训平台]
     status: pending
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
-    planned_roles: [sports_coach, sports_agent, event_operator, venue_manager, rehab_trainer, esports_player, game_companion, esports_operator]
+    planned_roles: [sports_coach, rehab_trainer]
+    note: >
+      从原 sport-leisure 拆出：健身/培训是**面向个人的课时制服务**，付费方是会员与学员；
+      赛事运营是**面向机构的项目制**，付费方是主办方、赞助商与转播方。两者用工形态、
+      计费方式、AI 承接面都不同，合在一起只剩一个"体育"标签可用，看不出门道。
+      人员规模刻意留空：体育产业从业统计含用品制造，不能直接当本分区就业数。
+
+  - id: sport-games
+    name: 赛事与场馆运营
+    aliases: [体育赛事, 赛事运营, 场馆运营, 体育经纪]
+    cluster_basis: [付费方同源(票务/赞助/转播/场馆租金), 交付链上下游(赛事-场馆-经纪)]
+    demand_side: [赛事票务与赞助, 转播权与广告, 场馆租金与运营分成, 经纪佣金]
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix_estimated: {ai: 20, hybrid: 30, human: 50}
+    gdp_cny: 3000000000000
+    gdp_scope: 体育产业总产出(含用品制造，范围为产业整体，不是本分区独占)
+    gdp_source: 国家体育总局体育产业统计(宽口径，量级估算)
+    employment: 500
+    employment_source: 体育产业从业人数(宽口径，含用品制造与健身，量级估算)
+    unit_id: ''
+    priority: 低
+    channels: [体育总局产业统计, 赛事主办方与场馆运营方名录, 体育经纪机构]
+    status: pending
+    axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
+    planned_roles: [sports_agent, event_operator, venue_manager]
+    note: >
+      产值 3 万亿是**体育产业整体**口径，保留在这里只是为了让产出轴有个锚点，
+      不代表本分区独占——真正的独立口径缺失，属于已知的量级参考。
 
   - id: research-academic
     name: 科研学术

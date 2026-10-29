@@ -56,10 +56,16 @@ targets:
      status: registered, channels: [], note: "已注册"}
 
   # ---------------- 待覆盖(pending)：需通过渠道搜集岗位并建单元补齐 ----------------
+  # 翻译拆成两支：口译（现场同步交付）/ 本地化（异步文本交付）。
+  # 合成一条时"AI 替代率最高"会把同传一起算进去，属于被错误折叠的一类。
+  - {id: interpretation,       name: 口译服务,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [口译员],
+     channels: [翻译平台岗位榜, 会议服务公司名录], note: "现场同步交付，AI 承接面低于笔译"}
   - {id: translation,          name: 翻译本地化,   category: 文化/体育和娱乐业, priority: 中,
      status: pending,
-     target_roles: [口译, 笔译, 字幕翻译, 本地化, 审校],
-     channels: [翻译平台岗位榜, 语言服务行业目录], note: ""}
+     target_roles: [字幕翻译, 本地化, 审校],
+     channels: [翻译平台岗位榜, 语言服务行业目录], note: "异步文本交付"}
   - {id: video-media,          name: 视频影视,     category: 文化/体育和娱乐业, priority: 中,
      status: pending,
      target_roles: [视频剪辑, 摄影摄像, 后期制作, 导演助理, 编导],
@@ -120,10 +126,15 @@ targets:
      status: pending,
      target_roles: [政策咨询, 社区服务, 政务服务, 档案管理, 民生代办],
      channels: [政务公开办事目录, 社工职业目录], note: ""}
-  - {id: sport-leisure,        name: 体育健身,     category: 文化/体育和娱乐业, priority: 低,
+  # 体育拆成两支：面个人的课时制服务 / 面机构的赛事场馆项目制。
+  - {id: sport-fitness,        name: 体育健身,     category: 文化/体育和娱乐业, priority: 低,
      status: pending,
-     target_roles: [运动教练, 体育经纪, 赛事运营, 场馆运营, 康复训练],
-     channels: [体育机构岗位, 运动培训目录], note: ""}
+     target_roles: [运动教练, 康复训练],
+     channels: [体育机构岗位, 运动培训目录], note: "会员/学员付费，课时制"}
+  - {id: sport-games,          name: 赛事与场馆运营, category: 文化/体育和娱乐业, priority: 低,
+     status: pending,
+     target_roles: [体育经纪, 赛事运营, 场馆运营],
+     channels: [赛事主办方名录, 场馆运营方名录], note: "票务/赞助/转播付费，项目制"}
   - {id: research-academic,    name: 科研学术,     category: 科学研究和技术服务, priority: 中,
      status: pending,
      target_roles: [文献综述, 课题申报, 实验设计, 数据分析师, 学术编辑],
@@ -133,11 +144,18 @@ targets:
   # 说明：evaluated（评估后不建数字员工单元）的分区也进目标全集 —— 目标全集回答
   # "哪些行业/人群必须看得见"，不等于"都要建单元"。把它们排除在外，等于让
   # "评估完就不统计"变成合法操作，这才是最初忽略军队/采矿的原因。
-  - {id: esports-live,        name: 电竞直播陪玩, category: 文化/体育和娱乐业, priority: 高,
+  # 直播 / 电竞拆开：前者卖打赏与坑位，后者卖竞技成绩与赛事产品；
+  # 混成一条会让"供给结构 100% 纯人"同时套到两种用工形态上。
+  - {id: live-streaming,       name: 直播与网络表演, category: 文化/体育和娱乐业, priority: 高,
      status: pending,
-     target_roles: [网络主播, 直播运营, 电子竞技员, 游戏陪玩, 电子竞技运营师],
-     channels: [网络表演(直播)行业年度报告, 电竞工委产业报告, 陪玩平台公开数据, MCN机构名录],
-     note: "旧口径整块漏掉：直播打赏/陪玩挂在互联网信息服务下面，不独立成行"}
+     target_roles: [网络主播, 直播运营],
+     channels: [网络表演(直播)行业年度报告, MCN机构名录, 直播平台公开数据],
+     note: "旧口径整块漏掉：直播打赏挂在互联网信息服务下面，不独立成行"}
+  - {id: esports,              name: 电竞竞技,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [电子竞技员, 游戏陪玩, 电子竞技运营师],
+     channels: [电竞工委产业报告, 陪玩平台公开数据, 俱乐部名录],
+     note: "奖金/工资/票务/陪玩抽成，与直播打赏不同源"}
   - {id: mining-resources,    name: 矿业资源,     category: 采矿业, priority: 中,
      status: pending,
      target_roles: [采矿工程技术员, 井下采矿工, 露天采矿工, 矿山安全监察, 矿物加工],

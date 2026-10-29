@@ -147,10 +147,10 @@ occupations:
   - {id: brand-designer,     name: 品牌设计师, unit_id: design-visual, unit_role: brand_designer,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
 
   # ---------------- 待建单元分区里的代表性职业（覆盖缺口） ----------------
-  - {id: simultaneous-interpreter, unit_id: translation, name: 口译员, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "翻译本地化"}
-  - {id: subtitle-translator, unit_id: translation, name: 字幕翻译, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
-  - {id: localizer,          unit_id: translation, name: 本地化工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "翻译本地化"}
-  - {id: proofreader,        unit_id: translation, name: 审校员,     deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化"}
+  - {id: simultaneous-interpreter, unit_id: interpretation, name: 口译员, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "口译服务-现场同步交付，按场/按小时计价；AI 替代面远低于笔译"}
+  - {id: subtitle-translator, unit_id: translation, name: 字幕翻译, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化-异步文本交付"}
+  - {id: localizer,          unit_id: translation, name: 本地化工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "翻译本地化-异步文本交付"}
+  - {id: proofreader,        unit_id: translation, name: 审校员,     deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "翻译本地化-异步文本交付"}
 
   - {id: video-editor,       unit_id: video-media, name: 视频剪辑,   deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: "视频影视"}
   - {id: cinematographer,    unit_id: video-media, name: 摄影摄像,   deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: "视频影视"}
@@ -242,11 +242,11 @@ occupations:
   - {id: records-manager,    unit_id: public-affairs, name: 档案管理,   deliverable: 文本, provider: ai, billing: salary, baseline_occupation: true, note: "政务公共"}
   - {id: civic-agent,        unit_id: public-affairs, name: 民生代办,   deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: "政务公共"}
 
-  - {id: sports-coach,       unit_id: sport-leisure, name: 运动教练,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
-  - {id: sports-agent,       unit_id: sport-leisure, name: 体育经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "体育健身"}
-  - {id: event-operator,     unit_id: sport-leisure, name: 赛事运营,   deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "体育健身"}
-  - {id: venue-manager,      unit_id: sport-leisure, name: 场馆运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "体育健身"}
-  - {id: rehab-trainer,      unit_id: sport-leisure, name: 康复训练师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身"}
+  - {id: sports-coach,       unit_id: sport-fitness, name: 运动教练,   deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身-课时制，付费方=会员/学员"}
+  - {id: sports-agent,       unit_id: sport-games, name: 体育经纪,   deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "赛事与场馆运营-佣金制，付费方=俱乐部/主办方"}
+  - {id: event-operator,     unit_id: sport-games, name: 赛事运营,   deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: "赛事与场馆运营-项目制，付费方=主办方/赞助/转播"}
+  - {id: venue-manager,      unit_id: sport-games, name: 场馆运营,   deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: "赛事与场馆运营-租金/会员订阅"}
+  - {id: rehab-trainer,      unit_id: sport-fitness, name: 康复训练师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: "体育健身-课时制，与运动康复自费同源"}
 
   - {id: literature-reviewer, unit_id: research-academic, name: 文献综述员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: "科研学术"}
   - {id: grant-writer,       unit_id: research-academic, name: 课题申报,   deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: "科研学术"}
@@ -263,11 +263,14 @@ occupations:
   # ==========================================================================
 
   # ---------------- 直播/电竞/陪玩（数字经济新职业，大典已有编码） ----------------
-  - {id: streamer,            unit_id: esports-live, unit_role: streamer, name: 网络主播/直播带货, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "大典 4-01-06-02 互联网营销师；打赏+佣金双口径，2022 年 8 个新职业之一"}
-  - {id: live-stream-operator, unit_id: content-creation, unit_role: live_host, name: 直播运营,   deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "选品/排期/场控，属 MCN 内部职能"}
-  - {id: esports-player,     unit_id: sport-leisure, name: 电子竞技员, deliverable: 服务, provider: human, billing: salary,      baseline_occupation: true, note: "大典 4-14-05-07；收入=俱乐部工资+赛事奖金+直播分成"}
-  - {id: game-companion,     unit_id: sport-leisure, name: 游戏陪玩,   deliverable: 服务, provider: human, billing: usage,       baseline_occupation: true, note: "按局/按小时计价，平台抽佣；大典无独立细类，按电子竞技员近义口径挂"}
-  - {id: esports-operator,   unit_id: sport-leisure, name: 电子竞技运营师, deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "大典 4-14-05-06"}
+  # 分区归属各自独立：直播(打赏+坑位) / 电竞(奖金+工资+票务) / 内容创作(MCN 内部职能)。
+  # 早前这 5 个职业全塞进一个 esports-live 分区，等于把三种商业模式折叠成一个，
+  # 谁跟谁一类都看不出来——现在按付费方和交付物分开挂。
+  - {id: streamer,            unit_id: live-streaming, unit_role: streamer, name: 网络主播/直播带货, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: "大典 4-01-06-02 互联网营销师；打赏+佣金双口径，2022 年 8 个新职业之一"}
+  - {id: live-stream-operator, unit_id: content-creation, unit_role: live_host, name: 直播运营,   deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "选品/排期/场控，属 MCN 内部职能；付费方是机构预算，不是观众打赏，所以挂内容创作而非 live-streaming"}
+  - {id: esports-player,     unit_id: esports, name: 电子竞技员, deliverable: 服务, provider: human, billing: salary,      baseline_occupation: true, note: "大典 4-14-05-07；收入=俱乐部工资+赛事奖金+直播分成"}
+  - {id: game-companion,     unit_id: esports, name: 游戏陪玩,   deliverable: 服务, provider: human, billing: usage,       baseline_occupation: true, note: "按局/按小时计价，平台抽佣；大典无独立细类，按电子竞技员近义口径挂（同属陪玩/竞技需求侧）"}
+  - {id: esports-operator,   unit_id: esports, name: 电子竞技运营师, deliverable: 服务, provider: hybrid, billing: salary,  baseline_occupation: true, note: "大典 4-14-05-06"}
 
   # ---------------- 外卖/快递/网约车（平台零工，付费方与计件口径） ----------------
   - {id: delivery-rider,     unit_id: logistics-supply, name: 外卖骑手/网约配送员, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: "大典 4-10-08-01 网约配送员；计件收入，平台/商家付费"}

@@ -78,12 +78,25 @@ def cmd_industry_partition(args):
         print("  数据渠道: " + "、".join(p["channels"]))
     if p.get("note"):
         print(f"  备注: {p['note']}")
+    planned = p.get("planned_roles", []) or []
+    if planned and not p.get("unit_id"):
+        # 骨架里存的是 unit_role（岗位名），直接打印等于给内部命名；
+        # 能反查到职业就带中文名，反查不到原样给出，方便对齐
+        named = []
+        for role in planned:
+            hit = next((o for o in db.occupations
+                        if o.get("unit_id") == p.get("id")
+                        and (o.get("unit_role") or "") == role), None)
+            named.append(f"{role}({hit.get('name')})" if hit else role)
+        print("  计划岗位(骨架): " + "、".join(named))
     if members:
         print(f"  成员职业({len(members)}):")
         for o in members:
             flag = "基线" if o.get("baseline_occupation") else "扩展"
-            print(f"    - {o.get('id'):<24}{o.get('name'):<14}"
-                  f"{o.get('provider', '-'):<8}{o.get('billing', '-'):<14}{flag}")
+            print("    - " + db._pad(o.get("id", ""), 26)
+                  + db._pad(o.get("name", ""), 20)
+                  + db._pad(o.get("provider", "-"), 8)
+                  + db._pad(o.get("billing", "-"), 14) + flag)
     else:
         print("  成员职业: 未登记（该分区尚无职业入库，属覆盖缺口）")
 
@@ -123,18 +136,21 @@ def cmd_industry_axis(args):
         if axis == "output":
             gdp = f"{r['gdp_cny'] / 1e8:,.0f}亿" if r.get("gdp_cny") else "无口径"
             emp = f"{r['employment']}万人" if r.get("employment") is not None else "无就业口径"
-            print(f"{mark:<5}{r['name']:<14}{gdp:<14}{emp:<12}"
-                  f"{'、'.join(r['demand_side'])[:26]}")
+            print(db._cell(mark, 5) + db._cell(r["name"], 22)
+                  + db._cell(gdp, 12) + db._cell(emp, 12)
+                  + "、".join(r["demand_side"])[:26])
         elif axis == "tax":
-            print(f"{mark:<5}{r['name']:<14}税目口径未接入(见 reference sources --axis tax)"
+            print(db._cell(mark, 5) + db._cell(r["name"], 22)
+                  + "税目口径未接入(见 reference sources --axis tax)"
                   f"  付费方: {'、'.join(r['demand_side'])[:30]}")
         else:
             mix = r["access_mix"] or {}
             side = "、".join(f"{k}{mix.get(k, 0)}%" for k in
                              ("paid_direct", "non_market", "org_internal", "household")
                              if mix.get(k))
-            print(f"{mark:<5}{r['name']:<14}{r['member_count']:>3}职业  "
-                  f"通道: {side or '-'}")
+            print(db._cell(mark, 5) + db._cell(r["name"], 22)
+                  + db._cell(f"{r['member_count']}职业", 8)
+                  + f"通道: {side or '-'}")
     print("-" * 78)
     print(f"样本 {len(rows)} 个分区（缺省四轴都可见；axes 字段可按分区收窄）")
     print("=" * 78)
@@ -360,7 +376,8 @@ def cmd_industry_export(args):
                             (r.get("access_mix") or {}).get("non_market", ""),
                             (r.get("access_mix") or {}).get("org_internal", ""),
                             (r.get("access_mix") or {}).get("household", ""),
-                            r.get("employment") if r.get("employment") is not None else "",
+                            (r.get("employment") if r.get("employment") is not None
+                             else "-"),   # "-" = 无统计口径，与 0 区分
                             "|".join(r.get("axes", [])),
                             "|".join(r["demand_side"]),
                             "|".join(r["cluster_basis"]),

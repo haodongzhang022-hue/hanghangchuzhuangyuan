@@ -30,9 +30,12 @@ def test_streaming_and_esports_occupations_registered():
     for oid in ("streamer", "live-stream-operator", "esports-player",
                 "game-companion", "esports-operator"):
         assert oid in ids, oid
-    assert db.partition("esports-live") is not None
-    members = {o["id"] for o in db.members_of("esports-live")}
-    assert "streamer" in members
+    # 直播归 live-streaming、竞技/陪玩归 esports —— 原来挤在一个 esports-live 里，
+    # 连"谁付费"都说不清（打赏 vs 奖金/工资/票务）
+    assert db.partition("esports-live") is None, "折叠分区不该复活"
+    assert "streamer" in {o["id"] for o in db.members_of("live-streaming")}
+    assert {"esports-player", "game-companion", "esports-operator"} <= \
+        {o["id"] for o in db.members_of("esports")}
     # 直播运营挂在内容创作（带货/内容侧），不挤进电竞分区
     op = db.occupation("live-stream-operator")
     assert op["unit_id"] == "content-creation"
@@ -125,13 +128,30 @@ def test_empty_axes_is_reported():
 
 # --------------------------------------------------------------- 就业口径
 def test_employment_present_for_every_partition():
-    """每个分区都要有就业口径：有人没产值也算数，绝不因为没有 gdp 一起丢"""
+    """每个分区都要有就业口径：有人没产值也算数，绝不因为没有 gdp 一起丢
+
+    例外是"刻意留空"：新拆分出来的分区（口译/笔译、直播/电竞、健身/赛事）
+    共用一份行业合并口径，硬填一份等于把同一批人数算两遍 —— 这类分区的
+    employment 必须为 None，且 gdp_source 要写明为什么留空。
+    """
     db = _db()
+    total_employment = sum(p.get("employment") or 0 for p in db.partitions
+                           if p.get("employment") is not None)
+    # 合并口径不许重复计入：合计不得接近翻倍
+    assert total_employment > 50000
     missing = [p["id"] for p in db.partitions if p.get("employment") is None]
-    assert not missing, missing
+    for pid in missing:
+        p = db.partition(pid)
+        # 留空必须解释清楚，不能是漏填
+        assert p.get("employment_source"), f"{pid} 没就业口径也没写原因"
+        assert "留空" in (p.get("employment_source") or "") or \
+               "留空" in (p.get("gdp_source") or "") or \
+               "无独立" in (p.get("employment_source") or ""), \
+            f"{pid} 的就业口径缺失理由不明确"
     s = db.compute()
-    assert s["employment_total_wan"] > 50000
-    assert s["employment_known_partitions"] == len(db.partitions)
+    assert s["employment_known_partitions"] < len(db.partitions), (
+        "拆分分区共用合并口径时，有数分区数必须小于分区总数，"
+        "否则说明同一批人数被按比例切开重复计入")
 
 
 def test_employment_zero_and_missing_are_different():

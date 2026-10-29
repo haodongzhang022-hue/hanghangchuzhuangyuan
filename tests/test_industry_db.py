@@ -642,6 +642,130 @@ def test_role_baseline_source_stale_is_not_silent():
     assert any("stale" in p or "baseline_occupation" in p for p in s["problems"])
 
 
+# ---------------------------------------------------------------------------
+# 错误折叠（层级/粒度错误）守卫
+#
+# 用户报的两个 bug 长这样：
+#   1) 多个规则不同、付费方不同、AI 承接面差一个量级的对象被塞进同一个分区，
+#      合起来只剩一个笼统标签，谁跟谁一类根本看不出来 —— 信息丢失；
+#   2) 把「岗位」当「行业」写进分区表 —— 层级错误，分区 id 与职业 id 撞名。
+# 这两类错都不会让覆盖率变红，只会在下次有人读表时把人骗了。
+# ---------------------------------------------------------------------------
+
+# 曾被错误折叠的旧分区 id -> 现在必须存在的分区 id
+_UNFOLDED_SPLITS = {
+    "esports-live": ("live-streaming", "esports"),
+    "sport-leisure": ("sport-fitness", "sport-games"),
+}
+# 曾经跨粒度共用一个分区 id 的（口译 / 笔译）
+_SPLIT_TRANSLATION = ("interpretation", "translation")
+
+
+def test_folded_partitions_are_gone():
+    """旧折叠分区 id 不得复活：一旦重建，拆分就会被下一次合并悄悄撤销"""
+    db = IndustryDatabase()
+    ids = {p["id"] for p in db.partitions}
+    for old in _UNFOLDED_SPLITS:
+        assert old not in ids, f"折叠分区 {old} 又回来了，拆分被回退"
+
+
+def test_split_partitions_coexist_with_distinct_rules():
+    """拆出来的分区必须同时存在，且聚类依据/付费方不是同一句话"""
+    db = IndustryDatabase()
+    for old, parts in _UNFOLDED_SPLITS.items():
+        names = set()
+        for pid in parts:
+            p = db.partition(pid)
+            assert p is not None, f"{old} 拆分后缺少 {pid}"
+            assert db.members_of(pid), f"{pid} 没有任何成员职业，等于空壳分区"
+            assert p.get("demand_side"), f"{pid} 没写付费方"
+            assert p.get("cluster_basis"), f"{pid} 没写聚类依据"
+            names.add((tuple(p["cluster_basis"]), tuple(p["demand_side"])))
+        assert len(names) == len(parts), (
+            f"{old} 拆出来的分区规则完全一样，说明只是改了个名字")
+
+
+def test_no_occupation_sits_in_two_conflated_business_models():
+    """口译与笔译不得共用分区：现场同步交付 vs 异步文本交付，AI 承接面差一个量级"""
+    db = IndustryDatabase()
+    for pid in _SPLIT_TRANSLATION:
+        assert db.partition(pid) is not None, f"缺少分区 {pid}"
+    interp = {o["id"] for o in db.members_of("interpretation")}
+    written = {o["id"] for o in db.members_of("translation")}
+    assert "simultaneous-interpreter" in interp
+    assert "simultaneous-interpreter" not in written
+    assert interp.isdisjoint(written), "口译/笔译成员不得重叠（拆分要拆干净）"
+
+
+def test_occupation_level_and_industry_level_ids_do_not_collide():
+    """层级错误守卫：职业 id 与分区 id 不能撞名
+
+    把岗位当行业时最典型的症状就是两边共用同一个 id —— 反查会不会串、
+    覆盖分子分母会不会互相污染，都从这里开始。
+    """
+    db = IndustryDatabase()
+    part_ids = {p["id"] for p in db.partitions}
+    occ_ids = {o["id"] for o in db.occupations}
+    both = part_ids & occ_ids
+    assert not both, f"这些 id 同时被当作岗位和行业：{sorted(both)}"
+
+
+def test_partition_name_is_not_a_job_title():
+    """分区名不能是单个岗位名，否则等于把岗位包装成了行业"""
+    db = IndustryDatabase()
+    occ_names = {(o.get("name") or "").strip() for o in db.occupations}
+    bad = [p["id"] for p in db.partitions
+           if (p.get("name") or "").strip() in occ_names and p.get("name")]
+    # 允许少量历史同名的（如分区名恰好等于某岗位名）时，必须在 aliases 里
+    # 给出行业级叫法，否则仍算层级不明
+    for pid in bad:
+        p = db.partition(pid)
+        assert p.get("aliases"), f"分区 {pid} 与某个岗位同名且无行业级别名，层级不明"
+
+
+def test_unfolded_partitions_have_null_gdp_not_fabricated_split():
+    """拆出来的分区没有独立产值口径时必须留 null，不能按比例切一份出来"""
+    db = IndustryDatabase()
+    # 电竞/健身/口译都没有单独发布的统计口径
+    for pid in ("esports", "sport-fitness", "interpretation"):
+        p = db.partition(pid)
+        assert p is not None, f"缺少分区 {pid}"
+        assert p.get("gdp_cny") is None, (
+            f"{pid} 没有独立产值口径，不该填 gdp_cny={p.get('gdp_cny')}"
+            f"（那等于把合并口径按比例拍脑袋切分）")
+        assert p.get("gdp_source"), f"{pid} 需要写明为什么留空"
+
+
+def test_split_partition_gdp_is_not_double_counted():
+    """拆分后各分区产值之和不得凭空变大（复制粘贴同一份口径会翻倍）"""
+    db = IndustryDatabase()
+    # sport-games 保留了体育产业总产出（宽口径、整体口径），
+    # sport-fitness 必须留空，否则同一份 3 万亿被算了两遍
+    assert db.partition("sport-games").get("gdp_cny") is not None
+    assert db.partition("sport-fitness").get("gdp_cny") is None
+
+
+def test_render_aligns_columns_for_cjk_names():
+    """中文长分区名不得顶穿表格列：'{: <14}' / str.ljust 按字符数补，中文会歪"""
+    db = IndustryDatabase()
+    text = db.render_text(top=0)
+    marks = ("已建", "待建", "不建")
+    starts = set()
+    for line in text.splitlines():
+        if not line.startswith(marks):
+            continue
+        # 状态列 5 列 + 分区列 20 列（显示宽度）之后，数据列必须同一起点
+        starts.add(db._disp_width(line[:25]))
+        assert db._disp_width(line[:25]) > db._disp_width(line[:5].rstrip()), (
+            f"分区名被截断/顶歪: {line!r}")
+    assert starts == {25}, f"数据列起点没对齐: {sorted(starts)}"
+    # 超宽名字截断加省略号，而不是顶穿后面三列
+    assert "国际组织与对外事务" in text or "国际组织与对外事…" in text
+    assert db._disp_width(db._cell("国际组织与对外事务", 20)) == 20
+    assert db._disp_width(db._cell("无口径", 10)) == 10
+    assert db._disp_width(db._cell("330,000", 10)) == 10
+
+
 if __name__ == "__main__":
     test_partition_and_occupation_loaded()
     test_members_are_derived_not_duplicated()
@@ -682,4 +806,11 @@ if __name__ == "__main__":
     test_render_marks_no_member_as_dash_not_zero()
     test_occupation_anchored_to_unit_id_is_reported()
     test_role_baseline_source_stale_is_not_silent()
+    test_folded_partitions_are_gone()
+    test_split_partitions_coexist_with_distinct_rules()
+    test_no_occupation_sits_in_two_conflated_business_models()
+    test_occupation_level_and_industry_level_ids_do_not_collide()
+    test_partition_name_is_not_a_job_title()
+    test_unfolded_partitions_have_null_gdp_not_fabricated_split()
+    test_split_partition_gdp_is_not_double_counted()
     print("✅ 行业分区定义库测试通过")

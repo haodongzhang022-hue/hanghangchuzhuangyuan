@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import unicodedata
 from typing import Dict, List, Optional
 
 import yaml
@@ -288,6 +289,9 @@ class IndustryDatabase:
                 "unit_id": p.get("unit_id", "") or "",
                 "priority": p.get("priority", ""),
                 "channels": p.get("channels", []) or [],
+                # 岗位命名骨架：待建分区专填。公开出来是为了让"这个分区准备建
+                # 哪些岗位"可评审，而不是埋在设计思路里
+                "planned_roles": p.get("planned_roles", []) or [],
                 "status": p.get("status", ""),
                 "members": [o.get("id") for o in members],
                 "member_count": len(members),
@@ -380,19 +384,54 @@ class IndustryDatabase:
         for r in rows:
             mark = {"covered": "已建", "pending": "待建",
                     "evaluated": "不建"}.get(r["status"], r["status"])
-            gdp = f"{r['gdp_cny'] / 1e8:,.0f}" if r["gdp_cny"] else "无口径"
+            # _pad 按"显示宽度"补空格，字符数≠列数：'无口径' 是 3 字符 6 列，
+            # '330,000' 是 7 字符 7 列，所以列宽要从字符数折算回来
+            gdp = (f"{r['gdp_cny'] / 1e8:,.0f}" if r["gdp_cny"] else "无口径")
             # 无成员 = 无实测数据，用 "-" 区分"真实 0%"（如健康医疗 AI 0.0）
-            ai = ("-" if r["member_count"] == 0
-                  else (r["provider_mix"] or {}).get("ai", "-"))
+            ai = str("-" if r["member_count"] == 0
+                     else (r["provider_mix"] or {}).get("ai", "-"))
             demand = "、".join(r["demand_side"])[:28]
-            lines.append(f"{mark:<5}{r['name']:<14}{r['member_count']:<8}"
-                         f"{gdp:<14}{ai:<8}{demand}")
+            # 全列按显示宽度定宽：'{: <14}' 和 str.ljust 都按字符数算，
+            # 中日韩字符占两列，中文名会把后面几列整体顶歪
+            lines.append(self._cell(mark, 5) + self._cell(r["name"], 20)
+                         + self._cell(r["member_count"], 8)
+                         + self._cell(gdp, 10) + self._cell(ai, 7) + demand)
         lines.append("-" * 72)
         lines.append(f"有产值口径的分区 {s['gdp_known_partitions']}/{s['total_partitions']}，"
                      f"合计产值 {s['gdp_total_cny'] / 1e12:.1f} 万亿元(量级参考，"
                      f"非官方统计，含口径重叠)")
         lines.append("=" * 72)
         return "\n".join(lines)
+
+    @staticmethod
+    def _disp_width(text: str) -> int:
+        """终端显示宽度：CJK 全角按 2 列算，避免中文名把列挤歪。"""
+        return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+                   for ch in str(text))
+
+    @classmethod
+    def _pad(cls, text: str, width: int) -> str:
+        """按显示宽度左对齐补空格（str.ljust 按字符数补，中文会错位）。"""
+        text = str(text)
+        return text + " " * max(0, width - cls._disp_width(text))
+
+    @classmethod
+    def _cell(cls, text: str, width: int) -> str:
+        """定宽单元格：width 是**显示宽度**。
+
+        `_pad(text, n)` 的 n 是宽度，但中文的字符数少于宽度，超宽时 strlen
+        会先超过 n —— 所以先用 `_disp_width` 判断是否要截，再按"剩余宽度"
+        补空格，别拿字符数当列数用。
+        """
+        text = str(text)
+        if cls._disp_width(text) > width:
+            truncated = ""
+            for ch in text:
+                if cls._disp_width(truncated + ch + "…") > width:
+                    break
+                truncated += ch
+            text = truncated + "…"
+        return text + " " * max(0, width - cls._disp_width(text))
 
     def gaps(self) -> List[dict]:
         return [r for r in self.compute()["rows"] if r["status"] == "pending"]
