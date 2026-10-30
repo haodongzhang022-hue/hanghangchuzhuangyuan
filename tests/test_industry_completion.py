@@ -344,24 +344,22 @@ def test_pipeline_treats_known_gap_as_non_blocking():
         assert job in yml, f"放行逻辑所在 job 缺失: {job}"
 
 
-def test_pipeline_does_not_prefreeze_a_third_quota_eating_pipeline():
-    """PR 场景下不许有必然空转的第三条完整流水线：配额池是共享的
+def test_pipeline_does_not_spend_quota_on_an_unapproved_merge_gate():
+    """评审未通过时，合并门禁不许跑测试、更不许合并
 
-    PR 更新会拉起 review-fix-loop；若测试绿灯却没合并，评审通过后还要再拉一条
-    mergeable 流水线，每条都要预冻结一份 CPU。抢不到就在 Prepare 阶段直接 error
-    （"events CPU core-hours are insufficient for pre-freezing"），整个 PR 显示红叉，
-    而实际上一个测试都没跑——PR #29 就是这么红的。
-
-    所以合并判定必须留在 review-fix-loop 里：审查结论明确时它自己合掉，
-    mergeable 那条基本不会被拉起，不用赌"它大概不会被调度"。
+    有件事写配置改不了：平台要先 Prepare（预冻结 1.33 核时）才轮到 job 级 if，
+    所以"少拉起一条流水线省配额"在 yaml 里做不到——PR #29 第一次加了 job 级 if
+    仍旧红在 Prepare 就是实证。能做的只有 stage 级 if：不通过就不跑测试、不合并。
+    这条守的是这个下限，别再往上加"以为能省配额"的 job 级门禁（它只制造幻觉）。
     """
     root = os.path.join(os.path.dirname(__file__), "..")
     yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
-    idx = yml.index("    - name: review-fix-loop")
-    end = yml.find("\n    - name: ", idx + 1)
+    idx = yml.index("    - name: merge-gate")
+    end = yml.find("\n  # ==", idx + 1)
     job = yml[idx:end if end != -1 else len(yml)]
-    assert "type: git:auto-merge" in job, \
-        "review-fix-loop 必须在测试绿了之后自行完成合并，否则又要多拉一条流水线抢配额"
+    first_stage = job.index("- name:", job.index("stages:"))
+    assert job.index("if:") > first_stage, \
+        "门禁必须挂在 stage 上；job 级 if 挡不住 Prepare 预冻结，只会让人误以为省了配额"
 
 
 def test_review_state_gate_uses_the_real_platform_value():

@@ -32,7 +32,10 @@ $:
       # 配额：**不写 runner.cpus**。先试过 2 核、再试过 1 核，Prepare 都报
       # "events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)"。
       # 冻结时长按固定 10min 折算，与申请几核无关：降核不省钱，只是把"抢不到池子"
-      # 换个数字重演（PR #29 连红两轮即此）。写 yaml 修不了组织配额，别假装解决。
+      # 换个数字重演（PR #29 连红三轮：2 核、1 核、加了 job 级门禁，全红在 Prepare）。
+      # 也别指望 yaml 能压掉这条红：CheckStatus 的 state 由平台按流水线结果决定，
+      # 拿不到 job 内变量，"评审未通过时不标红"在配置层做不到（已实探）。
+      # 要做的事只有一件 —— 根组织提升 CPU 额度，其余都是自我安慰。
       docker:
         image: python:3.11
         volumes:
