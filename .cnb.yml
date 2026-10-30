@@ -30,7 +30,11 @@ $:
   pull_request:
     - name: review-fix-loop
       runner:
-        cpus: 2
+        # 1 核足够：本 job 只有 python 测试 + CLI 冒烟，没有 compile/npm 并行；
+        # 2 核会让同一 PR 的 review-fix-loop / merge-gate / npc-code-review 三条流水线
+        # 同时预冻结 1.33 核时 × 3，把共享 CPU 池吃空 → Prepare 阶段直接
+        # "CPU core-hours are insufficient for pre-freezing" 报红（PR #29）。
+        cpus: 1
       docker:
         image: python:3.11
         volumes:
@@ -101,7 +105,7 @@ $:
   pull_request.mergeable:
     - name: merge-gate
       runner:
-        cpus: 2
+        cpus: 1   # 同 review-fix-loop：测试只有单线程解释器，1 核不减速，省下预冻结配额
       docker:
         image: python:3.11
         volumes:
