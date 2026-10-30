@@ -34,6 +34,9 @@ from hanghang.cli.state_commands import (
     cmd_tree_show, cmd_tree_rollup,
     cmd_tree_submit_chain, cmd_tree_list,
 )
+from hanghang.cli.context_commands import (
+    cmd_context_assemble, cmd_context_rules, cmd_context_validate,
+)
 
 def cmd_route(args):
     """意图路由命令（支持 SLIB 会话级行业绑定）
@@ -660,6 +663,29 @@ def build_parser():
     tlst.set_defaults(func=cmd_tree_list)
 
 
+    # ---- M10 上下文装配子命令（context: assemble / rules / validate） ----
+    ctx = sub.add_parser("context", help="M10 上下文装配：三层隔离装配 / 规则表 / 缓存隔离校验")
+    ctx_sub = ctx.add_subparsers(dest="context_cmd")
+
+    ca = ctx_sub.add_parser("assemble", help="SLIB 会话级三层上下文装配（assemble_bound）")
+    ca.add_argument("--session", default="", help="会话ID（SLIB 会话级绑定；为空则静态单发）")
+    ca.add_argument("--unit", default="", help="行业单元ID（如 dongjiagoushi）")
+    ca.add_argument("--role", default="secretary", help="岗位名（默认 secretary）")
+    ca.add_argument("--text", default="", help="用户意图文本（触发层C规则注入）")
+    ca.add_argument("--static-prefix", default=None, help="静态前缀；不传则自动从 data/prefix-archive.json 取")
+    ca.add_argument("--objective", default="", help="会话目标（层B兜底）")
+    ca.set_defaults(func=cmd_context_assemble)
+
+    cr = ctx_sub.add_parser("rules", help="上下文规则表：--list 列出 / --match 命中测试")
+    cr.add_argument("--list", action="store_true", help="列出全部启用规则（从 data/context-rules.yaml 动态加载）")
+    cr.add_argument("--match", default="", help="输入一段文本做规则命中测试")
+    cr.set_defaults(func=cmd_context_rules)
+
+    cv = ctx_sub.add_parser("validate", help="缓存隔离校验（CacheGuard.validate_isolation）")
+    cv.add_argument("--layer-a", default="", help="待校验的静态层(层A)文本")
+    cv.add_argument("--session", default="", help="会话ID（层A签名落盘 data/state/context_baseline/ 做跨进程基线比对）")
+    cv.set_defaults(func=cmd_context_validate)
+
     return p
 
 
@@ -692,7 +718,14 @@ def main():
         print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")
         print("示例: python3 src/hanghang/cli/main.py tree init --name project")
         sys.exit(1)
-    args.func(args)
+    if args.command == "context" and not getattr(args, "context_cmd", None):
+        print("请指定 context 子命令：assemble / rules / validate")
+        print("示例: python3 src/hanghang/cli/main.py context rules --list")
+        sys.exit(1)
+    exit_code = args.func(args)
+    # 子命令显式返回非 0 表示失败（脚本/CI 可据此判断，避免失败被当成成功放行）
+    if isinstance(exit_code, int) and exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
