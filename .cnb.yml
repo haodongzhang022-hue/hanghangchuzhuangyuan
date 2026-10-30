@@ -29,14 +29,10 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      runner:
-        # 1 核足够：本 job 只有 python 测试 + CLI 冒烟，没有 compile/npm 并行。
-        # 一个 PR 会同时拉起三条流水线（review-fix-loop / mergeable.merge-gate /
-        # npc-code-review），每条都要预冻结一份 CPU。2 核 × 3 曾把共享池吃空：Prepare
-        # 直接报 "events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)"
-        # → 整条流水线在跑任何脚本之前就红了（PR #29）。1 核把瞬时占用压到最小，
-        # 真正止血的是 mergeable 阶段按评审结论跳过（见下方 merge-gate）。
-        cpus: 1
+      # 配额：**不写 runner.cpus**。先试过 2 核、再试过 1 核，Prepare 都报
+      # "events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)"。
+      # 冻结时长按固定 10min 折算，与申请几核无关：降核不省钱，只是把"抢不到池子"
+      # 换个数字重演（PR #29 连红两轮即此）。写 yaml 修不了组织配额，别假装解决。
       docker:
         image: python:3.11
         volumes:
@@ -71,6 +67,34 @@ $:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            # 合并判定：测试跑绿 = 本流水线该做的事做完了，此时若评审已通过就由这里
+            # 直接合并，不再另起一条 mergeable 流水线（少一份预冻结配额，PR #29 连红
+            # 的根因）。未通过则记一个中立状态就退出（见 BeforeEnd），别再把
+            # "评审还没开始"标成红叉；评审真有问题，由评审 NPC 召唤 CodeBuddy 修。
+            if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]; then
+              echo "评审已通过，开始自动合并"
+              MERGE_PENDING=true
+            else
+              echo "评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，测试已通过，不执行自动合并"
+            fi
+        - name: 自动合并（测试通过 + 评审通过）
+          # 合并与测试放同一流水线，是本轮针对 PR #29 配额报红的方案：
+          # 上一版把门禁挂到 mergeable 流水线上，等于承认"再来一条"，
+          # 只是在赌它不被拉起。判定条件与上面那段脚本必须一致。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
+          type: git:auto-merge
+          options:
+            mergeType: squash
+            removeSourceBranch: true
+      endStages:
+        - name: 收尾（未审批时不标红）
+          # 只有走到"测试通过但评审未通过"才需要这个中立状态。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" != "approve" ]'
+          allowFailure: true
+          type: cnb:status
+          options:
+            state: pending
+            description: 测试已通过，等评审
     - name: npc-code-review
       <<: *npc_default
       stages:
@@ -106,10 +130,12 @@ $:
   # ========================================================
   pull_request.mergeable:
     - name: merge-gate
-      # 已在 review-fix-loop 里把同一份变更跑绿过，这里再起一条完整流水线只为确认一次，
-      # 代价是每 PR 多预冻结一份 CPU —— 配额紧张时这第三条流水线就是压垮池子的那一根
-      # 稻草（PR #29 实测）。评审未批准时它注定不会合并，那就连 stage 都不要跑。
-      if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]'
+      # 这里**不加 job 级门禁**（上一版加过，撤了）。pull_request.mergeable 只在
+      # "可合并"时才触发，本来就只跑极少数几个 PR；把它当第三份配额的替罪羊是搞错对象。
+      # 真正的止血在 review-fix-loop 的「未批准即合并判定通过并退出」——PR 一旦
+      # 可合并就由那边收尾，这条流水线基本不会被拉起，配额自然省下来。
+      # 教训：上一版把门禁写成 '= "approved"'，而 CNB 的取值是 approve/unapprove
+      # （见「环境变量」文档）。猜变量值失败的样子是"全绿"，最难查；本次已补正则守卫。
       runner:
         cpus: 1   # 同 review-fix-loop：测试只有单线程解释器，1 核不减速，省下预冻结配额
       docker:
@@ -119,6 +145,12 @@ $:
       env:
         HH_TEST_CACHE_DIR: /root/.cnb-testcache
       stages:
+        - name: 只有评审通过才继续
+          # 门禁语句只写一份：本 stage 放行、自动合并 stage 沿用同一条件，
+          # 两处各写一遍迟早会有一处漏改（上一版就是这么漏掉取值拼写的）。
+          # 注意取值是 approve / unapprove，不是 approved（官方「环境变量」文档）。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
+          script: echo "评审已通过，继续合并门禁"
         - name: 测试再次确认（变更感知）
           script: |
             set -e
@@ -132,9 +164,9 @@ $:
             # 这里不再重跑同一条 industry check：同一份数据一次 PR 跑三遍，
             # 只换来更长的预冻结时间，不换来更多信息。
         - name: 自动合并
-          # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
+          # 评审处置门禁：仅当 PR 已被评审批准才自动合并，
           # 避免与 changes_requested 的 auto-fix 竞态误合。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]'
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
           type: git:auto-merge
           options:
             mergeType: squash

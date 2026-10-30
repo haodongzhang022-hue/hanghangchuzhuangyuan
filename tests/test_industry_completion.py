@@ -9,6 +9,7 @@
 5. 就业口径：有人没产值（军队/家庭无酬）也要有数，缺数留空而不是填 0。
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
@@ -346,27 +347,38 @@ def test_pipeline_treats_known_gap_as_non_blocking():
 def test_pipeline_does_not_prefreeze_a_third_quota_eating_pipeline():
     """PR 场景下不许有必然空转的第三条完整流水线：配额池是共享的
 
-    pull_request.mergeable 每次 PR 更新都会拉起 merge-gate，但评审未批准时它注定
-    不会合并。这条流水线抢一份预冻结配额，抢不到就在 Prepare 阶段直接 error
+    PR 更新会拉起 review-fix-loop；若测试绿灯却没合并，评审通过后还要再拉一条
+    mergeable 流水线，每条都要预冻结一份 CPU。抢不到就在 Prepare 阶段直接 error
     （"events CPU core-hours are insufficient for pre-freezing"），整个 PR 显示红叉，
-    而实际上一个测试都没跑——PR #29 就是这么红的。所以它必须带 job 级 if 门禁，
-    并且所有 stage 都要在门禁之后（否则门禁形同虚设）。
+    而实际上一个测试都没跑——PR #29 就是这么红的。
+
+    所以合并判定必须留在 review-fix-loop 里：审查结论明确时它自己合掉，
+    mergeable 那条基本不会被拉起，不用赌"它大概不会被调度"。
     """
     root = os.path.join(os.path.dirname(__file__), "..")
     yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
-    # 定位 merge-gate job 块
-    idx = yml.index("    - name: merge-gate")
-    block = yml[idx:]
-    end = block.find("\n  # ==", 1)
-  # ==", 1)
-    if end == -1:
-        end = len(block)
-    block = block[:end]
-    assert 'if: \'[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]\'' in block, \
-        "merge-gate 必须按评审结论门禁，否则每条 PR 都白抢一份预冻结配额"
-    # 门禁必须出现在 stages 之前：写在 stage 上只跳 stage，Prepare 照样吃配额
-    assert block.index("if:") < block.index("stages:"), \
-        "if 必须挂在 job 级（Prepare 之前），挂到 stage 上挡不住预冻结"
+    idx = yml.index("    - name: review-fix-loop")
+    end = yml.find("\n    - name: ", idx + 1)
+    job = yml[idx:end if end != -1 else len(yml)]
+    assert "type: git:auto-merge" in job, \
+        "review-fix-loop 必须在测试绿了之后自行完成合并，否则又要多拉一条流水线抢配额"
+
+
+def test_review_state_gate_uses_the_real_platform_value():
+    """门禁取值必须是 CNB 真实取值 approve / unapprove，不是想当然的 approved
+
+    这是上一版翻车的具体形态：门禁写成 `= "approved"`（CNB 文档里是 approve），
+    条件永远为假 → 门禁永久失效，PR 可合并时照样拉起 mergeable 流水线白抢配额，
+    而失败形态是"全绿"，最难查。所以这里用正则找取值，而不是比对字面串——
+    字面串本身就是错的，比对它等于把错误钉成规范。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
+    used = set(re.findall(r'CNB_PULL_REQUEST_REVIEW_STATE"\s*(?:=|!=)\s*"([^"]*)"', yml))
+    assert used, "整个流水线都没有评审状态门禁，评审永远不会拦住合并"
+    assert used <= {"approve", "unapprove"}, (
+        f"评审状态取值必须来自 CNB 文档（approve / unapprove），实际写了: {sorted(used)}"
+    )
 
 
 def test_skeleton_gap_is_counted_not_silently_dropped():
