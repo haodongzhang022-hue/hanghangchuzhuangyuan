@@ -163,7 +163,7 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 
 ```yaml
 # 1) 先登记岗位（哪怕还没有任何视角引用它）——注意没有归属字段
-- {code: OCC-000178, id: podcast-editor, name: 播客剪辑师, deliverable: 物料,
+- {code: OCC-000179, id: podcast-editor, name: 播客剪辑师, deliverable: 物料,
    provider: hybrid, billing: project, baseline_occupation: false,
    note: "音频内容，还没被任何聚类看上"}
 
@@ -298,11 +298,25 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 - `evaluated` 是评估后明确不建，骨架在那儿是留档，没人认领属预期；
 - `unit_role` 为空仍是合法等待态（待建分区还没定岗位名），不报。
 
-上线后立刻暴露一条真实现状：**20 个待建分区、81 个骨架岗位没有任何原子岗位对应**
+上线时立刻暴露一条真实现状：**20 个待建分区、81 个骨架岗位没有任何原子岗位对应**
 （如 `finance-invest` 的 5 个顾问岗、`tourism-hospitality` 的 6 个岗）。这不是代码缺陷，
 是"待建分区补职业"这项活本身没干完——逐项报会刷屏，所以按分区汇总一条，
-只报还没认领的岗位名清单。测试 `test_real_data_still_self_consistent` 因此收窄为
-"除骨架缺口外必须干净"，`test_skeleton_gap_is_counted_not_silently_dropped` 钉住缺口数量可见。
+只报还没认领的岗位名清单。
+
+**该缺口已补完**：81 个骨架岗位逐一登记到原子职业并补上带 `unit_role` 的边，
+19 个待建分区的 `planned_roles` 全部有职业认领（`industry check` 现在是"双向对齐无缺口"）。
+补的时候守了两条：
+
+- 职业名先查大典（`data/reference/occupation-catalog-2022.yaml`），能对上就挂 `gb_code`，
+  对不上（网络主播、游戏陪练、网约车司机等 2022 版未单列的）留空并写明理由，不硬挂；
+- 岗位名是**分区内命名**。同一个中文职业在不同分区可以用不同 `unit_role`
+  （主播在 `live-streaming` 是 `live_host`，直播运营在 `content-creation` 也叫
+  `live_host` 但那是机构岗），所以边只认本分区，不借别处同名边背书。
+
+守卫随之收紧：`test_real_data_still_self_consistent` 从"除骨架缺口外干净"改为
+**完全无问题**；新增 `test_every_planned_role_is_claimed_by_a_real_occupation`
+钉住"不许悬空"（否则删掉一条 `unit_role`，check 退回退出码 2，被流水线当已知缺口放行，
+补全进度悄悄倒退而 CI 仍绿）。
 
 第 15、16 条是这一轮新增的两个暗沟，共同点是**错了不会变红，只会让数字失真**：
 `access` 写错 → 通道结构里凭空多出一堆"现金市场"；`axes` 写空 → 这个分区

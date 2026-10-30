@@ -312,3 +312,6 @@ occupations:
   # ---------------- 政务/国际组织（财政与机构预算付费） ----------------
   - {code: OCC-000176, id: un-staff, name: 国际组织职员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, access: non_market, note: 雇方是机构预算；文书/翻译/项目申报是 AI 承接面}
   - {code: OCC-000177, id: foreign-service-officer, name: 外事/驻外人员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 政府外事预算}
+
+  # ---------------- 直播与网络表演（平台分账口径）----------------
+  - {code: OCC-000178, id: live-host, name: 网络主播, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 大典(2022)未单列网络主播，按平台分账口径登记；付费方是观众打赏与品牌坑位，不是机构预算（与 live-stream-operator 的雇主付费区分开）}

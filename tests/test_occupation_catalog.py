@@ -200,7 +200,13 @@ def test_export_carries_gb_columns(tmp_path):
     cmd_industry_export(Args)
     data = json.load(open(os.path.join(Args.out, "industry-db.json"), encoding="utf-8"))
     mapped = [o for o in data["occupations"] if o.get("gb_code")]
-    assert len(mapped) == 70
+    # 不写死条数：映射是会随补全增长的资产，写 70 只会每补一批就红一次。
+    # 这里比"导出条数 == 映射表里的不同职业数"，关系恒成立，
+    # 而导出丢列/丢行仍然会被抓住；资产量的下限由 test_map_rate_floor 守。
+    cat = IndustryDatabase().catalog
+    expect = {m["occur_id"] for m in cat.maps}
+    assert len(mapped) == len(expect), (len(mapped), len(expect))
+    assert len(mapped) >= 60
     assert mapped[0]["gb_name"] and mapped[0]["gb_path"]
     conn = sqlite3.connect(os.path.join(Args.out, "industry.sqlite"))
     assert conn.execute("select count(*) from gb_catalog").fetchone()[0] == 1636

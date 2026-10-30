@@ -81,94 +81,95 @@ memberships:
   - {occupation: post-production, partition: video-media, axis: occupation, weight: 1.0, unit_role: post_production}
   - {occupation: director-assistant, partition: video-media, axis: occupation, weight: 1.0, unit_role: director_assistant}
   - {occupation: scriptwriter, partition: video-media, axis: occupation, weight: 1.0, unit_role: scriptwriter}
-  - {occupation: financial-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
-  - {occupation: insurance-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
-  - {occupation: securities-analyst, partition: finance-invest, axis: occupation, weight: 1.0}
-  - {occupation: investment-advisor, partition: finance-invest, axis: occupation, weight: 1.0}
-  - {occupation: loan-officer, partition: finance-invest, axis: occupation, weight: 1.0}
+  - {occupation: financial-advisor, partition: finance-invest, axis: occupation, weight: 1.0, unit_role: financial_advisor}
+  - {occupation: insurance-advisor, partition: finance-invest, axis: occupation, weight: 1.0, unit_role: insurance_advisor}
+  - {occupation: securities-analyst, partition: finance-invest, axis: occupation, weight: 1.0, unit_role: securities_analyst}
+  - {occupation: investment-advisor, partition: finance-invest, axis: occupation, weight: 1.0, unit_role: investment_advisor}
+  - {occupation: loan-officer, partition: finance-invest, axis: occupation, weight: 1.0, unit_role: loan_officer}
   - {occupation: realtor, partition: real-estate, axis: occupation, weight: 1.0, unit_role: realtor}
-  - {occupation: property-consultant, partition: real-estate, axis: occupation, weight: 1.0}
+  - {occupation: property-consultant, partition: real-estate, axis: occupation, weight: 1.0, unit_role: property_consultant}
   - {occupation: appraiser, partition: real-estate, axis: occupation, weight: 1.0, unit_role: appraiser}
-  - {occupation: leasing-operator, partition: real-estate, axis: occupation, weight: 1.0}
-  - {occupation: property-manager, partition: real-estate, axis: occupation, weight: 1.0}
-  - {occupation: travel-planner, partition: tourism-hospitality, axis: occupation, weight: 1.0}
-  - {occupation: hotel-manager, partition: tourism-hospitality, axis: occupation, weight: 1.0}
-  - {occupation: tour-guide, partition: tourism-hospitality, axis: occupation, weight: 1.0}
-  - {occupation: booking-agent, partition: tourism-hospitality, axis: occupation, weight: 1.0}
-  - {occupation: homestay-operator, partition: tourism-hospitality, axis: occupation, weight: 1.0}
-  - {occupation: menu-planner, partition: food-beverage, axis: occupation, weight: 1.0}
-  - {occupation: restaurant-operator, partition: food-beverage, axis: occupation, weight: 1.0}
-  - {occupation: delivery-operator, partition: food-beverage, axis: occupation, weight: 1.0}
-  - {occupation: food-safety-officer, partition: food-beverage, axis: occupation, weight: 1.0}
-  - {occupation: fb-manager, partition: food-beverage, axis: occupation, weight: 1.0}
-  - {occupation: logistics-operator, partition: logistics-supply, axis: occupation, weight: 1.0}
-  - {occupation: supply-chain-manager, partition: logistics-supply, axis: occupation, weight: 1.0}
-  - {occupation: warehouse-manager, partition: logistics-supply, axis: occupation, weight: 1.0}
+  - {occupation: leasing-operator, partition: real-estate, axis: occupation, weight: 1.0, unit_role: leasing_operator}
+  - {occupation: property-manager, partition: real-estate, axis: occupation, weight: 1.0, unit_role: property_manager}
+  - {occupation: travel-planner, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: travel_planner}
+  - {occupation: hotel-manager, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: hotel_manager}
+  - {occupation: tour-guide, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: tour_guide}
+  - {occupation: booking-agent, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: booking_agent}
+  - {occupation: homestay-operator, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: homestay_operator}
+  - {occupation: menu-planner, partition: food-beverage, axis: occupation, weight: 1.0, unit_role: menu_planner}
+  - {occupation: restaurant-operator, partition: food-beverage, axis: occupation, weight: 1.0, unit_role: restaurant_operator}
+  - {occupation: delivery-operator, partition: food-beverage, axis: occupation, weight: 1.0, unit_role: delivery_operator}
+  - {occupation: food-safety-officer, partition: food-beverage, axis: occupation, weight: 1.0, unit_role: food_safety_officer}
+  - {occupation: fb-manager, partition: food-beverage, axis: occupation, weight: 1.0, unit_role: fb_manager}
+  - {occupation: logistics-operator, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: logistics_operator}
+  - {occupation: supply-chain-manager, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: supply_chain_manager}
+  - {occupation: warehouse-manager, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: warehouse_manager}
   - {occupation: buyer, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: buyer}
-  - {occupation: customs-broker, partition: logistics-supply, axis: occupation, weight: 1.0}
-  - {occupation: production-planner, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: quality-engineer, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: process-engineer, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: equipment-manager, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: industrial-designer, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: cost-estimator, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: supervision-engineer, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: construction-manager, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: bidding-specialist, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: bim-engineer, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: carbon-manager, partition: energy-environment, axis: occupation, weight: 1.0}
-  - {occupation: energy-manager, partition: energy-environment, axis: occupation, weight: 1.0}
-  - {occupation: environmental-consultant, partition: energy-environment, axis: occupation, weight: 1.0}
-  - {occupation: energy-saving-planner, partition: energy-environment, axis: occupation, weight: 1.0}
-  - {occupation: eia-writer, partition: energy-environment, axis: occupation, weight: 1.0}
-  - {occupation: auto-sales, partition: auto-service, axis: occupation, weight: 1.0}
-  - {occupation: after-sales, partition: auto-service, axis: occupation, weight: 1.0}
-  - {occupation: used-car-appraiser, partition: auto-service, axis: occupation, weight: 1.0}
-  - {occupation: auto-finance, partition: auto-service, axis: occupation, weight: 1.0}
-  - {occupation: repair-advisor, partition: auto-service, axis: occupation, weight: 1.0}
-  - {occupation: housekeeping-advisor, partition: personal-services, axis: occupation, weight: 1.0}
-  - {occupation: cleaning-steward, partition: personal-services, axis: occupation, weight: 1.0}
+  - {occupation: customs-broker, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: customs_broker}
+  - {occupation: production-planner, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: production_planner}
+  - {occupation: quality-engineer, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: quality_engineer}
+  - {occupation: process-engineer, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: process_engineer}
+  - {occupation: equipment-manager, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: equipment_manager}
+  - {occupation: industrial-designer, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: industrial_designer}
+  - {occupation: cost-estimator, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: cost_estimator}
+  - {occupation: supervision-engineer, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: supervision_engineer}
+  - {occupation: construction-manager, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: construction_manager}
+  - {occupation: bidding-specialist, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: bidding_specialist}
+  - {occupation: bim-engineer, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: bim_engineer}
+  - {occupation: carbon-manager, partition: energy-environment, axis: occupation, weight: 1.0, unit_role: carbon_manager}
+  - {occupation: energy-manager, partition: energy-environment, axis: occupation, weight: 1.0, unit_role: energy_manager}
+  - {occupation: environmental-consultant, partition: energy-environment, axis: occupation, weight: 1.0, unit_role: environmental_consultant}
+  - {occupation: energy-saving-planner, partition: energy-environment, axis: occupation, weight: 1.0, unit_role: energy_saving_planner}
+  - {occupation: eia-writer, partition: energy-environment, axis: occupation, weight: 1.0, unit_role: eia_writer}
+  - {occupation: auto-sales, partition: auto-service, axis: occupation, weight: 1.0, unit_role: auto_sales}
+  - {occupation: after-sales, partition: auto-service, axis: occupation, weight: 1.0, unit_role: after_sales}
+  - {occupation: used-car-appraiser, partition: auto-service, axis: occupation, weight: 1.0, unit_role: used_car_appraiser}
+  - {occupation: auto-finance, partition: auto-service, axis: occupation, weight: 1.0, unit_role: auto_finance}
+  - {occupation: repair-advisor, partition: auto-service, axis: occupation, weight: 1.0, unit_role: repair_advisor}
+  - {occupation: housekeeping-advisor, partition: personal-services, axis: occupation, weight: 1.0, unit_role: housekeeping_advisor}
+  - {occupation: cleaning-steward, partition: personal-services, axis: occupation, weight: 1.0, unit_role: cleaning_steward}
   - {occupation: nanny, partition: personal-services, axis: occupation, weight: 1.0, unit_role: nanny}
-  - {occupation: maternity-matron, partition: personal-services, axis: occupation, weight: 1.0}
-  - {occupation: elder-care, partition: personal-services, axis: occupation, weight: 1.0}
-  - {occupation: makeup-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0}
+  - {occupation: maternity-matron, partition: personal-services, axis: occupation, weight: 1.0, unit_role: maternity_matron}
+  - {occupation: elder-care, partition: personal-services, axis: occupation, weight: 1.0, unit_role: elder_care}
+  - {occupation: makeup-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: makeup_advisor}
   - {occupation: hairstylist, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: hairstylist}
   - {occupation: manicurist, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: manicurist}
-  - {occupation: beauty-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0}
-  - {occupation: image-consultant, partition: beauty-grooming, axis: occupation, weight: 1.0}
-  - {occupation: agri-consultant, partition: agriculture, axis: occupation, weight: 1.0}
-  - {occupation: planting-planner, partition: agriculture, axis: occupation, weight: 1.0}
-  - {occupation: agri-ecommerce, partition: agriculture, axis: occupation, weight: 1.0}
+  - {occupation: beauty-advisor, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: beauty_advisor}
+  - {occupation: image-consultant, partition: beauty-grooming, axis: occupation, weight: 1.0, unit_role: image_consultant}
+  - {occupation: agri-consultant, partition: agriculture, axis: occupation, weight: 1.0, unit_role: agri_consultant}
+  - {occupation: planting-planner, partition: agriculture, axis: occupation, weight: 1.0, unit_role: planting_planner}
+  - {occupation: agri-ecommerce, partition: agriculture, axis: occupation, weight: 1.0, unit_role: agri_ecommerce}
   - {occupation: agronomist, partition: agriculture, axis: occupation, weight: 1.0, unit_role: agronomist}
-  - {occupation: ranch-operator, partition: agriculture, axis: occupation, weight: 1.0}
+  - {occupation: ranch-operator, partition: agriculture, axis: occupation, weight: 1.0, unit_role: ranch_operator}
   - {occupation: curator, partition: culture-art, axis: occupation, weight: 1.0, unit_role: curator}
-  - {occupation: talent-agent, partition: culture-art, axis: occupation, weight: 1.0}
-  - {occupation: publisher-editor, partition: culture-art, axis: occupation, weight: 1.0}
+  - {occupation: talent-agent, partition: culture-art, axis: occupation, weight: 1.0, unit_role: talent_agent}
+  - {occupation: publisher-editor, partition: culture-art, axis: occupation, weight: 1.0, unit_role: publisher_editor}
   - {occupation: playwright, partition: culture-art, axis: occupation, weight: 1.0, unit_role: playwright}
-  - {occupation: music-producer, partition: culture-art, axis: occupation, weight: 1.0}
-  - {occupation: policy-consultant, partition: public-affairs, axis: occupation, weight: 1.0}
-  - {occupation: community-worker, partition: public-affairs, axis: occupation, weight: 1.0}
-  - {occupation: gov-service-clerk, partition: public-affairs, axis: occupation, weight: 1.0}
-  - {occupation: records-manager, partition: public-affairs, axis: occupation, weight: 1.0}
-  - {occupation: civic-agent, partition: public-affairs, axis: occupation, weight: 1.0}
-  - {occupation: sports-coach, partition: sport-fitness, axis: occupation, weight: 1.0}
-  - {occupation: sports-agent, partition: sport-games, axis: occupation, weight: 1.0}
-  - {occupation: event-operator, partition: sport-games, axis: occupation, weight: 1.0}
-  - {occupation: venue-manager, partition: sport-games, axis: occupation, weight: 1.0}
-  - {occupation: rehab-trainer, partition: sport-fitness, axis: occupation, weight: 1.0}
-  - {occupation: literature-reviewer, partition: research-academic, axis: occupation, weight: 1.0}
-  - {occupation: grant-writer, partition: research-academic, axis: occupation, weight: 1.0}
-  - {occupation: experiment-designer, partition: research-academic, axis: occupation, weight: 1.0}
-  - {occupation: research-analyst, partition: research-academic, axis: occupation, weight: 1.0}
-  - {occupation: academic-editor, partition: research-academic, axis: occupation, weight: 1.0}
+  - {occupation: music-producer, partition: culture-art, axis: occupation, weight: 1.0, unit_role: music_producer}
+  - {occupation: policy-consultant, partition: public-affairs, axis: occupation, weight: 1.0, unit_role: policy_consultant}
+  - {occupation: community-worker, partition: public-affairs, axis: occupation, weight: 1.0, unit_role: community_worker}
+  - {occupation: gov-service-clerk, partition: public-affairs, axis: occupation, weight: 1.0, unit_role: gov_service_clerk}
+  - {occupation: records-manager, partition: public-affairs, axis: occupation, weight: 1.0, unit_role: records_manager}
+  - {occupation: civic-agent, partition: public-affairs, axis: occupation, weight: 1.0, unit_role: civic_agent}
+  - {occupation: sports-coach, partition: sport-fitness, axis: occupation, weight: 1.0, unit_role: sports_coach}
+  - {occupation: sports-agent, partition: sport-games, axis: occupation, weight: 1.0, unit_role: sports_agent}
+  - {occupation: event-operator, partition: sport-games, axis: occupation, weight: 1.0, unit_role: event_operator}
+  - {occupation: venue-manager, partition: sport-games, axis: occupation, weight: 1.0, unit_role: venue_manager}
+  - {occupation: rehab-trainer, partition: sport-fitness, axis: occupation, weight: 1.0, unit_role: rehab_trainer}
+  - {occupation: literature-reviewer, partition: research-academic, axis: occupation, weight: 1.0, unit_role: literature_reviewer}
+  - {occupation: grant-writer, partition: research-academic, axis: occupation, weight: 1.0, unit_role: grant_writer}
+  - {occupation: experiment-designer, partition: research-academic, axis: occupation, weight: 1.0, unit_role: experiment_designer}
+  - {occupation: research-analyst, partition: research-academic, axis: occupation, weight: 1.0, unit_role: research_analyst}
+  - {occupation: academic-editor, partition: research-academic, axis: occupation, weight: 1.0, unit_role: academic_editor}
   - {occupation: streamer, partition: live-streaming, axis: occupation, weight: 1.0, unit_role: streamer}
+  - {occupation: live-host, partition: live-streaming, axis: occupation, weight: 1.0, unit_role: live_host}
   - {occupation: live-stream-operator, partition: content-creation, axis: occupation, weight: 1.0, unit_role: live_host}
-  - {occupation: esports-player, partition: esports, axis: occupation, weight: 1.0}
-  - {occupation: game-companion, partition: esports, axis: occupation, weight: 1.0}
-  - {occupation: esports-operator, partition: esports, axis: occupation, weight: 1.0}
-  - {occupation: delivery-rider, partition: logistics-supply, axis: occupation, weight: 1.0}
+  - {occupation: esports-player, partition: esports, axis: occupation, weight: 1.0, unit_role: esports_player}
+  - {occupation: game-companion, partition: esports, axis: occupation, weight: 1.0, unit_role: game_companion}
+  - {occupation: esports-operator, partition: esports, axis: occupation, weight: 1.0, unit_role: esports_operator}
+  - {occupation: delivery-rider, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: delivery_rider}
   - {occupation: courier, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: courier}
-  - {occupation: ride-hailing-driver, partition: tourism-hospitality, axis: occupation, weight: 1.0}
+  - {occupation: ride-hailing-driver, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: ride_hailing_driver}
   - {occupation: military-officer, partition: public-safety, axis: occupation, weight: 1.0}
   - {occupation: soldier, partition: public-safety, axis: occupation, weight: 1.0}
   - {occupation: civilian-staff-mil, partition: public-safety, axis: occupation, weight: 1.0}
@@ -185,10 +186,10 @@ memberships:
   - {occupation: water-conservancy-engineer, partition: water-marine, axis: occupation, weight: 1.0}
   - {occupation: seafarer, partition: water-marine, axis: occupation, weight: 1.0}
   - {occupation: marine-surveyor, partition: water-marine, axis: occupation, weight: 1.0}
-  - {occupation: construction-worker, partition: construction-eng, axis: occupation, weight: 1.0}
-  - {occupation: factory-operator, partition: manufacturing, axis: occupation, weight: 1.0}
-  - {occupation: homemaker, partition: personal-services, axis: occupation, weight: 1.0}
-  - {occupation: family-caregiver, partition: personal-services, axis: occupation, weight: 1.0}
+  - {occupation: construction-worker, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: construction_worker}
+  - {occupation: factory-operator, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: factory_operator}
+  - {occupation: homemaker, partition: personal-services, axis: occupation, weight: 1.0, unit_role: homemaker}
+  - {occupation: family-caregiver, partition: personal-services, axis: occupation, weight: 1.0, unit_role: family_caregiver}
   - {occupation: un-staff, partition: international-org, axis: occupation, weight: 1.0}
   - {occupation: foreign-service-officer, partition: international-org, axis: occupation, weight: 1.0}
 

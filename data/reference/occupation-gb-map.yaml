@@ -125,3 +125,47 @@ maps:
   # ---------------- 教育 / 科研 ----------------
   - {occur_id: teacher, gb_code: 2-08-01-01, confidence: near}  # 普通高等学校教师
   - {occur_id: literature-reviewer, gb_code: 2-10-06-01, confidence: near}  # 文献信息专业人员
+
+
+  # ---------------- 行业分区补全（第 N 轮：待建分区骨架认领）----------------
+  - {occur_id: financial-advisor, gb_code: 2-06-11-07, confidence: near}  # 基金专业人员
+  - {occur_id: loan-officer, gb_code: 4-05-01-02, confidence: exact}  # 银行信贷员
+  - {occur_id: property-consultant, gb_code: 4-06-02-01, confidence: near}  # 房地产经纪人
+  - {occur_id: leasing-operator, gb_code: 4-07-01-01, confidence: exact}  # 租赁业务员
+  - {occur_id: travel-planner, gb_code: 4-07-04-03, confidence: near}  # 旅行社计调
+  - {occur_id: booking-agent, gb_code: 4-07-04-04, confidence: near}  # 旅游咨询员
+  - {occur_id: homestay-operator, gb_code: 4-14-06-02, confidence: exact}  # 民宿管家
+  - {occur_id: menu-planner, gb_code: 4-03-02-06, confidence: near}  # 营养配餐员
+  - {occur_id: restaurant-operator, gb_code: 4-03-02-05, confidence: near}  # 餐厅服务员
+  - {occur_id: delivery-operator, gb_code: 4-10-08-01, confidence: near}  # 网约配送员
+  - {occur_id: fb-manager, gb_code: 4-03-02-05, confidence: near}  # 餐厅服务员
+  - {occur_id: logistics-operator, gb_code: 4-02-06-03, confidence: exact}  # 物流服务师
+  - {occur_id: delivery-rider, gb_code: 4-02-07-08, confidence: near}  # 快递员
+  - {occur_id: production-planner, gb_code: 2-02-38-05, confidence: near}  # 智能制造工程技术人员
+  - {occur_id: process-engineer, gb_code: 2-02-07-02, confidence: near}  # 机械制造工程技术人员
+  - {occur_id: equipment-manager, gb_code: 2-02-07-10, confidence: near}  # 特种设备管理和应用工程技术人员
+  - {occur_id: industrial-designer, gb_code: 2-02-34-02, confidence: exact}  # 工业设计工程技术人员
+  - {occur_id: bidding-specialist, gb_code: 2-06-07-15, confidence: near}  # 招标采购专业人员
+  - {occur_id: energy-manager, gb_code: 2-02-30-06, confidence: exact}  # 能源管理工程技术人员
+  - {occur_id: energy-saving-planner, gb_code: 4-09-07-06, confidence: near}  # 建筑节能减排咨询师
+  - {occur_id: eia-writer, gb_code: 2-02-27-03, confidence: exact}  # 环境影响评价工程技术人员
+  - {occur_id: auto-sales, gb_code: 4-07-03-01, confidence: near}  # 职业指导师
+  - {occur_id: after-sales, gb_code: 2-02-15-01, confidence: near}  # 汽车运用工程技术人员
+  - {occur_id: auto-finance, gb_code: 2-06-09-04, confidence: near}  # 信贷审核专业人员
+  - {occur_id: maternity-matron, gb_code: 4-10-01-04, confidence: near}  # 孤残儿童护理员
+  - {occur_id: makeup-advisor, gb_code: 2-09-04-04, confidence: exact}  # 化妆师
+  - {occur_id: planting-planner, gb_code: 5-05-01-01, confidence: near}  # 农业技术员
+  - {occur_id: agri-ecommerce, gb_code: 5-05-01-03, confidence: near}  # 农业数字化技术员
+  - {occur_id: publisher-editor, gb_code: 2-10-02-01, confidence: exact}  # 文字编辑
+  - {occur_id: music-producer, gb_code: 2-09-04-08, confidence: near}  # 演出制作人
+  - {occur_id: policy-consultant, gb_code: 2-01-02-00, confidence: near}  # 经济学研究人员
+  - {occur_id: records-manager, gb_code: 2-10-07-00, confidence: near}  # 档案专业人员
+  - {occur_id: civic-agent, gb_code: 4-04-05-03, confidence: near}  # 呼叫中心服务员
+  - {occur_id: esports-player, gb_code: 4-14-05-07, confidence: exact}  # 电子竞技员
+  - {occur_id: esports-operator, gb_code: 4-14-05-06, confidence: exact}  # 电子竞技运营师
+  - {occur_id: event-operator, gb_code: 4-14-05-03, confidence: near}  # 游泳救生员
+  - {occur_id: venue-manager, gb_code: 4-14-05-02, confidence: exact}  # 体育场馆管理员
+  - {occur_id: grant-writer, gb_code: 3-01-02-02, confidence: near}  # 秘书
+  - {occur_id: experiment-designer, gb_code: 2-01-06-03, confidence: near}  # 化学研究人员
+  - {occur_id: research-analyst, gb_code: 2-02-38-03, confidence: near}  # 大数据工程技术人员
+  - {occur_id: academic-editor, gb_code: 2-10-02-03, confidence: near}  # 技术编辑

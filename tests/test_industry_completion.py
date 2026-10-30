@@ -294,15 +294,15 @@ def test_covered_partition_skeleton_left_to_check_9():
 
 # --------------------------------------------------------------- 集成
 def test_real_data_still_self_consistent():
-    """补完数据后自检只剩"骨架没人认领"这一类已知缺口。
+    """补完数据后自检必须零问题。
 
-    第 19 条上线后暴露的真实现状：20 个待建分区、81 个骨架岗位没有对应原子岗位
-    （分区说了要建这些岗，职业库还没登记做这些活的人）。这不是代码缺陷，是
-    待建分区的补职业工作——这里钉住"不许有第二类问题混进来"，也让缺口数量可见。
+    第 19 条刚上线时这里只钉"不许有第二类问题混进来"，因为 20 个待建分区、
+    81 个骨架岗位还没人认领。本轮已把 81 个骨架全部登记到原子职业并补上
+    unit_role 边，缺口清零，所以断言收紧为**完全无问题**——否则相当于留了
+    一条"骨架悬空随便有"的后门，补全进度回退也看不出来。
     """
     problems = _db().validate()
-    others = [p for p in problems if "骨架悬空" not in p]
-    assert others == [], others
+    assert problems == [], problems
 
 
 def test_cli_check_exit_code_separates_known_gap_from_real_error():
@@ -316,8 +316,15 @@ def test_cli_check_exit_code_separates_known_gap_from_real_error():
     if others:
         assert out.returncode == 1, others
     else:
-        assert out.returncode == 2, out.stdout
-        assert "待建分区" in out.stdout and "未完成" in out.stdout, out.stdout
+        # 骨架缺口清零后应退回 0（干净），2 那一档留给"只剩待建分区缺口"的中间态。
+        # 断言用"当前数据决定期望值"，避免数据补全后又要改测试常量。
+        gaps = [p for p in db.validate() if "骨架悬空" in p]
+        if gaps:
+            assert out.returncode == 2, out.stdout
+            assert "待建分区" in out.stdout and "未完成" in out.stdout, out.stdout
+        else:
+            assert out.returncode == 0, out.stdout
+            assert "自检通过" in out.stdout, out.stdout
 
 
 def test_pipeline_treats_known_gap_as_non_blocking():
@@ -342,7 +349,42 @@ def test_skeleton_gap_is_counted_not_silently_dropped():
         if planned - claimed:
             dangling += 1
     assert len(gaps) == dangling
-    assert dangling > 0, "缺口被补完了就把这个断言删掉，别留一条恒真的守卫"
+    # 缺口已在本轮补完（81 个骨架全部被原子职业认领）。这里不再断言 dangling > 0，
+    # 改为断言"报出的条数 == 实算的条数"——数量关系在任何进度下都成立，
+    # 而回退（骨架重新悬空）也会因为 validate 与实算不一致或下面的清零断言而失败。
+    assert dangling == 0, f"骨架缺口回退了 {dangling} 个分区"
+
+
+def test_every_planned_role_is_claimed_by_a_real_occupation():
+    """骨架认领不许回退：每个待建分区的 planned_roles 都必须有职业边认领。
+
+    这是本轮补全的成果守卫。第 19 条只保证"悬空会报出来"，本断言进一步要求
+    "不许悬空"——否则把某条边的 unit_role 删掉，check 会退回退出码 2（被流水线
+    当已知缺口放行），补全进度悄悄倒退而 CI 仍然是绿的。
+    """
+    db = _db()
+    for p in db.partitions:
+        if p.get("status") != "pending":
+            continue
+        planned = set(p.get("planned_roles") or [])
+        if not planned:
+            continue
+        claimed = {m.get("unit_role") for m in db.axis_view.of_partition(p["id"])
+                   if m.get("unit_role")}
+        missing = planned - claimed
+        assert not missing, f"分区 {p['id']} 的骨架岗位没人认领 {sorted(missing)}"
+
+
+def test_planned_role_edges_point_back_to_occupation_in_same_partition():
+    """认领要落在**本分区**的边，且边上的职业必须真实存在（不许借别处同名边）"""
+    db = _db()
+    occ_ids = {o.get("id") for o in db.occupations}
+    for p in db.partitions:
+        for m in db.axis_view.of_partition(p.get("id", "")):
+            assert m.get("occupation") in occ_ids, m
+            if m.get("unit_role"):
+                assert m["unit_role"] in set(p.get("planned_roles") or []) or \
+                    p.get("status") == "covered", (p["id"], m)
 
 
 def test_coverage_denominators_unchanged_by_completion():
