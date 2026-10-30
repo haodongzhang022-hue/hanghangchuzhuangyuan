@@ -7,11 +7,17 @@
 #   - 评审发现需修改 → 评审NPC在评论中 @CodeBuddy → 自动触发修复
 #   - CodeBuddy 修复提交 → 新 commit 触发下一轮 pull_request → 再次评审
 #   - 目标导向：评审无错即停，有错继续修，不强制轮数
-#   - pull_request.mergeable → 评审门禁检查 + 自动合并
+#   - pull_request.approved → 评审通过后用 PR 自己的配置重跑检查并合并
 #   - pull_request.changes_requested → 评审打回时自动修复（兜底）
 #   - pull_request.comment@npc → 人类/@NPC 手动兜底
 #   - main.push → 全量回归 + 知识库更新
 #   - issue.open/update → 事件自动处理
+#
+# pull_request.mergeable **刻意不配置**：该事件的配置与工作区都取自目标分支
+# （官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit）。PR 改了 .cnb.yml
+# 时，合并门禁跑的是 main 上的旧配置——想修 CI 却先在旧配置上再红一轮，改的人
+# 永远看不到自己的修复生效（PR #29 连红三轮即此）。评审通过后由
+# pull_request.approved 重跑同一份 stages 并合并：配置与代码都取自预合并。
 #
 # 角色定义见 .cnb/settings.yml
 # 评审闭环规则见 docs/评审修复闭环护栏.md
@@ -42,7 +48,9 @@ $:
           - cache:/root/.cnb-testcache:rw   # 变更感知结果缓存（跨 job/流水线复用，防重复全量）
       env:
         HH_TEST_CACHE_DIR: /root/.cnb-testcache
-      stages:
+      # 这份 stages 被 pull_request 与 pull_request.approved 共用（YAML 锚点）：
+      # 评审通过后要重跑一次同样的检查并合并，各写一份迟早漂移，改一边忘一边。
+      stages: &pr_checks
         - name: 测试信号灯（变更感知 + CLI 冒烟）
           script: |
             set -e
@@ -70,10 +78,9 @@ $:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
-            # 合并判定：测试跑绿 = 本流水线该做的事做完了，此时若评审已通过就由这里
-            # 直接合并，不再另起一条 mergeable 流水线（少一份预冻结配额，PR #29 连红
-            # 的根因）。未通过则记一个中立状态就退出（见 BeforeEnd），别再把
-            # "评审还没开始"标成红叉；评审真有问题，由评审 NPC 召唤 CodeBuddy 修。
+            # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
+            # .cnb.yml，PR 改流水线时它跑旧配置（见文件头）。没通过就记一个中立状态
+            # 退出（见 endStages），别把"评审还没开始"标成红叉。
             if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]; then
               echo "评审已通过，开始自动合并"
               MERGE_PENDING=true
@@ -81,9 +88,9 @@ $:
               echo "评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，测试已通过，不执行自动合并"
             fi
         - name: 自动合并（测试通过 + 评审通过）
-          # 合并与测试放同一流水线，是本轮针对 PR #29 配额报红的方案：
-          # 上一版把门禁挂到 mergeable 流水线上，等于承认"再来一条"，
-          # 只是在赌它不被拉起。判定条件与上面那段脚本必须一致。
+          # 合并判定就挂在测试流水线末尾：评审一通过（pull_request.approved 那次
+          # 运行）就由同一份 stages 收尾，不需要第三条流水线。取值是 approve /
+          # unapprove，不是 approved —— 写错的那一版条件恒假，门禁静默失效。
           if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
           type: git:auto-merge
           options:
@@ -129,51 +136,22 @@ $:
               评审结论输出到 PR 评论。
 
   # ========================================================
-  # PR 可合并 → 自动合并（先做评审门禁）
+  # 评审通过 → 用 PR 自己的配置重跑检查并合并
+  #
+  # 为什么不是 pull_request.mergeable：那个事件的配置和工作区都取自目标分支。
+  # PR 改了 .cnb.yml 时合并门禁跑的是旧配置，改的人看不到自己的修复生效。
+  # 这里是"测试绿 + 评审通过"的最后一个事件，代码与配置都取自预合并，
+  # 合并前那次验证才算数。
   # ========================================================
-  pull_request.mergeable:
-    - name: merge-gate
-      # 这里**不加 job 级门禁**（上一版加过，撤了）。pull_request.mergeable 只在
-      # "可合并"时才触发，本来就只跑极少数几个 PR；把它当第三份配额的替罪羊是搞错对象。
-      # 真正的止血在 review-fix-loop 的「未批准即合并判定通过并退出」——PR 一旦
-      # 可合并就由那边收尾，这条流水线基本不会被拉起，配额自然省下来。
-      # 教训：上一版把门禁写成 '= "approved"'，而 CNB 的取值是 approve/unapprove
-      # （见「环境变量」文档）。猜变量值失败的样子是"全绿"，最难查；本次已补正则守卫。
-      runner:
-        cpus: 1   # 同 review-fix-loop：测试只有单线程解释器，1 核不减速，省下预冻结配额
+  pull_request.approved:
+    - name: merge-on-approve
       docker:
         image: python:3.11
         volumes:
-          - cache:/root/.cnb-testcache:rw   # 与 review-fix-loop 共享同一结果缓存，避免重复全量
+          - cache:/root/.cnb-testcache:rw
       env:
         HH_TEST_CACHE_DIR: /root/.cnb-testcache
-      stages:
-        - name: 只有评审通过才继续
-          # 门禁语句只写一份：本 stage 放行、自动合并 stage 沿用同一条件，
-          # 两处各写一遍迟早会有一处漏改（上一版就是这么漏掉取值拼写的）。
-          # 注意取值是 approve / unapprove，不是 approved（官方「环境变量」文档）。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
-          script: echo "评审已通过，继续合并门禁"
-        - name: 测试再次确认（变更感知）
-          script: |
-            set -e
-            echo "==== 合并前测试确认（变更感知） ===="
-            pip install -q -r requirements.txt
-            # 合并门禁同样采用变更感知选择，快速放行无风险的 PR；
-            # 全量回归已由 main.push 事件保证。
-            bash scripts/change-aware-test.sh
-            # 行业分区库双向对齐由 review-fix-loop 的「测试信号灯」与本 stage 的
-            # change-aware 选择共同覆盖（改 data/*.yaml 必然选中行业库测试），
-            # 这里不再重跑同一条 industry check：同一份数据一次 PR 跑三遍，
-            # 只换来更长的预冻结时间，不换来更多信息。
-        - name: 自动合并
-          # 评审处置门禁：仅当 PR 已被评审批准才自动合并，
-          # 避免与 changes_requested 的 auto-fix 竞态误合。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
-          type: git:auto-merge
-          options:
-            mergeType: squash
-            removeSourceBranch: true
+      stages: *pr_checks
 
   # ========================================================
   # 评审打回(changes_requested) → 自动修复

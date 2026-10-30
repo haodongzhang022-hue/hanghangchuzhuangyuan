@@ -12,6 +12,8 @@ import os
 import re
 import sys
 
+import yaml
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from hanghang.engine.industry_db import (
@@ -345,21 +347,68 @@ def test_pipeline_treats_known_gap_as_non_blocking():
 
 
 def test_pipeline_does_not_spend_quota_on_an_unapproved_merge_gate():
-    """评审未通过时，合并门禁不许跑测试、更不许合并
+    """合并只发生在评审通过的那次运行里，别在未评审时白跑一遍合并门禁
 
     有件事写配置改不了：平台要先 Prepare（预冻结 1.33 核时）才轮到 job 级 if，
-    所以"少拉起一条流水线省配额"在 yaml 里做不到——PR #29 第一次加了 job 级 if
-    仍旧红在 Prepare 就是实证。能做的只有 stage 级 if：不通过就不跑测试、不合并。
-    这条守的是这个下限，别再往上加"以为能省配额"的 job 级门禁（它只制造幻觉）。
+    所以"少拉起一条流水线省配额"在 yaml 里做不到。能做的只有 stage 级 if。
+    但门禁只挂在 mergeable 上还有第二个问题，比配额更硬（见下一个用例）：
+    那个事件读的是目标分支的配置，PR 改流水线时它验证的是旧配置。
+
+    这里守下限：PR 的测试流水线里，合并由同一份 stages 末尾的 git:auto-merge 完成，
+    且带 stage 级 if。别再往上加"以为能省配额"的 job 级门禁——它只制造幻觉。
     """
     root = os.path.join(os.path.dirname(__file__), "..")
     yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
-    idx = yml.index("    - name: merge-gate")
-    end = yml.find("\n  # ==", idx + 1)
+    idx = yml.index("    - name: review-fix-loop")
+    end = yml.find("\n    - name: ", idx + 1)
     job = yml[idx:end if end != -1 else len(yml)]
-    first_stage = job.index("- name:", job.index("stages:"))
-    assert job.index("if:") > first_stage, \
-        "门禁必须挂在 stage 上；job 级 if 挡不住 Prepare 预冻结，只会让人误以为省了配额"
+    assert "type: git:auto-merge" in job, \
+        "合并判定要留在 PR 测试流水线里，否则又得多拉一条流水线抢配额"
+    merge_at = job.index("type: git:auto-merge")
+    gate_at = job.rfind("if:", 0, merge_at)
+    assert gate_at != -1, "自动合并必须有评审门禁，不能见绿灯就合"
+
+
+def test_merge_gate_does_not_run_on_the_target_branch_config():
+    """合并门禁不许挂在 pull_request.mergeable 上：那个事件跑的是 main 的旧配置
+
+    官方「代码版本选择」写明 mergeable → 合并前目标分支最新 Commit（配置与工作区
+    都是）。PR 里改 .cnb.yml 之后，这条流水线仍在旧配置上跑，于是"修 CI"的 PR
+    每次推送都先在旧配置上再红一次，改的人永远看不到自己的修复生效
+    （PR #29 连红三轮就是这么来的：每一轮都改了 yaml，每一轮跑的都是上一版）。
+
+    所以合并放到 pull_request.approved：该事件代码与配置都取自预合并，
+    且它就是"测试绿 + 评审通过"的最后一个时机。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+    events = data["$"]
+    assert "pull_request.mergeable" not in events, (
+        "别配 pull_request.mergeable：它读目标分支的 .cnb.yml，"
+        "改流水线的 PR 会被旧配置再红一轮（PR #29 实测）"
+    )
+    assert "pull_request.approved" in events, \
+        "评审通过后必须有一次合并前的完整验证与合并"
+
+
+def test_approved_event_reuses_the_same_checks_as_pr():
+    """评审通过后重跑的那份检查，必须和 PR 时的检查是同一份
+
+    用 YAML 锚点共享，这里钉住"解析后完全相等"。各写一份，改一边忘一边，
+    合并前的验证就会悄悄变薄——而它恰好是唯一真正跑在"评审后代码"上的验证。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+    events = data["$"]
+    pr_stages = events["pull_request"][0]["stages"]
+    approved_stages = events["pull_request.approved"][0]["stages"]
+    assert pr_stages == approved_stages, (
+        "pull_request.approved 必须复用 pull_request 的 stages（YAML 锚点 &pr_checks），"
+        "各写一份迟早漂移"
+    )
+    merged = [s for s in approved_stages if s.get("type") == "git:auto-merge"]
+    assert merged, "评审通过后那条流水线里必须真的发起合并"
+    assert merged[0].get("if") == '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
 
 
 def test_review_state_gate_uses_the_real_platform_value():
