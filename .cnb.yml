@@ -35,13 +35,16 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      # 配额：**不写 runner.cpus**。先试过 2 核、再试过 1 核，Prepare 都报
-      # "events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)"。
-      # 冻结时长按固定 10min 折算，与申请几核无关：降核不省钱，只是把"抢不到池子"
-      # 换个数字重演（PR #29 连红三轮：2 核、1 核、加了 job 级门禁，全红在 Prepare）。
-      # 也别指望 yaml 能压掉这条红：CheckStatus 的 state 由平台按流水线结果决定，
-      # 拿不到 job 内变量，"评审未通过时不标红"在配置层做不到（已实探）。
-      # 要做的事只有一件 —— 根组织提升 CPU 额度，其余都是自我安慰。
+      # 配额：**不写 runner.cpus**，也不再用 allowFailure 遮红。
+      # 落盘的说法来自 pricing.md「用量计算规则」：每 5 min 冻结一次，单次冻结量
+      # = 5min × 节点规格；额度不够就直接终止任务。请求的核数只改变单次冻结量，
+      # 改变不了"额度已经见底"这件事 —— 先试 2 核、再降到 1 核，Prepare 报的
+      # 都是同一句话（PR #29 连红三轮）。真正要做的只有提升「云原生构建-CPU」
+      # 额度，配置层没有替代品。
+      # 想"不标红"只有 Pipeline 级 allowFailure 一条路（语法手册：为 true 时流水线
+      # 失败状态不上报到 CNB），但它会把真实的测试失败一并吞掉，这里刻意不用。
+      # Stage/Job 级 allowFailure 只作用于该任务本身，管不到 Prepare 阶段失败
+      # （见 endStages 处的更正）。
       docker:
         image: python:3.11
         volumes:
@@ -79,8 +82,8 @@ $:
             if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
             # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
-            # .cnb.yml，PR 改流水线时它跑旧配置（见文件头）。没通过就记一个中立状态
-            # 退出（见 endStages），别把"评审还没开始"标成红叉。
+            # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
+            # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
             if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]; then
               echo "评审已通过，开始自动合并"
               MERGE_PENDING=true
@@ -98,13 +101,16 @@ $:
             removeSourceBranch: true
       endStages:
         - name: 收尾（未审批时不标红）
-          # 只有走到"测试通过但评审未通过"才需要这个中立状态。
+          # 更正上一版的两处想当然：
+          #   1. `type: cnb:status` 不是内置任务（内置里只有 git:pr-update、git:auto-merge
+          #      这类），配置解析不到就是空转；
+          #   2. Stage/Job 级 allowFailure 只作用于该任务本身，管不到 Prepare 阶段失败，
+          #      "评审未通过就不标红"在任务级根本无从谈起。
+          # 留着只为在日志里留一句人话，不承担任何门禁职责。
           if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" != "approve" ]'
           allowFailure: true
-          type: cnb:status
-          options:
-            state: pending
-            description: 测试已通过，等评审
+          script: |
+            echo "测试已通过，评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，暂不自动合并"
     - name: npc-code-review
       <<: *npc_default
       stages:
