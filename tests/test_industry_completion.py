@@ -489,6 +489,53 @@ def test_coverage_denominators_unchanged_by_completion():
         "非基线职业（不建单元的现场岗/无酬劳动）必须登记但不算单元覆盖分子"
 
 
+def test_no_pipeline_defines_a_roleless_ok_stage():
+    """没职责的 stage 一个都不留：它可以被删掉而流水线行为完全不变，那就该删。
+
+    上一版留了一个 endStages：专门在"评审未通过"时打一行日志，靠 allowFailure
+    保证不标红。查语法手册核对后发现它一层职责都担不了——
+      - 语法手册 endStages：prepare 成功后必执行，且**是否成功不影响流水线状态**，
+        所以那条 allowFailure 是空转；
+      - CNB_PULL_REQUEST_REVIEW_STATE 是 approve/unapprove，根本没发生过"评审未通过
+        就标红"这回事，它想遮的问题不存在；
+      - 真正的失败发生在 Prepare（配额见底），而 prepare 失败时 endStages 不执行。
+    它只是"又一次试图用配置压掉红叉"的残留。这条断言要求 stages / endStages /
+    failStages 里每个任务都担着实质职责，别再往里加纯装饰。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+
+    def pipelines(node):
+        """递归取出所有 Pipeline（分支 → 事件 → 列表，值都是 dict）。"""
+        if isinstance(node, list):
+            for x in node:
+                yield from pipelines(x)
+        elif isinstance(node, dict):
+            # Pipeline 的特征是有 stages；事件/分支层的 dict 没有 stages，继续下钻。
+            if "stages" in node:
+                yield node
+            else:
+                for v in node.values():
+                    yield from pipelines(v)
+
+    allowed_script_prefixes = ("echo",)  # 只读日志、不承担职责的 script 一律不该存在
+    for pipe in pipelines(data):
+        for key in ("endStages", "failStages"):
+            assert key not in pipe, (
+                f"流水线 {pipe['name']} 又加了 {key}：无职责的收尾任务删掉即可，"
+                "别用 allowFailure 假装它在起作用"
+            )
+        for stage in pipe["stages"]:
+            if stage.get("type"):
+                continue  # 内置任务自有语义，不在此处判断
+            body = (stage.get("script") or "").strip()
+            first = body.splitlines()[0].strip() if body else ""
+            assert body and not first.startswith(allowed_script_prefixes), (
+                f"stage {stage.get('name')} 的 script 只有日志、没有职责："
+                "删掉它，或让它真的承担一件事"
+            )
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

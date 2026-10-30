@@ -11,7 +11,8 @@
 #   - pull_request.changes_requested → 评审打回时自动修复（兜底）
 #   - pull_request.comment@npc → 人类/@NPC 手动兜底
 #   - main.push → 全量回归 + 知识库更新
-#   - issue.open/update → 事件自动处理
+#   - issue.comment@npc → Issue 里 @CodeBuddy 直接应答
+#   - issue.open/update **不配置**：原先只打一行 echo，白占预冻结配额
 #
 # pull_request.mergeable **刻意不配置**：该事件的配置与工作区都取自目标分支
 # （官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit）。PR 改了 .cnb.yml
@@ -35,16 +36,16 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      # 配额：**不写 runner.cpus**，也不再用 allowFailure 遮红。
-      # 落盘的说法来自 pricing.md「用量计算规则」：每 5 min 冻结一次，单次冻结量
-      # = 5min × 节点规格；额度不够就直接终止任务。请求的核数只改变单次冻结量，
-      # 改变不了"额度已经见底"这件事 —— 先试 2 核、再降到 1 核，Prepare 报的
-      # 都是同一句话（PR #29 连红三轮）。真正要做的只有提升「云原生构建-CPU」
-      # 额度，配置层没有替代品。
+      # 配额：**不写 runner.cpus**，也不配置 allowFailure。
+      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格，
+      # 预冻结时额度不足就立即终止任务。所以核数只改变"每次冻结多少"，改变不了
+      # "额度已经见底"——2 核试过、1 核也试过，Prepare 报的仍是同一句话：
+      #   events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)
+      # 1.33 = 1 核 × 1/3 小时，正是默认 1 核节点规格下一次 5min 冻结的量，
+      # 与"申请几核"无关，只说明「云原生构建-CPU」额度已经见底（免费 160 核时/月）。
+      # 配置层没有替代品，只有根组织提升额度这一条路。
       # 想"不标红"只有 Pipeline 级 allowFailure 一条路（语法手册：为 true 时流水线
       # 失败状态不上报到 CNB），但它会把真实的测试失败一并吞掉，这里刻意不用。
-      # Stage/Job 级 allowFailure 只作用于该任务本身，管不到 Prepare 阶段失败
-      # （见 endStages 处的更正）。
       docker:
         image: python:3.11
         volumes:
@@ -99,18 +100,6 @@ $:
           options:
             mergeType: squash
             removeSourceBranch: true
-      endStages:
-        - name: 收尾（未审批时不标红）
-          # 更正上一版的两处想当然：
-          #   1. `type: cnb:status` 不是内置任务（内置里只有 git:pr-update、git:auto-merge
-          #      这类），配置解析不到就是空转；
-          #   2. Stage/Job 级 allowFailure 只作用于该任务本身，管不到 Prepare 阶段失败，
-          #      "评审未通过就不标红"在任务级根本无从谈起。
-          # 留着只为在日志里留一句人话，不承担任何门禁职责。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" != "approve" ]'
-          allowFailure: true
-          script: |
-            echo "测试已通过，评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，暂不自动合并"
     - name: npc-code-review
       <<: *npc_default
       stages:
@@ -221,28 +210,12 @@ $:
 
   # ========================================================
   # Issue 事件处理
+  #
+  # issue.open / issue.update **刻意不配置**：原来这两条各起一台 1 核机器，
+  # 只为打一行 echo。配额一紧，"没内容"的流水线抢预冻结额度的结果不是它自己挂，
+  # 而是同一组织的 PR 检查在 Prepare 阶段就红（PR #29 连红三轮即此）。
+  # 真要做自动打标/派发再配，别先占着位置空转。
   # ========================================================
-  issue.open:
-    - name: issue-open-label
-      runner:
-        cpus: 1
-      docker:
-        image: python:3.11
-      stages:
-        - name: issue-open-auto-label
-          script: |
-            echo "[auto] Issue #issue open"
-            echo "[auto] 可在此自动打标/派发"
-  issue.update:
-    - name: issue-update-notify
-      runner:
-        cpus: 1
-      docker:
-        image: python:3.11
-      stages:
-        - name: issue-update
-          script: |
-            echo "[auto] Issue #issue update"
   issue.comment@npc:
     - name: issue-npc-reply
       runner:
