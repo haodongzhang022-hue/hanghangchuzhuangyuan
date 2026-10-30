@@ -328,11 +328,45 @@ def test_cli_check_exit_code_separates_known_gap_from_real_error():
 
 
 def test_pipeline_treats_known_gap_as_non_blocking():
-    """流水线必须允许退出码 2 通过，且不许把 1 也放过"""
+    """流水线必须允许退出码 2 通过，且不许把 1 也放过
+
+    原先断言"放行 2"出现 ≥3 处（PR 测试 / 合并门禁 / main 回归）。合并门禁那条已删：
+    它和 PR 测试跑的是同一份数据自检，改 data/*.yaml 时 change-aware 选择器本身就会
+    选中行业库测试，重复跑只加预冻结时长不加信息。守卫改为按 job 断言——
+    真正需要这道放行的 job（PR 测试、main 回归）一个都不能少。
+    """
     root = os.path.join(os.path.dirname(__file__), "..")
     yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
-    assert yml.count('"$rc" = "2"') >= 3, "PR 测试/合并门禁/main 回归三处都要放行 2"
-    assert '|| exit "$rc"' in yml
+    assert yml.count('"$rc" = "2"') >= 2, "PR 测试 / main 回归都要放行退出码 2"
+    assert yml.count('|| exit "$rc"') >= 2
+    for job in ("review-fix-loop", "full-regression"):
+        assert job in yml, f"放行逻辑所在 job 缺失: {job}"
+
+
+def test_pipeline_does_not_prefreeze_a_third_quota_eating_pipeline():
+    """PR 场景下不许有必然空转的第三条完整流水线：配额池是共享的
+
+    pull_request.mergeable 每次 PR 更新都会拉起 merge-gate，但评审未批准时它注定
+    不会合并。这条流水线抢一份预冻结配额，抢不到就在 Prepare 阶段直接 error
+    （"events CPU core-hours are insufficient for pre-freezing"），整个 PR 显示红叉，
+    而实际上一个测试都没跑——PR #29 就是这么红的。所以它必须带 job 级 if 门禁，
+    并且所有 stage 都要在门禁之后（否则门禁形同虚设）。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    yml = open(os.path.join(root, ".cnb.yml"), encoding="utf-8").read()
+    # 定位 merge-gate job 块
+    idx = yml.index("    - name: merge-gate")
+    block = yml[idx:]
+    end = block.find("\n  # ==", 1)
+  # ==", 1)
+    if end == -1:
+        end = len(block)
+    block = block[:end]
+    assert 'if: \'[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]\'' in block, \
+        "merge-gate 必须按评审结论门禁，否则每条 PR 都白抢一份预冻结配额"
+    # 门禁必须出现在 stages 之前：写在 stage 上只跳 stage，Prepare 照样吃配额
+    assert block.index("if:") < block.index("stages:"), \
+        "if 必须挂在 job 级（Prepare 之前），挂到 stage 上挡不住预冻结"
 
 
 def test_skeleton_gap_is_counted_not_silently_dropped():
