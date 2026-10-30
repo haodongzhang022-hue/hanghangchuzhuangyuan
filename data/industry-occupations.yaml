@@ -186,16 +186,16 @@ occupations:
   - {code: OCC-000086, id: food-safety-officer, name: 食品安全员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
   - {code: OCC-000087, id: fb-manager, name: 餐饮店长, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
 
-  - {code: OCC-000088, id: logistics-operator, name: 物流运营, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 物流供应链}
-  - {code: OCC-000089, id: supply-chain-manager, name: 供应链管理, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 物流供应链}
-  - {code: OCC-000090, id: warehouse-manager, name: 仓储管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000088, id: logistics-operator, name: 物流运营, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000089, id: supply-chain-manager, name: 供应链管理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000090, id: warehouse-manager, name: 仓储管理, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
   - {code: OCC-000091, id: buyer, name: 采购专员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 物流供应链}
   - {code: OCC-000092, id: customs-broker, name: 报关员, deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: 物流供应链}
 
-  - {code: OCC-000093, id: production-planner, name: 生产计划员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 智能制造}
-  - {code: OCC-000094, id: quality-engineer, name: 质量管理工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 智能制造}
-  - {code: OCC-000095, id: process-engineer, name: 工艺工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 智能制造}
-  - {code: OCC-000096, id: equipment-manager, name: 设备管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000093, id: production-planner, name: 生产计划员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000094, id: quality-engineer, name: 质量管理工程师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000095, id: process-engineer, name: 工艺工程师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000096, id: equipment-manager, name: 设备管理, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
   - {code: OCC-000097, id: industrial-designer, name: 工业设计师, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: 智能制造}
 
   - {code: OCC-000098, id: cost-estimator, name: 造价员, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 建筑工程}

@@ -472,7 +472,7 @@ partitions:
     aliases: [物流, 供应链, 仓储运输, 快递]
     cluster_basis: [交付链上下游(仓-运-配), 付费方同行(运费)]
     demand_side: [运费收入, 供应链服务费, 电商履约费]
-    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix: {ai: 0.0, hybrid: 42.9, human: 57.1}
     provider_mix_estimated: {ai: 45, hybrid: 30, human: 25}
     gdp_cny: 18000000000000
     gdp_scope: 社会物流总费用(成本口径, 非增加值)
@@ -491,7 +491,7 @@ partitions:
     aliases: [制造业, 工业制造, 生产制造]
     cluster_basis: [交付物同源(实物产品), 交付链上下游(计划-工艺-质控)]
     demand_side: [制造企业订单收入, 工业服务费]
-    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
+    provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
     provider_mix_estimated: {ai: 30, hybrid: 30, human: 40}
     gdp_cny: 33000000000000
     gdp_scope: 制造业增加值(整行业口径, 其中管理与技术岗是 AI 可承接部分)
