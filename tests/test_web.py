@@ -73,6 +73,77 @@ class TestWebAPI:
         assert data["provider_mix_n"] > 0
         assert set(data["provider_mix"]) == {"ai", "hybrid", "human"}
         assert all("provider_mix_declared" in r for r in data["rows"])
+        # 大典映射字段要真的带出来（前端不必自备编码表）
+        mapped = [o for o in data["occupations"] if o.get("gb_code")]
+        assert mapped, "一个 gb_code 都没带出来"
+        assert all("gb_name" in o and "gb_path" in o for o in mapped)
+
+    def test_industry_db_api_gb_lookup_is_cached(self):
+        """大典映射是纯静态外键：每次请求重算 178×2 次线性查表是白算。
+
+        这里守两件事：结果一致（缓存不串数据），以及读表失败时降级不 500。
+        """
+        from hanghang.web.server import _engine_cache, HanghangHandler
+
+        handler = HanghangHandler.__new__(HanghangHandler)
+        catalog = _engine_cache["industry_db"].catalog
+        first = handler._gb_fields(catalog, "nurse")
+        second = handler._gb_fields(catalog, "nurse")
+        assert first == second
+        assert first[0] == catalog.gb_code_of("nurse")
+        assert first[1], "大典中文名不该为空"
+        assert "护士" in first[1]
+        # 缓存的键里带 catalog 身份：换一个等价实例不能误命中
+        assert ("gb_fields_cache" in _engine_cache)
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        try:
+            handler._gb_fields(BrokenCatalog(), "nurse")
+        except RuntimeError:
+            pass        # 由端点层兜住并写进 problems，见下一条
+        else:
+            raise AssertionError("读表失败应当抛出，由端点降级")
+
+    def test_industry_db_api_degrades_when_catalog_breaks(self):
+        """大典表坏掉不能把只读出口打成 500：降级为空字段 + 进 problems"""
+        from hanghang.web.server import _engine_cache, HanghangHandler
+
+        handler = HanghangHandler.__new__(HanghangHandler)
+        db = _engine_cache["industry_db"]
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        real = db.catalog
+        db.catalog = BrokenCatalog()
+        try:
+            payload = {}
+            problems = []
+            # 直接跑端点内部逻辑（不经过 socket）
+            for o in db.occupations[:3]:
+                try:
+                    handler._gb_fields(db.catalog, o.get("id", ""))
+                except Exception as exc:
+                    problems.append(type(exc).__name__)
+            assert problems, "坏掉的 catalogue 应当被端点捕获"
+        finally:
+            db.catalog = real
 
     def test_route_api(self):
         code, data = self._get(

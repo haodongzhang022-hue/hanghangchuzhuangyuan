@@ -86,16 +86,42 @@ $:
             # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
             # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
             if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]; then
-              echo "评审已通过，开始自动合并"
+              echo "评审已通过，标记待合并"
               MERGE_PENDING=true
             else
               echo "评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，测试已通过，不执行自动合并"
+              MERGE_PENDING=false
             fi
-        - name: 自动合并（测试通过 + 评审通过）
+            # 必须写到 $GITHUB_OUTPUT：shell 变量出不了这个 stage
+            if [ -n "${GITHUB_OUTPUT:-}" ]; then
+              echo "MERGE_PENDING=$MERGE_PENDING" >> "$GITHUB_OUTPUT"
+            fi
+          # 合并判定跨 stage 传递：变量写进 $GITHUB_OUTPUT 再由 exports 带出。
+          # script 子进程里的 shell 变量出了 stage 就不存在，下个 stage 直接读它
+          # 会让条件恒假、合并静默不执行，而表现是"全绿"——最难查的那种。
+          exports:
+            merge: MERGE_PENDING
+        - name: 评审通过才合并
           # 合并判定就挂在测试流水线末尾：评审一通过（pull_request.approved 那次
-          # 运行）就由同一份 stages 收尾，不需要第三条流水线。取值是 approve /
-          # unapprove，不是 approved —— 写错的那一版条件恒假，门禁静默失效。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
+          # 运行）就由同一份 stages 收尾，不需要第三条流水线。
+          #
+          # ⚠️ 取值是 approve / unapprove（官方「环境变量」），不是 approved。
+          #    写错的那一版条件恒假 → 门禁永久失效，而失败形态是"全绿"，最难查。
+          #    所以下面这条 script 会先把取到的值打进日志：真取不到 approve 时，
+          #    日志里能看见 "REVIEW_STATE=" 是空的，而不是无声地跳过合并。
+          script: |
+            set -e
+            echo "REVIEW_STATE=${CNB_PULL_REQUEST_REVIEW_STATE:-<空>}"
+            echo "MERGE_PENDING=${MERGE_PENDING:-<空>}"
+            if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ] && [ "$MERGE_PENDING" = "true" ]; then
+              echo "判定：评审通过 → 合并"
+            else
+              echo "判定：未满足（评审状态或测试判定不通过）→ 不合并"
+            fi
+        - name: 合并（评审通过 + 测试绿）
+          # 权限边界：合并主体是流水线，不是 NPC。NPC 只有只读审查权，
+          # 这一步由人「允许合并」触发 pull_request.approved 事件后才可能执行。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ] && [ "$MERGE_PENDING" = "true" ]'
           type: git:auto-merge
           options:
             mergeType: squash

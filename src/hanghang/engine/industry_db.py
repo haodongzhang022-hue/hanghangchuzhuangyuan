@@ -462,7 +462,12 @@ class IndustryDatabase:
             + f"   就业口径合计 {s['employment_total_wan']} 万人"
               f"（{s['employment_known_partitions']} 个分区有数）",
             "-" * 72,
-            f"{'状态':<5}{'分区':<14}{'职业':<6}{'产值(亿元)':<12}{'AI%':<6}付费方",
+            # 表头也必须走 _cell：f-string 的 '<14' 按**字符数**补，中文一个字
+            # 占两列，'分区' 补到 14 字符 = 28 显示列，比表体的 20 列宽出 8 列，
+            # 整行表头和表体错位（测试红了两轮才被 NPC 看见，因为用例没注册）。
+            "".join(self._cell(t, w) for t, w in
+                    (("状态", 5), ("分区", 20), ("职业", 8),
+                     ("产值(亿元)", 10), ("AI%", 7))) + "付费方",
         ]
         rows = s["rows"][:top] if top else s["rows"]
         for r in rows:

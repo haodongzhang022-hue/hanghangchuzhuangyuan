@@ -917,18 +917,42 @@ def test_split_partition_gdp_is_not_double_counted():
 
 
 def test_render_aligns_columns_for_cjk_names():
-    """中文长分区名不得顶穿表格列：'{: <14}' / str.ljust 按字符数补，中文会歪"""
+    """中文长分区名不得顶穿表格列：'{: <14}' / str.ljust 按字符数补，中文会歪
+
+    坑：`line[:25]` 是按**字符**切，汉字占两列，25 个字符可能是 31 列，也可能
+    正好把某个汉字切一半。所以取前 N 列必须按显示宽度逐字符累加，不能切字符串
+    ——这条断言自己第一版就踩了这个坑，本地一直没跑（用例没注册进 __main__）。
+    """
     db = IndustryDatabase()
+
+    def head_by_width(line, width):
+        acc = ""
+        for ch in line:
+            if db._disp_width(acc + ch) > width:
+                break
+            acc += ch
+        return acc
+
     text = db.render_text(top=0)
+    lines = text.splitlines()
+    # 表头也必须落在同一条列线上（表头曾用 f-string 的 '<14'，按字符数补，
+    # 中文顶宽，表体用 _cell 按显示宽度补，两边错位 8 列）
+    heads = [l for l in lines if l.startswith("状态")]
+    assert heads, "缺少表头"
+    # 关键：表头前两格（状态 + 分区）的显示宽度必须正好 25 列。
+    # 旧表头 f-string '<14' 按字符数补，'分区' 补到 14 字符 = 28 显示列，
+    # 这里会变成 33 —— 多出 8 列，整张表歪 8 格。
+    head_two_cells = db._cell("状态", 5) + db._cell("分区", 20)
+    assert heads[0].startswith(head_two_cells), (
+        f"表头前两格宽度不对: {heads[0][:28]!r}")
+    assert db._disp_width(head_two_cells) == 25
+
     marks = ("已建", "待建", "不建")
     starts = set()
-    for line in text.splitlines():
+    for line in lines:
         if not line.startswith(marks):
             continue
-        # 状态列 5 列 + 分区列 20 列（显示宽度）之后，数据列必须同一起点
-        starts.add(db._disp_width(line[:25]))
-        assert db._disp_width(line[:25]) > db._disp_width(line[:5].rstrip()), (
-            f"分区名被截断/顶歪: {line!r}")
+        starts.add(db._disp_width(head_by_width(line, 25)))
     assert starts == {25}, f"数据列起点没对齐: {sorted(starts)}"
     # 超宽名字截断加省略号，而不是顶穿后面三列
     assert "国际组织与对外事务" in text or "国际组织与对外事…" in text
@@ -938,6 +962,8 @@ def test_render_aligns_columns_for_cjk_names():
 
 
 if __name__ == "__main__":
+    test_previously_free_occupations_are_now_linked()
+    test_render_aligns_columns_for_cjk_names()
     test_partition_and_occupation_loaded()
     test_members_are_derived_not_duplicated()
     test_bidirectional_alignment()

@@ -417,7 +417,34 @@ def test_approved_event_reuses_the_same_checks_as_pr():
     )
     merged = [s for s in approved_stages if s.get("type") == "git:auto-merge"]
     assert merged, "评审通过后那条流水线里必须真的发起合并"
-    assert merged[0].get("if") == '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]'
+    cond = merged[0].get("if") or ""
+    assert "CNB_PULL_REQUEST_REVIEW_STATE" in cond and "approve" in cond, cond
+    # 光看评审状态不够：测试判定也必须跨 stage 传过来，否则"测试没过也合并"
+    assert "MERGE_PENDING" in cond, (
+        "合并条件必须同时认测试判定（MERGE_PENDING），否则测试失败也会合并")
+
+
+def test_merge_decision_crosses_stage_boundary_through_an_export():
+    """判定必须经 exports 过 stage：shell 变量出不了 script 子进程
+
+    这个坑的形态是"全绿但永不合并"——变量在下个 stage 里根本不存在，
+    条件恒假，而流水线状态正常。所以这里钉住两件事：那个 stage 有 exports，
+    且 exports 里真的把 MERGE_PENDING 导了出去。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+    stages = data["$"]["pull_request"][0]["stages"]
+    holders = [s for s in stages if "MERGE_PENDING" in (s.get("script") or "")]
+    assert holders, "没有任何 stage 计算 MERGE_PENDING，合并条件会恒假"
+    exported = []
+    for s in holders:
+        exported += list((s.get("exports") or {}).values())
+    assert "MERGE_PENDING" in exported, (
+        "MERGE_PENDING 必须写进 $GITHUB_OUTPUT 并由 exports 带出 stage，"
+        "否则下个 stage 读不到它")
+    # 写 $GITHUB_OUTPUT 那句话不能少（只赋值 shell 变量等于没传）
+    assert "GITHUB_OUTPUT" in holders[0]["script"], (
+        "变量要写进 $GITHUB_OUTPUT，只写 shell 变量传不出 stage")
 
 
 def test_review_state_gate_uses_the_real_platform_value():

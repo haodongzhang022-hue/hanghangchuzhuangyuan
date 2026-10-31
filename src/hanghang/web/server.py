@@ -293,6 +293,32 @@ class HanghangHandler(BaseHTTPRequestHandler):
             key=lambda r: (r["status"] != "registered", r["name"]))
         _json_response(self, 200, payload)
 
+    @staticmethod
+    def _gb_fields(catalog, occ_id: str):
+        """职业 →（gb_code, 大典中文名, 分类路径），带进程内缓存。
+
+        大典映射是**纯静态外键**（yaml 读进来就不变），但旧实现每个职业每次请求
+        都线性查两次表；178 个职业 × 每请求 = 白算。缓存成 dict 后请求路径只做
+        O(1) 拼装。缓存键带 catalog 对象 id，换实例（换 data 目录）自动失效。
+        """
+        if catalog is None:
+            return "", "", ""
+        cache = _engine_cache.setdefault("gb_fields_cache", {})
+        key = (id(catalog), occ_id)
+        hit = cache.get(key)
+        if hit is not None:
+            return hit
+        code = catalog.gb_code_of(occ_id) or ""
+        if not code:
+            value = ("", "", "")
+        else:
+            entry = catalog.entry(code) or {}
+            if not isinstance(entry, dict):
+                raise TypeError(f"entry({code}) 返回 {type(entry).__name__}")
+            value = (code, entry.get("name", ""), catalog.path_of(code))
+        cache[key] = value
+        return value
+
     def _api_industry_db(self):
         """GET /api/industry-db — M11 行业分区定义库（分区表+职业表+覆盖+产值，只读）
 
@@ -307,12 +333,17 @@ class HanghangHandler(BaseHTTPRequestHandler):
         occupations = []
         for o in db.occupations:
             row = dict(o)
-            gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
+            try:
+                gb, gb_name, gb_path = self._gb_fields(db.catalog, o.get("id", ""))
+            except Exception as exc:  # 大典表坏了不能把整个只读出口打成 500
+                payload.setdefault("problems", []).append(
+                    f"职业 {o.get('id')} 的大典映射读取失败（{type(exc).__name__}），"
+                    f"已降级为空字段")
+                gb = gb_name = gb_path = ""
             if gb:
-                entry = db.catalog.entry(gb) or {}
                 row["gb_code"] = gb
-                row["gb_name"] = entry.get("name", "")
-                row["gb_path"] = db.catalog.path_of(gb)
+                row["gb_name"] = gb_name
+                row["gb_path"] = gb_path
             occupations.append(row)
         payload["occupations"] = occupations
         payload["problems"] = db.validate()
