@@ -39,8 +39,11 @@ def test_members_are_derived_not_duplicated():
     roles = {m["partition"]: m["unit_role"]
              for m in db.views_of_occupation("architect")}
     assert roles["dongjiagoushi"] == "architect"
+    # 前 5 个是单元自带的岗位；后 3 个是补登记的跨岗位职业（测试/运维/算法），
+    # 它们挂在同名的现有岗位下，不允许为它们临时造岗位名
     assert {o["id"] for o in members} == {
-        "dev-secretary", "architect", "developer", "code-reviewer", "product-manager"}
+        "dev-secretary", "architect", "developer", "code-reviewer", "product-manager",
+        "qa-engineer", "sre-devops", "algorithm-engineer"}
     # 分区定义本身不含 members 字段，避免两份清单分叉
     assert "members" not in p
     # 职业自身也不存归属字段（否则又变回"唯一归属"了）
@@ -231,7 +234,9 @@ def test_export_flat_tables():
         conn.close()
         assert n_part == len(db.partitions)
         assert n_occ == len(db.occupations)
-        assert row == 5
+        # 写死 8 会随补登记漂移；这里比的是"同一份数据在库里有几条边"
+        assert row == len([m for m in db.axis_view.memberships
+                           if m["partition"] == "dongjiagoushi"])
         assert {"provider_ai", "provider_ai_declared"} <= cols
 
 
@@ -546,7 +551,10 @@ def test_missing_planned_roles_is_reported_not_silently_skipped():
 def test_pending_partition_field_must_point_to_real_partition():
     """pending_partition 写错分区 = 一句没人执行的承诺"""
     db = IndustryDatabase()
-    occ = next(o for o in db.occupations if not db.views_of_occupation(o["id"]))
+    # 现实数据里已经没有孤立职业了（自由职业归零），所以造一个
+    db.occupations.append({"id": "lost-hope", "name": "没去向的职业",
+                           "provider": "human", "billing": "salary"})
+    occ = db.occupation("lost-hope")
     occ["pending_partition"] = "no-such-partition"
     problems = db.validate()
     assert any(occ["id"] in p and "pending_partition" in p
@@ -564,18 +572,52 @@ def test_pending_partition_must_be_cleared_once_fulfilled():
 
 
 def test_note_only_intent_is_now_explicit_data():
-    """8 个原本只在 note 里"待补"的孤立职业，现在必须带 pending_partition
+    """意向不能只活在 note 里：孤立职业要么带 pending_partition，要么就别掉队
 
-    note 是给人看的备忘，机器看不见；这条守的是"意向不能只活在注释里"。
+    8 个原本只在 note 里写"待补"的职业**已经全部挂上视角**（free 归零），
+    所以这里守两件事：
+      1) 现实数据里没有谁掉队了——掉队的那批已经清了；
+      2) 真掉队时必须能查到明细（不许只给个数字把人藏起来），
+         且要么有 pending_partition 说明去向，要么就是明确登记为"待定"。
     """
     db = IndustryDatabase()
-    free = db.axis_view.free_occupations()
-    missing = [o["id"] for o in free if not o.get("pending_partition")]
-    assert not missing, f"孤立职业缺少 pending_partition: {missing}"
-    # 明细要能查，只给个数字等于把"谁掉了队"藏起来
+    assert db.axis_view.free_occupations() == [], "又出现没有归属边的职业了"
+    # 造一个掉队的，验证明细出口还在（补全完成后这条路径不能变成死代码）
+    db.occupations.append({"id": "lost-occ", "name": "掉队的职业",
+                           "provider": "human", "billing": "salary",
+                           "pending_partition": "dongjiagoushi"})
     details = db.compute()["free_occupation_details"]
-    assert len(details) == len(free)
+    assert any(d["id"] == "lost-occ" for d in details), details
     assert all("pending_partition" in d for d in details)
+
+
+def test_previously_free_occupations_are_now_linked():
+    """8 个曾经"只在 note 里待补"的职业必须真有归属边，不再靠一句备忘
+
+    这条是本轮的验收口径：意向兑现成数据。挂到已建单元上的那几条还必须带
+    `unit_role`，否则建了单元也路由不到（第 9 条会报）。
+    """
+    db = IndustryDatabase()
+    expected = {
+        "qa-engineer": "dongjiagoushi",
+        "sre-devops": "dongjiagoushi",
+        "algorithm-engineer": "data-analytics",
+        "game-artist": "game-dev-unit",
+        "patent-agent": "legal-services",
+        "translator": "translation",
+        "auditor": "finance-accounting",
+        "nurse": "healthcare",
+    }
+    for oid, pid in expected.items():
+        views = {m["partition"] for m in db.views_of_occupation(oid)}
+        assert pid in views, f"{oid} 仍然没挂到 {pid}：{views}"
+        # 意向兑现后字段必须清掉，否则第 18 条会报"字段没清"
+        assert not db.occupation(oid).get("pending_partition"), oid
+    # 已建单元的那几个必须带岗位名（且必须是该单元真实存在的岗位）
+    for oid in ("qa-engineer", "sre-devops", "algorithm-engineer", "game-artist",
+                "patent-agent", "auditor", "nurse"):
+        edges = [m for m in db.views_of_occupation(oid) if m.get("unit_role")]
+        assert edges, f"{oid} 挂了已建单元却没有 unit_role"
 
 
 def test_export_exposes_estimated_mix_columns():

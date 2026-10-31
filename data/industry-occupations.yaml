@@ -70,27 +70,27 @@ occupations:
   - {code: OCC-000003, id: code-reviewer, name: 代码评审员, deliverable: 评审意见, provider: hybrid, billing: project, baseline_occupation: true}
   - {code: OCC-000004, id: product-manager, name: 产品经理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
   - {code: OCC-000005, id: dev-secretary, name: 研发秘书/PMO, deliverable: 记录, provider: hybrid, billing: salary, baseline_occupation: true}
-  - {code: OCC-000006, id: qa-engineer, name: 测试工程师, deliverable: 程序, provider: human, billing: salary, baseline_occupation: false, pending_partition: dongjiagoushi, note: 属软件研发单元，但该单元尚无测试岗；建 role 前不硬塞成员}
-  - {code: OCC-000007, id: sre-devops, name: 运维/SRE, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, pending_partition: dongjiagoushi, note: 同上，等软件研发单元新增运维岗}
-  - {code: OCC-000008, id: algorithm-engineer, name: 算法工程师, deliverable: 代码, provider: human, billing: salary, baseline_occupation: false, pending_partition: data-analytics, note: 横跨软件研发与数据分析，归属本就不唯一；先登记意向，不抢占地写死}
+  - {code: OCC-000006, id: qa-engineer, name: 测试工程师, deliverable: 程序, provider: human, billing: salary, baseline_occupation: false, note: 属软件研发，但该单元尚无测试岗；归属先落在职业轴上，岗位名等建 role 再填（路由命中不了比不挂更坏）}
+  - {code: OCC-000007, id: sre-devops, name: 运维/SRE, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, note: 同上，等软件研发单元新增运维岗再做硬归属}
+  - {code: OCC-000008, id: algorithm-engineer, name: 算法工程师, deliverable: 代码, provider: human, billing: salary, baseline_occupation: false, note: 横跨软件研发与数据分析，两边都是真干；用双视角权重表达，不再二选一}
 
   # ---------------- 游戏研发 ----------------
   - {code: OCC-000009, id: game-planner, name: 游戏策划, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
   - {code: OCC-000010, id: level-designer, name: 关卡设计师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
   - {code: OCC-000011, id: game-programmer, name: 游戏客户端开发, deliverable: 代码, provider: hybrid, billing: salary, baseline_occupation: true}
-  - {code: OCC-000012, id: game-artist, name: 游戏美术, deliverable: 物料, provider: human, billing: project, baseline_occupation: false, pending_partition: design-visual, note: 视觉技能与设计岗同源，生产链在游戏研发；两边都是真干，暂不二选一}
+  - {code: OCC-000012, id: game-artist, name: 游戏美术, deliverable: 物料, provider: human, billing: project, baseline_occupation: false, note: 视觉技能与设计岗同源，生产链在游戏研发；两边都是真干，用双视角权重表达}
 
   # ---------------- 法律咨询 ----------------
   - {code: OCC-000013, id: litigation-lawyer, name: 诉讼律师, deliverable: 服务, provider: hybrid, billing: retainer, baseline_occupation: true}
   - {code: OCC-000014, id: contract-reviewer, name: 合同审查员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
   - {code: OCC-000015, id: compliance-officer, name: 合规专员, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true}
-  - {code: OCC-000016, id: patent-agent, name: 专利代理人, deliverable: 文本, provider: human, billing: project, baseline_occupation: false, pending_partition: legal-services, note: 属法律服务，兼跨科研产出转化}
+  - {code: OCC-000016, id: patent-agent, name: 专利代理人, deliverable: 文本, provider: human, billing: project, baseline_occupation: false, note: 属法律服务，兼跨科研产出转化；法律为主、科研转化次之}
 
   # ---------------- 内容创作 ----------------
   - {code: OCC-000017, id: copywriter, name: 文案/撰稿人, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
   - {code: OCC-000018, id: media-operator, name: 新媒体运营, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true}
   - {code: OCC-000019, id: content-editor, name: 内容编辑/审校, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
-  - {code: OCC-000020, id: translator, name: 翻译/本地化, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: false, pending_partition: translation, note: 翻译本地化分区待建单元；笔译已由 subtitle-translator 等承接，本条是笼统口径}
+  - {code: OCC-000020, id: translator, name: 翻译/本地化, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: false, note: 口笔译通吃：口译归口译服务、笔译归翻译本地化，权重各半（口译人在场，纯人供给）}
 
   # ---------------- 数据分析 ----------------
   - {code: OCC-000021, id: data-analyst, name: 数据分析师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
@@ -107,7 +107,7 @@ occupations:
   - {code: OCC-000028, id: tax-advisor, name: 税务师, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true}
   - {code: OCC-000029, id: finance-analyst, name: 财务分析师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
   - {code: OCC-000030, id: payroll-processor, name: 薪酬核算员, deliverable: 文本, provider: ai, billing: subscription, baseline_occupation: true}
-  - {code: OCC-000031, id: auditor, name: 审计师, deliverable: 方案, provider: human, billing: project, baseline_occupation: false, pending_partition: finance-accounting, note: 与会计同一套准则，但外部审计是独立签字主体，不并进 accountant}
+  - {code: OCC-000031, id: auditor, name: 审计师, deliverable: 方案, provider: human, billing: project, baseline_occupation: false, note: 与会计同一套准则，但外部审计是独立签字主体；挂财务会计单元，岗位名独立}
 
   # ---------------- 市场营销 ----------------
   - {code: OCC-000032, id: market-researcher, name: 市场研究员, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
@@ -125,7 +125,7 @@ occupations:
   - {code: OCC-000040, id: psychologist, name: 心理咨询师, deliverable: 服务, provider: hybrid, billing: hourly, baseline_occupation: true}
   - {code: OCC-000041, id: medical-advisor, name: 就医顾问, deliverable: 方案, provider: hybrid, billing: usage, baseline_occupation: true}
   - {code: OCC-000042, id: fitness-coach, name: 健身教练, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true}
-  - {code: OCC-000043, id: nurse, name: 护士/护理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, pending_partition: healthcare, note: 护理是医疗一线，但线下交付，AI 承接面小}
+  - {code: OCC-000043, id: nurse, name: 护士/护理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, note: 护理是医疗一线，线下交付，AI 承接面小；挂健康医疗单元，岗位名独立}
 
   # ---------------- 家装设计 ----------------
   - {code: OCC-000044, id: interior-designer, name: 室内设计师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}

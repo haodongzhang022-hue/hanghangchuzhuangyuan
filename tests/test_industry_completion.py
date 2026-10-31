@@ -204,15 +204,24 @@ def test_cli_occupations_partition_filter_uses_axis_view():
 
 def test_cli_occupations_unassigned_is_not_whole_library():
     """`--unassigned` 是"没有被任何视角引用"，不是"字段为空"——
-    旧实现给的是全表，等于把"全都没挂"这个假消息当结论。 """
+    旧实现给的是全表，等于把"全都没挂"这个假消息当结论。
+
+    现实数据里 8 个孤立职业已经全部挂上视角（free=0），所以这里**造一个**孤立职业
+    来验，而不是依赖"现实里还有人掉队"——否则补全一完成，这条断言就自己失效了。
+    """
     db = _db()
+    db.occupations.append({"id": "lonely-occ", "name": "谁都没挂的职业",
+                           "provider": "human", "billing": "salary"})
     free = len(db.unassigned_occupations())
-    assert 0 < free < len(db.occupations)
+    assert 0 < free < len(db.occupations), free
+    assert "lonely-occ" in {o["id"] for o in db.unassigned_occupations()}
+    # CLI 自己读盘，现实数据现已全部有归属 → 必须明确说"无匹配"，
+    # 而不是把全表端出来冒充"未挂职业"
     out = _run_cli("occupations", "--unassigned")
     assert out.returncode == 0, out.stderr
-    assert f"合计 {free} 个职业" in out.stdout, out.stdout
-    # 已挂视角的职业不许混进来
+    assert "无匹配职业" in out.stdout, out.stdout
     assert "architect " not in out.stdout, out.stdout
+    assert len(out.stdout.splitlines()) < 10, out.stdout   # 不是全表
 
 
 def test_cli_unknown_partition_is_reported_not_silently_empty():

@@ -71,7 +71,7 @@ partitions:
     aliases: [软件和信息技术服务, 信息技术服务, IT服务, 软件开发]
     cluster_basis: [交付物同源(代码/方案), 技能栈重叠]
     demand_side: [企业IT预算, 政企信息化采购, 互联网公司研发投入]
-    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix: {ai: 0.0, hybrid: 62.5, human: 37.5}
     provider_mix_estimated: {ai: 50, hybrid: 40, human: 10}
     gdp_cny: 6000000000000
     gdp_scope: 软件业务收入 + 信息技术服务收入（规上口径）
@@ -90,7 +90,7 @@ partitions:
     aliases: [游戏, 电子游戏, 互动娱乐]
     cluster_basis: [交付物同源(游戏产品), 交付链上下游]
     demand_side: [玩家付费, 发行分成, 广告变现]
-    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix: {ai: 0.0, hybrid: 75.0, human: 25.0}
     provider_mix_estimated: {ai: 35, hybrid: 45, human: 20}
     gdp_cny: 3300000000000
     gdp_scope: 游戏市场实际销售收入
@@ -108,7 +108,7 @@ partitions:
     aliases: [法律服务, 法务, 律师服务]
     cluster_basis: [付费方同行(企业/个人纠纷), 资质门槛]
     demand_side: [企业法务预算, 个人诉讼付费, 政府购买法律服务]
-    provider_mix: {ai: 33.3, hybrid: 66.7, human: 0.0}
+    provider_mix: {ai: 25.0, hybrid: 50.0, human: 25.0}
     provider_mix_estimated: {ai: 40, hybrid: 50, human: 10}
     gdp_cny: 270000000000
     gdp_scope: 法律服务行业营业收入
@@ -144,7 +144,7 @@ partitions:
     aliases: [大数据分析, 商业分析, 数据科学, BI]
     cluster_basis: [技能栈重叠(数据/建模/可视化), 交付物同源(洞察报告)]
     demand_side: [企业数据预算, 数字化改造项目]
-    provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
+    provider_mix: {ai: 0.0, hybrid: 50.0, human: 50.0}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 800000000000
     gdp_scope: 大数据产业市场规模中"分析服务"部分
@@ -181,7 +181,7 @@ partitions:
     aliases: [财税, 会计服务, 代理记账, 财务共享]
     cluster_basis: [交付物同源(账/税/报表), 法规一致性要求]
     demand_side: [企业年度财税服务预算, 代账订阅费]
-    provider_mix: {ai: 25.0, hybrid: 75.0, human: 0.0}
+    provider_mix: {ai: 16.7, hybrid: 66.7, human: 16.7}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 300000000000
     gdp_scope: 代理记账/财税服务市场规模(窄口径)
@@ -235,7 +235,7 @@ partitions:
     aliases: [医疗健康, 大健康, 健康管理, 互联网医疗]
     cluster_basis: [付费方同行(医保/自费), 资质与合规门槛]
     demand_side: [医保支付, 个人自费, 企业健康福利]
-    provider_mix: {ai: 0.0, hybrid: 75.0, human: 25.0}
+    provider_mix: {ai: 0.0, hybrid: 60.0, human: 40.0}
     provider_mix_estimated: {ai: 30, hybrid: 45, human: 25}
     gdp_cny: 9000000000000
     gdp_scope: 卫生总费用(含公立医疗, 其中市场化服务仅一部分)
@@ -309,7 +309,7 @@ partitions:
     aliases: [平面设计, 设计服务, UI设计, 品牌设计]
     cluster_basis: [交付物同源(视觉稿/物料), 付费方同行(品牌预算)]
     demand_side: [企业品牌/营销预算, 平台商家设计付费]
-    provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
+    provider_mix: {ai: 0.0, hybrid: 80.0, human: 20.0}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 500000000000
     gdp_scope: 设计服务业营业收入(含工业设计/平面设计)
@@ -352,7 +352,7 @@ partitions:
     aliases: [笔译, 字幕翻译, 本地化, 语言服务-文本交付]
     cluster_basis: [交付物同源(文本/字幕转换), 交付方式同源(异步交付)]
     demand_side: [企业出海本地化预算, 出版/影视本地化项目, 平台字幕外包]
-    provider_mix: {ai: 50.0, hybrid: 25.0, human: 25.0}
+    provider_mix: {ai: 75.0, hybrid: 25.0, human: 0.0}
     provider_mix_estimated: {ai: 70, hybrid: 28, human: 2}
     gdp_cny: 70000000000
     gdp_scope: 语言服务行业总产值(含口译，口径未拆)
@@ -433,7 +433,7 @@ partitions:
     aliases: [旅游, 酒店, 住宿, 文旅]
     cluster_basis: [交付链上下游(行程-住宿-票务), 付费方同行(游客)]
     demand_side: [游客消费, 商旅报销, 平台佣金]
-    provider_mix: {ai: 33.3, hybrid: 0.0, human: 66.7}
+    provider_mix: {ai: 42.9, hybrid: 0.0, human: 57.1}
     provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 5000000000000
     gdp_scope: 旅游业总收入(含住宿/餐饮/景区, 与餐饮有重叠)
@@ -625,7 +625,7 @@ partitions:
     aliases: [文化娱乐, 演艺, 出版, 艺术服务]
     cluster_basis: [付费方同行(票务/版权), 交付物版权属性]
     demand_side: [票务收入, 版权授权, 政府文化采购]
-    provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
+    provider_mix: {ai: 16.7, hybrid: 33.3, human: 50.0}
     provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 1000000000000
     gdp_scope: 文化及相关产业增加值中内容创作生产部分
@@ -692,7 +692,7 @@ partitions:
     cluster_basis: [付费方同源(赛事奖金/俱乐部工资/票务赞助), 交付物同源(竞技成绩与赛事产品),
                     技能栈重叠(竞技水平/战术/赛事组织)]
     demand_side: [赛事奖金与俱乐部工资, 票务与赞助, 平台转播权, 陪玩平台分成]
-    provider_mix: {ai: 0.0, hybrid: 25.0, human: 75.0}
+    provider_mix: {ai: 0.0, hybrid: 33.3, human: 66.7}
     provider_mix_estimated: {ai: 15, hybrid: 30, human: 55}
     gdp_cny: null
     gdp_scope: 并入文体娱乐业口径，本分区无独立统计（刻意留空，不与直播打赏合并算一份）
@@ -715,7 +715,7 @@ partitions:
     aliases: [健身, 体育培训, 运动康复]
     cluster_basis: [付费方同行(会员费/课时费), 交付物同源(运动指导与训练服务)]
     demand_side: [健身会员费, 私教课时费, 体育培训费, 康复训练自费]
-    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: null
     gdp_scope: 体育服务业中健身/培训分项，无单独发布口径（刻意留空）
@@ -761,7 +761,7 @@ partitions:
     aliases: [科研服务, 学术出版, 研发外包]
     cluster_basis: [交付链上下游(选题-申报-实验-发表), 经费驱动]
     demand_side: [科研经费, 企业研发外包费, APC版面费]
-    provider_mix: {ai: 40.0, hybrid: 40.0, human: 20.0}
+    provider_mix: {ai: 33.3, hybrid: 33.3, human: 33.3}
     provider_mix_estimated: {ai: 50, hybrid: 45, human: 5}
     gdp_cny: 2500000000000
     gdp_scope: 研究与试验发展(R&D)经费中外部服务部分(窄口径)

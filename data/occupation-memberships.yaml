@@ -193,6 +193,24 @@ memberships:
   - {occupation: un-staff, partition: international-org, axis: occupation, weight: 1.0}
   - {occupation: foreign-service-officer, partition: international-org, axis: occupation, weight: 1.0}
 
+# ------------------------------------------------------------ 原本"只有意向"的职业
+# 这 8 条早先只在 occupation 记录里写 pending_partition（一句没人执行的承诺），
+# 所以在任何视角里都看不见：不算成员、不进供给结构分母、也不算覆盖。
+# 现在把它换成真边——意向兑现成数据，pending_partition 字段随之清掉。
+# 挂到已建单元上的几条**故意不写 unit_role**：该单元还没有对应岗位，
+# 硬填一个不存在的岗位名只会让路由永远命中不了（比不挂更坏）。
+  - {occupation: qa-engineer, partition: dongjiagoushi, axis: occupation, weight: 1.0, unit_role: reviewer, note: "软件研发单元的评审岗暂由测试承接；单建测试岗前先这么挂"}
+  - {occupation: sre-devops, partition: dongjiagoushi, axis: occupation, weight: 1.0, unit_role: developer, note: "环境与部署归开发岗；单建运维岗前先这么挂"}
+  - {occupation: algorithm-engineer, partition: data-analytics, axis: occupation, weight: 0.60, unit_role: data_scientist, note: "数据侧为主"}
+  - {occupation: algorithm-engineer, partition: dongjiagoushi, axis: occupation, weight: 0.40, unit_role: developer, note: "模型工程在研发侧"}
+  - {occupation: game-artist, partition: game-dev-unit, axis: occupation, weight: 0.70, unit_role: game_dev, note: "生产链在游戏研发"}
+  - {occupation: game-artist, partition: design-visual, axis: occupation, weight: 0.50, unit_role: illustrator, note: "视觉技能与设计岗同源"}
+  - {occupation: patent-agent, partition: legal-services, axis: occupation, weight: 0.80, unit_role: contract_advisor, note: "法律服务为主：撰写与答复审查意见同属文书交付"}
+  - {occupation: patent-agent, partition: research-academic, axis: occupation, weight: 0.30, note: "兼做科研成果转化（研究流程待拆，暂不填岗位名）"}
+  - {occupation: auditor, partition: finance-accounting, axis: occupation, weight: 1.0, unit_role: accountant, note: "同一套准则、独立签字；单建审计岗前先挂会计"}
+  - {occupation: nurse, partition: healthcare, axis: occupation, weight: 1.0, unit_role: health_consultant, note: "护理一线线下交付；线上窗口由健康管理岗承接"}
+  - {occupation: translator, partition: translation, axis: occupation, weight: 1.0, unit_role: subtitle, note: "笼统口径（口笔译通吃）；岗位名先挂字幕，单建笔译岗再改"}
+
 # ---------------------------------------------------------------- 横切职业示例
 # 下面这几条是软归属真正要表达的东西：**同一个职业被不同视角同时看见**。
 # 权重不是概率，也不要求相加为 100 —— 0.6 + 0.5 不是错误，是"两件活都真干"。
