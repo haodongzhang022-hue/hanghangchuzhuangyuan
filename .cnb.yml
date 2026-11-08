@@ -7,11 +7,18 @@
 #   - 评审发现需修改 → 评审NPC在评论中 @CodeBuddy → 自动触发修复
 #   - CodeBuddy 修复提交 → 新 commit 触发下一轮 pull_request → 再次评审
 #   - 目标导向：评审无错即停，有错继续修，不强制轮数
-#   - pull_request.mergeable → 评审门禁检查 + 自动合并
+#   - pull_request.approved → 评审通过后用 PR 自己的配置重跑检查并合并
 #   - pull_request.changes_requested → 评审打回时自动修复（兜底）
 #   - pull_request.comment@npc → 人类/@NPC 手动兜底
 #   - main.push → 全量回归 + 知识库更新
-#   - issue.open/update → 事件自动处理
+#   - issue.comment@npc → Issue 里 @CodeBuddy 直接应答
+#   - issue.open/update **不配置**：原先只打一行 echo，白占预冻结配额
+#
+# pull_request.mergeable **刻意不配置**：该事件的配置与工作区都取自目标分支
+# （官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit）。PR 改了 .cnb.yml
+# 时，合并门禁跑的是 main 上的旧配置——想修 CI 却先在旧配置上再红一轮，改的人
+# 永远看不到自己的修复生效（PR #29 连红三轮即此）。评审通过后由
+# pull_request.approved 重跑同一份 stages 并合并：配置与代码都取自预合并。
 #
 # 角色定义见 .cnb/settings.yml
 # 评审闭环规则见 docs/评审修复闭环护栏.md
@@ -29,15 +36,25 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      runner:
-        cpus: 2
+      # 配额：**不写 runner.cpus**，也不配置 allowFailure。
+      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格，
+      # 预冻结时额度不足就立即终止任务。所以核数只改变"每次冻结多少"，改变不了
+      # "额度已经见底"——2 核试过、1 核也试过，Prepare 报的仍是同一句话：
+      #   events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)
+      # 1.33 = 1 核 × 1/3 小时，正是默认 1 核节点规格下一次 5min 冻结的量，
+      # 与"申请几核"无关，只说明「云原生构建-CPU」额度已经见底（免费 160 核时/月）。
+      # 配置层没有替代品，只有根组织提升额度这一条路。
+      # 想"不标红"只有 Pipeline 级 allowFailure 一条路（语法手册：为 true 时流水线
+      # 失败状态不上报到 CNB），但它会把真实的测试失败一并吞掉，这里刻意不用。
       docker:
         image: python:3.11
         volumes:
           - cache:/root/.cnb-testcache:rw   # 变更感知结果缓存（跨 job/流水线复用，防重复全量）
       env:
         HH_TEST_CACHE_DIR: /root/.cnb-testcache
-      stages:
+      # 这份 stages 被 pull_request 与 pull_request.approved 共用（YAML 锚点）：
+      # 评审通过后要重跑一次同样的检查并合并，各写一份迟早漂移，改一边忘一边。
+      stages: &pr_checks
         - name: 测试信号灯（变更感知 + CLI 冒烟）
           script: |
             set -e
@@ -56,6 +73,67 @@ $:
             echo "==== CLI 冒烟测试 ===="
             python3 src/hanghang/cli/main.py route "架构设计方案" | grep -q "architect" && echo "  ✅ 路由冒烟通过" || { echo "  ❌ 路由冒烟失败"; exit 1; }
             python3 src/hanghang/cli/main.py route "帮我点个外卖" | grep -q "人工" && echo "  ✅ 回落冒烟通过" || { echo "  ❌ 回落冒烟失败"; exit 1; }
+            # M11 行业分区库是「数据即产品」：yaml 漂移必须由流水线兜底，不能靠自觉
+            echo ""
+            echo "==== M11 行业分区库自检 ===="
+            # 退出码 2 = 只剩"待建分区骨架没人认领"（补职业这项活没干完），
+            # 不是数据坏了：这一档要让 PR 绿着进门，否则所有 PR 都会被同一批已知缺口卡死。
+            # 1 = 真问题，必须红。
+            rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
+            if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
+            [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
+            # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
+            # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
+            if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ]; then
+              echo "评审已通过，标记待合并"
+              MERGE_PENDING=true
+            else
+              echo "评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，测试已通过，不执行自动合并"
+              MERGE_PENDING=false
+            fi
+            # 必须走 CNB 的自定义变量输出协议，shell 变量出不了这个 stage
+            echo "##[set-output merge=$MERGE_PENDING]"
+          # 合并判定跨 stage 传递：变量由 ##[set-output key=value] 解析进 Job result，
+          # 再由 exports 带出。script 子进程里的 shell 变量出了 stage 就不存在，
+          # 下个 stage 直接读它会让条件恒假、合并静默不执行，而表现是"全绿"。
+          #
+          # ⚠️ 上一版抄的是 GitHub Actions 的 GITHUB_OUTPUT 文件约定 —— CNB 没有
+          #    这个文件，`[ -n "$XXX" ]` 恒假，判定从未进过 result，exports 导出
+          #    空串 → 合并条件恒假 → 门禁永久失效而流水线仍全绿。
+          exports:
+            merge: MERGE_PENDING
+        - name: 评审通过才合并
+          # 合并判定就挂在测试流水线末尾：评审一通过（pull_request.approved 那次
+          # 运行）就由同一份 stages 收尾，不需要第三条流水线。
+          #
+          # ⚠️ 取值是 approve / unapprove（官方「环境变量」），不是 approved。
+          #    写错的那一版条件恒假 → 门禁永久失效，而失败形态是"全绿"，最难查。
+          #    所以下面这条 script 会先把取到的值打进日志：真取不到 approve 时，
+          #    日志里能看见 "REVIEW_STATE=" 是空的，而不是无声地跳过合并。
+          script: |
+            set -e
+            echo "REVIEW_STATE=${CNB_PULL_REQUEST_REVIEW_STATE:-<空>}"
+            echo "MERGE_PENDING=${MERGE_PENDING:-<空>}"
+            # 空值 = 导出链路坏了（输出协议/ exports / 上一步没执行），
+            # 这时合并条件恒假但流水线全绿——最难查的形态。这里把它变成显式红。
+            if [ -z "${MERGE_PENDING:-}" ]; then
+              echo "❌ MERGE_PENDING 未导出：合并门禁已失效，请检查 ##[set-output] 与 exports"
+              exit 1
+            fi
+            if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ] && [ "$MERGE_PENDING" = "true" ]; then
+              echo "判定：评审通过 → 合并"
+            else
+              echo "判定：未满足（评审状态或测试判定不通过）→ 不合并"
+            fi
+        - name: 合并（评审通过 + 测试绿）
+          # 权限边界：合并主体是流水线，不是 NPC。NPC 只有只读审查权，
+          # 这一步由人「允许合并」触发 pull_request.approved 事件后才可能执行。
+          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ] && [ "$MERGE_PENDING" = "true" ]'
+          type: git:auto-merge
+          options:
+            mergeType: squash
+            removeSourceBranch: true
     - name: npc-code-review
       <<: *npc_default
       stages:
@@ -87,35 +165,22 @@ $:
               评审结论输出到 PR 评论。
 
   # ========================================================
-  # PR 可合并 → 自动合并（先做评审门禁）
+  # 评审通过 → 用 PR 自己的配置重跑检查并合并
+  #
+  # 为什么不是 pull_request.mergeable：那个事件的配置和工作区都取自目标分支。
+  # PR 改了 .cnb.yml 时合并门禁跑的是旧配置，改的人看不到自己的修复生效。
+  # 这里是"测试绿 + 评审通过"的最后一个事件，代码与配置都取自预合并，
+  # 合并前那次验证才算数。
   # ========================================================
-  pull_request.mergeable:
-    - name: merge-gate
-      runner:
-        cpus: 2
+  pull_request.approved:
+    - name: merge-on-approve
       docker:
         image: python:3.11
         volumes:
-          - cache:/root/.cnb-testcache:rw   # 与 review-fix-loop 共享同一结果缓存，避免重复全量
+          - cache:/root/.cnb-testcache:rw
       env:
         HH_TEST_CACHE_DIR: /root/.cnb-testcache
-      stages:
-        - name: 测试再次确认（变更感知）
-          script: |
-            set -e
-            echo "==== 合并前测试确认（变更感知） ===="
-            pip install -q -r requirements.txt
-            # 合并门禁同样采用变更感知选择，快速放行无风险的 PR；
-            # 全量回归已由 main.push 事件保证。
-            bash scripts/change-aware-test.sh
-        - name: 自动合并
-          # 评审处置门禁：仅当 PR 已被评审批准（approved）才自动合并，
-          # 避免与 changes_requested 的 auto-fix 竞态误合。
-          if: '[ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approved" ]'
-          type: git:auto-merge
-          options:
-            mergeType: squash
-            removeSourceBranch: true
+      stages: *pr_checks
 
   # ========================================================
   # 评审打回(changes_requested) → 自动修复
@@ -179,28 +244,12 @@ $:
 
   # ========================================================
   # Issue 事件处理
+  #
+  # issue.open / issue.update **刻意不配置**：原来这两条各起一台 1 核机器，
+  # 只为打一行 echo。配额一紧，"没内容"的流水线抢预冻结额度的结果不是它自己挂，
+  # 而是同一组织的 PR 检查在 Prepare 阶段就红（PR #29 连红三轮即此）。
+  # 真要做自动打标/派发再配，别先占着位置空转。
   # ========================================================
-  issue.open:
-    - name: issue-open-label
-      runner:
-        cpus: 1
-      docker:
-        image: python:3.11
-      stages:
-        - name: issue-open-auto-label
-          script: |
-            echo "[auto] Issue #issue open"
-            echo "[auto] 可在此自动打标/派发"
-  issue.update:
-    - name: issue-update-notify
-      runner:
-        cpus: 1
-      docker:
-        image: python:3.11
-      stages:
-        - name: issue-update
-          script: |
-            echo "[auto] Issue #issue update"
   issue.comment@npc:
     - name: issue-npc-reply
       runner:
@@ -249,6 +298,26 @@ main:
                 sys.exit(1)
             print("\n✅ 全部测试通过")
             PY
+        - name: M11 行业分区库自检
+          script: |
+            set -e
+            pip install -q -r requirements.txt
+            # main 全量回归同理：1 才失败，2 是已知未完成（若数据真坏了会变成 1）
+            rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
+            if [ "$rc" = "2" ]; then echo "⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
+            [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+        - name: M11 导出扁平表
+          # 只做"导得出来"的产物校验：仓库没有 generic 制品库，CNB 也没有通用的
+          # 文件产物上传入口（git:release 不支持附件），所以这里不假装有发布通道。
+          # 真要发布时再接 cnbcool/attachments 或 generic 制品库，别写成伪配置。
+          script: |
+            set -e
+            pip install -q -r requirements.txt
+            python3 src/hanghang/cli/main.py industry export --out out/industry-db
+            for f in industry-db.json partitions.csv occupations.csv industry.sqlite; do
+              test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
+            done
+            echo "  ✅ 行业分区库 4 个扁平表导出正常"
     - name: build-knowledge-base
       stages:
         - name: knowledge update

@@ -2,10 +2,111 @@
 from __future__ import annotations
 
 import hashlib
+from functools import lru_cache
 from typing import Dict, List, Optional
 
 from .models import IndustryUnit, RouteResult, Role
 from .registry import Registry
+
+
+_CJK_RANGES = (
+    (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
+    (0x3040, 0x30FF), (0xAC00, 0xD7AF),
+)
+
+
+def _is_cjk_char(ch: str) -> bool:
+    """是否汉字/假名/谚文（这些文字没有空格分词，才需要区间让位判定）"""
+    cp = ord(ch)
+    return any(lo <= cp <= hi for lo, hi in _CJK_RANGES)
+
+
+@lru_cache(maxsize=8192)
+def _is_cjk_term(term: str) -> bool:
+    """词表是静态的，同一个词会被反复判定；缓存掉逐字符的区间比较"""
+    return bool(term) and all(_is_cjk_char(c) for c in term)
+
+
+def _match_spans(text: str, term: str) -> List[tuple]:
+    """term 在 text 中出现的所有 (start, end) 区间"""
+    spans = []
+    start = text.find(term)
+    while start >= 0:
+        spans.append((start, start + len(term)))
+        start = text.find(term, start + 1)
+    return spans
+
+
+# 定语助词：别的单元的长词以「X的/之 Y」的形式修饰本单元的短词时，
+# 短词是被 X 限定的，语境归 X 而不是本单元（「直播间的选品」归主播）。
+# 刻意只收「的/之」——并列连词「和/与」不构成修饰关系，
+# 「直播选品和选品」里后一处是电商独立再说一遍选品，不能被主播整词吞掉。
+_ATTRIBUTIVE_JOINERS = ("的", "之")
+
+
+def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str],
+                         own_terms: Optional[List[str]] = None) -> bool:
+    """
+    term 的每一处出现是否都已被「别的单元的更长汉字词」认领。
+
+    某一次出现被认领 = 满足任一条：
+    - 整段覆盖：某个 foreign 长词的某次出现区间完整包含这次出现
+      （「核算工资」里的「工资」被 HR 侧「算工资」盖住）；
+    - 紧邻定语绑定：某个 foreign 长词紧挨在这次出现之前，中间只隔 0~1 个
+      定语助词（「直播间的选品」——「直播间」+「的」+「选品」）。
+
+    只要有一处不被认领，就返回 False，照常计分：本单元自己独立说了这件事
+    （「直播间的选品和话术」要归主播，但「直播话术顺便说下选品」里电商确实
+    自己说了选品，不能被整段吞掉）。
+
+    只对纯汉字词生效：英文/数字词边界靠空格，不需要也不适用这套判定。
+    ``foreign_terms`` 由调用方保证是「纯 CJK 且比 term 长」的候选（见
+    ``_score_units`` 里一次性预筛的 unit_vocab），这里不再重复判定。
+
+    ``own_terms`` 是**本单元自己**的词表。紧邻定语绑定前要先看这处出现是不是
+    已经被本单元自己的长词整段盖住——盖住了就说明"这个语境本来就是我们的"，
+    不能再因为别的单元凑巧挨着它而判自己出局：
+
+        帮我做网页文案
+          content-creation: 网页文案(1.5)      ← 自己的长词盖住了「文案」
+          dongjiagoushi:    做网页(1.5)        ← 只是挨着「文案」
+        旧判定：文案被「做网页」绑定 → 本方让位 → 1.5 : 1.5 → 判成歧义回落人工
+        新判定：本方长词已认领 → 不让位 → content-creation 独立胜出
+    """
+    if not _is_cjk_term(term):
+        return False
+    spans = _match_spans(text, term)
+    if not spans:
+        return False
+    covers: List[tuple] = []   # 含本词的 foreign 长词出现区间（整段覆盖）
+    binders: List[tuple] = []  # 不含本词的 foreign 长词出现区间（定语绑定）
+    own_covers: List[tuple] = []  # 本单元自己的长词出现区间（本方已认领）
+    for other in foreign_terms:
+        # 只认「更长」的汉字词：调用方通常已预筛（_score_units），这里仍校验一遍，
+        # 好让本函数单独调用时口径一致（_is_cjk_term 有缓存，代价可忽略）。
+        if other == term or len(other) <= len(term) or not _is_cjk_term(other):
+            continue
+        (covers if term in other else binders).extend(_match_spans(text, other))
+    for own in (own_terms or []):
+        if own != term and len(own) > len(term) and term in own \
+                and _is_cjk_term(own):
+            own_covers.extend(_match_spans(text, own))
+
+    def _claimed(s: int, e: int) -> bool:
+        for cs, ce in covers:
+            if cs <= s and e <= ce:  # 整段覆盖
+                return True
+        # 本方长词已整段盖住这处出现 → 语境本来就是本单元的，定语绑定不成立。
+        # 只在绑定这一条上豁免：整段覆盖那条不需要豁免，它比的是"谁说得更具体"。
+        if any(os_ <= s and e <= oe for os_, oe in own_covers):
+            return False
+        for bs, be in binders:
+            # 紧邻定语绑定：定语长词紧挨在本词之前，中间只隔 0~1 个定语助词
+            if be <= s and (s - be == 0 or text[be:s] in _ATTRIBUTIVE_JOINERS):
+                return True
+        return False
+
+    return all(_claimed(s, e) for s, e in spans)
 
 
 class IntentRouter:
@@ -296,23 +397,58 @@ class IntentRouter:
         """
         数据驱动：对每个单元做多维信号评分。
         信号来源：industry_alias + capability_tags + role keywords。
+
+        同一段汉字已被别的单元的长词认领时，本单元的短词不再重复计分
+        （认领 = 整段覆盖或紧邻定语绑定，见 _superseded_cjk_hits）。
+        否则「核算工资」里财务侧的裸词「工资」会被 HR 侧「算工资」重复认领，
+        两侧同分 → 真信号被平均成伪歧义。
+        该让位只跨单元生效，本单元内部的长短词口径不变。
         """
+        # 先收集每个单元的词表，供跨单元让位判定（长词认领的区间）。
+        # 一次性去重 + 只保留纯 CJK 词：让位判定只对汉字词生效，非汉字词在这里
+        # 就丢掉，避免每个 (单元, 词) 组合都重判一遍（这是路由主链路的开销大头）。
+        unit_vocab = {}
+        for unit in units:
+            vocab = list(unit.industry_alias) + list(unit.capability_tags)
+            for role in unit.roles:
+                vocab.extend(role.get_keywords())
+            unit_vocab[unit.unit_id] = list(dict.fromkeys(
+                t for t in vocab if t and _is_cjk_term(t)))
+
         scores = {}
         for unit in units:
             score = 0.0
             matched_signals = []
             matched_terms: List[str] = []  # 实际命中的词（用于歧义时区分泛化共享）
+            foreign_vocab = [t for uid, terms in unit_vocab.items()
+                             if uid != unit.unit_id for t in terms]
+            own_vocab = unit_vocab.get(unit.unit_id, [])
+            # 同一单元里一个词可能既是 tag 又是岗位关键词，判定结果按词缓存
+            supersede_cache: Dict[str, bool] = {}
+
+            def _counted(term: str) -> bool:
+                """本单元的这个词是否仍应计分（别的单元的长词已认领这处出现时让位）"""
+                if not _is_cjk_term(term):
+                    return True
+                hit = supersede_cache.get(term)
+                if hit is None:
+                    longer = [t for t in foreign_vocab if len(t) > len(term)]
+                    own_longer = [t for t in own_vocab
+                                  if len(t) > len(term) and term in t]
+                    hit = _superseded_cjk_hits(text, term, longer, own_longer)
+                    supersede_cache[term] = hit
+                return not hit
 
             # 1. 行业别名直接命中（强信号，2.0）
             for alias in unit.industry_alias:
-                if alias and alias in text:
+                if alias and alias in text and _counted(alias):
                     score += 2.0
                     matched_signals.append(f"alias:{alias}")
                     matched_terms.append(alias)
 
             # 2. capability_tags 命中（中信号，1.0）
             for tag in unit.capability_tags:
-                if tag and tag in text:
+                if tag and tag in text and _counted(tag):
                     score += 1.0
                     matched_signals.append(f"tag:{tag}")
                     matched_terms.append(tag)
@@ -320,7 +456,7 @@ class IntentRouter:
             # 3. 单元内岗位关键词命中（强信号，1.5/岗位）
             for role in unit.roles:
                 for kw in role.get_keywords():
-                    if kw and kw in text:
+                    if kw and kw in text and _counted(kw):
                         score += 1.5
                         matched_signals.append(f"role:{role.name}:{kw}")
                         matched_terms.append(kw)

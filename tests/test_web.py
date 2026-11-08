@@ -55,6 +55,186 @@ class TestWebAPI:
         assert 0.0 < data["industry_coverage"] < 1.0
         assert "rows" in data
 
+    def test_industry_db_api(self):
+        """M11 分区定义库端点：只读，含自检结果与产值口径诚实性"""
+        code, data = self._get("/api/industry-db")
+        assert code == 200
+        assert data["covered_partitions"] > 0
+        assert data["buildable_partitions"] >= data["covered_partitions"]
+        # 只剩"待建分区骨架没人认领"这一类已知缺口，别的错不许混进来
+        assert [p for p in data["problems"] if "骨架悬空" not in p] == []
+        assert len(data["rows"]) == data["total_partitions"]
+        assert len(data["occupations"]) == data["total_occupations"]
+        # 无市场口径的分区不得伪造为 0
+        gdp = {r["id"]: r["gdp_cny"] for r in data["rows"]}
+        assert gdp["admin-office"] is None
+        assert gdp["dongjiagoushi"] > 0
+        # 供给结构是实测口径，手写值另有留档字段
+        assert data["provider_mix_n"] > 0
+        assert set(data["provider_mix"]) == {"ai", "hybrid", "human"}
+        assert all("provider_mix_declared" in r for r in data["rows"])
+        # 大典映射字段要真的带出来（前端不必自备编码表）
+        mapped = [o for o in data["occupations"] if o.get("gb_code")]
+        assert mapped, "一个 gb_code 都没带出来"
+        assert all("gb_name" in o and "gb_path" in o for o in mapped)
+
+    def test_industry_db_api_gb_lookup_is_cached(self):
+        """大典映射是纯静态外键：每次请求重算 178×2 次线性查表是白算。
+
+        这里守两件事：结果一致（缓存不串数据），以及读表失败时降级不 500。
+        """
+        from hanghang.web.server import _engine_cache, HanghangHandler
+
+        handler = HanghangHandler.__new__(HanghangHandler)
+        catalog = _engine_cache["industry_db"].catalog
+        first = handler._gb_fields(catalog, "nurse")
+        second = handler._gb_fields(catalog, "nurse")
+        assert first == second
+        assert first[0] == catalog.gb_code_of("nurse")
+        assert first[1], "大典中文名不该为空"
+        assert "护士" in first[1]
+        # 缓存的键里带 catalog 身份：换一个等价实例不能误命中
+        assert ("gb_fields_cache" in _engine_cache)
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        try:
+            handler._gb_fields(BrokenCatalog(), "nurse")
+        except RuntimeError:
+            pass        # 由端点层兜住并写进 problems，见下一条
+        else:
+            raise AssertionError("读表失败应当抛出，由端点降级")
+
+    def test_industry_db_api_degrades_when_catalog_breaks(self):
+        """大典表坏掉不能把只读出口打成 500：降级为空字段 + 进 problems"""
+        from hanghang.web.server import _engine_cache, HanghangHandler
+
+        handler = HanghangHandler.__new__(HanghangHandler)
+        db = _engine_cache["industry_db"]
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        real = db.catalog
+        db.catalog = BrokenCatalog()
+        try:
+            payload = {}
+            problems = []
+            # 直接跑端点内部逻辑（不经过 socket）
+            for o in db.occupations[:3]:
+                try:
+                    handler._gb_fields(db.catalog, o.get("id", ""))
+                except Exception as exc:
+                    problems.append(type(exc).__name__)
+            assert problems, "坏掉的 catalogue 应当被端点捕获"
+        finally:
+            db.catalog = real
+
+    def test_coverage_api_reuses_cached_industry_db(self):
+        """CoverageTracker 必须复用缓存的职业库实例，不许按请求重建
+
+        自建一个要重读 178 职业 + 41 分区 + 186 边 + 大典/ISCO 参考表，
+        实测端点从 ~12ms 涨到 ~1060ms。这里直接断言注入的对象就是缓存那个。
+        """
+        import hanghang.web.server as ws
+        from unittest import mock
+
+        cached = ws._get_cached_industry_db()
+        with mock.patch.object(ws, "CoverageTracker",
+                               wraps=ws.CoverageTracker) as spy:
+            self._get("/api/coverage")
+        assert spy.called, "端点没有构造 CoverageTracker？"
+        kwargs = spy.call_args.kwargs
+        assert kwargs.get("industry_db") is cached, (
+            f"应注入缓存实例，实际: {kwargs.get('industry_db')!r}")
+
+    def test_industry_db_api_keeps_degrade_notes_in_problems(self):
+        """大典表读取失败的降级记录必须留在 problems 里，不能被 validate() 覆盖
+
+        旧实现用 payload.setdefault("problems", []).append(...)，紧接着又
+        payload["problems"] = db.validate() 整体覆盖 —— 降级一条也留不下来，
+        "降级要可见"在这条路径上完全失效。
+        """
+        import hanghang.web.server as ws
+        from unittest import mock
+
+        db = ws._get_cached_industry_db()
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        real = db.catalog
+        db.catalog = BrokenCatalog()
+        try:
+            code, data = self._get("/api/industry-db")
+        finally:
+            db.catalog = real
+            ws._engine_cache.pop("gb_fields_cache", None)
+        assert code == 200
+        assert any("大典映射读取失败" in p for p in data["problems"]), (
+            f"降级记录被吞了: {data['problems']}")
+
+    def test_industry_db_unavailable_degrades_to_503_not_everything_500(self):
+        """M11 数据文件写坏不许打挂整个面板
+
+        `_init_engines()` 里构造 IndustryDatabase 会 yaml.safe_load 三个数据文件，
+        语法错就抛；不兜住的话 `initialized` 永远设不上，/api/units、/api/route、
+        /api/coverage、/api/metrics、/api/prefixes 全部 500 —— 一份旁路数据
+        把 M1/M3/M6/M7 一起拖下水。
+
+        这里把缓存置成加载失败的形态（None + error），断言：
+        - /api/industry-db → 503 且说明原因（不是 500，也不是"空库但 200"）
+        - 既有端点照常 200；/api/coverage 走 DISABLED_DB 降级而不是重试读盘
+        """
+        import hanghang.web.server as ws
+
+        real_db = ws._engine_cache.get("industry_db")
+        real_err = ws._engine_cache.get("industry_db_error")
+        ws._engine_cache["industry_db"] = None
+        ws._engine_cache["industry_db_error"] = "ParserError: 测试注入"
+        try:
+            for path in ("/api/units", "/api/coverage", "/api/metrics",
+                         "/api/prefixes", "/api/index"):
+                code, _ = self._get(path)
+                assert code == 200, f"{path} 被旁路数据拖挂了: {code}"
+            try:
+                self._get("/api/industry-db")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 503, f"应降级为 503，实际 {exc.code}"
+                body = json.loads(exc.read().decode("utf-8"))
+                assert "行业库不可用" in body["error"], body
+                assert any("测试注入" in p for p in body["problems"]), body
+            else:
+                raise AssertionError("/api/industry-db 应当返回 503")
+        finally:
+            ws._engine_cache["industry_db"] = real_db
+            if real_err is None:
+                ws._engine_cache.pop("industry_db_error", None)
+            else:
+                ws._engine_cache["industry_db_error"] = real_err
+
     def test_route_api(self):
         code, data = self._get(
             "/api/route?text=" + urllib.parse.quote("既要架构设计又要落地开发"))

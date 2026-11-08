@@ -93,6 +93,11 @@
         "prefix": "[编辑]",
         "composite": true,
         "handoff": "relay"
+      },
+      "live_host": {
+        "prefix": "[主播]",
+        "composite": true,
+        "handoff": "relay"
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"

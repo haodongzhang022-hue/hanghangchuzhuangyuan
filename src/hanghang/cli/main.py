@@ -14,6 +14,13 @@ from hanghang.engine import (
     SessionBindingStore, SessionBoundRouter,
 )
 from hanghang.engine.coverage import CoverageTracker
+from hanghang.cli.industry_commands import (
+    cmd_industry_partitions, cmd_industry_partition,
+    cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
+    cmd_industry_catalog, cmd_industry_axis, cmd_industry_access,
+    cmd_industry_occupation, cmd_industry_filter,
+    cmd_reference_isco, cmd_reference_sources,
+)
 from hanghang.cli.state_commands import (
     cmd_state_init, cmd_state_add, cmd_state_show,
     cmd_state_compact, cmd_state_update, cmd_state_fold,
@@ -385,6 +392,100 @@ def build_parser():
     ci = sub.add_parser("index", help="导出全量跨行业能力索引")
     ci.set_defaults(func=cmd_index)
 
+    # ---- M11 行业分区定义库（职业=最小单位，行业=聚类结果）----
+    ind = sub.add_parser("industry", help="M11 行业分区定义库：分区表/职业表/自检/导出")
+    ind_sub = ind.add_subparsers(dest="industry_cmd")
+
+    icat = ind_sub.add_parser("catalog", help="查职业分类大典(2022)：按编码/名称检索，或看覆盖快照")
+    icat.add_argument("--code", default="", help="大典细类编码，如 4-14-02-02")
+    icat.add_argument("--search", default="", help="按职业名关键词搜索")
+    icat.add_argument("--gaps", action="store_true", help="列出还没被我们职业挂上的大典细类(候选池)")
+    icat.add_argument("--major", default="", help="配合 --gaps 限定大类，如 2")
+    icat.add_argument("--limit", type=int, default=20, help="搜索/缺口返回条数(0=全部)")
+    icat.add_argument("--data-dir", default="", help="自定义 data 目录")
+    icat.set_defaults(func=cmd_industry_catalog)
+
+    ipart = ind_sub.add_parser("partitions", help="列出行业分区定义表(按产值降序)")
+    ipart.add_argument("--top", type=int, default=0, help="仅看前 N 个(0=全部)")
+    ipart.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ipart.set_defaults(func=cmd_industry_partitions)
+
+    ione = ind_sub.add_parser("partition", help="查看单个分区详情(聚类依据/付费方/成员职业)")
+    ione.add_argument("id", help="分区ID，如 video-media")
+    ione.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ione.set_defaults(func=cmd_industry_partition)
+
+    iocc = ind_sub.add_parser("occupations", help="列出职业(可按分区/提供者/收费方式过滤)")
+    iocc.add_argument("--partition", default="", help="按分区ID过滤")
+    iocc.add_argument("--provider", default="", choices=["", "ai", "hybrid", "human"],
+                      help="按提供者类型过滤")
+    iocc.add_argument("--billing", default="",
+                      help="按收费方式过滤(subscription/hourly/project/commission/retainer/usage/salary/free/licensing)")
+    iocc.add_argument("--access", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"],
+                      help="按需求侧承接通道过滤（non_market=财政供养，household=家庭无酬）")
+    iocc.add_argument("--unassigned", action="store_true", help="仅看未挂分区的职业")
+    iocc.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iocc.set_defaults(func=cmd_industry_occupations)
+
+    ioccone = ind_sub.add_parser("occupation", help="看一个岗位被哪些视角引用过(多归属的正面表达)")
+    ioccone.add_argument("id", help="职业 slug 或编号 OCC-000001")
+    ioccone.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ioccone.set_defaults(func=cmd_industry_occupation)
+
+    iflt = ind_sub.add_parser("filter", help="按任意维度组合筛职业(分类是筛选器,不是户籍)")
+    iflt.add_argument("--partition", default="", help="只看被该视角引用的职业")
+    iflt.add_argument("--axis", default="", choices=["", "occupation", "industry", "tax", "output"],
+                      help="限定轴")
+    iflt.add_argument("--provider", default="", choices=["", "ai", "hybrid", "human"])
+    iflt.add_argument("--billing", default="", help="按收费方式筛")
+    iflt.add_argument("--access", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"])
+    iflt.add_argument("--deliverable", default="", help="按交付物筛")
+    iflt.add_argument("--min-weight", type=float, default=0,
+                      help="只看权重不低于该值的视角引用（0.5 = 主要归属）")
+    iflt.add_argument("--baseline-only", action="store_true", help="只看基线职业")
+    iflt.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iflt.set_defaults(func=cmd_industry_filter)
+
+    iaxis = ind_sub.add_parser("axis", help="按视角看分区：职业/行业/税收/产出（同一分区可多轴可见）")
+    iaxis.add_argument("axis", nargs="?", default="",
+                       help="occupation / industry / tax / output（留空=全景）")
+    iaxis.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iaxis.set_defaults(func=cmd_industry_axis)
+
+    iacc = ind_sub.add_parser("access", help="按需求侧承接通道看职业：现金市场/财政/企业内部/家庭无酬")
+    iacc.add_argument("--side", default="",
+                      choices=["", "paid_direct", "non_market", "org_internal", "household"],
+                      help="只看某个通道")
+    iacc.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iacc.set_defaults(func=cmd_industry_access)
+
+    icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
+    icheck.add_argument("--data-dir", default="", help="自定义 data 目录")
+    icheck.set_defaults(func=cmd_industry_check)
+
+    iexp = ind_sub.add_parser("export", help="导出扁平表(json/csv/sqlite)供制品库与知识库消费")
+    iexp.add_argument("--out", default="out/industry-db", help="输出目录")
+    iexp.add_argument("--format", default="all", choices=["all", "json", "csv", "sqlite"],
+                      help="导出格式(默认all)")
+    iexp.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iexp.set_defaults(func=cmd_industry_export)
+
+    # ---- 全球分类框架（职业/行业/税收/产出 四根轴）----
+    ref = sub.add_parser("reference", help="分类体系参考：ISCO-08 国际职业分类 / 四根轴索引")
+    ref_sub = ref.add_subparsers(dest="reference_cmd")
+
+    risco = ref_sub.add_parser("isco", help="查 ISCO-08(国际标准职业分类)：按编码看归属，或按名称/示例职位检索")
+    risco.add_argument("--code", default="", help="ISCO-08 编码，如 2512")
+    risco.add_argument("--search", default="", help="按英文名称或官方示例职位名搜索")
+    risco.add_argument("--limit", type=int, default=20, help="搜索返回条数(0=全部)")
+    risco.set_defaults(func=cmd_reference_isco)
+
+    rsrc = ref_sub.add_parser("sources", help="四根轴全景：职业/行业/税收/产出 各有哪些权威标准、接没接")
+    rsrc.add_argument("--axis", default="", help="只看某根轴：occupation / industry / tax / output")
+    rsrc.set_defaults(func=cmd_reference_sources)
+
     h = sub.add_parser("handoff", help="创建交接卡")
     h.add_argument("--source", required=True, help="源单元")
     h.add_argument("--target", required=True, help="目标单元")
@@ -602,6 +703,16 @@ def main():
     if args.command == "arb" and not getattr(args, "arb_cmd", None):
         print("请指定 arb 子命令：list / show / review / diff")
         print("示例: python3 src/hanghang/cli/main.py arb list")
+        sys.exit(1)
+    if args.command == "industry" and not getattr(args, "industry_cmd", None):
+        print("请指定 industry 子命令：partitions / partition / occupations / occupation / "
+              "filter / catalog / "
+              "axis / access / check / export")
+        print("示例: python3 src/hanghang/cli/main.py industry partitions --top 10")
+        sys.exit(1)
+    if args.command == "reference" and not getattr(args, "reference_cmd", None):
+        print("请指定 reference 子命令：isco / sources")
+        print("示例: python3 src/hanghang/cli/main.py reference isco --search nurse")
         sys.exit(1)
     if args.command == "tree" and not getattr(args, "tree_cmd", None):
         print("请指定 tree 子命令：init / register / link / show / rollup / submit-chain / list")

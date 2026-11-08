@@ -10,8 +10,14 @@ targets 追加一条声明即可纳入进度统计。
 覆盖率口径：
 - 行业覆盖率 = 已注册(registered) 目标行业数 / 目标行业总数
 - 岗位覆盖率 = 已覆盖岗位数 / 目标岗位基线数
-    * 已注册行业：其岗位基线 = 该单元实际注册岗位数(roles)
-    * 待覆盖行业：其岗位基线 = 声明在 target_roles 的代表性岗位数
+    * 已注册行业：优先取 M11 职业库里被该视角引用的基线职业数
+      （岗位是原子单位，归属是带权重的边：一个岗位可以同时被多个视角引用，
+      不追求"唯一归属"，所以这里按人去重计数）；职业库不可用时回落到该单元
+      实际注册岗位数(roles)
+    * 待覆盖行业：优先取职业库里该分区的基线职业数；
+      职业库无登记时回落到 target_roles 声明的代表性岗位数
+
+职业库(industry-occupations.yaml)是岗位基线的权威来源，coverage-target 只兜底。
 """
 from __future__ import annotations
 
@@ -24,13 +30,33 @@ import yaml
 from .registry import Registry
 
 
+# 显式禁用职业库的哨兵：与 None(自动构造) 区分，避免"想禁用却被自动构造"
+DISABLED_DB = object()
+
+
 class CoverageTracker:
     """计算并汇报「目标全集 vs 当前覆盖」的行业/岗位覆盖率。"""
 
     def __init__(self, registry: Optional[Registry] = None,
-                 data_dir: Optional[str] = None):
+                 data_dir: Optional[str] = None, industry_db=None):
         self.registry = registry or Registry()
         self.data_dir = data_dir or self._find_data_dir()
+        # industry_db 三态：
+        #   None         → 自动构造（默认，职业库是岗位基线的权威来源）
+        #   DISABLED_DB  → 显式禁用职业库，岗位基线一律走兜底
+        #   其它对象     → 注入实例（测试替身/外部库），不做任何自动构造
+        # 注入对象的读取异常不向上抛，按兜底口径处理并写入 problems。
+        self._degraded: set = set()
+        self._degrade_notes: List[str] = []
+        if industry_db is None:
+            try:
+                from .industry_db import IndustryDatabase
+                industry_db = IndustryDatabase(data_dir=self.data_dir,
+                                               registry=self.registry)
+            except Exception as exc:  # 职业库不可用不应阻断覆盖统计
+                logging.warning(f"职业库不可用，岗位基线回落 coverage-target: {exc}")
+                industry_db = DISABLED_DB
+        self.industry_db = None if industry_db is DISABLED_DB else industry_db
         self.target_path = os.path.join(self.data_dir, "coverage-target.yaml")
         self.targets: List[dict] = []
         self.version: str = "0.1"
@@ -73,6 +99,106 @@ class CoverageTracker:
             index.setdefault(unit.industry, unit)
         return index
 
+    def _check_partition(self, partition_id: str) -> dict:
+        """带保护的 ``db.partition()``：任何异常形态都记一次降级。
+
+        ``None`` 与"分区真的没登记"在返回值上同形，但语义不同：前者是权威源
+        答不出话，后者是它明确说"没有这个分区"。全都当"未登记"处理会让
+        "分区存在但读不出来"一个 problems 都不留 —— 无声兜底比报错更坏。
+        """
+        db = self.industry_db
+        try:
+            got = db.partition(partition_id)
+        except Exception as exc:  # 权威源坏掉不能让覆盖统计整体倒
+            self._degrade(partition_id, f"partition() 异常: {exc}")
+            return {}
+        if got is None:
+            self._degrade(partition_id, "partition() 返回 None（分区读不出来）")
+            return {}
+        if not isinstance(got, dict):
+            self._degrade(partition_id,
+                          f"partition() 返回 {type(got).__name__}（应为 dict）")
+            return {}
+        return got
+
+    def _role_edges(self, partition_id: str) -> Dict[str, str]:
+        """该分区里 职业 id -> unit_role（岗位名），带保护、失败返回空表。
+
+        和 ``_members`` 一样走降级口径：读不出来就是空表，不向上抛。
+        用途是让「已覆盖岗位数」和「岗位基线数」口径对齐 —— 两者都必须
+        按同一批基线职业算，不能一个数职业、一个数 unit.roles。
+        """
+        db = self.industry_db
+        view = getattr(db, "axis_view", None)
+        if view is None:
+            return {}
+        try:
+            edges = view.of_partition(partition_id)
+        except Exception as exc:
+            self._degrade(partition_id, f"of_partition() 异常: {exc}")
+            return {}
+        if not isinstance(edges, list):
+            self._degrade(partition_id, f"of_partition() 返回 {type(edges).__name__}")
+            return {}
+        out: Dict[str, str] = {}
+        for m in edges:
+            if not isinstance(m, dict):
+                continue
+            occ, role = m.get("occupation", ""), m.get("unit_role") or ""
+            if occ:
+                out[occ] = role
+        return out
+
+    def _members(self, partition_id: str) -> List[dict]:
+        """带保护的 ``db.members_of()``：异常/非列表一律降级为空成员。"""
+        db = self.industry_db
+        try:
+            members = db.members_of(partition_id)
+        except Exception as exc:
+            self._degrade(partition_id, f"members_of() 异常: {exc}")
+            return []
+        if not isinstance(members, list):
+            self._degrade(partition_id, f"members_of() 返回 {type(members).__name__}")
+            return []
+        return members
+
+    def _degrade(self, partition_id: str, reason: str) -> None:
+        """记录一次权威源降级；同一分区只记一条（两个读取点会各读一次）。"""
+        if partition_id in self._degraded:
+            return
+        self._degraded.add(partition_id)
+        self._degrade_notes.append(
+            f"分区 {partition_id} 职业库读取降级（{reason}），岗位基线回落兜底")
+
+    def _occupation_baseline(self, partition_id: str) -> Optional[int]:
+        """职业库中该分区的基线职业数；职业库不可用或未登记时返回 None。"""
+        if not self.industry_db or not partition_id:
+            return None
+        if not self._check_partition(partition_id):
+            return None
+        baseline = [o for o in self._members(partition_id)
+                    if isinstance(o, dict) and o.get("baseline_occupation")]
+        return len(baseline) if baseline else None
+
+    def _baseline_source(self, partition_id: str, has_unit: bool) -> str:
+        """标注该行岗位基线取自哪里，兜底要可见、不静默。
+
+        - ``occupation``  职业库基线（权威源）
+        - ``unit_roles``  分区无任何职业登记 → 回落注册岗位数（可接受兜底）
+        - ``target_roles`` 分区无职业登记 → 回落 coverage-target 手写岗位（可接受兜底）
+        - ``stale``       分区有职业登记但全部非基线 → 权威源失效，需报 problems
+        """
+        if not self.industry_db or not partition_id:
+            return "unit_roles" if has_unit else "target_roles"
+        if not self._check_partition(partition_id):
+            return "unit_roles" if has_unit else "target_roles"
+        members = self._members(partition_id)
+        if any(isinstance(o, dict) and o.get("baseline_occupation") for o in members):
+            return "occupation"
+        if members:
+            return "stale"
+        return "unit_roles" if has_unit else "target_roles"
+
     # ------------------------------------------------------------ compute
     def compute(self) -> dict:
         """
@@ -87,13 +213,16 @@ class CoverageTracker:
         }
         """
         registered = self._registered_map()
+        _baseline_ids = set()   # 全库去重口径：一个职业只算一次
 
         total = len(self.targets)
         covered_industry = 0
         covered_role_total = 0          # 分子：已覆盖岗位数
         role_baseline_total = 0         # 分母：目标岗位基线数
         by_category: Dict[str, dict] = {}
+        role_baseline_distinct = 0      # 去重后的在册基线岗位数
         rows: List[dict] = []
+        problems: List[str] = []
 
         for t in self.targets:
             name = t.get("name", "")
@@ -101,17 +230,43 @@ class CoverageTracker:
             status = "registered" if unit else (t.get("status", "pending"))
             cat = t.get("category", "未归类")
 
+            occ_baseline = self._occupation_baseline(t.get("id", ""))
+            source = self._baseline_source(t.get("id", ""), bool(unit))
+            if source == "stale":
+                problems.append(
+                    f"分区 {t.get('id')} 在职业库有职业登记但无一标记 "
+                    f"baseline_occupation，岗位基线已静默回落兜底")
             if unit:  # 已注册单元覆盖该目标行业
                 covered_industry += 1
-                covered_roles = len(unit.roles)
-                # 已注册行业的岗位基线以实际注册岗位为准
-                role_baseline = len(unit.roles)
+                # 已注册行业：职业库基线优先，缺失时以实际注册岗位为准
+                role_baseline = occ_baseline if occ_baseline is not None \
+                    else len(unit.roles)
+                if occ_baseline is not None:
+                    # 分子按同一口径算：只数「被引用的基线职业里，其 unit_role
+                    # 真的出现在该单元岗位中」的个数。早先用 len(unit.roles)，
+                    # 分母却有另一套来源 —— 非基线职业认领岗位时出现
+                    # covered > baseline（500% 覆盖）而页面不报错。
+                    roles = {r.name for r in unit.roles}
+                    edges = self._role_edges(t.get("id", ""))
+                    covered_roles = len([
+                        o for o in self._members(t.get("id", ""))
+                        if isinstance(o, dict) and o.get("baseline_occupation")
+                        and edges.get(o.get("id", "")) in roles])
+                else:
+                    covered_roles = len(unit.roles)
             else:
                 covered_roles = 0
-                role_baseline = len(t.get("target_roles", []) or [])
+                # 待覆盖行业：职业库基线优先，缺失时按 target_roles 声明计
+                role_baseline = occ_baseline if occ_baseline is not None \
+                    else len(t.get("target_roles", []) or [])
 
             covered_role_total += covered_roles
             role_baseline_total += role_baseline
+            # 同一职业多归属时，这里只记一次，用来给出"实际有多少个岗位在册"
+            if self.industry_db:
+                for o in self._members(t.get("id", "")):
+                    if isinstance(o, dict) and o.get("baseline_occupation"):
+                        _baseline_ids.add(o.get("id"))
 
             # 按大类聚合
             bc = by_category.setdefault(cat, {"total": 0, "covered": 0})
@@ -129,14 +284,18 @@ class CoverageTracker:
                 "roles": {
                     "covered": covered_roles,
                     "baseline": role_baseline,
+                    "baseline_source": source,
                     "names": [r.name for r in unit.roles] if unit else t.get("target_roles", []),
                 },
                 "channels": t.get("channels", []),
                 "note": t.get("note", ""),
             })
 
+        problems.extend(self._degrade_notes)
         covered_industry_out = covered_industry
         pending = total - covered_industry_out
+        role_baseline_distinct = len(_baseline_ids) if _baseline_ids \
+            else role_baseline_total
         return {
             "version": self.version,
             "updated_at": self.updated_at,
@@ -148,7 +307,13 @@ class CoverageTracker:
             "covered_roles": covered_role_total,
             "role_coverage": (covered_role_total / role_baseline_total)
                              if role_baseline_total else 0.0,
+            # 软归属下"岗位基线按分区累加"与"全库去重"必然不等：
+            # 一个职业挂三条边，就在三个分区里各算一次。这不是错，是两种口径。
+            # 两个数都露出来，免得下游拿 169 去和职业库的 164 对账对不上。
+            "role_baseline_distinct": role_baseline_distinct,
+            "role_baseline_shared": role_baseline_total - role_baseline_distinct,
             "by_category": by_category,
+            "problems": problems,
             "rows": rows,
         }
 
@@ -167,6 +332,11 @@ class CoverageTracker:
         lines.append(
             f"岗位覆盖: {s['covered_roles']}/{s['total_role_baseline']}  "
             f"({s['role_coverage']:.1%})")
+        # 两个口径必须同屏：按分区累加 ≠ 全库去重，差的那几个是多视角职业
+        lines.append(
+            f"  在册岗位去重后 {s['role_baseline_distinct']} 个，"
+            f"另有 {s['role_baseline_shared']} 条因多视角归属被重复计入"
+            f"（一个岗位挂几处就算几次，不是重复登记）")
         lines.append("-" * 60)
         lines.append(f"{'状态':<4}{'目标行业':<12}{'覆盖岗位/基线':<16}类别")
         for r in sorted(s["rows"], key=lambda x: (x["status"] != "registered",
