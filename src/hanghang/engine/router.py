@@ -44,7 +44,8 @@ def _match_spans(text: str, term: str) -> List[tuple]:
 _ATTRIBUTIVE_JOINERS = ("的", "之")
 
 
-def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool:
+def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str],
+                         own_terms: Optional[List[str]] = None) -> bool:
     """
     term 的每一处出现是否都已被「别的单元的更长汉字词」认领。
 
@@ -61,6 +62,16 @@ def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool
     只对纯汉字词生效：英文/数字词边界靠空格，不需要也不适用这套判定。
     ``foreign_terms`` 由调用方保证是「纯 CJK 且比 term 长」的候选（见
     ``_score_units`` 里一次性预筛的 unit_vocab），这里不再重复判定。
+
+    ``own_terms`` 是**本单元自己**的词表。紧邻定语绑定前要先看这处出现是不是
+    已经被本单元自己的长词整段盖住——盖住了就说明"这个语境本来就是我们的"，
+    不能再因为别的单元凑巧挨着它而判自己出局：
+
+        帮我做网页文案
+          content-creation: 网页文案(1.5)      ← 自己的长词盖住了「文案」
+          dongjiagoushi:    做网页(1.5)        ← 只是挨着「文案」
+        旧判定：文案被「做网页」绑定 → 本方让位 → 1.5 : 1.5 → 判成歧义回落人工
+        新判定：本方长词已认领 → 不让位 → content-creation 独立胜出
     """
     if not _is_cjk_term(term):
         return False
@@ -69,17 +80,26 @@ def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool
         return False
     covers: List[tuple] = []   # 含本词的 foreign 长词出现区间（整段覆盖）
     binders: List[tuple] = []  # 不含本词的 foreign 长词出现区间（定语绑定）
+    own_covers: List[tuple] = []  # 本单元自己的长词出现区间（本方已认领）
     for other in foreign_terms:
         # 只认「更长」的汉字词：调用方通常已预筛（_score_units），这里仍校验一遍，
         # 好让本函数单独调用时口径一致（_is_cjk_term 有缓存，代价可忽略）。
         if other == term or len(other) <= len(term) or not _is_cjk_term(other):
             continue
         (covers if term in other else binders).extend(_match_spans(text, other))
+    for own in (own_terms or []):
+        if own != term and len(own) > len(term) and term in own \
+                and _is_cjk_term(own):
+            own_covers.extend(_match_spans(text, own))
 
     def _claimed(s: int, e: int) -> bool:
         for cs, ce in covers:
             if cs <= s and e <= ce:  # 整段覆盖
                 return True
+        # 本方长词已整段盖住这处出现 → 语境本来就是本单元的，定语绑定不成立。
+        # 只在绑定这一条上豁免：整段覆盖那条不需要豁免，它比的是"谁说得更具体"。
+        if any(os_ <= s and e <= oe for os_, oe in own_covers):
+            return False
         for bs, be in binders:
             # 紧邻定语绑定：定语长词紧挨在本词之前，中间只隔 0~1 个定语助词
             if be <= s and (s - be == 0 or text[be:s] in _ATTRIBUTIVE_JOINERS):
@@ -402,6 +422,7 @@ class IntentRouter:
             matched_terms: List[str] = []  # 实际命中的词（用于歧义时区分泛化共享）
             foreign_vocab = [t for uid, terms in unit_vocab.items()
                              if uid != unit.unit_id for t in terms]
+            own_vocab = unit_vocab.get(unit.unit_id, [])
             # 同一单元里一个词可能既是 tag 又是岗位关键词，判定结果按词缓存
             supersede_cache: Dict[str, bool] = {}
 
@@ -412,7 +433,9 @@ class IntentRouter:
                 hit = supersede_cache.get(term)
                 if hit is None:
                     longer = [t for t in foreign_vocab if len(t) > len(term)]
-                    hit = _superseded_cjk_hits(text, term, longer)
+                    own_longer = [t for t in own_vocab
+                                  if len(t) > len(term) and term in t]
+                    hit = _superseded_cjk_hits(text, term, longer, own_longer)
                     supersede_cache[term] = hit
                 return not hit
 

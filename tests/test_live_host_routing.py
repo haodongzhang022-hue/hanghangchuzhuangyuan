@@ -143,6 +143,41 @@ def test_attributive_binding_needs_single_joiner():
     assert _superseded_cjk_hits("直播间的好的选品", "选品", ["直播间"]) is False
 
 
+# ---------- 本方长词已认领时不许向外让位（第 12 轮评审） ----------
+
+def test_own_long_term_blocks_attributive_binding():
+    """本单元自己的长词整段盖住这处出现时，不许因为外单元凑巧挨着而让位
+
+    复现（第 12 轮评审给的 6 条，全部「可路由 → 回落人工」）：
+
+        帮我做网页文案
+          content-creation: 网页文案(1.5)   ← 自己的长词盖住了「文案」
+          dongjiagoushi:    做网页(1.5)     ← 只是挨着「文案」
+        旧判定：文案被「做网页」紧邻定语绑定 → 本方让位 → 1.5:1.5 判歧义
+    """
+    assert _superseded_cjk_hits("帮我做网页文案", "文案", ["做网页"],
+                                ["网页文案"]) is False
+    # 没有本方长词时照旧让位（这条守住豁免没被写宽）
+    assert _superseded_cjk_hits("帮我做网页你好", "你好", ["做网页"], []) is True
+
+
+def test_attributive_binding_regression_corpus():
+    """评审给的 6 条回归语料：必须直连，不许回落人工"""
+    cases = {
+        "帮我做网页文案": ("content-creation", "copywriter"),
+        "帮我搭建网页文案": ("content-creation", "copywriter"),
+        "帮我搭建网站文案": ("content-creation", "copywriter"),
+        "帮我做网页版权": ("legal-services", "legal_counsel"),
+        "帮我搭建网页版权": ("legal-services", "legal_counsel"),
+        "帮我搭建网站版权": ("legal-services", "legal_counsel"),
+    }
+    for text, (unit, role) in cases.items():
+        r = _route(text)
+        assert not getattr(r, "needs_manual", False), f"{text} 回落人工: {r.fallback_reason}"
+        assert r.unit_id == unit, f"{text} 落到了 {r.unit_id}"
+        assert role in (r.roles or []), f"{text} 岗位不对: {r.roles}"
+
+
 # ---------- 引擎层：汉字区间让位规则 ----------
 
 def test_covered_short_word_yields_to_longer_hit():

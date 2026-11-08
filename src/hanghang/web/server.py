@@ -39,7 +39,7 @@ from hanghang.engine import (  # noqa: E402
     Registry, IntentRouter, CompositePlanner, HandoffBus,
     MetricsCollector, PrefixArchive,
 )
-from hanghang.engine.coverage import CoverageTracker  # noqa: E402
+from hanghang.engine.coverage import CoverageTracker, DISABLED_DB  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +94,18 @@ def _init_engines():
         _engine_cache["state"] = StateManager()
         # M11 行业库：yaml 是静态数据，每次请求重新读盘构造纯属浪费。
         # 复用缓存的 registry，避免同一份 unit-index 被读两遍。
+        #
+        # 构造必须包住：`_load()` 直接 yaml.safe_load 三个数据文件，语法错就抛。
+        # 这层是**旁路数据**，不该成为 M1/M3/M6/M7 全部端点的前置条件——
+        # 不兜住的话，一个数据文件写坏会让整个只读面板 500，而不只是新端点。
+        # 与 coverage.py 的 DISABLED_DB 降级口径保持一致：读不出就当没有。
         from hanghang.engine.industry_db import IndustryDatabase
-        _engine_cache["industry_db"] = IndustryDatabase(registry=registry)
+        try:
+            _engine_cache["industry_db"] = IndustryDatabase(registry=registry)
+        except Exception as exc:  # noqa: BLE001 - 旁路数据坏了不能拖垮主面板
+            logger.warning(f"M11 行业库加载失败，/api/industry-db 降级: {exc}")
+            _engine_cache["industry_db"] = None
+            _engine_cache["industry_db_error"] = f"{type(exc).__name__}: {exc}"
         _engine_cache["initialized"] = True
 
 
@@ -125,9 +135,12 @@ def _get_cached_state() -> "StateManager":
 
 
 def _get_cached_industry_db():
-    """M11 行业库（静态数据，进程内一份）：/api/industry-db 与 /api/coverage 共用。"""
+    """M11 行业库（静态数据，进程内一份）：/api/industry-db 与 /api/coverage 共用。
+
+    加载失败时返回 ``None``；调用方必须判空降级，不许当成"自动构造"再去读一次盘。
+    """
     _init_engines()
-    return _engine_cache["industry_db"]
+    return _engine_cache.get("industry_db")
 
 
 def _apply_cors(handler):
@@ -298,8 +311,12 @@ class HanghangHandler(BaseHTTPRequestHandler):
         实测 ~1000 ms；复用缓存实例后回到 ~几十 ms。职业库是静态数据，
         不该按请求重建。
         """
-        tracker = CoverageTracker(registry=self._get_registry(),
-                                  industry_db=_get_cached_industry_db())
+        db = _get_cached_industry_db()
+        # 库加载失败时显式禁用（DISABLED_DB），否则 CoverageTracker 会当成
+        # None=自动构造，再读一次盘、再炸一次。
+        tracker = CoverageTracker(
+            registry=self._get_registry(),
+            industry_db=db if db is not None else DISABLED_DB)
         payload = tracker.compute()
         payload["rows"] = sorted(
             payload["rows"],
@@ -339,6 +356,13 @@ class HanghangHandler(BaseHTTPRequestHandler):
         前端不必再自己维护一份编码表；`catalog` 段给映射率与分类覆盖快照。
         """
         db = _get_cached_industry_db()
+        if db is None:
+            # 数据文件存在但 YAML 坏了：503 + 说明原因，比 500 或"空库但 200"都诚实
+            _json_response(self, 503, {
+                "error": "M11 行业库不可用（数据文件加载失败）",
+                "problems": [_engine_cache.get("industry_db_error", "加载失败")],
+            })
+            return
         # compute()/validate() 仍每次现算：它们是"当前数据的一致性快照"，
         # 缓存的是实例（含读盘后的 yaml），不是结论。
         payload = db.compute()

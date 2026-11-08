@@ -196,6 +196,45 @@ class TestWebAPI:
         assert any("大典映射读取失败" in p for p in data["problems"]), (
             f"降级记录被吞了: {data['problems']}")
 
+    def test_industry_db_unavailable_degrades_to_503_not_everything_500(self):
+        """M11 数据文件写坏不许打挂整个面板
+
+        `_init_engines()` 里构造 IndustryDatabase 会 yaml.safe_load 三个数据文件，
+        语法错就抛；不兜住的话 `initialized` 永远设不上，/api/units、/api/route、
+        /api/coverage、/api/metrics、/api/prefixes 全部 500 —— 一份旁路数据
+        把 M1/M3/M6/M7 一起拖下水。
+
+        这里把缓存置成加载失败的形态（None + error），断言：
+        - /api/industry-db → 503 且说明原因（不是 500，也不是"空库但 200"）
+        - 既有端点照常 200；/api/coverage 走 DISABLED_DB 降级而不是重试读盘
+        """
+        import hanghang.web.server as ws
+
+        real_db = ws._engine_cache.get("industry_db")
+        real_err = ws._engine_cache.get("industry_db_error")
+        ws._engine_cache["industry_db"] = None
+        ws._engine_cache["industry_db_error"] = "ParserError: 测试注入"
+        try:
+            for path in ("/api/units", "/api/coverage", "/api/metrics",
+                         "/api/prefixes", "/api/index"):
+                code, _ = self._get(path)
+                assert code == 200, f"{path} 被旁路数据拖挂了: {code}"
+            try:
+                self._get("/api/industry-db")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 503, f"应降级为 503，实际 {exc.code}"
+                body = json.loads(exc.read().decode("utf-8"))
+                assert "行业库不可用" in body["error"], body
+                assert any("测试注入" in p for p in body["problems"]), body
+            else:
+                raise AssertionError("/api/industry-db 应当返回 503")
+        finally:
+            ws._engine_cache["industry_db"] = real_db
+            if real_err is None:
+                ws._engine_cache.pop("industry_db_error", None)
+            else:
+                ws._engine_cache["industry_db_error"] = real_err
+
     def test_route_api(self):
         code, data = self._get(
             "/api/route?text=" + urllib.parse.quote("既要架构设计又要落地开发"))
