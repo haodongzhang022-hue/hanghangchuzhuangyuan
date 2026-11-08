@@ -34,13 +34,26 @@ def _match_spans(text: str, term: str) -> List[tuple]:
     return spans
 
 
+# 定语助词：别的单元的长词以「X的/之 Y」的形式修饰本单元的短词时，
+# 短词是被 X 限定的，语境归 X 而不是本单元（「直播间的选品」归主播）。
+# 刻意只收「的/之」——并列连词「和/与」不构成修饰关系，
+# 「直播选品和选品」里后一处是电商独立再说一遍选品，不能被主播整词吞掉。
+_ATTRIBUTIVE_JOINERS = ("的", "之")
+
+
 def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool:
     """
-    term 的每一处出现是否都被「别的单元的更长汉字词」整段覆盖。
+    term 的每一处出现是否都已被「别的单元的更长汉字词」认领。
 
-    覆盖 = 某一个更长词的某次出现区间完整包含 term 的这次出现区间。
-    只要有一处 term 是独立出现的（没有任何 foreign 长词盖住它），就返回 False
-    —— 独立的出现照常计分，否则会把「直播间和选品各干一件事」也误杀。
+    某一次出现被认领 = 满足任一条：
+    - 整段覆盖：某个 foreign 长词的某次出现区间完整包含这次出现
+      （「核算工资」里的「工资」被 HR 侧「算工资」盖住）；
+    - 紧邻定语绑定：某个 foreign 长词紧挨在这次出现之前，中间只隔 0~1 个
+      定语助词（「直播间的选品」——「直播间」+「的」+「选品」）。
+
+    只要有一处不被认领，就返回 False，照常计分：本单元自己独立说了这件事
+    （「直播间的选品和话术」要归主播，但「直播话术顺便说下选品」里电商确实
+    自己说了选品，不能被整段吞掉）。
 
     只对纯汉字词生效：英文/数字词边界靠空格，不需要也不适用这套判定。
     """
@@ -49,16 +62,24 @@ def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool
     spans = _match_spans(text, term)
     if not spans:
         return False
-    covers = []
+    covers: List[tuple] = []   # 含本词的 foreign 长词出现区间（整段覆盖）
+    binders: List[tuple] = []  # 不含本词的 foreign 长词出现区间（定语绑定）
     for other in foreign_terms:
         if other == term or len(other) <= len(term) or not _is_cjk_term(other):
             continue
-        if term not in other:
-            continue
-        covers.extend(_match_spans(text, other))
-    if not covers:
+        (covers if term in other else binders).extend(_match_spans(text, other))
+
+    def _claimed(s: int, e: int) -> bool:
+        for cs, ce in covers:
+            if cs <= s and e <= ce:  # 整段覆盖
+                return True
+        for bs, be in binders:
+            # 紧邻定语绑定：定语长词紧挨在本词之前，中间只隔 0~1 个定语助词
+            if be <= s and (s - be == 0 or text[be:s] in _ATTRIBUTIVE_JOINERS):
+                return True
         return False
-    return all(any(cs <= s and e <= ce for cs, ce in covers) for s, e in spans)
+
+    return all(_claimed(s, e) for s, e in spans)
 
 
 class IntentRouter:
@@ -350,9 +371,10 @@ class IntentRouter:
         数据驱动：对每个单元做多维信号评分。
         信号来源：industry_alias + capability_tags + role keywords。
 
-        同一段汉字被别的单元的更长词整段认领时，本单元的短词不再重复计分
-        （见 _superseded_cjk_hits）。否则「核算工资」里财务侧的裸词「工资」
-        会被 HR 侧「算工资」重复认领，两侧同分 → 真信号被平均成伪歧义。
+        同一段汉字已被别的单元的长词认领时，本单元的短词不再重复计分
+        （认领 = 整段覆盖或紧邻定语绑定，见 _superseded_cjk_hits）。
+        否则「核算工资」里财务侧的裸词「工资」会被 HR 侧「算工资」重复认领，
+        两侧同分 → 真信号被平均成伪歧义。
         该让位只跨单元生效，本单元内部的长短词口径不变。
         """
         # 先收集每个单元的词表，供跨单元让位判定（长词认领的区间）
@@ -372,7 +394,7 @@ class IntentRouter:
                              if uid != unit.unit_id for t in terms]
 
             def _counted(term: str) -> bool:
-                """本单元的这个词是否仍应计分（被别的单元的更长词整段盖住时让位）"""
+                """本单元的这个词是否仍应计分（别的单元的长词已认领这处出现时让位）"""
                 return not _superseded_cjk_hits(text, term, foreign_vocab)
 
             # 1. 行业别名直接命中（强信号，2.0）

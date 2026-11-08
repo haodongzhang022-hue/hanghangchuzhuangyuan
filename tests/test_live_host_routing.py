@@ -4,8 +4,11 @@
 两侧都注册成关键词，各得 2.5 分 → 一句回落人工、一句静默错路由到电商。
 错的不是分数算错了，而是**同一个组合词被两个单元同时认领**。
 
-修法是把"直播语境的选品"还给 live_host（用组合词），电商保留自己的语义
-（商品选品 / 选品上架 / 上架 / 店铺），两边都不丢入口。
+修法两头都要：
+1. 直播语境的选品还给 live_host（组合词 + 紧邻定语绑定）；
+2. 电商保留裸词「选品」——它是「选品 / 帮我选品 / 跨境选品」这类通用诉求的
+   唯一入口，删掉它等于把最高频入口砸了（第 10 轮评审的阻塞项）。
+歧义由引擎的跨单元认领规则消解，不靠删词。
 """
 import os
 import sys
@@ -80,12 +83,64 @@ def test_live_host_has_compound_keywords_in_data():
         assert kw in kws, f"live_host 缺少组合关键词: {kw}"
 
 
-def test_bare_selection_word_not_double_registered():
-    """裸词「选品」不得同时出现在直播侧与电商侧（歧义的真正来源）"""
-    reg = Registry()
-    for uid in ("content-creation", "e-commerce"):
-        unit = reg.get_unit(uid)
-        assert "选品" not in _unit_vocab(unit), f"{uid} 残留裸词「选品」"
+def test_bare_selection_word_kept_on_ecommerce():
+    """裸词「选品」必须留在电商侧（第 10 轮评审：删掉它直接砸掉最高频入口）
+
+    上一版断言「选品不得出现在电商」把回退钉成了"期望行为"——那条不变量本身是错的。
+    """
+    unit = Registry().get_unit("e-commerce")
+    vocab = _unit_vocab(unit)
+    assert "选品" in vocab, "电商侧缺裸词「选品」，通用选品诉求会全部回落人工"
+    store = next(r for r in unit.roles if r.name == "store_manager")
+    assert "选品" in set(store.get_keywords()), store.get_keywords()
+
+
+def test_bare_selection_intents_land_on_ecommerce():
+    """通用选品诉求（未指明渠道）不得回落人工"""
+    for text in ("选品", "帮我选品", "选品怎么做", "选品清单",
+                 "跨境选品", "亚马逊选品", "供应商选品"):
+        r = _route(text)
+        assert not getattr(r, "needs_manual", False), f"{text} 回落人工: {r.fallback_reason}"
+        assert r.unit_id == "e-commerce", f"{text} 落到了 {r.unit_id}"
+
+
+def test_select_word_reports_do_not_cross_into_admin_office():
+    """「选品报告」不许再被判到 admin-office（靠「报告」蹭分）"""
+    r = _route("选品报告")
+    assert r.unit_id == "e-commerce", f"实际落 {r.unit_id}"
+
+
+def test_cross_border_selection_keeps_confidence():
+    """「跨境电商选品」的置信度不许腰斩"""
+    r = _route("跨境电商选品")
+    assert r.unit_id == "e-commerce", r.unit_id
+    assert r.confidence >= 0.75, r.confidence
+
+
+def test_mixed_selection_intent_keeps_ecommerce_hit():
+    """「直播选品和选品」：后一处是电商独立再说一遍，不能被主播整词吞掉"""
+    router = IntentRouter()
+    scores = router._score_units("直播选品和选品", router.registry.all_units())
+    ecom = scores.get("e-commerce", {})
+    assert "选品" in ecom.get("matched_terms", []), ecom.get("signals")
+    live = scores.get("content-creation", {})
+    assert any("直播选品" in sig for sig in live.get("signals", [])), live.get("signals")
+
+
+def test_live_context_with_attributive_joiner_goes_to_live_host():
+    """「直播间的选品」这类分写形式整体归主播，不被电商裸词抢走"""
+    for text in ("帮我设计直播间的选品和话术", "直播间选品", "直播间的选品话术"):
+        r = _route(text)
+        assert r.unit_id == "content-creation", f"{text} 落到了 {r.unit_id}"
+        assert "live_host" in (r.roles or []), r.roles
+
+
+def test_attributive_binding_needs_single_joiner():
+    """紧邻定语绑定只认 0~1 个定语助词（的/之），且必须紧挨在本词之前"""
+    assert _superseded_cjk_hits("直播间的选品", "选品", ["直播间"]) is True
+    assert _superseded_cjk_hits("直播间选品", "选品", ["直播间"]) is True
+    assert _superseded_cjk_hits("直播话术顺便说下选品", "选品", ["直播话术"]) is False
+    assert _superseded_cjk_hits("直播间的好的选品", "选品", ["直播间"]) is False
 
 
 # ---------- 引擎层：汉字区间让位规则 ----------
