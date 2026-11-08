@@ -121,6 +121,34 @@ class CoverageTracker:
             return {}
         return got
 
+    def _role_edges(self, partition_id: str) -> Dict[str, str]:
+        """该分区里 职业 id -> unit_role（岗位名），带保护、失败返回空表。
+
+        和 ``_members`` 一样走降级口径：读不出来就是空表，不向上抛。
+        用途是让「已覆盖岗位数」和「岗位基线数」口径对齐 —— 两者都必须
+        按同一批基线职业算，不能一个数职业、一个数 unit.roles。
+        """
+        db = self.industry_db
+        view = getattr(db, "axis_view", None)
+        if view is None:
+            return {}
+        try:
+            edges = view.of_partition(partition_id)
+        except Exception as exc:
+            self._degrade(partition_id, f"of_partition() 异常: {exc}")
+            return {}
+        if not isinstance(edges, list):
+            self._degrade(partition_id, f"of_partition() 返回 {type(edges).__name__}")
+            return {}
+        out: Dict[str, str] = {}
+        for m in edges:
+            if not isinstance(m, dict):
+                continue
+            occ, role = m.get("occupation", ""), m.get("unit_role") or ""
+            if occ:
+                out[occ] = role
+        return out
+
     def _members(self, partition_id: str) -> List[dict]:
         """带保护的 ``db.members_of()``：异常/非列表一律降级为空成员。"""
         db = self.industry_db
@@ -210,10 +238,22 @@ class CoverageTracker:
                     f"baseline_occupation，岗位基线已静默回落兜底")
             if unit:  # 已注册单元覆盖该目标行业
                 covered_industry += 1
-                covered_roles = len(unit.roles)
                 # 已注册行业：职业库基线优先，缺失时以实际注册岗位为准
                 role_baseline = occ_baseline if occ_baseline is not None \
                     else len(unit.roles)
+                if occ_baseline is not None:
+                    # 分子按同一口径算：只数「被引用的基线职业里，其 unit_role
+                    # 真的出现在该单元岗位中」的个数。早先用 len(unit.roles)，
+                    # 分母却有另一套来源 —— 非基线职业认领岗位时出现
+                    # covered > baseline（500% 覆盖）而页面不报错。
+                    roles = {r.name for r in unit.roles}
+                    edges = self._role_edges(t.get("id", ""))
+                    covered_roles = len([
+                        o for o in self._members(t.get("id", ""))
+                        if isinstance(o, dict) and o.get("baseline_occupation")
+                        and edges.get(o.get("id", "")) in roles])
+                else:
+                    covered_roles = len(unit.roles)
             else:
                 covered_roles = 0
                 # 待覆盖行业：职业库基线优先，缺失时按 target_roles 声明计

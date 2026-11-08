@@ -282,6 +282,23 @@ class IndustryDatabase:
         return [o for o in self.occupations if o.get("billing") == billing]
 
     # ------------------------------------------------------------ compute
+    def _gb_majors(self, members: List[dict]) -> List[str]:
+        """成员职业落在哪几个大典大类上；参考表读不出来就返回空表。
+
+        这里刻意不抛：`gb_majors` 是旁证列，坏掉的参考表不该让整个只读端点 500。
+        """
+        if self.catalog is None:
+            return []
+        majors = set()
+        for m in members:
+            try:
+                code = self.catalog.gb_code_of(m.get("id", ""))
+            except Exception:  # noqa: BLE001 - 单个职业读不出不影响其它
+                continue
+            if code:
+                majors.add(code[:1])
+        return sorted(majors)
+
     def compute(self) -> dict:
         """分区/职业覆盖与产值聚合。"""
         buildable = [p for p in self.partitions if p.get("status") in _BUILDABLE]
@@ -360,9 +377,7 @@ class IndustryDatabase:
                 "axis_edges": self.axis_view.axis_mix(p.get("id", "")),
                 # 分区挂的大典类目：成员职业的 gb_code 去掉细类后的中类前缀，
                 # 用来看"这个分区大致落在大典哪几块"，不是权威归属。
-                "gb_majors": sorted({self.catalog.gb_code_of(m.get("id", ""))[:1]
-                                     for m in members
-                                     if self.catalog and self.catalog.gb_code_of(m.get("id", ""))}),
+                "gb_majors": self._gb_majors(members),
                 "note": p.get("note", ""),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
@@ -370,10 +385,19 @@ class IndustryDatabase:
         # 大典口径：只做旁证，不参与覆盖率分子分母。
         # 两处数字说的不是一回事——映射率看"我们的职业名有没有国家标准锚点"，
         # 大典覆盖度看"标准里还剩多少细类可选"，后者天然很小。
-        catalog_stat = {"available": False}
+        # 参考表是旁证：读不出来就降级，不让整个只读出口跟着 500。
+        id_list = [o.get("id", "") for o in self.occupations if o.get("id")]
+        cov = None
         if self.catalog is not None:
-            ids = [o.get("id", "") for o in self.occupations if o.get("id")]
-            cov = self.catalog.coverage(ids)
+            try:
+                cov = self.catalog.coverage(id_list)
+            except Exception as exc:  # noqa: BLE001 - 旁证坏了不该拖垮主库
+                logging.warning(f"大典覆盖统计读取失败，相关字段降级: {exc}")
+        catalog_stat = {
+            "available": False,
+            "error": "" if cov else "大典参考表读取失败，相关统计已降级",
+        }
+        if cov:
             catalog_stat = {
                 "available": True,
                 "version": cov["version"],
@@ -752,7 +776,11 @@ class IndustryDatabase:
                 "职业大典参考表未加载（data/reference/），gb_code 映射无法校验")
         else:
             ids = [o.get("id", "") for o in self.occupations if o.get("id")]
-            problems.extend(self.catalog.validate(ids))
+            try:
+                problems.extend(self.catalog.validate(ids))
+            except Exception as exc:  # noqa: BLE001 - 自检读不出旁证也要把问题报出来
+                problems.append(
+                    f"职业大典参考表自检失败（{type(exc).__name__}），映射无法校验")
 
         # 15. 承接通道枚举（写错会静默落回 paid_direct）
         for o in self.occupations:

@@ -39,15 +39,21 @@ def test_covered_industries_positive_and_consistent():
 
 
 def test_role_coverage_bounds():
-    """岗位覆盖率在 0-1 之间，覆盖岗位数与注册岗位自洽"""
+    """岗位覆盖率在 0-1 之间，分子分母同一口径、逐行自洽"""
     t = CoverageTracker()
     reg = Registry()
     s = t.compute()
     assert 0.0 <= s["role_coverage"] <= 1.0
-    # 岗位覆盖(分子)至少等于全部注册岗位数(已覆盖行业按实际 roles 计)
-    total_roles = sum(len(u.roles) for u in reg.all_units())
-    assert s["covered_roles"] == total_roles
+    # 分子必须等于逐行 covered 之和 —— 与分母一样按「基线职业」算，而不是
+    # len(unit.roles)（两套口径会算出 covered > baseline 的 500% 覆盖）
+    assert s["covered_roles"] == sum(r["roles"]["covered"] for r in s["rows"])
+    # 每一行都不许超过自己的分母
+    for r in s["rows"]:
+        assert r["roles"]["covered"] <= r["roles"]["baseline"], r["id"]
+    # 分子 ≤ 分母（口径对齐后的硬约束）
+    assert s["covered_roles"] <= s["total_role_baseline"]
     assert s["role_coverage"] > 0
+    assert len(reg.all_units()) >= s["covered_industries"]
 
 
 def test_pending_gaps_listed():
@@ -141,9 +147,9 @@ def test_role_baseline_total_equals_occupation_db_sum():
                for r in s["rows"] if r["roles"]["baseline_source"] == "stale")
     # 权威源必须真的被用上：总基线不得等于「全量兜底」
     assert s["total_role_baseline"] != fallback_only + stale_fallback
-    # 分子：已注册行业按实际注册岗位计
-    assert s["covered_roles"] == sum(
-        len(u.roles) for u in t._registered_map().values())
+    # 分子：与分母同口径（基线职业里 unit_role 真落在该单元岗位中的个数）
+    assert s["covered_roles"] == sum(r["roles"]["covered"] for r in s["rows"])
+    assert s["covered_roles"] <= s["total_role_baseline"]
 
 
 def test_stale_baseline_is_reported_not_silent():
@@ -290,6 +296,44 @@ def test_degrade_note_not_duplicated_per_partition():
     assert len([p for p in t._degrade_notes if "分区 x " in p]) == 1
 
 
+def test_covered_roles_never_exceeds_baseline_with_extra_roles():
+    """单元岗位数 > 基线职业数时，不许出现 500% 覆盖
+
+    评审复现：单元 5 个岗位、分区只有 1 条基线职业 → 旧实现输出
+    covered=5 / baseline=1，页面照常不报错。分子改成同一口径后必须是 1。
+    """
+    class FakeDB:
+        axis_view = None
+
+        def partition(self, pid):
+            return {"id": pid, "name": pid}
+
+        def members_of(self, pid):
+            return [{"id": "only-one", "baseline_occupation": True}]
+
+        class axis_view:  # noqa: N801 - 替身，只为返回边
+            @staticmethod
+            def of_partition(pid):
+                return [{"occupation": "only-one", "unit_role": "r0"}]
+
+    class FakeRegistry:
+        def all_units(self):
+            from hanghang.engine.models import IndustryUnit, Role
+            return [IndustryUnit(
+                unit_id="u", industry="假行业", industry_alias=[],
+                roles=[Role(name=f"r{i}", prefix="[r]")
+                       for i in range(5)])]
+
+    t = CoverageTracker(registry=FakeRegistry(), industry_db=FakeDB())
+    t.targets = [{"id": "fake", "name": "假行业", "category": "测试",
+                  "target_roles": []}]
+    s = t.compute()
+    row = s["rows"][0]
+    assert row["roles"]["baseline"] == 1, row["roles"]
+    assert row["roles"]["covered"] == 1, row["roles"]
+    assert row["roles"]["covered"] <= row["roles"]["baseline"]
+
+
 def test_text_render_smoke():
     """coverage 文本渲染可执行且包含核心口径"""
     t = CoverageTracker()
@@ -312,5 +356,6 @@ if __name__ == "__main__":
     test_partition_returning_none_is_recorded_as_degrade()
     test_disable_industry_db_is_explicit()
     test_degrade_note_not_duplicated_per_partition()
+    test_covered_roles_never_exceeds_baseline_with_extra_roles()
     test_text_render_smoke()
     print("✅ 行业岗位覆盖进度测试通过")

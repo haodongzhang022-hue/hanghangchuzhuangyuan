@@ -92,13 +92,15 @@ $:
               echo "评审状态: ${CNB_PULL_REQUEST_REVIEW_STATE:-未评审}，测试已通过，不执行自动合并"
               MERGE_PENDING=false
             fi
-            # 必须写到 $GITHUB_OUTPUT：shell 变量出不了这个 stage
-            if [ -n "${GITHUB_OUTPUT:-}" ]; then
-              echo "MERGE_PENDING=$MERGE_PENDING" >> "$GITHUB_OUTPUT"
-            fi
-          # 合并判定跨 stage 传递：变量写进 $GITHUB_OUTPUT 再由 exports 带出。
-          # script 子进程里的 shell 变量出了 stage 就不存在，下个 stage 直接读它
-          # 会让条件恒假、合并静默不执行，而表现是"全绿"——最难查的那种。
+            # 必须走 CNB 的自定义变量输出协议，shell 变量出不了这个 stage
+            echo "##[set-output merge=$MERGE_PENDING]"
+          # 合并判定跨 stage 传递：变量由 ##[set-output key=value] 解析进 Job result，
+          # 再由 exports 带出。script 子进程里的 shell 变量出了 stage 就不存在，
+          # 下个 stage 直接读它会让条件恒假、合并静默不执行，而表现是"全绿"。
+          #
+          # ⚠️ 上一版抄的是 GitHub Actions 的 GITHUB_OUTPUT 文件约定 —— CNB 没有
+          #    这个文件，`[ -n "$XXX" ]` 恒假，判定从未进过 result，exports 导出
+          #    空串 → 合并条件恒假 → 门禁永久失效而流水线仍全绿。
           exports:
             merge: MERGE_PENDING
         - name: 评审通过才合并
@@ -113,6 +115,12 @@ $:
             set -e
             echo "REVIEW_STATE=${CNB_PULL_REQUEST_REVIEW_STATE:-<空>}"
             echo "MERGE_PENDING=${MERGE_PENDING:-<空>}"
+            # 空值 = 导出链路坏了（输出协议/ exports / 上一步没执行），
+            # 这时合并条件恒假但流水线全绿——最难查的形态。这里把它变成显式红。
+            if [ -z "${MERGE_PENDING:-}" ]; then
+              echo "❌ MERGE_PENDING 未导出：合并门禁已失效，请检查 ##[set-output] 与 exports"
+              exit 1
+            fi
             if [ "$CNB_PULL_REQUEST_REVIEW_STATE" = "approve" ] && [ "$MERGE_PENDING" = "true" ]; then
               echo "判定：评审通过 → 合并"
             else

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from functools import lru_cache
 from typing import Dict, List, Optional
 
 from .models import IndustryUnit, RouteResult, Role
@@ -20,7 +21,9 @@ def _is_cjk_char(ch: str) -> bool:
     return any(lo <= cp <= hi for lo, hi in _CJK_RANGES)
 
 
+@lru_cache(maxsize=8192)
 def _is_cjk_term(term: str) -> bool:
+    """词表是静态的，同一个词会被反复判定；缓存掉逐字符的区间比较"""
     return bool(term) and all(_is_cjk_char(c) for c in term)
 
 
@@ -56,6 +59,8 @@ def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool
     自己说了选品，不能被整段吞掉）。
 
     只对纯汉字词生效：英文/数字词边界靠空格，不需要也不适用这套判定。
+    ``foreign_terms`` 由调用方保证是「纯 CJK 且比 term 长」的候选（见
+    ``_score_units`` 里一次性预筛的 unit_vocab），这里不再重复判定。
     """
     if not _is_cjk_term(term):
         return False
@@ -65,6 +70,8 @@ def _superseded_cjk_hits(text: str, term: str, foreign_terms: List[str]) -> bool
     covers: List[tuple] = []   # 含本词的 foreign 长词出现区间（整段覆盖）
     binders: List[tuple] = []  # 不含本词的 foreign 长词出现区间（定语绑定）
     for other in foreign_terms:
+        # 只认「更长」的汉字词：调用方通常已预筛（_score_units），这里仍校验一遍，
+        # 好让本函数单独调用时口径一致（_is_cjk_term 有缓存，代价可忽略）。
         if other == term or len(other) <= len(term) or not _is_cjk_term(other):
             continue
         (covers if term in other else binders).extend(_match_spans(text, other))
@@ -377,13 +384,16 @@ class IntentRouter:
         两侧同分 → 真信号被平均成伪歧义。
         该让位只跨单元生效，本单元内部的长短词口径不变。
         """
-        # 先收集每个单元的词表，供跨单元让位判定（长词认领的区间）
+        # 先收集每个单元的词表，供跨单元让位判定（长词认领的区间）。
+        # 一次性去重 + 只保留纯 CJK 词：让位判定只对汉字词生效，非汉字词在这里
+        # 就丢掉，避免每个 (单元, 词) 组合都重判一遍（这是路由主链路的开销大头）。
         unit_vocab = {}
         for unit in units:
             vocab = list(unit.industry_alias) + list(unit.capability_tags)
             for role in unit.roles:
                 vocab.extend(role.get_keywords())
-            unit_vocab[unit.unit_id] = [t for t in vocab if t]
+            unit_vocab[unit.unit_id] = list(dict.fromkeys(
+                t for t in vocab if t and _is_cjk_term(t)))
 
         scores = {}
         for unit in units:
@@ -392,10 +402,19 @@ class IntentRouter:
             matched_terms: List[str] = []  # 实际命中的词（用于歧义时区分泛化共享）
             foreign_vocab = [t for uid, terms in unit_vocab.items()
                              if uid != unit.unit_id for t in terms]
+            # 同一单元里一个词可能既是 tag 又是岗位关键词，判定结果按词缓存
+            supersede_cache: Dict[str, bool] = {}
 
             def _counted(term: str) -> bool:
                 """本单元的这个词是否仍应计分（别的单元的长词已认领这处出现时让位）"""
-                return not _superseded_cjk_hits(text, term, foreign_vocab)
+                if not _is_cjk_term(term):
+                    return True
+                hit = supersede_cache.get(term)
+                if hit is None:
+                    longer = [t for t in foreign_vocab if len(t) > len(term)]
+                    hit = _superseded_cjk_hits(text, term, longer)
+                    supersede_cache[term] = hit
+                return not hit
 
             # 1. 行业别名直接命中（强信号，2.0）
             for alias in unit.industry_alias:

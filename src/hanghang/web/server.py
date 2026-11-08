@@ -28,7 +28,7 @@ import sys
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 # 保证可从 src 或仓库根直接运行
 _SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../..")
@@ -122,6 +122,12 @@ def _get_cached_handoffs() -> HandoffBus:
 def _get_cached_state() -> "StateManager":
     _init_engines()
     return _engine_cache["state"]  # type: ignore
+
+
+def _get_cached_industry_db():
+    """M11 行业库（静态数据，进程内一份）：/api/industry-db 与 /api/coverage 共用。"""
+    _init_engines()
+    return _engine_cache["industry_db"]
 
 
 def _apply_cors(handler):
@@ -285,8 +291,15 @@ class HanghangHandler(BaseHTTPRequestHandler):
 
 
     def _api_coverage(self):
-        """行业岗位覆盖进度：目标全集 vs 当前覆盖"""
-        tracker = CoverageTracker(registry=self._get_registry())
+        """行业岗位覆盖进度：目标全集 vs 当前覆盖
+
+        必须复用 `_engine_cache` 里的 IndustryDatabase：`CoverageTracker` 构造时
+        若自建一个，就要重读 178 职业 + 41 分区 + 186 边 + 大典/ISCO 参考表，
+        实测 ~1000 ms；复用缓存实例后回到 ~几十 ms。职业库是静态数据，
+        不该按请求重建。
+        """
+        tracker = CoverageTracker(registry=self._get_registry(),
+                                  industry_db=_get_cached_industry_db())
         payload = tracker.compute()
         payload["rows"] = sorted(
             payload["rows"],
@@ -325,18 +338,18 @@ class HanghangHandler(BaseHTTPRequestHandler):
         职业条目附带 gb_code（《职业分类大典 2022》细类编码）与大典中文名，
         前端不必再自己维护一份编码表；`catalog` 段给映射率与分类覆盖快照。
         """
-        _init_engines()
-        db = _engine_cache["industry_db"]
+        db = _get_cached_industry_db()
         # compute()/validate() 仍每次现算：它们是"当前数据的一致性快照"，
         # 缓存的是实例（含读盘后的 yaml），不是结论。
         payload = db.compute()
+        degrade_notes: List[str] = []   # 降级记录单独收集，最后与 validate() 合并
         occupations = []
         for o in db.occupations:
             row = dict(o)
             try:
                 gb, gb_name, gb_path = self._gb_fields(db.catalog, o.get("id", ""))
             except Exception as exc:  # 大典表坏了不能把整个只读出口打成 500
-                payload.setdefault("problems", []).append(
+                degrade_notes.append(
                     f"职业 {o.get('id')} 的大典映射读取失败（{type(exc).__name__}），"
                     f"已降级为空字段")
                 gb = gb_name = gb_path = ""
@@ -346,7 +359,9 @@ class HanghangHandler(BaseHTTPRequestHandler):
                 row["gb_path"] = gb_path
             occupations.append(row)
         payload["occupations"] = occupations
-        payload["problems"] = db.validate()
+        # 降级记录必须并进来：compute() 返回的字典里没有 problems 键，
+        # 早先用 setdefault 追加会被这一行整体覆盖，等于降级一条也留不下来。
+        payload["problems"] = list(db.validate()) + degrade_notes
         _json_response(self, 200, payload)
 
     def _do_route(self, text: str, record_metrics: bool = False) -> dict:

@@ -226,6 +226,17 @@ CNB 平台自带的存储（制品库 + 知识库）作为发布通道，仓库�
 | `target_roles` | 分区无职业登记 → 回落 coverage-target 手写岗位 |
 | `stale` | 分区有职业登记但**全部非基线** → 权威源失效，`compute()["problems"]` 会报 |
 
+**分子分母同一口径**：凡是用职业库基线做分母的行，分子也按同一批基线职业算
+（「被引用的基线职业里，其 `unit_role` 真的出现在该单元岗位中」的个数）。
+早先分子是 `len(unit.roles)`、分母是基线职业数，两套来源——某单元被非基线职业
+认领岗位时会出现 `covered > baseline`（实测可到 500% 覆盖）而页面照常不报错。
+现在每行都满足 `covered <= baseline`，`test_role_coverage_bounds` 与
+`test_covered_roles_never_exceeds_baseline_with_extra_roles` 双双守住。
+
+`/api/coverage` 复用进程内缓存的 `IndustryDatabase`（`_get_cached_industry_db()`），
+不按请求重建：自建一次要重读 178 职业 + 41 分区 + 186 边 + 大典/ISCO 参考表，
+实测端点从 ~20 ms 涨到 ~1.5 s。
+
 职业库是权威源，但权威源坏掉不能让 `/api/coverage` 和 `coverage` 命令一起倒：
 `_occupation_baseline` / `_baseline_source` 走受保护的 `_check_partition` / `_members`，
 读取异常、返回 `None`、返回非列表一律按兜底口径返回**并写入 `problems`**

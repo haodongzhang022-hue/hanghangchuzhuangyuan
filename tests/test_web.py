@@ -145,6 +145,57 @@ class TestWebAPI:
         finally:
             db.catalog = real
 
+    def test_coverage_api_reuses_cached_industry_db(self):
+        """CoverageTracker 必须复用缓存的职业库实例，不许按请求重建
+
+        自建一个要重读 178 职业 + 41 分区 + 186 边 + 大典/ISCO 参考表，
+        实测端点从 ~12ms 涨到 ~1060ms。这里直接断言注入的对象就是缓存那个。
+        """
+        import hanghang.web.server as ws
+        from unittest import mock
+
+        cached = ws._get_cached_industry_db()
+        with mock.patch.object(ws, "CoverageTracker",
+                               wraps=ws.CoverageTracker) as spy:
+            self._get("/api/coverage")
+        assert spy.called, "端点没有构造 CoverageTracker？"
+        kwargs = spy.call_args.kwargs
+        assert kwargs.get("industry_db") is cached, (
+            f"应注入缓存实例，实际: {kwargs.get('industry_db')!r}")
+
+    def test_industry_db_api_keeps_degrade_notes_in_problems(self):
+        """大典表读取失败的降级记录必须留在 problems 里，不能被 validate() 覆盖
+
+        旧实现用 payload.setdefault("problems", []).append(...)，紧接着又
+        payload["problems"] = db.validate() 整体覆盖 —— 降级一条也留不下来，
+        "降级要可见"在这条路径上完全失效。
+        """
+        import hanghang.web.server as ws
+        from unittest import mock
+
+        db = ws._get_cached_industry_db()
+
+        class BrokenCatalog:
+            def gb_code_of(self, _):
+                raise RuntimeError("reference table gone")
+
+            def entry(self, _):
+                return {}
+
+            def path_of(self, _):
+                return ""
+
+        real = db.catalog
+        db.catalog = BrokenCatalog()
+        try:
+            code, data = self._get("/api/industry-db")
+        finally:
+            db.catalog = real
+            ws._engine_cache.pop("gb_fields_cache", None)
+        assert code == 200
+        assert any("大典映射读取失败" in p for p in data["problems"]), (
+            f"降级记录被吞了: {data['problems']}")
+
     def test_route_api(self):
         code, data = self._get(
             "/api/route?text=" + urllib.parse.quote("既要架构设计又要落地开发"))

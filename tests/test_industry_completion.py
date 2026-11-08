@@ -440,11 +440,23 @@ def test_merge_decision_crosses_stage_boundary_through_an_export():
     for s in holders:
         exported += list((s.get("exports") or {}).values())
     assert "MERGE_PENDING" in exported, (
-        "MERGE_PENDING 必须写进 $GITHUB_OUTPUT 并由 exports 带出 stage，"
+        "MERGE_PENDING 必须以 CNB 的 ##[set-output] 输出并由 exports 带出 stage，"
         "否则下个 stage 读不到它")
-    # 写 $GITHUB_OUTPUT 那句话不能少（只赋值 shell 变量等于没传）
-    assert "GITHUB_OUTPUT" in holders[0]["script"], (
-        "变量要写进 $GITHUB_OUTPUT，只写 shell 变量传不出 stage")
+    # 输出协议必须是 CNB 的 ##[set-output]：只赋值 shell 变量等于没传
+    assert "##[set-output merge=" in holders[0]["script"], (
+        "变量要以 ##[set-output key=value] 输出，只写 shell 变量传不出 stage")
+    # 导出链路坏了要显式报错，不能"条件恒假 + 全绿"
+    consumers = [s for s in stages
+                 if "MERGE_PENDING" in (s.get("script") or "")
+                 and s is not holders[0]]
+    assert consumers, "没有 stage 消费 MERGE_PENDING"
+    assert any("MERGE_PENDING" in (c.get("script") or "")
+               and "-z" in (c.get("script") or "") for c in consumers), (
+        "消费端必须对空值显式报错：导出链路坏了的时候，合并条件恒假但流水线全绿")
+    # $GITHUB_OUTPUT 是 GitHub Actions 的文件约定，CNB 没有这个文件：
+    # 写成它 → 条件恒假 → 导出空串 → 合并门禁永久失效且流水线全绿。
+    assert "GITHUB_OUTPUT" not in holders[0]["script"], (
+        "$GITHUB_OUTPUT 在 CNB 不存在，会导致合并门禁静默失效")
 
 
 def test_review_state_gate_uses_the_real_platform_value():
