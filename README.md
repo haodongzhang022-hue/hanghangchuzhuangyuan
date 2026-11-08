@@ -305,8 +305,6 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 - `data/reference/occupation-catalog-isco08.yaml` — ISCO-08 国际职业分类参考表（10/43/130/436 + 1931 条官方示例职位名，只读）
 - `data/reference/classification-sources.yaml` — 四根轴（职业/行业/税收/产出）分类体系索引：各标准规模、维护方、已接/待接
 - `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度（v0.3 起包含 `evaluated` 分区：目标全集回答"哪些人群必须看得见"，不等于"都要建单元"）
-- `data/industry-occupations.yaml` — 岗位表（177 个，基线 152，带唯一编号 `OCC-######`）；`access` 标承接通道
-- `data/industry-partitions.yaml` — 行业分区表（41 个）；`axes`/`employment`/`demand_side`
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
@@ -319,7 +317,7 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 **岗位原子化，分类是筛选器。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
 
 - **岗位表** `data/industry-occupations.yaml`：原子单位，唯一编号 `OCC-######` + 稳定 slug，
-  **不写"我属于哪个分区"**。177 条是**能被行业单元承接的收敛基线**，不是职业全集；
+  **不写"我属于哪个分区"**。178 条（基线 165）是**能被行业单元承接的收敛基线**，不是职业全集；
   全集在 `data/reference/occupation-catalog-2022.yaml`（大典 1636 个细类，带国标编码），
   补岗位时照表挑、用 `gb_code` 挂回标准，别现编名字。
 - **归属边** `data/occupation-memberships.yaml`：岗位和视角之间的关系全在这里，

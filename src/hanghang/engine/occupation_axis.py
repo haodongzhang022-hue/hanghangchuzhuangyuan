@@ -163,8 +163,22 @@ class OccupationAxis:
 
     def occupations_of(self, partition: str, axis: str = "",
                        min_weight: float = 0.0) -> List[dict]:
-        """某视角下的职业（按权重降序；权重相同按 id，保证输出稳定）。"""
-        edges = sorted(self.of_partition(partition, axis, min_weight),
+        """某视角下的职业（按最高权重降序；权重相同按 id，保证输出稳定）。
+
+        同一职业可以在同一分区挂**两根轴**（模型明确允许，`validate()` 的唯一键是
+        `(职业, 分区, 轴)`），但"某视角下有哪些人"要按**人**去重，不能按边数：
+        不去重会让 `member_count` 比 `member_weights` 多、`provider_mix` 分母重复
+        计数、`CoverageTracker` 该行的 covered 虚高。口径与 `weights_of` 的 max 对齐。
+        """
+        best: Dict[str, dict] = {}
+        for m in self.of_partition(partition, axis, min_weight):
+            occ = m.get("occupation", "")
+            if not occ:
+                continue
+            cur = best.get(occ)
+            if cur is None or self._weight(m) > self._weight(cur):
+                best[occ] = m
+        edges = sorted(best.values(),
                        key=lambda m: (-self._weight(m), m.get("occupation", "")))
         return [self._occ_by_slug[m["occupation"]] for m in edges
                 if m.get("occupation") in self._occ_by_slug]

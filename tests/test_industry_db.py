@@ -916,6 +916,52 @@ def test_split_partition_gdp_is_not_double_counted():
     assert db.partition("sport-fitness").get("gdp_cny") is None
 
 
+def test_broken_reference_tables_do_not_take_down_the_db():
+    """只读旁证表写坏不许连坐整个 M11 出口
+
+    `IndustryDatabase.__init__` 三处构造都在 yaml.safe_load 参考表：catalog /
+    isco / classification_sources。只包了 catalog 一处的后果是造库直接抛异常，
+    `industry check`、`industry partitions` 全以 traceback 退出、`/api/industry-db`
+    固定 503 —— 一份只读旁证把整个数据产品拖下水。
+    """
+    import shutil
+    import tempfile
+
+    src = os.path.join(os.path.dirname(__file__), "..", "data")
+    with tempfile.TemporaryDirectory() as tmp:
+        dst = os.path.join(tmp, "data")
+        shutil.copytree(src, dst)
+        bad = os.path.join(dst, "reference", "occupation-catalog-isco08.yaml")
+        with open(bad, "w", encoding="utf-8") as fh:
+            fh.write("unit_groups: [")   # 语法不完整
+        db = IndustryDatabase(data_dir=dst)
+        # 造库不抛，两个旁证降级为 None，主数据照常可用
+        assert db.isco is None, "ISCO 表坏了应当降级为 None"
+        assert len(db.partitions) == 41 and len(db.occupations) >= 178
+        s = db.compute()
+        assert s["rows"], "主数据不该因为旁证坏了而空掉"
+        # 降级必须可见：进 problems，不能静默当"没问题"
+        assert any("ISCO-08" in p for p in db.validate()), db.validate()
+
+
+def test_same_occupation_on_two_axes_counts_once():
+    """同一职业同分区挂两根轴：按「人」去重，不按边数
+
+    模型明确允许一条边一个轴（validate 的唯一键是 职业|分区|轴），但"某视角下
+    有哪些人"必须去重：不去重会让 member_count 比 member_weights 多、provider_mix
+    分母重复计数、coverage 该行 covered 虚高。口径要与 weights_of 的 max 对齐。
+    """
+    db = IndustryDatabase()
+    before = len(db.members_of("e-commerce"))
+    weights_before = len(db.weights_of("e-commerce"))
+    db.axis_view.memberships.append({
+        "occupation": "store-manager", "partition": "e-commerce",
+        "axis": "tax", "weight": 0.5, "unit_role": "store_manager"})
+    db.axis_view._index()
+    assert len(db.members_of("e-commerce")) == before, "同一职业被算成了两个人"
+    assert len(db.weights_of("e-commerce")) == weights_before
+
+
 def test_render_aligns_columns_for_cjk_names():
     """中文长分区名不得顶穿表格列：'{: <14}' / str.ljust 按字符数补，中文会歪
 
@@ -1015,4 +1061,6 @@ if __name__ == "__main__":
     test_partition_name_is_not_a_job_title()
     test_unfolded_partitions_have_null_gdp_not_fabricated_split()
     test_split_partition_gdp_is_not_double_counted()
+    test_broken_reference_tables_do_not_take_down_the_db()
+    test_same_occupation_on_two_axes_counts_once()
     print("✅ 行业分区定义库测试通过")

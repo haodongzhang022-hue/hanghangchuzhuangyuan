@@ -69,10 +69,20 @@ class IndustryDatabase:
             logging.warning(f"职业大典参考表加载失败，相关统计降级: {exc}")
         # 全球分类框架：ISCO-08 只读参考表 + 四根轴索引。同样降级不阻断主库，
         # 但缺失/写错会进 validate() 的 problems（旁证坏了比没有旁证更坏）。
-        self.isco: Optional[IscoCatalog] = IscoCatalog(os.path.join(
-            self.data_dir, "reference"))
-        self.classification_sources: Optional[ClassificationSources] = \
-            ClassificationSources(os.path.join(self.data_dir, "reference"))
+        # 两处也必须包住：它们同样是 yaml.safe_load 一批参考表，写坏就直接抛，
+        # 让 `industry check` / `industry partitions` 全以 traceback 退出、
+        # `/api/industry-db` 固定 503 —— 一份只读旁证不该连坐整个 M11 出口。
+        ref_dir = os.path.join(self.data_dir, "reference")
+        self.isco: Optional[IscoCatalog] = None
+        try:
+            self.isco = IscoCatalog(ref_dir)
+        except Exception as exc:  # noqa: BLE001 - 旁证坏了不该拖垮主库
+            logging.warning(f"ISCO-08 参考表加载失败，全球框架相关统计降级: {exc}")
+        self.classification_sources: Optional[ClassificationSources] = None
+        try:
+            self.classification_sources = ClassificationSources(ref_dir)
+        except Exception as exc:  # noqa: BLE001 - 同上
+            logging.warning(f"分类来源表加载失败，相关统计降级: {exc}")
         self.occ_path = os.path.join(self.data_dir, "industry-occupations.yaml")
         self.part_path = os.path.join(self.data_dir, "industry-partitions.yaml")
         # 归属边（occupation × partition × axis）。缺失不报错：老数据仍能用
@@ -830,10 +840,25 @@ class IndustryDatabase:
                         f"（没口径请留空，别填 0 冒充实测）")
 
         # 18. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
-        if self.isco is not None:
-            problems.extend(self.isco.validate())
-        if self.classification_sources is not None:
-            problems.extend(self.classification_sources.validate())
+        # 与第 14 条同口径：加载失败要报出来，不能因为"读不出来"就静默当没问题。
+        if self.isco is None:
+            problems.append(
+                "ISCO-08 参考表未加载（data/reference/），全球框架无法校验")
+        else:
+            try:
+                problems.extend(self.isco.validate())
+            except Exception as exc:  # noqa: BLE001 - 自检读不出旁证也要报问题
+                problems.append(
+                    f"ISCO-08 参考表自检失败（{type(exc).__name__}），无法校验")
+        if self.classification_sources is None:
+            problems.append(
+                "分类来源表未加载（data/reference/），来源统计无法校验")
+        else:
+            try:
+                problems.extend(self.classification_sources.validate())
+            except Exception as exc:  # noqa: BLE001
+                problems.append(
+                    f"分类来源表自检失败（{type(exc).__name__}），无法校验")
         return problems
 
     def _check_primary_keys(self) -> List[str]:
