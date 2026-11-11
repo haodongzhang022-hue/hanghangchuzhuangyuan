@@ -1,0 +1,317 @@
+# ============================================================================
+# 行业分区定义库 · 第一层：occupation（职业）
+# 作用：把「职业」作为**解耦的最小单目标**登记，不与行业命名绑定。
+#   1) 一个职业可以落在多个行业（如"会计"跨所有行业）；
+#   2) 行业分区是 occupation 按产出物/付费来源聚类的结果，见
+#      data/industry-partitions.yaml；
+#   3) 每个已注册单元的角色(role)用 unit_role 字段反查到这里；
+#   4) 已注册单元尚未覆盖的 baseline_occupation 由 coverage 计入「职业覆盖进度」。
+#
+# 字段说明（**只加不改，避免数据膨胀失焦**）：
+#   id        职业标识(kebab-case，稳定主键，不随行业命名变化)
+#   name      职业名
+#   unit_id   已承接该职业的行业单元ID；空缺 = 尚未建单元（覆盖缺口）
+#   unit_role 该单元内承接此职业的岗位名(roles[].name)；与 unit_id 同步
+#   deliverable 交付物类型(文本/代码/方案/物料/服务/决策/实物/程序)
+#   provider  提供者类型：human / ai / hybrid
+#   billing   收费方式：subscription(订阅) / hourly(计时) / project(项目) / commission(佣金)
+#             / retainer(顾问) / usage(按次) / salary(雇员工资) / free(免费/公共) / licensing(授权)
+#   baseline_occupation
+#             是否列入覆盖分母（true=当前目标基线）。目标全集刻意收敛，
+#             避免把 1636 个细类职业全塞进来把覆盖率稀释成 meaningless 的数字。
+#   note      备注（人的备忘，不参与任何校验）
+#   pending_partition
+#             已登记但尚未建立的分区意向（分区 id）。写在这里的必须是真实分区：
+#             note 里写「待补」是隐形契约，机器看不见；这个字段是显式的，
+#             指向的分区一旦建好就会自动出现在成员里，不存在了会被自检报出。
+#
+# ---- 以下字段是「补全与视角分离」改造新增（字段只加不改，老数据无需回填）----
+#   access    需求侧承接通道，说明"这个职业靠什么和付费方接上"。默认现金市场直连
+#             （字段留空即 paid_direct）；非默认值必须显式写上：
+#               paid_direct  服务本身在市场上直接收费（默认）
+#               non_market   服务由财政/公共预算供养，终端用户不直接付费（军人/消防/
+#                            社区服务/政务窗口）。它**本身就是购买力**（财政采购），
+#                            不是"难付费"，所以照样进覆盖分母，只是需求侧走采购通道
+#               org_internal 企业内部职能（行政/前台/薪酬核算），产值计入主业，
+#                            无独立市场口径，需求侧是雇主预算
+#               household    家庭内部无酬劳动（家务/育儿/照护自己的家人），无现金交易，
+#                            但占实际劳动时间、构成家政/养老/托育市场的替代基准
+#   axis      （分区上）这个词在哪个视角下成立。**同一个 partition 可以被多根轴
+#             引用**，所以「多视角」不等于「多建分区」：
+#               occupation_axis  干活的人（数字员工是否承接这个职业）。默认
+#               industry_axis    卖东西的单位（GB/T 4754 行业口径、产值统计归口）
+#               tax_axis         钱按什么税目征（跟"卖的是什么"走，不跟行业走）
+#               output_axis      一年多大产值、多少人就业
+#             example: 露天采矿工 → 职业轴上成立（有雇主、有作业流程），
+#             行业轴上归 B 采矿业，tax_axis 跟矿石货物 13% 走，output_axis 走采矿业增加值。
+#             所以"采矿工不该被忽略"与"不必为采矿工建数字员工单元"并不矛盾：
+#             人留在画像与需求侧，单元按 AI 承接面另判。
+#
+# 大典编码在哪：本文件**不**存 gb_code。职业 ↔《职业分类大典（2022 年版）》细类码的
+#   映射单独放 data/reference/occupation-gb-map.yaml，理由：
+#   1) 大典是外部标准，会换版（2015→2022），映射要能整份替换而不动业务字段；
+#   2) 147 条里只有 70 条口径对得上，把空字段铺满本文件只是噪音；
+#   3) 查表用 `industry catalog --search 关键词`，补职业时先看标准里叫什么，
+#      别现编名字——这是"造词/重名/粒度乱跳"的根治法。
+#
+# 基线口径：GB/T 6565《职业分类大典》中类 + 高频"可被数字员工承接"的服务场景。
+#   注意 baseline_occupation 的分母刻意收敛在 139，不随大典 1636 条膨胀，
+#   否则覆盖率会被稀释成没有意义的数字。
+# 新增职业只需追加一行；新增行业分区只需在 partitions 里加一条聚类规则。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-10-27"
+source_note: "初版基线；职业为解耦最小单位，行业=occupation聚合。产值口径见 industry-partitions.yaml"
+
+occupations:
+  # ---------------- 软件研发 ----------------
+  - {code: OCC-000001, id: architect, name: 架构师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000002, id: developer, name: 软件开发工程师, deliverable: 代码, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000003, id: code-reviewer, name: 代码评审员, deliverable: 评审意见, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000004, id: product-manager, name: 产品经理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000005, id: dev-secretary, name: 研发秘书/PMO, deliverable: 记录, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000006, id: qa-engineer, name: 测试工程师, deliverable: 程序, provider: human, billing: salary, baseline_occupation: false, note: 属软件研发，但该单元尚无测试岗；归属先落在职业轴上，岗位名等建 role 再填（路由命中不了比不挂更坏）}
+  - {code: OCC-000007, id: sre-devops, name: 运维/SRE, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, note: 同上，等软件研发单元新增运维岗再做硬归属}
+  - {code: OCC-000008, id: algorithm-engineer, name: 算法工程师, deliverable: 代码, provider: human, billing: salary, baseline_occupation: false, note: 横跨软件研发与数据分析，两边都是真干；用双视角权重表达，不再二选一}
+
+  # ---------------- 游戏研发 ----------------
+  - {code: OCC-000009, id: game-planner, name: 游戏策划, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000010, id: level-designer, name: 关卡设计师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000011, id: game-programmer, name: 游戏客户端开发, deliverable: 代码, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000012, id: game-artist, name: 游戏美术, deliverable: 物料, provider: human, billing: project, baseline_occupation: false, note: 视觉技能与设计岗同源，生产链在游戏研发；两边都是真干，用双视角权重表达}
+
+  # ---------------- 法律咨询 ----------------
+  - {code: OCC-000013, id: litigation-lawyer, name: 诉讼律师, deliverable: 服务, provider: hybrid, billing: retainer, baseline_occupation: true}
+  - {code: OCC-000014, id: contract-reviewer, name: 合同审查员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
+  - {code: OCC-000015, id: compliance-officer, name: 合规专员, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true}
+  - {code: OCC-000016, id: patent-agent, name: 专利代理人, deliverable: 文本, provider: human, billing: project, baseline_occupation: false, note: 属法律服务，兼跨科研产出转化；法律为主、科研转化次之}
+
+  # ---------------- 内容创作 ----------------
+  - {code: OCC-000017, id: copywriter, name: 文案/撰稿人, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
+  - {code: OCC-000018, id: media-operator, name: 新媒体运营, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000019, id: content-editor, name: 内容编辑/审校, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true}
+  - {code: OCC-000020, id: translator, name: 翻译/本地化, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: false, note: 口笔译通吃：口译归口译服务、笔译归翻译本地化，权重各半（口译人在场，纯人供给）}
+
+  # ---------------- 数据分析 ----------------
+  - {code: OCC-000021, id: data-analyst, name: 数据分析师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000022, id: data-scientist, name: 数据科学家, deliverable: 代码, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000023, id: bi-engineer, name: BI工程师, deliverable: 程序, provider: human, billing: salary, baseline_occupation: true}
+
+  # ---------------- 电子商务 ----------------
+  - {code: OCC-000024, id: store-manager, name: 网店店长, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true}
+  - {code: OCC-000025, id: ecom-marketer, name: 电商推广, deliverable: 方案, provider: hybrid, billing: commission, baseline_occupation: true}
+  - {code: OCC-000026, id: customer-service, name: 客服, deliverable: 服务, provider: ai, billing: subscription, baseline_occupation: true}
+
+  # ---------------- 财务会计 ----------------
+  - {code: OCC-000027, id: accountant, name: 会计/记账, deliverable: 文本, provider: hybrid, billing: retainer, baseline_occupation: true}
+  - {code: OCC-000028, id: tax-advisor, name: 税务师, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true}
+  - {code: OCC-000029, id: finance-analyst, name: 财务分析师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000030, id: payroll-processor, name: 薪酬核算员, deliverable: 文本, provider: ai, billing: subscription, baseline_occupation: true}
+  - {code: OCC-000031, id: auditor, name: 审计师, deliverable: 方案, provider: human, billing: project, baseline_occupation: false, note: 与会计同一套准则，但外部审计是独立签字主体；挂财务会计单元，岗位名独立}
+
+  # ---------------- 市场营销 ----------------
+  - {code: OCC-000032, id: market-researcher, name: 市场研究员, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000033, id: brand-planner, name: 品牌策划, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000034, id: campaign-planner, name: 活动策划, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000035, id: pr-manager, name: 公关经理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+
+  # ---------------- 教育培训 ----------------
+  - {code: OCC-000036, id: curriculum-designer, name: 课程设计师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000037, id: teacher, name: 讲师/教师, deliverable: 服务, provider: hybrid, billing: hourly, baseline_occupation: true}
+  - {code: OCC-000038, id: learning-advisor, name: 学习规划师, deliverable: 方案, provider: ai, billing: usage, baseline_occupation: true}
+
+  # ---------------- 健康医疗 ----------------
+  - {code: OCC-000039, id: health-consultant, name: 健康管理师, deliverable: 方案, provider: hybrid, billing: usage, baseline_occupation: true}
+  - {code: OCC-000040, id: psychologist, name: 心理咨询师, deliverable: 服务, provider: hybrid, billing: hourly, baseline_occupation: true}
+  - {code: OCC-000041, id: medical-advisor, name: 就医顾问, deliverable: 方案, provider: hybrid, billing: usage, baseline_occupation: true}
+  - {code: OCC-000042, id: fitness-coach, name: 健身教练, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true}
+  - {code: OCC-000043, id: nurse, name: 护士/护理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: false, note: 护理是医疗一线，线下交付，AI 承接面小；挂健康医疗单元，岗位名独立}
+
+  # ---------------- 家装设计 ----------------
+  - {code: OCC-000044, id: interior-designer, name: 室内设计师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000045, id: soft-furnish, name: 软装设计师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000046, id: renovation-pm, name: 装修项目经理, deliverable: 服务, provider: human, billing: project, baseline_occupation: true}
+
+  # ---------------- 人力资源 ----------------
+  - {code: OCC-000047, id: recruiter, name: 招聘专员, deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true}
+  - {code: OCC-000048, id: comp-benefits, name: 薪酬绩效专员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000049, id: employee-relations, name: 员工关系专员, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000050, id: hr-advisor, name: HR顾问/OD, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true}
+
+  # ---------------- 行政办公 ----------------
+  - {code: OCC-000051, id: admin-specialist, name: 行政专员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true}
+  - {code: OCC-000052, id: receptionist, name: 前台, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true}
+  - {code: OCC-000053, id: document-archivist, name: 档案文书, deliverable: 文本, provider: ai, billing: salary, baseline_occupation: true}
+  - {code: OCC-000054, id: meeting-coordinator, name: 会务专员, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true}
+
+  # ---------------- 视觉设计 ----------------
+  - {code: OCC-000055, id: graphic-designer, name: 平面设计师, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000056, id: ui-designer, name: UI设计师, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000057, id: illustrator, name: 插画师, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
+  - {code: OCC-000058, id: brand-designer, name: 品牌设计师, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true}
+
+  # ---------------- 待建单元分区里的代表性职业（覆盖缺口） ----------------
+  - {code: OCC-000059, id: simultaneous-interpreter, name: 口译员, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 口译服务-现场同步交付，按场/按小时计价；AI 替代面远低于笔译}
+  - {code: OCC-000060, id: subtitle-translator, name: 字幕翻译, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: 翻译本地化-异步文本交付}
+  - {code: OCC-000061, id: localizer, name: 本地化工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: 翻译本地化-异步文本交付}
+  - {code: OCC-000062, id: proofreader, name: 审校员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: 翻译本地化-异步文本交付}
+
+  - {code: OCC-000063, id: video-editor, name: 视频剪辑, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: 视频影视}
+  - {code: OCC-000064, id: cinematographer, name: 摄影摄像, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: 视频影视}
+  - {code: OCC-000065, id: post-production, name: 后期制作, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: 视频影视}
+  - {code: OCC-000066, id: director-assistant, name: 导演助理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 视频影视}
+  - {code: OCC-000067, id: scriptwriter, name: 编导/编剧, deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: 视频影视}
+
+  - {code: OCC-000068, id: financial-advisor, name: 理财顾问, deliverable: 方案, provider: hybrid, billing: commission, baseline_occupation: true, note: 金融投资}
+  - {code: OCC-000069, id: insurance-advisor, name: 保险顾问, deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: 金融投资}
+  - {code: OCC-000070, id: securities-analyst, name: 证券分析师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 金融投资}
+  - {code: OCC-000071, id: investment-advisor, name: 投资顾问, deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: 金融投资}
+  - {code: OCC-000072, id: loan-officer, name: 信贷专员, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 金融投资}
+
+  - {code: OCC-000073, id: realtor, name: 房产经纪, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 房产置业}
+  - {code: OCC-000074, id: property-consultant, name: 置业顾问, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 房产置业}
+  - {code: OCC-000075, id: appraiser, name: 房产评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 房产置业}
+  - {code: OCC-000076, id: leasing-operator, name: 招商运营, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 房产置业}
+  - {code: OCC-000077, id: property-manager, name: 物业管理, deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: 房产置业}
+
+  - {code: OCC-000078, id: travel-planner, name: 旅游规划师, deliverable: 方案, provider: ai, billing: usage, baseline_occupation: true, note: 旅游出行}
+  - {code: OCC-000079, id: hotel-manager, name: 酒店管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 旅游出行}
+  - {code: OCC-000080, id: tour-guide, name: 导游, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 旅游出行}
+  - {code: OCC-000081, id: booking-agent, name: 票务预订, deliverable: 服务, provider: ai, billing: usage, baseline_occupation: true, note: 旅游出行}
+  - {code: OCC-000082, id: homestay-operator, name: 民宿运营, deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: 旅游出行}
+
+  - {code: OCC-000083, id: menu-planner, name: 菜品策划, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
+  - {code: OCC-000084, id: restaurant-operator, name: 门店运营, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
+  - {code: OCC-000085, id: delivery-operator, name: 外卖运营, deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: 餐饮美食}
+  - {code: OCC-000086, id: food-safety-officer, name: 食品安全员, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
+  - {code: OCC-000087, id: fb-manager, name: 餐饮店长, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 餐饮美食}
+
+  - {code: OCC-000088, id: logistics-operator, name: 物流运营, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000089, id: supply-chain-manager, name: 供应链管理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000090, id: warehouse-manager, name: 仓储管理, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000091, id: buyer, name: 采购专员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 物流供应链}
+  - {code: OCC-000092, id: customs-broker, name: 报关员, deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: 物流供应链}
+
+  - {code: OCC-000093, id: production-planner, name: 生产计划员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000094, id: quality-engineer, name: 质量管理工程师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000095, id: process-engineer, name: 工艺工程师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000096, id: equipment-manager, name: 设备管理, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 智能制造}
+  - {code: OCC-000097, id: industrial-designer, name: 工业设计师, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: 智能制造}
+
+  - {code: OCC-000098, id: cost-estimator, name: 造价员, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 建筑工程}
+  - {code: OCC-000099, id: supervision-engineer, name: 监理工程师, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: 建筑工程}
+  - {code: OCC-000100, id: construction-manager, name: 施工管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 建筑工程}
+  - {code: OCC-000101, id: bidding-specialist, name: 招投标专员, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: 建筑工程}
+  - {code: OCC-000102, id: bim-engineer, name: BIM工程师, deliverable: 程序, provider: human, billing: project, baseline_occupation: true, note: 建筑工程}
+
+  - {code: OCC-000103, id: carbon-manager, name: 碳管理师, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: true, note: 能源环保}
+  - {code: OCC-000104, id: energy-manager, name: 能源管理师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 能源环保}
+  - {code: OCC-000105, id: environmental-consultant, name: 环保咨询, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 能源环保}
+  - {code: OCC-000106, id: energy-saving-planner, name: 节能方案, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 能源环保}
+  - {code: OCC-000107, id: eia-writer, name: 环评编制, deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: 能源环保}
+
+  - {code: OCC-000108, id: auto-sales, name: 汽车销售, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 汽车服务}
+  - {code: OCC-000109, id: after-sales, name: 售后服务, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 汽车服务}
+  - {code: OCC-000110, id: used-car-appraiser, name: 二手车评估师, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 汽车服务}
+  - {code: OCC-000111, id: auto-finance, name: 汽车金融, deliverable: 方案, provider: human, billing: commission, baseline_occupation: true, note: 汽车服务}
+  - {code: OCC-000112, id: repair-advisor, name: 汽修顾问, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 汽车服务}
+
+  - {code: OCC-000113, id: housekeeping-advisor, name: 家政顾问, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 生活服务}
+  - {code: OCC-000114, id: cleaning-steward, name: 保洁管家, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 生活服务}
+  - {code: OCC-000115, id: nanny, name: 育儿嫂, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 生活服务}
+  - {code: OCC-000116, id: maternity-matron, name: 月嫂, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: 生活服务}
+  - {code: OCC-000117, id: elder-care, name: 养老照护, deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: 生活服务}
+
+  - {code: OCC-000118, id: makeup-advisor, name: 美妆顾问, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 美业美发}
+  - {code: OCC-000119, id: hairstylist, name: 美发师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 美业美发}
+  - {code: OCC-000120, id: manicurist, name: 美甲师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 美业美发}
+  - {code: OCC-000121, id: beauty-advisor, name: 美容顾问, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 美业美发}
+  - {code: OCC-000122, id: image-consultant, name: 形象设计, deliverable: 方案, provider: hybrid, billing: hourly, baseline_occupation: true, note: 美业美发}
+
+  - {code: OCC-000123, id: agri-consultant, name: 农业咨询, deliverable: 方案, provider: human, billing: retainer, baseline_occupation: true, note: 农林牧渔}
+  - {code: OCC-000124, id: planting-planner, name: 种养规划, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 农林牧渔}
+  - {code: OCC-000125, id: agri-ecommerce, name: 农产品电商, deliverable: 服务, provider: hybrid, billing: commission, baseline_occupation: true, note: 农林牧渔}
+  - {code: OCC-000126, id: agronomist, name: 农技顾问, deliverable: 方案, provider: human, billing: hourly, baseline_occupation: true, note: 农林牧渔}
+  - {code: OCC-000127, id: ranch-operator, name: 牧场经营, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 农林牧渔}
+
+  - {code: OCC-000128, id: curator, name: 策展人, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 文化艺术}
+  - {code: OCC-000129, id: talent-agent, name: 经纪人, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 文化艺术}
+  - {code: OCC-000130, id: publisher-editor, name: 出版编辑, deliverable: 文本, provider: hybrid, billing: salary, baseline_occupation: true, note: 文化艺术}
+  - {code: OCC-000131, id: playwright, name: 编剧, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: 文化艺术}
+  - {code: OCC-000132, id: music-producer, name: 音乐制作, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: 文化艺术}
+
+  - {code: OCC-000133, id: policy-consultant, name: 政策咨询, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 政务公共}
+  - {code: OCC-000134, id: community-worker, name: 社区服务, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 政务公共}
+  - {code: OCC-000135, id: gov-service-clerk, name: 政务服务, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 政务公共}
+  - {code: OCC-000136, id: records-manager, name: 档案管理, deliverable: 文本, provider: ai, billing: salary, baseline_occupation: true, note: 政务公共}
+  - {code: OCC-000137, id: civic-agent, name: 民生代办, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: 政务公共}
+
+  - {code: OCC-000138, id: sports-coach, name: 运动教练, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 体育健身-课时制，付费方=会员/学员}
+  - {code: OCC-000139, id: sports-agent, name: 体育经纪, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 赛事与场馆运营-佣金制，付费方=俱乐部/主办方}
+  - {code: OCC-000140, id: event-operator, name: 赛事运营, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: 赛事与场馆运营-项目制，付费方=主办方/赞助/转播}
+  - {code: OCC-000141, id: venue-manager, name: 场馆运营, deliverable: 服务, provider: human, billing: subscription, baseline_occupation: true, note: 赛事与场馆运营-租金/会员订阅}
+  - {code: OCC-000142, id: rehab-trainer, name: 康复训练师, deliverable: 服务, provider: human, billing: hourly, baseline_occupation: true, note: 体育健身-课时制，与运动康复自费同源}
+
+  - {code: OCC-000143, id: literature-reviewer, name: 文献综述员, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: 科研学术}
+  - {code: OCC-000144, id: grant-writer, name: 课题申报, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: 科研学术}
+  - {code: OCC-000145, id: experiment-designer, name: 实验设计, deliverable: 方案, provider: human, billing: project, baseline_occupation: true, note: 科研学术}
+  - {code: OCC-000146, id: research-analyst, name: 科研数据分析, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: 科研学术}
+  - {code: OCC-000147, id: academic-editor, name: 学术编辑, deliverable: 文本, provider: ai, billing: usage, baseline_occupation: true, note: 科研学术}
+
+  # ==========================================================================
+  # 第三轮补全：按「交税/付费视角」扫出来的漏统职业
+  #   这批量不是为了多建单元，而是把"人"补回画像：谁在干活、谁付钱、
+  #   产值怎么算。漏掉的职业会让市场画像缺角（直播打赏刷出几千亿，之前
+  #   只登记了一个"新媒体运营"，等于看不见这个行业）。
+  #   access 字段见文件头说明；不写 = paid_direct。
+  # ==========================================================================
+
+  # ---------------- 直播/电竞/陪玩（数字经济新职业，大典已有编码） ----------------
+  # 分区归属各自独立：直播(打赏+坑位) / 电竞(奖金+工资+票务) / 内容创作(MCN 内部职能)。
+  # 早前这 5 个职业全塞进一个 esports-live 分区，等于把三种商业模式折叠成一个，
+  # 谁跟谁一类都看不出来——现在按付费方和交付物分开挂。
+  - {code: OCC-000148, id: streamer, name: 网络主播/直播带货, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 大典 4-01-06-02 互联网营销师；打赏+佣金双口径，2022 年 8 个新职业之一}
+  - {code: OCC-000149, id: live-stream-operator, name: 直播运营, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 选品/排期/场控，属 MCN 内部职能；付费方是机构预算，不是观众打赏，所以挂内容创作而非 live-streaming}
+  - {code: OCC-000150, id: esports-player, name: 电子竞技员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 大典 4-14-05-07；收入=俱乐部工资+赛事奖金+直播分成}
+  - {code: OCC-000151, id: game-companion, name: 游戏陪玩, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: 按局/按小时计价，平台抽佣；大典无独立细类，按电子竞技员近义口径挂（同属陪玩/竞技需求侧）}
+  - {code: OCC-000152, id: esports-operator, name: 电子竞技运营师, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, note: 大典 4-14-05-06}
+
+  # ---------------- 外卖/快递/网约车（平台零工，付费方与计件口径） ----------------
+  - {code: OCC-000153, id: delivery-rider, name: 外卖骑手/网约配送员, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: 大典 4-10-08-01 网约配送员；计件收入，平台/商家付费}
+  - {code: OCC-000154, id: courier, name: 快递员, deliverable: 服务, provider: human, billing: usage, baseline_occupation: true, note: 大典 4-02-07-08}
+  - {code: OCC-000155, id: ride-hailing-driver, name: 网约车司机, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 大典 4-02-02-01 客运车辆驾驶员（网约车为近义）；交通出行付费方=乘客}
+
+  # ---------------- 非市场付费（access=non_market）：不直接收费，但财政是购买力 ----------------
+  - {code: OCC-000156, id: military-officer, name: 军官/警官, deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: 大典 7-01-00-00；兜底口径：不收费≠不值得分析，财政国防支出是真实购买力，需求侧走采购通道}
+  - {code: OCC-000157, id: soldier, name: 义务兵, deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: 大典 7-03-00-00}
+  - {code: OCC-000158, id: civilian-staff-mil, name: 军队文职, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: false, access: non_market, note: 大典 7-04-00-00；文职里有大量可数字化的科研/翻译/医护岗}
+  - {code: OCC-000159, id: firefighter, name: 消防员/应急救援, deliverable: 服务, provider: human, billing: free, baseline_occupation: false, access: non_market, note: 大典 3-02-03-01 / 3-02-03-06 森林消防员}
+  - {code: OCC-000160, id: emergency-planner, name: 应急管理/预案编制, deliverable: 方案, provider: hybrid, billing: retainer, baseline_occupation: false, access: non_market, note: 政府采购+企业合规两头付费；这是公共安全分区里 AI 承接面最大的一块}
+  - {code: OCC-000161, id: security-officer, name: 安保/保安, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 企业付费（物业/园区/商场），属现金市场}
+
+  # ---------------- 采矿/资源（现场作业为主，单元角度不建，画像角度必须留） ----------------
+  - {code: OCC-000162, id: mining-engineer, name: 采矿工程技术员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 大典 2-02-03-02；矿山设计/安全规程/排水防滑，是采矿里少数非现场岗}
+  - {code: OCC-000163, id: underground-miner, name: 井下采矿工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 大典 6-16-01-05；井下作业不可数字交付，但矿工群体的职业病筛查/培训/家属服务是真实需求}
+  - {code: OCC-000164, id: open-pit-miner, name: 露天采矿工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 大典 6-16-01-01；同上，画像留、单元不建}
+  - {code: OCC-000165, id: mine-safety-inspector, name: 矿山安全监察, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 监管方口径，付费方是财政；AI 可承接文书与台账}
+  - {code: OCC-000166, id: mineral-processor, name: 矿物加工/选矿, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 现场工艺岗}
+
+  # ---------------- 公用事业/建筑现场（同属"人要看，单元另判"） ----------------
+  - {code: OCC-000167, id: power-grid-operator, name: 电网调度运行, deliverable: 服务, provider: hybrid, billing: salary, baseline_occupation: true, access: non_market, note: 调度有 SOP 与规程，AI 承接面集中在这里}
+  - {code: OCC-000168, id: utility-billing-clerk, name: 抄表/计费, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 被智能表计替代最快的一档}
+  - {code: OCC-000169, id: water-conservancy-engineer, name: 水利工程技术员, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, access: non_market, note: 政府投资驱动，付费方=财政}
+  - {code: OCC-000170, id: seafarer, name: 船员/航海, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 大典 5-04-03-02 渔业船员 / 4-02-03-01 客运船舶驾驶员；船东付费}
+  - {code: OCC-000171, id: marine-surveyor, name: 海洋测绘/海事监督, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, access: non_market, note: 海事局口径}
+  - {code: OCC-000172, id: construction-worker, name: 建筑工人/施工班组, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 包工头/劳务公司付费，属工程款内部分账；班组长的排班与算量可数字化}
+  - {code: OCC-000173, id: factory-operator, name: 产线操作工, deliverable: 实物, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 制造现场主力人群，画像与技能培训需求巨大}
+
+  # ---------------- 家庭无酬劳动（access=household）：没现金交易，但是真实劳动时间 ----------------
+  - {code: OCC-000174, id: homemaker, name: 家务/持家者, deliverable: 服务, provider: human, billing: free, baseline_occupation: true, access: household, note: 无酬劳动，是家政/月嫂/育儿嫂市场的替代基准；本行业用人成本分析必须看这一档}
+  - {code: OCC-000175, id: family-caregiver, name: 家庭照护者, deliverable: 服务, provider: human, billing: free, baseline_occupation: true, access: household, note: 照顾老人/病人/残障家人，长护险与居家照护市场的隐性分母}
+
+  # ---------------- 政务/国际组织（财政与机构预算付费） ----------------
+  - {code: OCC-000176, id: un-staff, name: 国际组织职员, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, access: non_market, note: 雇方是机构预算；文书/翻译/项目申报是 AI 承接面}
+  - {code: OCC-000177, id: foreign-service-officer, name: 外事/驻外人员, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, access: non_market, note: 政府外事预算}
+
+  # ---------------- 直播与网络表演（平台分账口径）----------------
+  - {code: OCC-000178, id: live-host, name: 网络主播, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 大典(2022)未单列网络主播，按平台分账口径登记；付费方是观众打赏与品牌坑位，不是机构预算（与 live-stream-operator 的雇主付费区分开）}

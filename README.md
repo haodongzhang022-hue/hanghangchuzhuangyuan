@@ -125,8 +125,30 @@ python3 src/hanghang/cli/main.py binding --session "sess-x"
 python3 src/hanghang/cli/main.py bindings           # 列出全部绑定
 python3 src/hanghang/cli/main.py unbind --session "sess-x"
 
+# M11 行业分区定义库：职业是最小单位，行业是聚类结果
+python3 src/hanghang/cli/main.py industry partitions --top 10   # 分区定义表(按产值降序)
+python3 src/hanghang/cli/main.py industry partition video-media  # 单分区详情(聚类依据/付费方/成员职业)
+python3 src/hanghang/cli/main.py industry occupations --provider ai  # 按提供者/收费方式过滤职业
+python3 src/hanghang/cli/main.py industry occupations --unassigned    # 未挂分区的职业(=覆盖缺口)
+python3 src/hanghang/cli/main.py industry catalog --search 护士   # 查职业分类大典(1636 个职业+国标编码)
+python3 src/hanghang/cli/main.py industry catalog --gaps        # 大典里还没被挂上的细类(候选池)
+python3 src/hanghang/cli/main.py industry check                  # 职业↔单元岗位 双向对齐自检
+python3 src/hanghang/cli/main.py industry export --out out/industry-db  # 导出 json/csv/sqlite 扁平表
+python3 src/hanghang/cli/main.py reference isco --search nurse   # 查 ISCO-08 国际职业分类(436 细类+1931 条官方示例职位名)
+python3 src/hanghang/cli/main.py reference isco --code 2512     # 按编码看国际归属链路
+python3 src/hanghang/cli/main.py reference sources               # 四根轴全景：职业/行业/税收/产出 各有哪些标准
+
 # 列出已注册单元
 python3 src/hanghang/cli/main.py units
+
+# 按视角看同一批分区：职业 / 行业 / 税收 / 产出（多视角 ≠ 多分区）
+python3 src/hanghang/cli/main.py industry axis output      # 产值 + 就业人数
+python3 src/hanghang/cli/main.py industry axis             # 四根轴全景
+
+# 需求侧承接通道：现金市场 / 财政供养 / 企业内部 / 家庭无酬
+# （不直接付费 ≠ 不值得分析：军人/消防/矿工/家务都在这里，画像照样统计）
+python3 src/hanghang/cli/main.py industry access
+python3 src/hanghang/cli/main.py industry access --side non_market
 
 # 查看「目标全集 vs 当前覆盖」行业/岗位覆盖进度表（覆盖率/待补缺口）
 python3 src/hanghang/cli/main.py coverage
@@ -245,6 +267,7 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 | `/api/search?kw=..&mode=..` | GET | 能力索引搜索 |
 | `/api/index` | GET | 全量能力索引 |
 | `/api/metrics` | GET | 运行指标 |
+| `/api/industry-db` | GET | M11 行业分区定义库（分区表+职业表+覆盖率+自检，只读） |
 | `/api/handoffs` | GET | 待处理交接卡 |
 | `/api/prefixes` | GET | 稳定前缀档案 |
 | `/api/state` | GET | M9 编排/交接状态卡聚合（任务进度，只读） |
@@ -327,15 +350,27 @@ python3 tests/test_dongjiagoushi_routing.py  # dongjiagoushi M1 外挂路由验�
 python3 tests/test_context_m10.py     # M10 上下文装配器（防冗余规则表/三层装配/缓存保护）
 python3 tests/test_cli_context.py     # M10 × CLI context 三子命令（assemble/rules/validate）
 python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBinding/SessionBoundRouter）
-python3 tests/test_rolecard_m11.py  # M11 岗位画像层（渲染/就绪度/模板合并/路由加权/上下文注入）
+python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗位双向对齐/产值口径/扁平表导出）
+python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码/映射外键/两个分母不混读）
+python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表/四根轴索引/副证缺失不静默）
+python3 tests/test_rolecard_m11.py  # M11.1 岗位画像层（渲染/就绪度/模板合并/路由加权/上下文注入）
 python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库/类目索引/叫法收敛/岗位引用）
+python3 tests/test_classstore_m11_2.py  # M11.2 词表目录化（域文件→DDL/数据字典一致性）
+python3 tests/test_roledb_m11_3.py  # M11.3 实库（建库回读/双方言 DDL/列表型字段一行一条）
 ```
 
 ## 数据文件
 
 - `data/industry-register.yaml` — 行业单元注册声明（M2 数据源）
 - `data/unit-index.yaml` — 跨行业单元索引（M8）
-- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度
+- `data/industry-occupations.yaml` — M11 岗位表（原子单位：唯一编号 `OCC-######` + 稳定 slug，**不存归属字段**）
+- `data/occupation-memberships.yaml` — M11 归属边（岗位 × 视角 × 轴 × 权重；一个岗位可被多个视角同时引用）
+- `data/industry-partitions.yaml` — M11 行业分区表（聚类依据/付费方/供给结构/产值口径）
+- `data/reference/occupation-catalog-2022.yaml` — 《职业分类大典（2022 年版）》参考表（8 大类/79 中类/449 小类/1636 细类，只读）
+- `data/reference/occupation-gb-map.yaml` — 职业 ↔ 大典细类编码的人工映射（宁缺勿错）
+- `data/reference/occupation-catalog-isco08.yaml` — ISCO-08 国际职业分类参考表（10/43/130/436 + 1931 条官方示例职位名，只读）
+- `data/reference/classification-sources.yaml` — 四根轴（职业/行业/税收/产出）分类体系索引：各标准规模、维护方、已接/待接
+- `data/coverage-target.yaml` — 行业岗位覆盖**目标全集**（分母）；与已注册单元比对得到整体目标与当前覆盖率的进度（v0.3 起包含 `evaluated` 分区：目标全集回答"哪些人群必须看得见"，不等于"都要建单元"）
 - `data/prefix-archive.json` — 稳定前缀档案（M3，含全部14单元，版本化提交）
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
@@ -349,6 +384,48 @@ python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
 
 
+## 行业分区定义库（M11）
+
+**岗位原子化，分类是筛选器。** 解决"行业靠命名堆叠、改名就漏就重"的问题：
+
+- **岗位表** `data/industry-occupations.yaml`：原子单位，唯一编号 `OCC-######` + 稳定 slug，
+  **不写"我属于哪个分区"**。178 条（基线 165）是**能被行业单元承接的收敛基线**，不是职业全集；
+  全集在 `data/reference/occupation-catalog-2022.yaml`（大典 1636 个细类，带国标编码），
+  补岗位时照表挑、用 `gb_code` 挂回标准，别现编名字。
+- **归属边** `data/occupation-memberships.yaml`：岗位和视角之间的关系全在这里，
+  带轴和权重。**一个岗位可以被任意多个视角同时引用，权重不必相加为 100**——
+  0.6+0.5 不是错误，是"两件活都真干"。想只看主要归属就 `--min-weight 0.5`。
+- **分区表** `data/industry-partitions.yaml`：只写清"为什么聚类"（聚类依据 / 付费方 /
+  供给结构 `provider_mix` / 产值口径 `gdp_cny`）。成员是**按视角筛出来的结果**，
+  不是"归属于它的东西"；分区不存清单，岗位不存归属，两边永远不会分叉。
+
+  单值归属是硬分类，有三个躲不掉的毛病：丢信息（无法表达跨行业）、被管理绑架
+  （改分区就得批量改岗位）、假装确定（现实里大多数岗位本来就跨行业）。
+  所以分类只当筛选器用：`industry filter --partition X --provider ai --min-weight 0.5`。
+- **聚类粒度**：付费方与交付方式同一件事才合并，否则必须拆。口译/笔译、直播/电竞、
+  健身/赛事三组已按这条拆开；拆分分区没有独立产值口径就留 `null`，不按比例切一份
+  （切一份等于同一批钱算两遍）。旧折叠 id 有回归测试盯着，不许复活。
+- **三层递进**：职业 → 分区（聚类）→ 单元（真正能被路由）。`status` 区分
+  `covered` 已建 / `pending` 待建 / `evaluated` 评估后不建（不计分母，避免永久缺口）。
+- **产值口径诚实**：`gdp_cny` 是量级参考，用于排序定权重；无市场口径的分区
+  （行政办公/政务公共/国际事务）**刻意留 `null`**，绝不填 0 冒充数据。
+- **不引入外部数据库**：yaml 是权威源（可评审、可回滚、可被知识库切片），
+  `industry export` 一键生成 `industry.sqlite` + 两份 csv 扁平表，随 CNB 制品库发布，拿到即用。
+- **双向自检**：`industry check` 跑 19 条校验（唯一编号/主键唯一/状态枚举/归属边悬空/权重越界/
+  同边重复/职业↔岗位对齐/岗位骨架反查/大典映射外键/供给结构对账/数据源存在），其中三条专守"分母被悄悄缩小"
+  的暗沟——分区 id 写重、`status` 拼错、标了 `covered` 却没登记岗位，这三种错不会让覆盖率变红，
+  只会让它变好看。明确**不校验**"归属是否唯一"：那是伪命题。
+  条数只有一处来源（`IndustryDatabase.VALIDATE_CHECK_COUNT`），README、文档标题、
+  CLI 回执都读它——上次这数被手抄三份，抄成了 15/17/18 三个数，评审纠了两轮。
+  流水线在 PR 测试、合并门禁、main 全量回归三处都会跑它，数据漂移不靠自觉。
+
+**国际口径**：职业轴再接一层 ISCO-08（ILO，436 细类 + 1931 条官方示例职位名），
+行业轴与税收轴的口径与接法见 `docs/industry/global-framework.md`。
+外部标准一律只读、不进 coverage 分母——它们是"还能挑多少"，不是"还欠多少"。
+
+`coverage` 的岗位基线现在**优先取职业库**，`coverage-target.yaml` 只作兜底，
+避免两处手写岗位各自漂移。详见 `docs/industry/industry-partition-db.md`。
+
 ## 行业覆盖进度与多渠道搜集
 
 平台以 **coverage 进度** 统一回答「整体要覆盖多少行业/岗位、当前覆盖到多少」。
@@ -358,6 +435,24 @@ python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库
 - **覆盖率**：`coverage` 命令输出 行业覆盖率 与 岗位覆盖率 两张进度表，并可按缺口（`--gaps`）列出待补行业及建议搜集渠道。
 
 `coverage-target.yaml` 每个待补行业均声明了 `priority`(优先度) 与 `channels`(建议搜集渠道)，用于引导通过各渠道（招聘岗位库、行业协会目录、职业分类大纲、服务机构目录、用户真实诉求沉淀等）充分搜集岗位/职业/行业后逐步建单元补齐。新增目标行业只需在 `targets` 追加一条声明即可自动纳入进度统计，无需改代码（数据驱动）。
+
+### 补全职业的四个尺子（别压成一个判断）
+
+补职业时最容易犯的错，是拿"**能不能向终端用户直接收费**"当唯一过滤器。一旦这么筛，
+会同时丢掉两类人：口径没扫到的（主播/陪玩挂在互联网信息服务下，不独立成行），
+和付费方不是终端用户的（军人/消防/矿工，财政或项目款付费）。两种错原因完全不同，
+所以现在拆成四个各管各的问题：
+
+| 尺子 | 回答什么 | 字段 |
+|---|---|---|
+| 职业 | 这个人在干什么活 | `industry-occupations.yaml` 一条记录 |
+| 承接通道 | 怎么和付费方接上 | `access`：`paid_direct`(缺省) / `non_market`(财政) / `org_internal`(雇主预算) / `household`(家庭无酬) |
+| 视角 | 在哪根轴成立 | `axes`：职业/行业/税收/产出，**一个分区可被多根轴引用** |
+| 单元 | 要不要建执行体 | `status`：`covered` / `pending` / `evaluated` |
+
+**`evaluated` 不等于忽略**：职业照样登记、通道照样统计、就业人数照样计入产出轴，
+只是不从数字员工这条产品线建单元。"该不该被分析"和"要不要建 AI 单元"是两件事 ——
+采矿工的画像影响市场，值得存；AI 能不能替他下井作业，是另一个问题。
 
 ## 复合装配的边界规则（评审补强① 已落实）
 
@@ -373,11 +468,16 @@ python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库
 
 - 顶层架构: `docs/architecture/ARCHITECTURE.md`
 - 需求基线: `docs/architecture/通用能力-需求澄清基线.md`
+- 行业分区定义库(M11): `docs/industry/industry-partition-db.md`
+- 职业分类大典参考表: `docs/industry/occupation-catalog.md`
+- 全球分类框架（四根轴/国外体系/接法）: `docs/industry/global-framework.md`
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 岗位画像层(M11): `docs/architecture/M11-岗位画像层.md`（含 §9 M11.1 利益链条归一）
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11 岗位画像)
+- 岗位画像层(M11.1): `docs/architecture/M11-岗位画像层.md`（含 §9 利益链条归一）
+- 词表目录化与云仓(M11.2): `docs/architecture/M11.2-词表目录化与云仓数据库.md`
+- 实库落地(M11.3): `docs/architecture/M11.3-实库-岗位与行业类落库.md`
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(行业分区定义库) / `-v13.md`(补全与视角分离·承接通道) / `-v14.md`(岗位画像层·六维评估/就绪度/实库)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

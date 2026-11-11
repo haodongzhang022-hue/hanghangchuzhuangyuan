@@ -10,8 +10,8 @@
 # 参考基线：国民经济行业分类门类(GB/T 4754) + 高频可被 AI 数字员工承接的
 #           服务/职业场景。行业 name 与 unit-index.yaml 的 industry 对齐以自动判覆盖。
 # ============================================================================
-version: "0.2"        # 清单版本
-updated_at: "2026-09-08"
+version: "0.3"        # 清单版本
+updated_at: "2026-10-29"
 baseline_note: "初版基线，待各渠道搜集核实后迭代增补；注册单元自动判为已覆盖，无需手动维护"
 
 # 目标行业全集：每个条目 = 一个应可路由的行业单位(细粒度)。
@@ -56,10 +56,16 @@ targets:
      status: registered, channels: [], note: "已注册"}
 
   # ---------------- 待覆盖(pending)：需通过渠道搜集岗位并建单元补齐 ----------------
+  # 翻译拆成两支：口译（现场同步交付）/ 本地化（异步文本交付）。
+  # 合成一条时"AI 替代率最高"会把同传一起算进去，属于被错误折叠的一类。
+  - {id: interpretation,       name: 口译服务,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [口译员],
+     channels: [翻译平台岗位榜, 会议服务公司名录], note: "现场同步交付，AI 承接面低于笔译"}
   - {id: translation,          name: 翻译本地化,   category: 文化/体育和娱乐业, priority: 中,
      status: pending,
-     target_roles: [口译, 笔译, 字幕翻译, 本地化, 审校],
-     channels: [翻译平台岗位榜, 语言服务行业目录], note: ""}
+     target_roles: [字幕翻译, 本地化, 审校],
+     channels: [翻译平台岗位榜, 语言服务行业目录], note: "异步文本交付"}
   - {id: video-media,          name: 视频影视,     category: 文化/体育和娱乐业, priority: 中,
      status: pending,
      target_roles: [视频剪辑, 摄影摄像, 后期制作, 导演助理, 编导],
@@ -120,11 +126,55 @@ targets:
      status: pending,
      target_roles: [政策咨询, 社区服务, 政务服务, 档案管理, 民生代办],
      channels: [政务公开办事目录, 社工职业目录], note: ""}
-  - {id: sport-leisure,        name: 体育健身,     category: 文化/体育和娱乐业, priority: 低,
+  # 体育拆成两支：面个人的课时制服务 / 面机构的赛事场馆项目制。
+  - {id: sport-fitness,        name: 体育健身,     category: 文化/体育和娱乐业, priority: 低,
      status: pending,
-     target_roles: [运动教练, 体育经纪, 赛事运营, 场馆运营, 康复训练],
-     channels: [体育机构岗位, 运动培训目录], note: ""}
+     target_roles: [运动教练, 康复训练],
+     channels: [体育机构岗位, 运动培训目录], note: "会员/学员付费，课时制"}
+  - {id: sport-games,          name: 赛事与场馆运营, category: 文化/体育和娱乐业, priority: 低,
+     status: pending,
+     target_roles: [体育经纪, 赛事运营, 场馆运营],
+     channels: [赛事主办方名录, 场馆运营方名录], note: "票务/赞助/转播付费，项目制"}
   - {id: research-academic,    name: 科研学术,     category: 科学研究和技术服务, priority: 中,
      status: pending,
      target_roles: [文献综述, 课题申报, 实验设计, 数据分析师, 学术编辑],
      channels: [科研院所岗位, 高校专业目录], note: "与数据分析/软件高度复合"}
+
+  # ---------------- 补全第三轮：按"交税/付费视角"扫出来的漏项与误丢项 ----------------
+  # 说明：evaluated（评估后不建数字员工单元）的分区也进目标全集 —— 目标全集回答
+  # "哪些行业/人群必须看得见"，不等于"都要建单元"。把它们排除在外，等于让
+  # "评估完就不统计"变成合法操作，这才是最初忽略军队/采矿的原因。
+  # 直播 / 电竞拆开：前者卖打赏与坑位，后者卖竞技成绩与赛事产品；
+  # 混成一条会让"供给结构 100% 纯人"同时套到两种用工形态上。
+  - {id: live-streaming,       name: 直播与网络表演, category: 文化/体育和娱乐业, priority: 高,
+     status: pending,
+     target_roles: [网络主播, 直播运营],
+     channels: [网络表演(直播)行业年度报告, MCN机构名录, 直播平台公开数据],
+     note: "旧口径整块漏掉：直播打赏挂在互联网信息服务下面，不独立成行"}
+  - {id: esports,              name: 电竞竞技,     category: 文化/体育和娱乐业, priority: 中,
+     status: pending,
+     target_roles: [电子竞技员, 游戏陪玩, 电子竞技运营师],
+     channels: [电竞工委产业报告, 陪玩平台公开数据, 俱乐部名录],
+     note: "奖金/工资/票务/陪玩抽成，与直播打赏不同源"}
+  - {id: mining-resources,    name: 矿业资源,     category: 采矿业, priority: 中,
+     status: pending,
+     target_roles: [采矿工程技术员, 井下采矿工, 露天采矿工, 矿山安全监察, 矿物加工],
+     channels: [国家统计局采矿业统计, 矿业集团目录, 矿山安全监察机构公告],
+     note: "不建数字员工单元（现场作业），但人群/付费方/就业必须进画像"}
+  - {id: utilities,           name: 电力热力燃气水, category: 电力热力燃气及水生产供应业, priority: 中,
+     status: pending,
+     target_roles: [电网调度运行, 抄表计费],
+     channels: [国家统计局增加值, 电网/燃气集团目录], note: "公用事业" }
+  - {id: public-safety,       name: 公共安全应急, category: 公共管理/社会保障, priority: 高,
+     status: pending,
+     target_roles: [军官, 义务兵, 军队文职, 消防员, 应急管理, 安保保安],
+     channels: [国防部/应急管理部公开编制信息, 安防协会统计, 政府采购服务清单],
+     note: "财政供养 ≠ 没有付费方：财政是购买力，AI 承接面在预案/文书/培训/家属服务"}
+  - {id: water-marine,        name: 水利海洋,     category: 水利/环境和公共设施管理业, priority: 中,
+     status: pending,
+     target_roles: [水利工程技术员, 船员, 海洋测绘海事监督],
+     channels: [水利部统计公报, 海洋经济统计, 海事局公告], note: "与建筑工程部分重合，但船员人群独立" }
+  - {id: international-org,   name: 国际组织与对外事务, category: 国际组织/涉外, priority: 低,
+     status: pending,
+     target_roles: [国际组织职员, 外事驻外人员],
+     channels: [国际组织岗位公告, 驻外机构目录], note: "机构预算付费，无市场税目口径" }

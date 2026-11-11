@@ -290,6 +290,8 @@ units:
   - 新媒体运营
   - 品牌内容
   - 图文编辑
+  - 直播话术
+  - 直播带货
   register_version: '1.1'
   roles:
   - name: copywriter
@@ -357,6 +359,30 @@ units:
     - 网页排版
     - 网站排版
     - 校对
+  - name: live_host
+    prefix: '[主播]'
+    handoff: relay
+    composite: true
+    description: 直播话术 直播脚本 直播选品 直播复盘 直播间运营 陪玩陪聊
+    # 裸「直播」保留（「直播复盘」「直播怎么做」这类短句还靠它），但排在组合词
+    # 之后。电商侧也保留裸「选品」（通用选品诉求的唯一入口），歧义交给引擎的
+    # 跨单元认领规则解决：「直播选品」被本单元长词整段覆盖，「直播间的选品」
+    # 被紧邻定语绑定认领，两处都归主播；电商只在「选品」独立出现时得分。
+    keywords:
+    - 直播间
+    - 直播带货
+    - 直播运营
+    - 直播话术
+    - 直播脚本
+    - 直播选品
+    - 直播复盘
+    - 主播
+    - 开播
+    - 直播
+    - 带货
+    - 打赏
+    - 陪玩
+    - 陪聊
 - unit_id: data-analytics
   repo_ref: ''
   industry: 数据分析
@@ -451,6 +477,7 @@ units:
   - 电商推广
   - 客服
   - 选品
+  - 商品选品
   - 店铺装修
   register_version: '1.0'
   roles:
@@ -458,7 +485,7 @@ units:
     prefix: '[店长]'
     handoff: relay
     composite: true
-    description: 店铺运营 商品上架 店铺管理 选品
+    description: 店铺运营 商品上架 店铺管理 商品选品
     keywords:
     - 店铺运营
     - 商品上架
@@ -468,6 +495,8 @@ units:
     - 店铺
     - 电商运营
     - 选品
+    - 商品选品
+    - 选品上架
     - 上架
     - 商品管理
     - 店铺装修
