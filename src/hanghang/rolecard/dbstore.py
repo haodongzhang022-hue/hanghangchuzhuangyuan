@@ -177,25 +177,28 @@ def _insert_cards(conn: sqlite3.Connection, cards: List[RoleCard], when: str) ->
             counts["industry_role"] += 1
 
         p = card.profile
-        cap = card.capability()
-        scoring = {k: v for k, v in (cap.scoring or {}).items()}
-        conn.execute(
-            "INSERT INTO role_profile (unit_id, role_name, mission, seniority, mindset, tone,"
-            " bundle, install_hint, scoring_avg, source_file)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (uid, rname,
-             _text((p.analysis or {}).get("mission")) if p else None,
-             _text((p.persona or {}).get("seniority")) if p else None,
-             _text((p.persona or {}).get("mindset")) if p else None,
-             _text((p.persona or {}).get("tone")) if p else None,
-             _text((p.plugin or {}).get("bundle")) if p else None,
-             _text((p.plugin or {}).get("install_hint")) if p else None,
-             _text(cap.average_score()) if scoring else None,
-             (p.source if p else "") or ""))
-        counts["role_profile"] += 1
+        # 没画像的岗位（如注册表有、画像还没写的）不落 role_profile 行：
+        # 「缺行」才是准确的表达。落一行全空的会读回成"有画像但六维全空"，
+        # 与内存里的 None 对不上，--check 会误报，调用方也分不清「没写」和「写了空」。
+        if p is not None:
+            cap = card.capability()
+            scoring = {k: v for k, v in (cap.scoring or {}).items()}
+            conn.execute(
+                "INSERT INTO role_profile (unit_id, role_name, mission, seniority, mindset, tone,"
+                " bundle, install_hint, scoring_avg, source_file)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (uid, rname,
+                 _text((p.analysis or {}).get("mission")),
+                 _text((p.persona or {}).get("seniority")),
+                 _text((p.persona or {}).get("mindset")),
+                 _text((p.persona or {}).get("tone")),
+                 _text((p.plugin or {}).get("bundle")),
+                 _text((p.plugin or {}).get("install_hint")),
+                 _text(cap.average_score()) if scoring else None,
+                 p.source or ""))
+            counts["role_profile"] += 1
 
-        items = []
-        if p:
+            items = []
             for dim, field in _ITEM_FIELDS:
                 holder = getattr(p, dim, None)
                 if holder is None:          # stakeholders / capability 是 dataclass，不是 dict
@@ -204,16 +207,16 @@ def _insert_cards(conn: sqlite3.Connection, cards: List[RoleCard], when: str) ->
                           else holder.get(field))
                 for pos, val in enumerate(_list(values), 1):
                     items.append((uid, rname, dim, field, str(val), pos))
-        conn.executemany(
-            "INSERT INTO role_profile_item (unit_id, role_name, dimension, field, value,"
-            " position) VALUES (?, ?, ?, ?, ?, ?)", items)
-        counts["role_profile_item"] += len(items)
+            conn.executemany(
+                "INSERT INTO role_profile_item (unit_id, role_name, dimension, field, value,"
+                " position) VALUES (?, ?, ?, ?, ?, ?)", items)
+            counts["role_profile_item"] += len(items)
 
-        scores = [(uid, rname, str(k), _text(v)) for k, v in sorted(scoring.items())]
-        conn.executemany(
-            "INSERT INTO capability_score (unit_id, role_name, dimension, score)"
-            " VALUES (?, ?, ?, ?)", scores)
-        counts["capability_score"] += len(scores)
+            scores = [(uid, rname, str(k), _text(v)) for k, v in sorted(scoring.items())]
+            conn.executemany(
+                "INSERT INTO capability_score (unit_id, role_name, dimension, score)"
+                " VALUES (?, ?, ?, ?)", scores)
+            counts["capability_score"] += len(scores)
 
         for wf_pos, wf in enumerate(card.workflows, 1):
             cur = conn.execute(
@@ -243,14 +246,16 @@ def _insert_cards(conn: sqlite3.Connection, cards: List[RoleCard], when: str) ->
                     " VALUES (?, ?, ?, ?, ?)", asserts)
                 counts["step_assertion"] += len(asserts)
 
-        arts = [(uid, rname, str(a.get("name") or ""), _text(a.get("kind")),
-                 _text(a.get("path")), _text(a.get("upstream")), pos)
-                for pos, a in enumerate(card.plugin_artifacts, 1)]
-        conn.executemany(
-            "INSERT INTO plugin_artifact (unit_id, role_name, name, kind, path, upstream,"
-            " position) VALUES (?, ?, ?, ?, ?, ?, ?)", arts)
-        counts["plugin_artifact"] += len(arts)
+            arts = [(uid, rname, str(a.get("name") or ""), _text(a.get("kind")),
+                     _text(a.get("path")), _text(a.get("upstream")), pos)
+                    for pos, a in enumerate(card.plugin_artifacts, 1)]
+            conn.executemany(
+                "INSERT INTO plugin_artifact (unit_id, role_name, name, kind, path, upstream,"
+                " position) VALUES (?, ?, ?, ?, ?, ?, ?)", arts)
+            counts["plugin_artifact"] += len(arts)
 
+        # readiness 独立于画像：没写画像的岗位同样有就绪度（D 级 + 缺口清单），
+        # 它不挂在 role_profile 的外键上，所以放在 if 之外。
         r = card.readiness
         conn.execute(
             "INSERT INTO readiness (unit_id, role_name, score, grade, label, factor, gaps)"
@@ -331,6 +336,23 @@ def _write_definition(conn: sqlite3.Connection) -> None:
 
 
 # --------------------------------------------------------------------------- 读
+def _readiness_of(rd, role) -> Optional[ReadinessReport]:
+    """readiness 行 → ReadinessReport（无画像的岗位也照样有就绪度，会走这条）。"""
+    if rd is None:
+        return None
+    factors = {}
+    if rd["factor"]:
+        for pair in rd["factor"].split(";"):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
+                factors[k] = _float(v) or 0.0
+    return ReadinessReport(
+        role_name=role["role_name"], unit_id=role["unit_id"],
+        score=_float(rd["score"]) or 0.0, grade=rd["grade"] or "D",
+        label=rd["label"] or "", factors=factors,
+        gaps=[g for g in (rd["gaps"] or "").split("；") if g])
+
+
 def read(db_path: str = DEFAULT_DB_PATH) -> Dict[str, RoleCard]:
     """从库里读回岗位卡（键 ``unit::role``），与 ``RoleCardStore`` 同构。
 
@@ -416,6 +438,23 @@ def read(db_path: str = DEFAULT_DB_PATH) -> Dict[str, RoleCard]:
             prof = profiles.get(key)
             unit = units.get(role["unit_id"])
             it = items.get(key, {})
+            if prof is None:
+                # 库里没有画像行 = 这个岗位确实还没写画像（不是"画像全空"）。
+                # 造一份空壳 RoleProfile 会让 read() 与 RoleCardStore 不同构。
+                cards[key] = RoleCard(
+                    unit_id=role["unit_id"],
+                    industry=(unit["industry"] if unit else "") or "",
+                    role=role["role_name"], prefix=role["prefix"] or "",
+                    description=role["description"] or "",
+                    keywords=[k for k in (role["keywords"] or "").split(",") if k],
+                    profile=None, workflows=workflows.get(key, []),
+                    plugin_artifacts=artifacts.get(key, []),
+                    activation={"weight": _float(
+                        (workflows.get(key) or [{}])[0].get("activation_weight")) or 1.0},
+                    readiness=_readiness_of(readiness.get(key), role),
+                    sources=[], chain_refs=chain.get(key, {}),
+                )
+                continue
             analysis = {
                 "mission": prof["mission"] if prof else None,
                 "deliverables": it.get("analysis", {}).get("deliverables", []),
@@ -458,20 +497,7 @@ def read(db_path: str = DEFAULT_DB_PATH) -> Dict[str, RoleCard]:
                 ),
                 source=prof["source_file"] if prof else "",
             )
-            rd = readiness.get(key)
-            factors = {}
-            if rd and rd["factor"]:
-                for pair in rd["factor"].split(";"):
-                    if "=" in pair:
-                        k, v = pair.split("=", 1)
-                        factors[k] = _float(v) or 0.0
-            report = None
-            if rd:
-                report = ReadinessReport(
-                    role_name=role["role_name"], unit_id=role["unit_id"],
-                    score=_float(rd["score"]) or 0.0, grade=rd["grade"] or "D",
-                    label=rd["label"] or "", factors=factors,
-                    gaps=[g for g in (rd["gaps"] or "").split("；") if g])
+            report = _readiness_of(readiness.get(key), role)
 
             cards[key] = RoleCard(
                 unit_id=role["unit_id"],

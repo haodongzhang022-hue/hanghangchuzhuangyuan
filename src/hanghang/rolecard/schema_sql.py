@@ -181,7 +181,10 @@ _TABLES: List[dict] = [
         ],
         "pk": ("id",),
         "unique": [("unit_id", "role_name", "wf_id")],
-        "fk": [(("unit_id", "role_name"), "role_profile", None)],
+        # 挂在岗位清单上，不挂在画像上：工作流来自模板 + 注册表信号，
+        # 没写画像的岗位照样有可执行工序（只是没被评分）。挂 role_profile 会让
+        # "画像后补"的岗位连工序都落不进去。
+        "fk": [(("unit_id", "role_name"), "industry_role", None)],
     },
     {
         "name": "workflow_step",

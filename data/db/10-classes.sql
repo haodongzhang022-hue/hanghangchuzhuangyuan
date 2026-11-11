@@ -50,6 +50,7 @@ INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('用人部门', '内部组织', NULL, 0, 'industry-classes/internal.yaml');
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('用户', '需求方', NULL, 1, 'industry-classes/demand.yaml');
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('管理层', '内部组织', NULL, 0, 'industry-classes/internal.yaml');
+INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('观众', '需求方', NULL, 1, 'industry-classes/demand.yaml');
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('财务', '内部组织', NULL, 0, 'industry-classes/internal.yaml');
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('越过医疗边界', '阻碍', NULL, 0, 'industry-classes/blocker.yaml');
 INSERT INTO industry_class (name, kind, label, is_entity, source_file) VALUES ('跨岗口径不一致', '阻碍', NULL, 0, 'industry-classes/blocker.yaml');
@@ -118,6 +119,7 @@ INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('客户', '
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('市场与销售', '组织架构', '市场与销售部门');
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('开发', '组织架构', '研发团队');
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('用户', '会员主数据', '用户画像与分群');
+INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('观众', '平台后台', '场次观众与粉丝画像');
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('金属材料加工', '企业名录', '金属材料加工');
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('钢材加工', '企业名录', '钢材{加工|剪切|开平}');
 INSERT INTO class_index_src (class_name, source, query_expr) VALUES ('钢材加工', '企业名录', '金属材料加工');
@@ -228,6 +230,7 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('dongjiagoushi', 'reviewer', 'downstream', '合并门禁', '合并门禁', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'content_editor', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'copywriter', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'media_operator', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('e-commerce', 'customer_service', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('e-commerce', 'ecom_marketer', 'blockers', '合规风险', '合规风险', 'industry_class', NULL);
@@ -241,7 +244,10 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('design-visual', 'illustrator', 'downstream', '品牌', '品牌', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'content_editor', 'upstream', '品牌方', '品牌方', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'copywriter', 'upstream', '品牌方', '品牌方', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'upstream', '品牌方', '品牌方', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'beneficiaries', '品牌方', '品牌方', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'media_operator', 'upstream', '品牌方', '品牌方', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'upstream', '商品与供应链', '商品与供应链', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('e-commerce', 'customer_service', 'upstream', '商品与供应链', '商品与供应链', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('e-commerce', 'ecom_marketer', 'upstream', '商品与供应链', '商品与供应链', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('e-commerce', 'store_manager', 'upstream', '商品与供应链', '商品与供应链', 'industry_class', NULL);
@@ -348,6 +354,7 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('hr-services', 'hr_advisor', 'downstream', '管理层', '管理层', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'compliance_advisor', 'downstream', '管理层', '管理层', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'pr_manager', 'downstream', '管理层', '管理层', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'beneficiaries', '观众', '观众', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('hr-services', 'comp_benefits', 'downstream', '财务', '财务', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('healthcare', 'fitness_coach', 'blockers', '越过医疗边界', '越过医疗边界', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('healthcare', 'health_consultant', 'blockers', '越过医疗边界', '越过医疗边界', 'industry_class', NULL);
@@ -359,6 +366,7 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'receptionist', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'content_editor', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'copywriter', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
+INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'live_host', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'media_operator', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('data-analytics', 'bi_engineer', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('data-analytics', 'data_analyst', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);

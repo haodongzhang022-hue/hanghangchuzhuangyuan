@@ -279,9 +279,13 @@ class RoleCardStore:
         return out
 
     # ---------------------------------------------------------- 汇总
-    def coverage_summary(self) -> dict:
-        """画像覆盖进度：多少岗位有画像、评级分布、平均分。"""
-        cards = self.all_cards()
+    def coverage_summary(self, cards=None) -> dict:
+        """画像覆盖进度：多少岗位有画像、评级分布、平均分。
+
+        ``cards`` 传入时只统计这批卡（如 ``role list --unit`` 的过滤结果），
+        否则统计全库 —— 汇总数字必须与眼前列出的行同口径。
+        """
+        cards = self.all_cards() if cards is None else list(cards)
         total = len(cards)
         profiled = [c for c in cards if c.profile is not None]
         grades: Dict[str, int] = {}

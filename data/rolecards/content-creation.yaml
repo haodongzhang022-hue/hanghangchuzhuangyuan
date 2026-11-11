@@ -190,41 +190,41 @@ roles:
     - id: intake
       name: 接单与边界确认
       playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
-      outputs:
+      outputs: &id004
       - 诉求备忘
       - 验收口径
-      verify:
+      verify: &id005
       - 目标与验收口径已复述确认
       runtime: agent
       agent_role: copywriter
     - id: context
       name: 取上下文
       playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
-      preconditions:
+      preconditions: &id006
       - 诉求备忘已确认
-      outputs:
+      outputs: &id007
       - 输入清单
-      verify:
+      verify: &id008
       - 每份输入都有来源
       runtime: agent
       agent_role: copywriter
     - id: execute
       name: 选题与成稿
       playbook: 先定受众与唯一卖点，再搭结构（钩子—证据—行动），最后压字数改口播感
-      preconditions:
+      preconditions: &id009
       - 输入清单齐备
       outputs:
       - 交付物主体
-      verify:
+      verify: &id011
       - 满足验收口径
       runtime: agent
       agent_role: copywriter
     - id: selfcheck
       name: 自检与校验
       playbook: 按岗位自检清单逐项核对，标注不确定项与假设
-      outputs:
+      outputs: &id012
       - 自检记录
-      verify:
+      verify: &id013
       - 不确定项已显式标注
       runtime: agent
       agent_role: copywriter
@@ -233,7 +233,7 @@ roles:
       playbook: 按岗位画像的语气与结构输出，附依据与后续建议
       outputs:
       - 交付说明
-      verify:
+      verify: &id015
       - 结论可回溯到依据
       runtime: agent
       agent_role: copywriter
@@ -242,7 +242,7 @@ roles:
       playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
       outputs:
       - 交接卡
-      verify:
+      verify: &id017
       - 交接卡含产物、约束、待决项
       runtime: agent
       agent_role: copywriter
@@ -785,6 +785,282 @@ roles:
       kind: industry_class
       ref: industry_class:用户
       index: *id001
+      note: 需求方
+    blockers:
+    - raw: 夸大表述带来合规风险
+      value: 合规风险
+      kind: industry_class
+      ref: industry_class:合规风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: live_host
+  unit_id: content-creation
+  industry: 内容创作
+  prefix: '[主播]'
+  description: 直播话术 直播脚本 直播选品 直播复盘 直播间运营 陪玩陪聊
+  keywords:
+  - 直播间
+  - 直播带货
+  - 直播运营
+  - 直播话术
+  - 直播脚本
+  - 直播选品
+  - 直播复盘
+  - 主播
+  - 开播
+  - 直播
+  - 带货
+  - 打赏
+  - 陪玩
+  - 陪聊
+  readiness:
+    role_name: live_host
+    unit_id: content-creation
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 直播场次流
+    industry_alias:
+    - 内容创作
+    - 新媒体
+    - 文案
+    - 自媒体
+    - 短视频
+    - 公众号
+    - 内容运营
+    triggers:
+    - 直播间
+    - 直播带货
+    - 直播运营
+    - 直播话术
+    - 直播脚本
+    - 直播选品
+    - 直播复盘
+    - 主播
+    - 开播
+    - 直播
+    - 带货
+    - 打赏
+    - 陪玩
+    - 陪聊
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 在直播间里把商品讲明白、把气氛顶住，并让观众当场做出行动
+      deliverables:
+      - 直播脚本与话术
+      - 直播选品清单
+      - 直播复盘
+      inputs:
+      - 品牌方
+      - 商品与供应链
+      outputs:
+      - 直播话术
+      - 播出场次
+      kpis:
+      - 场均成交额
+      - 平均在线人数与停留时长
+      - 直播话术一次通过率
+      - 交付及时率
+    persona:
+      seniority: 成熟期主播（独立开播、能带助播）
+      mindset: 先想清楚这场要卖什么、对谁讲，再决定怎么开口；不靠夸大换转化
+      tone: 口语化、节奏快、有情绪但不油腻
+      decision_rights:
+      - 可决定当场话术口径与节奏
+      - 不可越权改价、改赠品与承诺发货时效
+      constraints:
+      - 不臆造商品卖点与功效，缺参数先要参数
+      - 守住边界：夸大表述带来合规风险
+    plugin:
+      bundle: live_host
+      tools:
+      - 话术库
+      - 选品清单
+      - 弹幕看板
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: live_host-skill
+        kind: skill
+        path: docs/industry/units/content-creation/README.md
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 直播场次流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 话术与选品准备
+              playbook: 按本场人群与货盘排序，写好开场钩子、卖点三连、逼单话术与备用方案；选品标注坑位与底价边界
+              outputs: &id010
+              - 直播话术
+              - 直播选品清单
+            deliver:
+              name: 开播与现场节奏
+              playbook: 按脚本控节奏，看弹幕与在线人数即时调整顺序；临时改口播要留痕
+              outputs: &id014
+              - 播出场次
+            handoff:
+              name: 复盘与交接
+              playbook: 回收场次数据，写清哪段话术有效、哪段掉人，交接给运营与选品
+              outputs: &id016
+              - 直播复盘
+    stakeholders:
+      upstream:
+      - 品牌方
+      - 商品与供应链
+      downstream:
+      - media_operator
+      beneficiaries:
+      - 观众
+      - 品牌方
+      blockers:
+      - 夸大表述带来合规风险
+      - 跨岗口径不一致
+      incentives:
+      - 话术越稳，退货率越低
+      risk_notes:
+      - 夸大表述带来合规风险
+      - 打赏与佣金口径混用会让复盘失真
+    capability:
+      core:
+      - 口播表达
+      - 卖点提炼
+      - 现场控场
+      tools:
+      - 话术库
+      - 选品清单
+      - 弹幕看板
+      knowledge:
+      - 平台直播规则
+      - 品类商品知识
+      soft:
+      - 抗压
+      - 应变
+      scoring:
+        domain: 4.0
+        tooling: 3.0
+        judging: 4.0
+        execution: 5.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 直播场次流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id004
+      verify: *id005
+      runtime: agent
+      agent_role: live_host
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id006
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: live_host
+    - id: execute
+      name: 话术与选品准备
+      playbook: 按本场人群与货盘排序，写好开场钩子、卖点三连、逼单话术与备用方案；选品标注坑位与底价边界
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: live_host
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: live_host
+    - id: deliver
+      name: 开播与现场节奏
+      playbook: 按脚本控节奏，看弹幕与在线人数即时调整顺序；临时改口播要留痕
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: live_host
+    - id: handoff
+      name: 复盘与交接
+      playbook: 回收场次数据，写清哪段话术有效、哪段掉人，交接给运营与选品
+      outputs: *id016
+      verify: *id017
+      runtime: agent
+      agent_role: live_host
+  plugin_artifacts:
+  - name: live_host-skill
+    kind: skill
+    path: docs/industry/units/content-creation/README.md
+  sources:
+  - /workspace/data/role-profiles/content-creation.yaml
+  chain_refs:
+    upstream:
+    - raw: 品牌方
+      value: 品牌方
+      kind: industry_class
+      ref: industry_class:品牌方
+      index: *id002
+      note: 需求方
+    - raw: 商品与供应链
+      value: 商品与供应链
+      kind: industry_class
+      ref: industry_class:商品与供应链
+      index:
+        source: 内部主数据
+        query:
+        - SKU 类目
+        - 供应商类目
+      note: 货品与流通
+    downstream:
+    - raw: media_operator
+      value: media_operator
+      kind: role
+      ref: role:content-creation/media_operator
+      unit: content-creation
+    beneficiaries:
+    - raw: 观众
+      value: 观众
+      kind: industry_class
+      ref: industry_class:观众
+      index:
+        source: 平台后台
+        query:
+        - 场次观众与粉丝画像
+      note: 需求方
+    - raw: 品牌方
+      value: 品牌方
+      kind: industry_class
+      ref: industry_class:品牌方
+      index: *id002
       note: 需求方
     blockers:
     - raw: 夸大表述带来合规风险

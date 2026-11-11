@@ -59,7 +59,9 @@ def cmd_role_list(args):
         if len(gap) > 26:
             gap = gap[:26] + "…"
         print(f"{score:<9}{grade:<6}{c.role:<28}{c.unit_id:<16}{gap}")
-    summary = store.coverage_summary()
+    # 汇总必须与上面列出的行同口径：--unit 时只统计该单元，
+    # 否则会出现"列 4 行、汇总 51 个岗位"的自相矛盾。
+    summary = store.coverage_summary(cards)
     print("-" * 78)
     print(f"岗位 {summary['total_roles']} / 有画像 {summary['profiled_roles']}"
           f" / 画像覆盖 {summary['profile_coverage'] * 100:.0f}%"

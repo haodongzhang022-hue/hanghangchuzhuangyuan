@@ -13,6 +13,7 @@ classes:
   学员: {kind: 需求方, index: {source: 学员主数据, query: [在册学员]}}
   候选人: {kind: 需求方, index: {source: ATS, query: [候选人库]}}
   品牌方: {kind: 需求方, index: {source: 客户库, query: [品牌客户]}}
+  观众: {kind: 需求方, index: {source: 平台后台, query: [场次观众与粉丝画像]}}
   业务方: {kind: 需求方, index: {source: 组织架构, query: [业务部门]}}
   需求方: {kind: 需求方, index: {source: 组织架构, query: [需求提出部门]}}
   市场与销售: {kind: 需求方, index: {source: 组织架构, query: [市场与销售部门]}}

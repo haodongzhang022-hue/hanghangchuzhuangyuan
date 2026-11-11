@@ -41,8 +41,49 @@ def test_db_builds_all_tables():
     for name in schema_sql.tables("sqlite"):
         assert name in tables, f"缺表 {name}"
     assert conn.execute("SELECT count(*) FROM industry_class").fetchone()[0] > 50
-    assert conn.execute("SELECT count(*) FROM role_profile").fetchone()[0] == 50
+    # 画像行数必须与注册岗位数对齐：写死数字会让"新增岗位"变成一次无意义的改测试，
+    # 而真正该守的是「注册表里的岗位，一个都不能在库里缺画像」。
+    want = {f"{u.unit_id}::{r.name}" for u in RoleCardStore().registry.all_units()
+            for r in u.roles}
+    got = {f"{u}::{r}" for u, r in conn.execute(
+        "SELECT unit_id, role_name FROM role_profile")}
+    assert got == want, f"库里画像与注册岗位不一致：缺 {sorted(want - got)} 多 {sorted(got - want)}"
     conn.close()
+
+
+def test_role_without_profile_roundtrips_as_none():
+    """没写画像的岗位（注册表有、画像还没写）读回来必须是 profile=None。
+
+    写成一行全空的 role_profile 会让 read() 造出一份空壳 RoleProfile：
+    「还没写画像」被读成「画像写了但六维全空」，--check 与调用方都被骗。
+    新岗位一律先接路由、画像后补，这类岗位一定会出现，所以不能靠"当前数据恰好没有"来守。
+
+    做法：把一张真实的卡置成 profile=None，单独建一份库来验——不依赖现有画像的完整度。
+    """
+    store = RoleCardStore()
+    cards = store.all_cards()
+    assert cards, "注册表为空，无法验证"
+    cards[0].profile = None
+    cards[0].plugin_artifacts = []
+
+    class _Stub:
+        registry = store.registry
+        classes = store.classes
+        profiles = store.profiles
+        def all_cards(self_inner):
+            return cards
+
+    tmp = tempfile.mkdtemp(prefix="hh-db-noprof-")
+    path = os.path.join(tmp, "t.db")
+    dbstore.build(_Stub(), path, when="2026-01-01T00:00:00Z")
+    back = dbstore.read(path)[f"{cards[0].unit_id}::{cards[0].role}"]
+    assert back.profile is None, f"无画像岗位读回来变成了 {back.profile!r}"
+
+    conn = sqlite3.connect(path)
+    n = conn.execute("SELECT count(*) FROM role_profile WHERE unit_id=? AND role_name=?",
+                     (cards[0].unit_id, cards[0].role)).fetchone()[0]
+    conn.close()
+    assert n == 0, "无画像的岗位不该落 role_profile 行（缺行才是准确表达）"
 
 
 def test_db_schema_single_source_matches_ddl():

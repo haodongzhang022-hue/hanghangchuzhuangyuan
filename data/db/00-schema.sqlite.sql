@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS "workflow" (
     activation_weight TEXT,
     position          INTEGER NOT NULL,
     UNIQUE ("unit_id", "role_name", "wf_id"),
-    FOREIGN KEY ("unit_id", "role_name") REFERENCES "role_profile"("unit_id", "role_name")
+    FOREIGN KEY ("unit_id", "role_name") REFERENCES "industry_role"("unit_id", "role_name")
 );
 
 -- 工作流步骤：谁干、按什么 playbook 干、怎么验、用什么 runtime

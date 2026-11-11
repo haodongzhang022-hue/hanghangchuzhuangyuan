@@ -203,6 +203,21 @@ def test_all_registered_roles_have_profiles():
     print("  ✅ test_all_registered_roles_have_profiles")
 
 
+def test_coverage_summary_follows_filter():
+    """汇总必须与眼前列出的行同口径：传 cards 就只统计这批。
+
+    否则 `role list --unit X` 会列出 4 行、汇总却打全库 51 个岗位。
+    """
+    store = _store()
+    cards = [c for c in store.all_cards() if c.unit_id == "content-creation"]
+    part = store.coverage_summary(cards)
+    full = store.coverage_summary()
+    assert part["total_roles"] == len(cards) < full["total_roles"], (part, full)
+    assert part["profiled_roles"] <= part["total_roles"]
+    assert sum(part["grades"].values()) == len(cards)
+    print("  ✅ test_coverage_summary_follows_filter")
+
+
 def test_generated_rolecards_in_sync():
     """data/rolecards 已提交产物必须与当前数据一致（防止改画像忘重渲）。"""
     r = subprocess.run([sys.executable,
