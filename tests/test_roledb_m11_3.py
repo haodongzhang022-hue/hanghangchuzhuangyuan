@@ -21,8 +21,6 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 
 from hanghang.rolecard import RoleCardStore, dbstore, schema_sql   # noqa: E402
 
-DB = os.path.join(ROOT, dbstore.DEFAULT_DB_PATH)
-
 
 def _built() -> str:
     """在临时目录建一份库（不污染工作区，也不依赖已提交的产物）。"""
@@ -183,23 +181,65 @@ def test_db_dialects_share_tables_and_columns():
 
 
 def test_script_check_and_stats():
-    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--check"],
+    """脚本也要能在无库的干净树上跑：库路径显式指到临时目录。"""
+    path = _built()
+    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--check", "--db", path],
                           cwd=ROOT, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "库与数据一致" in proc.stdout, proc.stdout
 
-    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--stats"],
+    proc = subprocess.run([sys.executable, "scripts/build_role_db.py", "--stats", "--db", path],
                           cwd=ROOT, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "张表" in proc.stdout and "role_profile" in proc.stdout, proc.stdout
 
 
 def test_cli_role_db():
+    """CLI 读库要能在干净检出上跑：库由用例现建，不假定 data/db/hanghang.db 已在。"""
+    path = _built()
     proc = subprocess.run([sys.executable, "src/hanghang/cli/main.py", "role", "db",
+                           "--db", path,
                            "--sql", "SELECT count(*) AS n FROM industry_class"],
                           cwd=ROOT, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "（1 行）" in proc.stdout, proc.stdout
+
+
+def test_no_test_depends_on_gitignored_db():
+    """病根护栏：任何用例都不许假定 data/db/hanghang.db 已经在。
+
+    data/db/*.db 不入库，干净检出后文件本就不存在。把默认库临时挪走再跑
+    一轮本文件，必须仍全通过，且不许把默认库顺手建回来——否则「冷启动必红」
+    只是被前一个用例的副作用掩盖。
+    """
+    if os.environ.get("HH_SKIP_DB_GUARD"):
+        return  # 递归调用里不再嵌套
+    default_db = os.path.join(ROOT, dbstore.DEFAULT_DB_PATH)
+    hidden = default_db + ".hidden"
+    moved = os.path.exists(default_db)
+    if moved:
+        os.replace(default_db, hidden)
+    try:
+        proc = subprocess.run([sys.executable, os.path.abspath(__file__)],
+                              cwd=ROOT, capture_output=True, text=True,
+                              env={**os.environ, "HH_SKIP_DB_GUARD": "1"})
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert not os.path.exists(default_db), "用例在默认路径上建了库，冷启动仍会被掩盖"
+    finally:
+        if moved:
+            os.replace(hidden, default_db)
+
+
+def test_cli_role_db_missing_reports_how_to_build():
+    """缺库得说人话，不能抛 traceback 也不能静默当空库。"""
+    tmp = tempfile.mkdtemp(prefix="hh-nodb-")
+    path = os.path.join(tmp, "absent.db")
+    proc = subprocess.run([sys.executable, "src/hanghang/cli/main.py", "role", "db",
+                           "--db", path, "--sql", "SELECT 1"],
+                          cwd=ROOT, capture_output=True, text=True)
+    assert proc.returncode != 0, proc.stdout
+    assert "库不存在" in proc.stdout and "build_role_db" in proc.stdout, proc.stdout
+    assert "Traceback" not in proc.stdout + proc.stderr, proc.stderr
 
 
 if __name__ == "__main__":

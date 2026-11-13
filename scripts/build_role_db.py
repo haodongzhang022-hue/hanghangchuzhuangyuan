@@ -103,9 +103,9 @@ def _fingerprint(card) -> dict:
     }
 
 
-def _roundtrip_diff() -> list:
+def _roundtrip_diff(db_path: str = DB_PATH) -> list:
     """库读回来的卡 vs 内存里的卡，逐字段比。返回差异清单（空=一致）。"""
-    cards = dbstore.read(DB_PATH)
+    cards = dbstore.read(db_path)
     store = RoleCardStore()
     diffs = []
     for card in store.all_cards():
@@ -164,7 +164,7 @@ def main() -> int:
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(HEADER + schema_sql.ddl(dialect))
 
-    diffs = _roundtrip_diff()
+    diffs = _roundtrip_diff(args.db)
     if diffs:
         print(f"✗ 库与数据不一致（{len(diffs)} 处），前 10 条：")
         for d in diffs[:10]:
