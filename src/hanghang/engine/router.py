@@ -458,15 +458,17 @@ class IntentRouter:
                     matched_signals.append(f"tag:{tag}")
                     matched_terms.append(tag)
 
-            # 3. 单元内岗位关键词命中（强信号，1.5/岗位 × M11 画像激活权重）
+            # 3. 单元内岗位关键词命中（强信号，1.5/岗位）
+            #
+            # 权重不乘进单元总分：画像数据一改就能抬高整个单元的分，共享词
+            # （如两个单元都有「会议纪要」）会直接越过 AMBIGUITY_RATIO_THRESHOLD
+            # 的歧义护栏，把行业判到别处去。单元分必须与画像无关，跨单元才可比，
+            # 歧义判定吃的才是原始信号强度。权重只作用在单元内岗位排序。
             for role in unit.roles:
                 for kw in role.get_keywords():
                     if kw and kw in text and _counted(kw):
-                        weight = self._activation_weight(unit.unit_id, role.name)
-                        score += 1.5 * weight
+                        score += 1.5
                         matched_signals.append(f"role:{role.name}:{kw}")
-                        if weight != 1.0:
-                            matched_signals.append(f"role_weight:{role.name}:{weight}")
                         matched_terms.append(kw)
                         break  # 每岗位只计一次
 
@@ -514,8 +516,10 @@ class IntentRouter:
             if self._match_any(text, kws):
                 hits.append(r)
 
-        # 按默认优先级排序（稳定确定性输出）
-        hits.sort(key=lambda r: self._role_priority_index(r.name))
+        # 同单元内先按画像激活权重重者优先（权重只在这里生效），再按默认优先级、
+        # 岗位名兜底，保证确定性输出。
+        hits.sort(key=lambda r: (-self._activation_weight(unit.unit_id, r.name),
+                                 self._role_priority_index(r.name), r.name))
         return hits
 
     def _role_priority_index(self, role_name: str) -> int:

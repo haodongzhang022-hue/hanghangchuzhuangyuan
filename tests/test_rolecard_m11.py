@@ -112,8 +112,50 @@ def test_playbook_export_formats():
 
 
 # ---------------------------------------------------------------- 3. 路由加权
+def test_weight_never_moves_unit_ownership():
+    """权重改不动行业归属：单元总分必须与画像无关。
+
+    两个单元共享关键词（「会议纪要」同时挂在 admin-office/document_archivist 与
+    dongjiagoushi/secretary）时，把一方权重乘进单元总分就会直接翻车，
+    而且用户带 session 后会变成 cross_industry_handoff。
+    """
+    reg = Registry()
+    plain = IntentRouter(reg)
+    store = RoleCardStore(registry=reg)
+    store.profiles["dongjiagoushi"]["secretary"].workflow["activation"] = {"weight": 5.0}
+    store._cards.clear()
+    weighted = IntentRouter(reg, rolecard_store=store)
+    for text in ["整理会议纪要", "写会议纪要", "把会议纪要归档", "会议纪要整理一下"]:
+        a, b = plain.route(text), weighted.route(text)
+        assert a.unit_id == b.unit_id, f"{text}: {a.unit_id} != {b.unit_id}"
+        assert a.roles == b.roles, f"{text}: {a.roles} != {b.roles}"
+    print("  ✅ test_weight_never_moves_unit_ownership")
+
+
+def test_weight_orders_roles_inside_unit():
+    """权重只决定同单元内谁排第一：把权重排序删掉要被抓住。
+
+    断言方式不依赖默认优先级顺序——先算出「没有权重时的第一名」，再把它的
+    权重压到 0.5，第一名必须换人（每岗位命中分固定 1.5，权重只在排序里生效）。
+    """
+    reg = Registry()
+    unit = [u for u in reg.all_units() if u.unit_id == "dongjiagoushi"][0]
+    store = RoleCardStore(registry=reg)
+    base = IntentRouter(reg, rolecard_store=store)._identify_roles("记录 汇总 需求", unit)
+    assert len(base) > 1, [r.name for r in base]
+    loser = base[0].name
+
+    store.profiles["dongjiagoushi"][loser].workflow["activation"] = {"weight": 0.5}
+    store._cards.clear()
+    router = IntentRouter(reg, rolecard_store=store)
+    assert router._activation_weight("dongjiagoushi", loser) == 0.5
+    after = router._identify_roles("记录 汇总 需求", unit)
+    assert after[-1].name == loser, f"权重没起作用：{[r.name for r in after]}"
+    print("  ✅ test_weight_orders_roles_inside_unit")
+
+
 def test_activation_weight_affects_routing():
-    """画像 activation.weight > 1 让该岗位在行业评分中更早胜出。"""
+    """画像 activation.weight > 1 不影响行业归属（权重只排单元内岗位序）。"""
     reg = Registry()
     store = RoleCardStore(registry=reg)
     router = IntentRouter(reg, rolecard_store=store)
@@ -124,7 +166,7 @@ def test_activation_weight_affects_routing():
     router2 = IntentRouter(reg, rolecard_store=store)
     assert router2._activation_weight("dongjiagoushi", "architect") == 2.0
 
-    # 加权后「架构」信号更重，路由仍落在架构岗
+    # 加权不改变行业归属，只影响单元内岗位排序
     result = router2.route("帮我做架构设计")
     assert result.unit_id == "dongjiagoushi"
     assert "architect" in result.roles
@@ -136,7 +178,8 @@ def test_routing_unchanged_without_rolecard_store():
     reg = Registry()
     plain = IntentRouter(reg)
     weighted = IntentRouter(reg, rolecard_store=RoleCardStore(registry=reg))
-    for text in ["帮我做架构方案", "审一下劳动合同", "帮我算这个月工资", "做个游戏关卡"]:
+    for text in ["帮我做架构方案", "审一下劳动合同", "帮我算这个月工资", "做个游戏关卡",
+                 "整理会议纪要", "写会议纪要", "把会议纪要归档"]:
         a, b = plain.route(text), weighted.route(text)
         assert a.unit_id == b.unit_id, f"{text}: {a.unit_id} != {b.unit_id}"
         assert a.roles == b.roles, f"{text}: {a.roles} != {b.roles}"
