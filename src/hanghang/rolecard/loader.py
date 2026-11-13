@@ -52,7 +52,8 @@ class RoleCardStore:
 
         self.schema: dict = self._load_yaml(self.schema_path) or {}
         self.renderer = WorkflowRenderer(self._load_templates())
-        self.scorer = ReadinessScorer(self._schema_weights(), self._schema_bands())
+        self.scorer = ReadinessScorer(self._schema_weights(), self._schema_bands(),
+                                      self._schema_dimension_fields())
         self.profiles: Dict[str, Dict[str, RoleProfile]] = self._load_profiles()
         # M11.1：行业类词表（链上只存类，公司靠索引现查）
         self.classes = IndustryClassIndex(
@@ -80,6 +81,17 @@ class RoleCardStore:
     def _schema_weights(self) -> Dict[str, float]:
         raw = ((self.schema.get("readiness") or {}).get("weights") or {})
         return {str(k): float(v) for k, v in raw.items() if isinstance(v, (int, float))} or None
+
+    def _schema_dimension_fields(self) -> Dict[str, List[str]]:
+        """六维字段清单的唯一来源：schema 的 dimensions[*].fields。"""
+        out: Dict[str, List[str]] = {}
+        for dim, spec in ((self.schema.get("dimensions") or {}) or {}).items():
+            if not isinstance(spec, dict):
+                continue
+            fields = spec.get("fields")
+            if isinstance(fields, list) and fields:
+                out[str(dim)] = [str(f) for f in fields]
+        return out
 
     def _schema_bands(self):
         raw = ((self.schema.get("readiness") or {}).get("bands") or [])

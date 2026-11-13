@@ -32,15 +32,28 @@ DEFAULT_BANDS = [
     (0, "D", "只有骨架"),
 ]
 
-# 六维各自的关键字段（用于判定"这一维写全了没有"）
-DIMENSION_FIELDS: Dict[str, tuple] = {
-    "analysis": ("mission", "deliverables", "inputs", "outputs"),
-    "persona": ("seniority", "mindset", "tone", "constraints"),
-    "plugin": ("bundle", "tools", "artifacts"),
-    "workflow": ("default_flow", "templates"),
-    "stakeholders": ("upstream", "downstream", "beneficiaries", "risk_notes"),
-    "capability": ("core", "scoring"),
+# 六维字段清单的兜底（schema 缺失时用，保证引擎可独立工作）。
+# 口径以 data/rolecard-schema.yaml 的 dimensions[*].fields 为准，代码不持有第二份：
+# 清单抄在代码里就会漂——曾经这里只有 19 个字段而 schema 声明 29 个，
+# 于是「漏填 10 个字段」不扣分、不登记缺口，六维恒为 1.0。
+DEFAULT_DIMENSION_FIELDS: Dict[str, tuple] = {
+    "analysis": ("mission", "deliverables", "inputs", "outputs", "kpis"),
+    "persona": ("seniority", "mindset", "tone", "decision_rights", "constraints"),
+    "plugin": ("bundle", "tools", "mcp_categories", "artifacts", "install_hint"),
+    "workflow": ("templates", "default_flow", "handoff_out"),
+    "stakeholders": ("upstream", "downstream", "beneficiaries", "blockers",
+                     "incentives", "risk_notes"),
+    "capability": ("core", "tools", "knowledge", "soft", "scoring"),
 }
+
+#: 向后兼容别名：模块级清单即兜底口径
+DIMENSION_FIELDS: Dict[str, tuple] = DEFAULT_DIMENSION_FIELDS
+
+
+def _handoff_out(card: RoleCard) -> str:
+    """渲染后的交接约定（岗位覆盖 > 模板继承）。"""
+    wf = card.default_workflow() or {}
+    return str(wf.get("handoff_out") or "")
 
 
 def _filled(value) -> bool:
@@ -57,9 +70,13 @@ class ReadinessScorer:
     """按 schema 口径给岗位卡打分并登记缺口。"""
 
     def __init__(self, weights: Optional[Dict[str, float]] = None,
-                 bands: Optional[List[tuple]] = None):
+                 bands: Optional[List[tuple]] = None,
+                 dimension_fields: Optional[Dict[str, List[str]]] = None):
         self.weights = dict(weights or DEFAULT_WEIGHTS)
         self.bands = list(bands or DEFAULT_BANDS)
+        fields = dict(DEFAULT_DIMENSION_FIELDS)
+        fields.update({})
+        self.dimension_fields = fields
 
     # ------------------------------------------------------- 六维覆盖度
     def six_dim_score(self, card: RoleCard, gaps: List[str]) -> float:
@@ -70,15 +87,18 @@ class ReadinessScorer:
         total = 0
         hit = 0
         for dim in SIX_DIMENSIONS:
-            fields = DIMENSION_FIELDS.get(dim, ())
+            fields = self.dimension_fields.get(dim, ())
             payload = p.dimension(dim)
             total += len(fields)
             for f in fields:
-                val = None
-                if isinstance(payload, dict):
-                    # workflow 维度允许把 templates/default_flow 放在 profile.workflow
+                if dim == "workflow" and f == "handoff_out":
+                    # 交接约定沉在工序模板里由全岗位继承，画像只写改动部分：
+                    # 问画像原文字段会得到 50 个假缺口，该问渲染后的工序。
+                    val = _handoff_out(card)
+                    payload = None
+                if payload is not None and isinstance(payload, dict):
                     val = payload.get(f)
-                else:  # stakeholders / capability 是对象
+                elif payload is not None:  # stakeholders / capability 是对象
                     val = getattr(payload, f, None)
                 if _filled(val):
                     hit += 1
@@ -147,6 +167,7 @@ class ReadinessScorer:
             "downstream": ch.downstream,
             "beneficiaries": ch.beneficiaries,
             "blockers": ch.blockers,
+            "incentives": ch.incentives,
             "risk_notes": ch.risk_notes,
         }
         hit = 0

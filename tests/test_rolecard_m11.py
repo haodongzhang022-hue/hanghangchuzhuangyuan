@@ -203,6 +203,55 @@ def test_all_registered_roles_have_profiles():
     print("  ✅ test_all_registered_roles_have_profiles")
 
 
+def test_readiness_fields_follow_schema():
+    """六维口径必须等于 schema 声明的字段：代码不许持有第二份清单。
+
+    清单抄在代码里会漂（曾经 19 个字段 vs schema 29 个），漂了之后漏填字段
+    不扣分、不登记缺口，就绪度全 A 也不可信。守分母，不守分数。
+    """
+    import copy
+
+    import yaml
+
+    store = _store()
+    with open(os.path.join(REPO, "data", "rolecard-schema.yaml"), encoding="utf-8") as fh:
+        schema = yaml.safe_load(fh)
+    want = {dim: list(spec["fields"]) for dim, spec in schema["dimensions"].items()}
+    got = {dim: list(names) for dim, names in store.scorer.dimension_fields.items()
+           if dim in want}
+    assert got == want, f"六维字段与 schema 不一致：{got} != {want}"
+
+    # 每个 schema 字段被置空都要真的扣分并登记缺口
+    for dim, fields in want.items():
+        for f in fields:
+            card = copy.deepcopy(store.get("dongjiagoushi", "architect"))
+            holder = card.profile.dimension(dim)
+            if isinstance(holder, dict):
+                holder.pop(f, None)
+            else:
+                setattr(holder, f, None if f == "scoring" else [])
+            if dim == "workflow" and f == "handoff_out":
+                # 交接约定由工序模板继承，清画像字段没用：把它从渲染后的工序上摘掉
+                for wf in card.workflows:
+                    wf["handoff_out"] = ""
+            gaps = []
+            score = store.scorer.six_dim_score(card, gaps)
+            assert score < 1.0, f"{dim}.{f} 置空却仍满分"
+            assert f"{dim}.{f} 未填" in gaps, f"{dim}.{f} 未登记缺口：{gaps}"
+
+
+def test_readiness_counts_incentives():
+    """利益链条清晰度要数 incentives：它有独立数据，漏掉就是白写。"""
+    import copy
+
+    store = _store()
+    card = copy.deepcopy(store.get("dongjiagoushi", "architect"))
+    before = store.scorer.beneficiary_score(card, [])
+    card.profile.stakeholders.incentives = []
+    after = store.scorer.beneficiary_score(card, [])
+    assert after < before, f"incentives 清空后分数没变：{before} → {after}"
+
+
 def test_coverage_summary_follows_filter():
     """汇总必须与眼前列出的行同口径：传 cards 就只统计这批。
 
