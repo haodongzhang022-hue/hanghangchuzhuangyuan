@@ -1,0 +1,869 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: home-design
+industry: 家装设计
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: interior_designer
+  unit_id: home-design
+  industry: 家装设计
+  prefix: '[室内设计]'
+  description: 室内设计 户型方案 装修设计 效果图
+  keywords:
+  - 室内设计
+  - 室内装修设计
+  - 户型设计
+  - 空间设计
+  - 装修设计
+  - 家装设计
+  - 设计客厅
+  - 设计卧室
+  - 设计厨房
+  - 设计卫生间
+  - 设计书房
+  - 效果图设计
+  - 装修效果图
+  - 设计方案
+  - 家装方案
+  - 装修方案
+  - 改户型
+  - 户型改造
+  - 全屋设计
+  - 家居设计方案
+  - 简约风
+  - 现代风
+  - 客厅设计
+  - 客厅布局
+  - 卧室设计
+  - 卧室装修
+  - 厨房设计
+  - 厨房装修
+  - 书房设计
+  - 书房装修
+  - 室内方案
+  - 新房子
+  - 房屋设计
+  - 空间规划
+  - 空间利用
+  - 室内装修
+  readiness:
+    role_name: interior_designer
+    unit_id: home-design
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 空间设计流
+    industry_alias:
+    - 装修
+    - 家装
+    - 室内设计
+    - 装饰
+    - 家居设计
+    - 装潢
+    - 全屋定制
+    - 软装
+    - 硬装
+    - 房屋装修
+    - 新房装修
+    - 老房翻新
+    - 局部改造
+    triggers:
+    - 室内设计
+    - 室内装修设计
+    - 户型设计
+    - 空间设计
+    - 装修设计
+    - 家装设计
+    - 设计客厅
+    - 设计卧室
+    - 设计厨房
+    - 设计卫生间
+    - 设计书房
+    - 效果图设计
+    - 装修效果图
+    - 设计方案
+    - 家装方案
+    - 装修方案
+    - 改户型
+    - 户型改造
+    - 全屋设计
+    - 家居设计方案
+    - 简约风
+    - 现代风
+    - 客厅设计
+    - 客厅布局
+    - 卧室设计
+    - 卧室装修
+    - 厨房设计
+    - 厨房装修
+    - 书房设计
+    - 书房装修
+    - 室内方案
+    - 新房子
+    - 房屋设计
+    - 空间规划
+    - 空间利用
+    - 室内装修
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 在预算和户型限制里，把生活动线设计顺
+      deliverables:
+      - 平面方案
+      - 效果图
+      - 材料清单
+      inputs:
+      - 业主需求
+      - 房屋现状
+      outputs:
+      - 平面方案
+      - 效果图
+      kpis:
+      - 平面方案一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 家装设计资深interior_designer
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 具象、带尺寸与预算
+      decision_rights:
+      - 可决定平面方案的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：预算与工期估算失真
+    plugin:
+      bundle: interior_designer
+      tools:
+      - CAD
+      - 效果图软件
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: interior_designer-skill
+        kind: skill
+        path: data/role-profiles/home-design.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 空间设计流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 方案设计
+              playbook: 先确认生活习惯与收纳需求，再出平面动线方案，最后给材料与预算范围
+    stakeholders:
+      upstream:
+      - 业主需求
+      - 房屋现状
+      downstream:
+      - soft_furnish
+      - project_manager
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 预算与工期估算失真
+      - 跨岗口径不一致
+      incentives:
+      - 平面方案越靠谱，返工越少
+      risk_notes:
+      - 预算与工期估算失真
+    capability:
+      core:
+      - 空间规划
+      - 动线设计
+      - 风格把控
+      tools:
+      - CAD
+      - 效果图软件
+      knowledge:
+      - 构造与材料
+      - 人体工学
+      soft:
+      - 听懂需求
+      - 讲清取舍
+      scoring:
+        domain: 4.0
+        tooling: 5.0
+        judging: 4.0
+        execution: 4.0
+        comms: 4.0
+  workflows:
+  - id: wf-main
+    name: 空间设计流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: &id001
+      - 诉求备忘
+      - 验收口径
+      verify: &id002
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: interior_designer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id003
+      - 诉求备忘已确认
+      outputs: &id004
+      - 输入清单
+      verify: &id005
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: interior_designer
+    - id: execute
+      name: 方案设计
+      playbook: 先确认生活习惯与收纳需求，再出平面动线方案，最后给材料与预算范围
+      preconditions: &id006
+      - 输入清单齐备
+      outputs: &id007
+      - 交付物主体
+      verify: &id008
+      - 满足验收口径
+      runtime: agent
+      agent_role: interior_designer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id009
+      - 自检记录
+      verify: &id010
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: interior_designer
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: &id011
+      - 交付说明
+      verify: &id012
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: interior_designer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id013
+      - 交接卡
+      verify: &id014
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: interior_designer
+  plugin_artifacts:
+  - name: interior_designer-skill
+    kind: skill
+    path: data/role-profiles/home-design.yaml
+  sources:
+  - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: soft_furnish
+      value: soft_furnish
+      kind: role
+      ref: role:home-design/soft_furnish
+      unit: home-design
+    - raw: project_manager
+      value: project_manager
+      kind: role
+      ref: role:home-design/project_manager
+      unit: home-design
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id015
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id016
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: soft_furnish
+  unit_id: home-design
+  industry: 家装设计
+  prefix: '[软装]'
+  description: 软装搭配 家具选购 色彩搭配 灯光布置
+  keywords:
+  - 软装设计
+  - 软装搭配
+  - 家具搭配
+  - 家具选购
+  - 窗帘搭配
+  - 色彩搭配
+  - 色彩方案
+  - 家居配色
+  - 灯光设计
+  - 灯具选择
+  - 挂画
+  - 地毯选择
+  - 装饰画
+  - 装饰品搭配
+  - 家居布置
+  - 布置客厅
+  - 布置卧室
+  - 搭配家具
+  - 客厅布置
+  - 软装布置
+  - 家居搭配方案
+  readiness:
+    role_name: soft_furnish
+    unit_id: home-design
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 软装落地方案流
+    industry_alias:
+    - 装修
+    - 家装
+    - 室内设计
+    - 装饰
+    - 家居设计
+    - 装潢
+    - 全屋定制
+    - 软装
+    - 硬装
+    - 房屋装修
+    - 新房装修
+    - 老房翻新
+    - 局部改造
+    triggers:
+    - 软装设计
+    - 软装搭配
+    - 家具搭配
+    - 家具选购
+    - 窗帘搭配
+    - 色彩搭配
+    - 色彩方案
+    - 家居配色
+    - 灯光设计
+    - 灯具选择
+    - 挂画
+    - 地毯选择
+    - 装饰画
+    - 装饰品搭配
+    - 家居布置
+    - 布置客厅
+    - 布置卧室
+    - 搭配家具
+    - 客厅布置
+    - 软装布置
+    - 家居搭配方案
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 让硬装之后的空间有脾气、也有实用性
+      deliverables:
+      - 软装清单
+      - 配色与材质方案
+      - 采购链接
+      inputs:
+      - 业主需求
+      - 房屋现状
+      outputs:
+      - 软装清单
+      - 配色与材质方案
+      kpis:
+      - 软装清单一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 家装设计资深soft_furnish
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 具象、带尺寸与预算
+      decision_rights:
+      - 可决定软装清单的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：预算与工期估算失真
+    plugin:
+      bundle: soft_furnish
+      tools:
+      - 材质样库
+      - 采购平台
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: soft_furnish-skill
+        kind: skill
+        path: data/role-profiles/home-design.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 软装落地方案流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 软装方案
+              playbook: 先定主色与材质基调，再按空间逐件配齐并标注预算，替换件给平价替代
+    stakeholders:
+      upstream:
+      - 业主需求
+      - 房屋现状
+      downstream:
+      - project_manager
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 预算与工期估算失真
+      - 跨岗口径不一致
+      incentives:
+      - 软装清单越靠谱，返工越少
+      risk_notes:
+      - 预算与工期估算失真
+    capability:
+      core:
+      - 色彩搭配
+      - 材质选择
+      - 预算控制
+      tools:
+      - 材质样库
+      - 采购平台
+      knowledge:
+      - 色彩理论
+      - 家具工艺
+      soft:
+      - 审美
+      - 算预算
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 4.0
+        comms: 4.0
+  workflows:
+  - id: wf-main
+    name: 软装落地方案流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: soft_furnish
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id003
+      outputs: *id004
+      verify: *id005
+      runtime: agent
+      agent_role: soft_furnish
+    - id: execute
+      name: 软装方案
+      playbook: 先定主色与材质基调，再按空间逐件配齐并标注预算，替换件给平价替代
+      preconditions: *id006
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: soft_furnish
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id009
+      verify: *id010
+      runtime: agent
+      agent_role: soft_furnish
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id011
+      verify: *id012
+      runtime: agent
+      agent_role: soft_furnish
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: soft_furnish
+  plugin_artifacts:
+  - name: soft_furnish-skill
+    kind: skill
+    path: data/role-profiles/home-design.yaml
+  sources:
+  - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: project_manager
+      value: project_manager
+      kind: role
+      ref: role:home-design/project_manager
+      unit: home-design
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: project_manager
+  unit_id: home-design
+  industry: 家装设计
+  prefix: '[装修经理]'
+  description: 施工管理 装修监理 装修预算
+  keywords:
+  - 装修施工
+  - 施工管理
+  - 装修监理
+  - 装修预算
+  - 装修报价
+  - 预算报价
+  - 材料清单
+  - 选材建议
+  - 装修公司
+  - 装修合同
+  - 找装修
+  - 工期安排
+  - 装修流程
+  - 施工进度
+  - 验收新房
+  - 装修公司推荐
+  - 装修报价方案
+  readiness:
+    role_name: project_manager
+    unit_id: home-design
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 施工管理流
+    industry_alias:
+    - 装修
+    - 家装
+    - 室内设计
+    - 装饰
+    - 家居设计
+    - 装潢
+    - 全屋定制
+    - 软装
+    - 硬装
+    - 房屋装修
+    - 新房装修
+    - 老房翻新
+    - 局部改造
+    triggers:
+    - 装修施工
+    - 施工管理
+    - 装修监理
+    - 装修预算
+    - 装修报价
+    - 预算报价
+    - 材料清单
+    - 选材建议
+    - 装修公司
+    - 装修合同
+    - 找装修
+    - 工期安排
+    - 装修流程
+    - 施工进度
+    - 验收新房
+    - 装修公司推荐
+    - 装修报价方案
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把图纸变成按时、按预算、不返工的现场
+      deliverables:
+      - 施工计划
+      - 验收记录
+      - 变更与结算清单
+      inputs:
+      - 业主需求
+      - 房屋现状
+      outputs:
+      - 施工计划
+      - 验收记录
+      kpis:
+      - 施工计划一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 家装设计资深project_manager
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 具象、带尺寸与预算
+      decision_rights:
+      - 可决定施工计划的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：预算与工期估算失真
+    plugin:
+      bundle: project_manager
+      tools:
+      - 甘特图
+      - 验收清单
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: project_manager-skill
+        kind: skill
+        path: data/role-profiles/home-design.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 施工管理流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 排期与验收
+              playbook: 先排工序与关键节点，逐个隐蔽工程验收留证，变更必须书面确认再施工
+    stakeholders:
+      upstream:
+      - 业主需求
+      - 房屋现状
+      downstream:
+      - 业主
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 预算与工期估算失真
+      - 跨岗口径不一致
+      incentives:
+      - 施工计划越靠谱，返工越少
+      risk_notes:
+      - 预算与工期估算失真
+    capability:
+      core:
+      - 工序排期
+      - 现场验收
+      - 成本管控
+      tools:
+      - 甘特图
+      - 验收清单
+      knowledge:
+      - 施工工艺
+      - 隐蔽工程验收
+      soft:
+      - 盯得紧
+      - 沟通协调
+      scoring:
+        domain: 4.0
+        tooling: 3.0
+        judging: 4.0
+        execution: 5.0
+        comms: 4.0
+  workflows:
+  - id: wf-main
+    name: 施工管理流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: project_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id003
+      outputs: *id004
+      verify: *id005
+      runtime: agent
+      agent_role: project_manager
+    - id: execute
+      name: 排期与验收
+      playbook: 先排工序与关键节点，逐个隐蔽工程验收留证，变更必须书面确认再施工
+      preconditions: *id006
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: project_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id009
+      verify: *id010
+      runtime: agent
+      agent_role: project_manager
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id011
+      verify: *id012
+      runtime: agent
+      agent_role: project_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: project_manager
+  plugin_artifacts:
+  - name: project_manager-skill
+    kind: skill
+    path: data/role-profiles/home-design.yaml
+  sources:
+  - /workspace/data/role-profiles/home-design.yaml
+  chain_refs:
+    upstream:
+    - raw: 业主需求
+      value: 业主需求
+      kind: industry_class
+      ref: industry_class:业主需求
+      note: 需求
+    - raw: 房屋现状
+      value: 房屋现状
+      kind: industry_class
+      ref: industry_class:房屋现状
+      note: 资源
+    downstream:
+    - raw: 业主
+      value: 业主
+      kind: industry_class
+      ref: industry_class:业主
+      index:
+        source: CRM
+        query:
+        - 业主档案
+      note: 需求方
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id015
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 预算与工期估算失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

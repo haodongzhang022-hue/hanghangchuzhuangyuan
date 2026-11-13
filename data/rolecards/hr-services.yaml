@@ -1,0 +1,1180 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: hr-services
+industry: 人力资源
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: recruiter
+  unit_id: hr-services
+  industry: 人力资源
+  prefix: '[招聘]'
+  description: 招聘 人才寻访 猎头 简历筛选 面试邀约 招聘方案
+  keywords:
+  - 招聘
+  - 招人
+  - 招聘专员
+  - 招聘主管
+  - 招一个人
+  - 招人才
+  - 猎头
+  - 猎聘
+  - 简历筛选
+  - 筛选简历
+  - 简历评估
+  - 面试邀约
+  - 邀约面试
+  - 安排面试
+  - 招聘方案
+  - 招聘计划
+  - 岗位JD
+  - 写JD
+  - 招聘渠道
+  - 渠道拓展
+  - 寻访人才
+  - 人才寻访
+  - 面试问题
+  - 面试评估
+  - 招聘进度
+  - 招到人
+  - 发布职位
+  - 职位描述
+  - 招一个
+  - 校园招聘
+  - 校招方案
+  - 社会招聘
+  readiness:
+    role_name: recruiter
+    unit_id: hr-services
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 招聘流程
+    industry_alias:
+    - 人力资源
+    - 人事
+    - HR
+    - hr
+    - 招聘
+    - 人才
+    - 猎头
+    - 员工关系
+    - 薪酬绩效
+    - 人力资源规划
+    - 组织发展
+    - 员工
+    - 人事部
+    - 招人
+    triggers:
+    - 招聘
+    - 招人
+    - 招聘专员
+    - 招聘主管
+    - 招一个人
+    - 招人才
+    - 猎头
+    - 猎聘
+    - 简历筛选
+    - 筛选简历
+    - 简历评估
+    - 面试邀约
+    - 邀约面试
+    - 安排面试
+    - 招聘方案
+    - 招聘计划
+    - 岗位JD
+    - 写JD
+    - 招聘渠道
+    - 渠道拓展
+    - 寻访人才
+    - 人才寻访
+    - 面试问题
+    - 面试评估
+    - 招聘进度
+    - 招到人
+    - 发布职位
+    - 职位描述
+    - 招一个
+    - 校园招聘
+    - 校招方案
+    - 社会招聘
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 在最短时间里判断「这人能不能干成这活」，并且不冒犯任何人
+      deliverables:
+      - 人才画像
+      - 面试评估
+      - 招聘进度报告
+      inputs:
+      - 用人部门
+      - 候选人
+      outputs:
+      - 人才画像
+      - 面试评估
+      kpis:
+      - 人才画像一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 人力资源资深recruiter
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 客观、守边界
+      decision_rights:
+      - 可决定人才画像的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：触碰隐私与歧视红线
+    plugin:
+      bundle: recruiter
+      tools:
+      - ATS
+      - 人才库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: recruiter-skill
+        kind: skill
+        path: data/role-profiles/hr-services.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 招聘流程
+        default: true
+        override:
+          steps:
+            execute:
+              name: 筛选与面试
+              playbook: 先把岗位要求拆成可验证的能力项，再按能力项设计问题与评分锚点，避免主观印象
+    stakeholders:
+      upstream:
+      - 用人部门
+      - 候选人
+      downstream:
+      - comp_benefits
+      - 用人经理
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 触碰隐私与歧视红线
+      - 跨岗口径不一致
+      incentives:
+      - 人才画像越靠谱，返工越少
+      risk_notes:
+      - 触碰隐私与歧视红线
+    capability:
+      core:
+      - 需求澄清
+      - 简历筛选
+      - 结构化面试
+      tools:
+      - ATS
+      - 人才库
+      knowledge:
+      - 岗位能力模型
+      - 劳动法规基础
+      soft:
+      - 客观
+      - 沟通说服
+      scoring:
+        domain: 3.0
+        tooling: 4.0
+        judging: 5.0
+        execution: 4.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 招聘流程
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: &id004
+      - 诉求备忘
+      - 验收口径
+      verify: &id005
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: recruiter
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id006
+      - 诉求备忘已确认
+      outputs: &id007
+      - 输入清单
+      verify: &id008
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: recruiter
+    - id: execute
+      name: 筛选与面试
+      playbook: 先把岗位要求拆成可验证的能力项，再按能力项设计问题与评分锚点，避免主观印象
+      preconditions: &id009
+      - 输入清单齐备
+      outputs: &id010
+      - 交付物主体
+      verify: &id011
+      - 满足验收口径
+      runtime: agent
+      agent_role: recruiter
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id012
+      - 自检记录
+      verify: &id013
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: recruiter
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: &id014
+      - 交付说明
+      verify: &id015
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: recruiter
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id016
+      - 交接卡
+      verify: &id017
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: recruiter
+  plugin_artifacts:
+  - name: recruiter-skill
+    kind: skill
+    path: data/role-profiles/hr-services.yaml
+  sources:
+  - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: &id001
+        source: ATS
+        query:
+        - 候选人库
+      note: 需求方
+    downstream:
+    - raw: comp_benefits
+      value: comp_benefits
+      kind: role
+      ref: role:hr-services/comp_benefits
+      unit: hr-services
+    - raw: 用人经理
+      value: 用人经理
+      kind: industry_class
+      ref: industry_class:用人经理
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id002
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id003
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: comp_benefits
+  unit_id: hr-services
+  industry: 人力资源
+  prefix: '[薪酬绩效]'
+  description: 薪酬核算 绩效方案 工资奖金 调薪 福利 薪酬结构
+  keywords:
+  - 薪酬
+  - 薪酬绩效
+  - 工资核算
+  - 算工资
+  - 工资结构
+  - 薪资
+  - 薪酬体系
+  - 薪酬方案
+  - 薪酬结构设计
+  - 定薪
+  - 调薪
+  - 绩效
+  - 绩效考核
+  - 绩效方案
+  - KPI
+  - 考核指标
+  - 绩效指标
+  - 奖金
+  - 年终奖
+  - 提成
+  - 福利
+  - 福利方案
+  - 期权
+  - 股权激励
+  - 薪酬调研
+  - 薪资核算
+  - 计薪
+  - 加班工资
+  readiness:
+    role_name: comp_benefits
+    unit_id: hr-services
+    score: 94.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.76
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 薪酬测算流
+    industry_alias:
+    - 人力资源
+    - 人事
+    - HR
+    - hr
+    - 招聘
+    - 人才
+    - 猎头
+    - 员工关系
+    - 薪酬绩效
+    - 人力资源规划
+    - 组织发展
+    - 员工
+    - 人事部
+    - 招人
+    triggers:
+    - 薪酬
+    - 薪酬绩效
+    - 工资核算
+    - 算工资
+    - 工资结构
+    - 薪资
+    - 薪酬体系
+    - 薪酬方案
+    - 薪酬结构设计
+    - 定薪
+    - 调薪
+    - 绩效
+    - 绩效考核
+    - 绩效方案
+    - KPI
+    - 考核指标
+    - 绩效指标
+    - 奖金
+    - 年终奖
+    - 提成
+    - 福利
+    - 福利方案
+    - 期权
+    - 股权激励
+    - 薪酬调研
+    - 薪资核算
+    - 计薪
+    - 加班工资
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 用一套说得清、比得过、养得起的薪酬方案留住人
+      deliverables:
+      - 薪酬结构方案
+      - 市场对标
+      - 预算测算
+      inputs:
+      - 用人部门
+      - 候选人
+      outputs:
+      - 薪酬结构方案
+      - 市场对标
+      kpis:
+      - 薪酬结构方案一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 人力资源资深comp_benefits
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 客观、守边界
+      decision_rights:
+      - 可决定薪酬结构方案的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：触碰隐私与歧视红线
+    plugin:
+      bundle: comp_benefits
+      tools:
+      - 薪酬调研数据
+      - Excel
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: comp_benefits-skill
+        kind: skill
+        path: data/role-profiles/hr-services.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: code-check
+      activation:
+        weight: 1.0
+      templates:
+      - template: code-check
+        id: wf-main
+        name: 薪酬测算流
+        default: true
+        override:
+          steps:
+            compute:
+              name: 对标与测算
+              playbook: 先选对标市场与岗位族，再给分位区间与结构调整方案，最后算总成本影响
+    stakeholders:
+      upstream:
+      - 用人部门
+      - 候选人
+      downstream:
+      - employee_relations
+      - 财务
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 触碰隐私与歧视红线
+      - 跨岗口径不一致
+      incentives:
+      - 薪酬结构方案越靠谱，返工越少
+      risk_notes:
+      - 触碰隐私与歧视红线
+    capability:
+      core:
+      - 薪酬设计
+      - 市场对标
+      - 成本测算
+      tools:
+      - 薪酬调研数据
+      - Excel
+      knowledge:
+      - 薪酬理论
+      - 社保个税规则
+      soft:
+      - 保密
+      - 讲清逻辑
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 4.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 薪酬测算流
+    default: true
+    template: code-check
+    trigger: 收到结构化数据或规则化诉求
+    handoff_out: 校验报告
+    steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs:
+      - 标准化数据集
+      verify:
+      - schema 校验通过
+      runtime: code
+      agent_role: comp_benefits
+    - id: compute
+      name: 对标与测算
+      playbook: 先选对标市场与岗位族，再给分位区间与结构调整方案，最后算总成本影响
+      outputs:
+      - 计算结果
+      verify:
+      - 结果可复算且一致
+      runtime: code
+      agent_role: comp_benefits
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs:
+      - 结果报告
+      verify:
+      - 报告含口径说明
+      runtime: code
+      agent_role: comp_benefits
+  plugin_artifacts:
+  - name: comp_benefits-skill
+    kind: skill
+    path: data/role-profiles/hr-services.yaml
+  sources:
+  - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: employee_relations
+      value: employee_relations
+      kind: role
+      ref: role:hr-services/employee_relations
+      unit: hr-services
+    - raw: 财务
+      value: 财务
+      kind: industry_class
+      ref: industry_class:财务
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: employee_relations
+  unit_id: hr-services
+  industry: 人力资源
+  prefix: '[员工关系]'
+  description: 员工关系 入离职 劳动合同 社保 劳动纠纷 员工关怀
+  keywords:
+  - 员工关系
+  - 入离职
+  - 入职
+  - 离职
+  - 离职手续
+  - 入职手续
+  - 劳动合同
+  - 签合同
+  - 续签合同
+  - 劳动法
+  - 劳动纠纷
+  - 裁员
+  - 辞退
+  - 补偿金
+  - 社保
+  - 公积金
+  - 五险一金
+  - 社保缴纳
+  - 员工关怀
+  - 员工活动
+  - 团建
+  - 团建方案
+  - 考勤
+  - 考勤制度
+  - 请假
+  - 年假
+  - 员工手册
+  - 员工激励
+  - 员工满意度
+  - 劳动仲裁
+  readiness:
+    role_name: employee_relations
+    unit_id: hr-services
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 员工关系处理流
+    industry_alias:
+    - 人力资源
+    - 人事
+    - HR
+    - hr
+    - 招聘
+    - 人才
+    - 猎头
+    - 员工关系
+    - 薪酬绩效
+    - 人力资源规划
+    - 组织发展
+    - 员工
+    - 人事部
+    - 招人
+    triggers:
+    - 员工关系
+    - 入离职
+    - 入职
+    - 离职
+    - 离职手续
+    - 入职手续
+    - 劳动合同
+    - 签合同
+    - 续签合同
+    - 劳动法
+    - 劳动纠纷
+    - 裁员
+    - 辞退
+    - 补偿金
+    - 社保
+    - 公积金
+    - 五险一金
+    - 社保缴纳
+    - 员工关怀
+    - 员工活动
+    - 团建
+    - 团建方案
+    - 考勤
+    - 考勤制度
+    - 请假
+    - 年假
+    - 员工手册
+    - 员工激励
+    - 员工满意度
+    - 劳动仲裁
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把冲突处理在不伤人的前提下，也把制度底线守住
+      deliverables:
+      - 处理方案
+      - 沟通纪要
+      - 制度改进建议
+      inputs:
+      - 用人部门
+      - 候选人
+      outputs:
+      - 处理方案
+      - 沟通纪要
+      kpis:
+      - 处理方案一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 人力资源资深employee_relations
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 客观、守边界
+      decision_rights:
+      - 可决定处理方案的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：触碰隐私与歧视红线
+    plugin:
+      bundle: employee_relations
+      tools:
+      - 制度库
+      - 面谈记录
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: employee_relations-skill
+        kind: skill
+        path: data/role-profiles/hr-services.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: fast-answer
+      activation:
+        weight: 1.0
+      templates:
+      - template: fast-answer
+        id: wf-main
+        name: 员工关系处理流
+        default: true
+        override:
+          steps:
+            answer:
+              name: 事实与方案
+              playbook: 先分别听取双方事实，再对照制度与法规给处理选项，方案必须合法且可解释
+    stakeholders:
+      upstream:
+      - 用人部门
+      - 候选人
+      downstream:
+      - 管理层
+      - 法务
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 触碰隐私与歧视红线
+      - 跨岗口径不一致
+      incentives:
+      - 处理方案越靠谱，返工越少
+      risk_notes:
+      - 触碰隐私与歧视红线
+    capability:
+      core:
+      - 冲突调解
+      - 制度解读
+      - 风险预判
+      tools:
+      - 制度库
+      - 面谈记录
+      knowledge:
+      - 劳动法规
+      - 组织行为
+      soft:
+      - 中立
+      - 守密
+      scoring:
+        domain: 4.0
+        tooling: 3.0
+        judging: 5.0
+        execution: 3.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 员工关系处理流
+    default: true
+    template: fast-answer
+    trigger: 用户提出单一事实或口径问题
+    handoff_out: 直接出口（不需下游）
+    steps:
+    - id: understand
+      name: 理解问题
+      playbook: 判断问题属于本岗位职责范围还是需转介；范围外直接说明
+      outputs:
+      - 问题归类
+      verify:
+      - 已判定是否在本岗职责内
+      runtime: agent
+      agent_role: employee_relations
+    - id: answer
+      name: 事实与方案
+      playbook: 先分别听取双方事实，再对照制度与法规给处理选项，方案必须合法且可解释
+      outputs:
+      - 答复正文
+      verify:
+      - 结论有依据且标注不确定性
+      runtime: agent
+      agent_role: employee_relations
+    - id: boundary
+      name: 边界提示
+      playbook: 说明适用前提、风险与建议下一步
+      outputs:
+      - 边界提示
+      verify:
+      - 前提与风险已写明
+      runtime: agent
+      agent_role: employee_relations
+  plugin_artifacts:
+  - name: employee_relations-skill
+    kind: skill
+    path: data/role-profiles/hr-services.yaml
+  sources:
+  - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    - raw: 法务
+      value: 法务
+      kind: industry_class
+      ref: industry_class:法务
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: hr_advisor
+  unit_id: hr-services
+  industry: 人力资源
+  prefix: '[HR顾问]'
+  description: 人力资源咨询 组织发展 人才发展 人力规划 制度设计 编制
+  keywords:
+  - 人力资源咨询
+  - 人力咨询
+  - HR咨询
+  - 组织发展
+  - OD
+  - 组织架构设计
+  - 部门设置
+  - 人才发展
+  - 人才梯队
+  - 人才盘点
+  - 人效
+  - 人力规划
+  - 人力资源规划
+  - 定岗定编
+  - 编制
+  - 岗位设计
+  - 岗位说明书
+  - 制度设计
+  - 人事制度
+  - 管理制度
+  - 人力资源体系
+  - 用人
+  - 用人之道
+  - 团队建设
+  - 人才结构
+  - 人力成本
+  - 招聘规划
+  - 战略性人力资源管理
+  - 培训发展
+  - 培训体系
+  - 内训
+  - 员工培训
+  - 人才培养
+  readiness:
+    role_name: hr_advisor
+    unit_id: hr-services
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 人力咨询流
+    industry_alias:
+    - 人力资源
+    - 人事
+    - HR
+    - hr
+    - 招聘
+    - 人才
+    - 猎头
+    - 员工关系
+    - 薪酬绩效
+    - 人力资源规划
+    - 组织发展
+    - 员工
+    - 人事部
+    - 招人
+    triggers:
+    - 人力资源咨询
+    - 人力咨询
+    - HR咨询
+    - 组织发展
+    - OD
+    - 组织架构设计
+    - 部门设置
+    - 人才发展
+    - 人才梯队
+    - 人才盘点
+    - 人效
+    - 人力规划
+    - 人力资源规划
+    - 定岗定编
+    - 编制
+    - 岗位设计
+    - 岗位说明书
+    - 制度设计
+    - 人事制度
+    - 管理制度
+    - 人力资源体系
+    - 用人
+    - 用人之道
+    - 团队建设
+    - 人才结构
+    - 人力成本
+    - 招聘规划
+    - 战略性人力资源管理
+    - 培训发展
+    - 培训体系
+    - 内训
+    - 员工培训
+    - 人才培养
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 让业务负责人明白「人是问题还是解法」
+      deliverables:
+      - 组织诊断
+      - 人力方案
+      - 落地路径
+      inputs:
+      - 用人部门
+      - 候选人
+      outputs:
+      - 组织诊断
+      - 人力方案
+      kpis:
+      - 组织诊断一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 人力资源资深hr_advisor
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 客观、守边界
+      decision_rights:
+      - 可决定组织诊断的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：触碰隐私与歧视红线
+    plugin:
+      bundle: hr_advisor
+      tools:
+      - 组织盘点
+      - 人才盘点
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: hr_advisor-skill
+        kind: skill
+        path: data/role-profiles/hr-services.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 人力咨询流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 诊断与方案
+              playbook: 先从业务目标反推人力需求，再诊断组织堵点，方案按「先止血后调结构」排序
+    stakeholders:
+      upstream:
+      - 用人部门
+      - 候选人
+      downstream:
+      - 管理层
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 触碰隐私与歧视红线
+      - 跨岗口径不一致
+      incentives:
+      - 组织诊断越靠谱，返工越少
+      risk_notes:
+      - 触碰隐私与歧视红线
+    capability:
+      core:
+      - 组织诊断
+      - 人力规划
+      - 方案落地
+      tools:
+      - 组织盘点
+      - 人才盘点
+      knowledge:
+      - 组织设计
+      - 绩效管理
+      soft:
+      - 业务视角
+      - 推动力
+      scoring:
+        domain: 4.0
+        tooling: 3.0
+        judging: 5.0
+        execution: 4.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 人力咨询流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id004
+      verify: *id005
+      runtime: agent
+      agent_role: hr_advisor
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id006
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: hr_advisor
+    - id: execute
+      name: 诊断与方案
+      playbook: 先从业务目标反推人力需求，再诊断组织堵点，方案按「先止血后调结构」排序
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: hr_advisor
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: hr_advisor
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: hr_advisor
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id016
+      verify: *id017
+      runtime: agent
+      agent_role: hr_advisor
+  plugin_artifacts:
+  - name: hr_advisor-skill
+    kind: skill
+    path: data/role-profiles/hr-services.yaml
+  sources:
+  - /workspace/data/role-profiles/hr-services.yaml
+  chain_refs:
+    upstream:
+    - raw: 用人部门
+      value: 用人部门
+      kind: industry_class
+      ref: industry_class:用人部门
+      note: 内部组织
+    - raw: 候选人
+      value: 候选人
+      kind: industry_class
+      ref: industry_class:候选人
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id002
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id003
+      note: 需求方
+    blockers:
+    - raw: 触碰隐私与歧视红线
+      value: 隐私与歧视风险
+      kind: industry_class
+      ref: industry_class:隐私与歧视风险
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

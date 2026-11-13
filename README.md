@@ -9,8 +9,24 @@ L2 人类端点    = 仅入口(意图确认) + 出口(复核)
 L1 通用能力层  = 本仓库：识别路由(M1) / 注册表(M2) / 前缀档案(M3)
                / 会话编排(M4含SLIB) / 交接总线(M5) / 复合装配(M6)
                / 指标观测(M7) / 能力索引(M8) / 状态管理(M9) / 上下文装配(M10)
+               / 岗位画像(M11：六维评估+就绪度+工作流playbook)
 L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 ```
+
+## 数据与库
+
+画像与词表的**事实来源**是 `data/` 下的 YAML（人工维护、评审看得见）；
+可查询的**结构**是用它建出来的真库：
+
+```bash
+python3 scripts/build_role_db.py            # 建 data/db/hanghang.db（17 张表 / 3500 行）
+python3 src/hanghang/cli/main.py role db    # 看库里有什么
+python3 src/hanghang/cli/main.py role db --sql "SELECT ..."
+```
+
+`data/db/00-schema.sqlite.sql` 与 `00-schema.postgresql.sql` 由同一份表定义渲染
+（改表只改一处）；库不进版本库，由 `--check` 在 CI 里保证不落后于数据。
+设计见 `docs/architecture/M11.3-实库-岗位与行业类落库.md`。
 
 ## 数据驱动设计（核心亮点）
 
@@ -38,6 +54,43 @@ L0 行业单元层  = 各行业单元(如 dongjiagoushi)，原子化收编
 > 非重点/非大型行业默认集中本仓（`repo_ref` 留空待回填），较大行业才拆独立仓。
 
 新增单元时只需在 `data/unit-index.yaml` 或 `data/industry-register.yaml` 中追加声明。
+
+## 岗位画像（M11）：从"行业有"到"岗位上手"
+
+行业单元回答「这行有没有」，**岗位画像回答「这个岗位能不能真上手干活、缺什么」**。
+
+每个岗位一张卡，六维评估（分析 / 画像 / 插件 / 工作流 / 利益链条 / 核心能力），
+由 `data/role-profiles/`（人写基线）× 注册表 × `data/workflow-templates/` 渲染成
+`data/rolecards/`（可 diff 的产物），并给出 **0-100 就绪度 + A/B/C/D + 缺口清单**。
+
+```bash
+# 岗位就绪度表（哪个岗位能真上手、还缺什么）
+python3 src/hanghang/cli/main.py role list
+# 看一张岗位卡全貌（六维评估 + 就绪度 + 因子 + 缺口）
+python3 src/hanghang/cli/main.py role show architect --unit dongjiagoushi
+# 取岗位工作流的分步 playbook（Agent 照着干 / 导出 n8n / 导出代码桩）
+python3 src/hanghang/cli/main.py role playbook contract_advisor --format text
+python3 src/hanghang/cli/main.py role playbook accountant --format n8n
+# 渲染可注入提示词的岗位卡文本块（也可由 context assemble 自动注入层A）
+python3 src/hanghang/cli/main.py role context data_analyst
+# 画像覆盖总览
+python3 src/hanghang/cli/main.py role coverage --gaps
+# 利益链条：只看行业类（公司靠索引现查、不落库）+ 校验 + 类目反查
+python3 src/hanghang/cli/main.py role chain architect --unit dongjiagoushi
+python3 src/hanghang/cli/main.py role chain --check
+python3 src/hanghang/cli/main.py role chain --class 用户
+```
+
+已落地：14 个行业单元 / 50 个岗位全部有画像基线，就绪度均值 95.0，评级全 A。
+行业当前用不上也没关系 —— **先立卡、如实给缺口，成熟时补数据即可**，新增岗位不改一行代码。
+
+**利益链条只存类，不存公司**（M11.1）：链上写「钢材加工」「品牌方」「用人部门」这类行业类目，
+具体公司靠类目上的 `index`（企业名录 / CRM / ATS / 内部主数据）运行时检索，
+名录不进仓库。写成 `XX有限公司` 会被 `role chain --check` 在 CI 拦下——
+换一个客户，整张卡不用重写。
+
+设计与口径见 `docs/architecture/M11-岗位画像层.md`、`data/rolecard-schema.yaml`、
+`data/industry-classes.yaml`。
 
 ## 快速开始
 
@@ -222,6 +275,15 @@ python3 -m hanghang.web.server --host 127.0.0.1 --port 8080
 
 > 设计原则：前端/页面只做「聚合 + 可视化」，底层能力通过 REST API 与 CLI 双形态暴露，为将来多调用形态（生态整合）预留。
 
+### 岗位卡渲染与校验
+
+```bash
+# 改完 data/role-profiles 或 data/workflow-templates 后重渲岗位卡
+python3 scripts/gen_rolecards.py --from-kwp vendor/upstream/knowledge-work-plugins
+# CI 用：校验已提交岗位卡是否与数据一致（不一致退出码 1）
+python3 scripts/gen_rolecards.py --check
+```
+
 ### 运行测试
 
 **推荐：变更感知测试**（本地/PR 通用，只跑本次变更影响到的测试，避免频繁全量）：
@@ -291,6 +353,10 @@ python3 tests/test_slib.py          # SLIB 会话级行业绑定（SessionBindin
 python3 tests/test_industry_db.py   # M11 行业分区定义库（职业↔岗位双向对齐/产值口径/扁平表导出）
 python3 tests/test_occupation_catalog.py  # 职业分类大典参考表（编码/映射外键/两个分母不混读）
 python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表/四根轴索引/副证缺失不静默）
+python3 tests/test_rolecard_m11.py  # M11.1 岗位画像层（渲染/就绪度/模板合并/路由加权/上下文注入）
+python3 tests/test_chain_m11_1.py   # M11.1 利益链条归一（公司不落库/类目索引/叫法收敛/岗位引用）
+python3 tests/test_classstore_m11_2.py  # M11.2 词表目录化（域文件→DDL/数据字典一致性）
+python3 tests/test_roledb_m11_3.py  # M11.3 实库（建库回读/双方言 DDL/列表型字段一行一条）
 ```
 
 ## 数据文件
@@ -309,6 +375,12 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 - `data/metrics.json` — 运行指标（M7，自动生成）
 - `data/state/` — 状态卡 JSON（M9，自动生成）
 - `data/context-rules.yaml` — M10 上下文装配触发规则表（声明式）
+- `data/rolecard-schema.yaml` — M11 岗位画像数据契约（六维字段/能力评分维度/就绪度权重与分档）
+- `data/role-profiles/<unit>.yaml` — M11 岗位画像**人工基线**（六维评估，人写慢变）
+- `data/workflow-templates/*.yaml` — M11 通用工作流模板（岗位只写 override）
+- `data/rolecards/<unit>.yaml` — M11 岗位卡**渲染产物**（`scripts/gen_rolecards.py` 生成，勿手改）
+- `data/industry-classes.yaml` — M11.1 行业类词表（类目 + 索引方案 + 叫法别名 + 公司形态标记）
+- `vendor/upstream/knowledge-work-plugins/` — 上游只读快照（Apache-2.0，仅离线渲染参考）
 - `data/arbitration/` — 冲突仲裁票据 JSON（M9+，自动生成）
 
 
@@ -402,7 +474,10 @@ python3 tests/test_global_framework.py  # 全球分类框架（ISCO-08 参考表
 - 单元接入规范: `docs/industry/register-spec.md`
 - 首行业单元外挂验证(dongjiagoushi × M1): `docs/industry/dongjiagoushi-m1-routing.md`
 - 行业使用说明（面向 Agent，按行业）: `docs/industry/units/INDEX.md`
-- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(M11行业分区定义库) / `-v13.md`(补全与视角分离·承接通道)
+- 岗位画像层(M11.1): `docs/architecture/M11-岗位画像层.md`（含 §9 利益链条归一）
+- 词表目录化与云仓(M11.2): `docs/architecture/M11.2-词表目录化与云仓数据库.md`
+- 实库落地(M11.3): `docs/architecture/M11.3-实库-岗位与行业类落库.md`
+- 功能特性交付索引: `docs/feature-delivery.md` / `-v2.md` / `-v3.md`(M9) / `-v4.md`(M10) / `-v5.md`(M9+仲裁) / `-v6.md`(行业v3) / `-v7.md`(SLIB) / `-v8.md`(M9进度可视化) / `-v9.md`(ContentArchive归档) / `-v10.md`(会话续传快照) / `-v11.md`(行业v4·coverage校准) / `-v12.md`(行业分区定义库) / `-v13.md`(补全与视角分离·承接通道) / `-v14.md`(岗位画像层·六维评估/就绪度/实库)
 - POC验证记录: `poc/`
 
 ## 自动评审机制

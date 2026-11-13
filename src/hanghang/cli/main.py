@@ -37,6 +37,7 @@ from hanghang.cli.state_commands import (
 from hanghang.cli.context_commands import (
     cmd_context_assemble, cmd_context_rules, cmd_context_validate,
 )
+from hanghang.cli.rolecard_commands import register_role_subcommands
 
 def cmd_route(args):
     """意图路由命令（支持 SLIB 会话级行业绑定）
@@ -506,6 +507,8 @@ def build_parser():
     srv.add_argument("--port", type=int, default=8080, help="监听端口(默认8080)")
     srv.set_defaults(func=cmd_serve)
     # ---- M9 状态管理子命令 ----
+    register_role_subcommands(sub)
+
     st = sub.add_parser("state", help="M9 状态管理：任务状态卡/折叠/层级提交")
     state_sub = st.add_subparsers(dest="state_cmd")
 
@@ -674,6 +677,8 @@ def build_parser():
     ca.add_argument("--text", default="", help="用户意图文本（触发层C规则注入）")
     ca.add_argument("--static-prefix", default=None, help="静态前缀；不传则自动从 data/prefix-archive.json 取")
     ca.add_argument("--objective", default="", help="会话目标（层B兜底）")
+    ca.add_argument("--no-rolecard", dest="no_rolecard", action="store_true",
+                    help="不注入 M11 岗位画像卡（对比排查/回归基线用）")
     ca.set_defaults(func=cmd_context_assemble)
 
     cr = ctx_sub.add_parser("rules", help="上下文规则表：--list 列出 / --match 命中测试")

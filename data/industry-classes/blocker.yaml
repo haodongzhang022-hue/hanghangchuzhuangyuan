@@ -1,0 +1,24 @@
+# 阻碍因素
+#
+# 导致返工/风险的原因。注意：这是「原因」不是「实体」，将来应独立成层
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: blocker   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 阻碍
+  跨岗口径不一致: {kind: 阻碍, index: null}
+  流程遗漏: {kind: 阻碍, index: null}
+  合规风险: {kind: 阻碍, index: null}
+  隐私与歧视风险: {kind: 阻碍, index: null}
+  越过医疗边界: {kind: 阻碍, index: null}
+  预算与工期失真: {kind: 阻碍, index: null}
+  玩法验证不足: {kind: 阻碍, index: null}
+  效果不可归因: {kind: 阻碍, index: null}
+  需求频繁变更: {kind: 阻碍, index: null}
+  技术债: {kind: 阻碍, index: null}
+  测试基建缺失: {kind: 阻碍, index: null}
+  输入不全: {kind: 阻碍, index: null}
+  需求模糊: {kind: 阻碍, index: null}
+  违反教学规律: {kind: 阻碍, index: null}
+  事实不清: {kind: 阻碍, index: null}

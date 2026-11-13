@@ -63,3 +63,23 @@ register_version: "1.1"
 - 交接成功：跨行业/跨岗位交接卡能闭合。
 - 复合可用：可装配 ≥2 岗位同会话运行。
 - 数据驱动：新增行业只需注册数据即可被路由（无需改代码）。
+
+## M11 岗位画像（可选但推荐）
+
+注册表的 `roles` 只描述"路由信号"（名/前缀/关键词）。要把岗位真的跑起来，还需在
+`data/role-profiles/<unit_id>.yaml` 为每个岗位补六维画像：
+
+```yaml
+roles:
+  - role: architect
+    analysis:     {mission, deliverables, inputs, outputs, kpis}
+    persona:      {seniority, mindset, tone, decision_rights, constraints}
+    plugin:       {bundle, tools, mcp_categories, artifacts, install_hint}
+    workflow:     {default_flow, templates: [{template, id, name, override: {steps}}]}
+    stakeholders: {upstream, downstream, beneficiaries, blockers, incentives, risk_notes}
+    capability:   {core, tools, knowledge, soft, scoring: {domain, tooling, judging, execution, comms}}
+```
+
+缺项不阻塞接入：渲染器会照常生成岗位卡，并在就绪度里**如实扣分 + 登记缺口**。
+补完执行 `python3 scripts/gen_rolecards.py --unit <unit_id>` 重渲，`role list --unit <unit_id>` 看就绪度。
+契约与评分口径见 `data/rolecard-schema.yaml`，设计见 `docs/architecture/M11-岗位画像层.md`。

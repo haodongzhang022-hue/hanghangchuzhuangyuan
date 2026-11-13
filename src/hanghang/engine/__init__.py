@@ -27,6 +27,13 @@ from hanghang.state.arbiter import (
 )
 from hanghang.state.persist import FlushQueue, DeferredWriter
 
+# M11 岗位画像层
+from hanghang.rolecard import (
+    RoleCard, RoleProfile, WorkflowStep, StakeholderChain,
+    CapabilityProfile, ReadinessReport, RoleCardStore,
+    ReadinessScorer, WorkflowRenderer,
+)
+
 # M10 上下文装配器
 from hanghang.context import (
     ContextRule, RuleEngine, ContextAssembler, CacheGuard,
@@ -48,4 +55,8 @@ __all__ = [
     "FlushQueue", "DeferredWriter",
     # M10
     "ContextRule", "RuleEngine", "ContextAssembler", "CacheGuard",
+    # M11
+    "RoleCard", "RoleProfile", "WorkflowStep", "StakeholderChain",
+    "CapabilityProfile", "ReadinessReport", "RoleCardStore",
+    "ReadinessScorer", "WorkflowRenderer",
 ]

@@ -48,6 +48,7 @@ class ContextAssembler:
         state_card_provider: Optional[Callable] = None,
         source_providers: Optional[Dict[str, Callable]] = None,
         slib_guard: Optional[SLIBAssemblyGuard] = None,
+        rolecard_provider: Optional[Callable] = None,
     ):
         """
         Args:
@@ -57,12 +58,17 @@ class ContextAssembler:
             source_providers: 注入数据源 provider 映射，
                 {data_source标识: callable(ctx) -> str}
                 例：{"file.diff": lambda ctx: "...", "handoff.card": ...}
+            rolecard_provider: M11 岗位画像卡回调 (unit_id, role_name) -> str。
+                返回的岗位卡文本块作为层A的一部分（同一岗位同版本输出恒定），
+                让 Agent 一开始就带着岗位使命/边界/核心能力/工作流干活，
+                而不是只带一个 [前缀]。
         """
         self.rule_engine = rule_engine or RuleEngine()
         self.static_prefix_provider = static_prefix_provider
         self.state_card_provider = state_card_provider
         self.source_providers = source_providers or {}
         self.slib_guard = slib_guard or SLIBAssemblyGuard()
+        self.rolecard_provider = rolecard_provider
 
     # ---- 三层拼装 ----
 
@@ -209,6 +215,15 @@ class ContextAssembler:
                 pass
         if prefix:
             parts.append(prefix)
+
+        # M11 岗位画像卡（静态层：只由画像数据决定，同岗位同版本恒定 → 不污染缓存键）
+        if self.rolecard_provider and unit_id and role_name:
+            try:
+                block = self.rolecard_provider(unit_id, role_name)
+                if block:
+                    parts.append(block)
+            except Exception:
+                pass  # 画像层异常不得影响装配主链路
 
         # 角色标识
         role_line = f"[{role_name}]" if role_name else ""

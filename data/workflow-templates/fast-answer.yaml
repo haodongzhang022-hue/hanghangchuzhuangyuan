@@ -1,0 +1,32 @@
+# 快问快答流：适用「轻咨询/即时答复」岗位，不产出正式交付物。
+id: fast-answer
+description: 三段式快答流（理解→作答→边界提示）
+flow:
+  name: 快问快答流
+  trigger: 用户提出单一事实或口径问题
+  handoff_out: 直接出口（不需下游）
+  steps:
+    - id: understand
+      name: 理解问题
+      playbook: 判断问题属于本岗位职责范围还是需转介；范围外直接说明
+      outputs:
+        - 问题归类
+      verify:
+        - 已判定是否在本岗职责内
+      runtime: agent
+    - id: answer
+      name: 作答
+      playbook: 给出结论先行、依据在后的答复；不确定处给区间与条件
+      outputs:
+        - 答复正文
+      verify:
+        - 结论有依据且标注不确定性
+      runtime: agent
+    - id: boundary
+      name: 边界提示
+      playbook: 说明适用前提、风险与建议下一步
+      outputs:
+        - 边界提示
+      verify:
+        - 前提与风险已写明
+      runtime: agent

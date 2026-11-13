@@ -1,0 +1,1382 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: dongjiagoushi
+industry: 软件研发
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: secretary
+  unit_id: dongjiagoushi
+  industry: 软件研发
+  prefix: '[秘书]'
+  description: 编排记录 汇总 组织协调
+  keywords:
+  - 秘书
+  - 编排
+  - 记录
+  - 汇总
+  - 会议纪要
+  - 组织协调
+  - 分配
+  - 派发
+  - 调度
+  readiness:
+    role_name: secretary
+    unit_id: dongjiagoushi
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 诉求编排流
+    industry_alias:
+    - 研发
+    - 架构师
+    - 软件开发
+    - dev
+    - 架构
+    - 软件
+    - 程序员
+    - 编程
+    - Web开发
+    - 网站建设
+    triggers:
+    - 秘书
+    - 编排
+    - 记录
+    - 汇总
+    - 会议纪要
+    - 组织协调
+    - 分配
+    - 派发
+    - 调度
+    weight: 1.3
+  six_dims:
+    analysis:
+      mission: 把模糊诉求拆成可执行工序，盯住进度，收敛成一份能复核的结论
+      deliverables:
+      - 编排计划
+      - 任务状态卡
+      - 交接卡
+      - 阶段汇总
+      inputs:
+      - 用户原始诉求
+      - 各岗位阶段产物
+      outputs:
+      - 工序清单
+      - 风险与待决项清单
+      kpis:
+      - 任务闭环率
+      - 人工介入次数
+      - 交接卡完整率
+    persona:
+      seniority: 资深项目协调
+      mindset: 先问清目标再动手，宁可多问一句不返工三遍
+      tone: 简短、结构化、结论先行
+      decision_rights:
+      - 可决定任务拆分粒度与执行顺序
+      - 不可替代业务岗位做专业判断
+      constraints:
+      - 不臆造缺失输入
+      - 不替下游岗位下专业结论
+    plugin:
+      bundle: orchestrator
+      tools:
+      - 状态卡管理
+      - 交接总线
+      - 树形拓扑注册
+      mcp_categories:
+      - 项目追踪
+      - 文档协作
+      artifacts:
+      - name: secretary-orchestration
+        kind: skill
+        path: docs/industry/units/dongjiagoushi/README.md
+      install_hint: 随本仓库内置，无需外部安装
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.3
+      templates:
+      - template: standard-delivery
+        id: wf-orchestrate
+        name: 诉求编排流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 诉求拆解
+              playbook: 把原话拆成可交付的工序，标出依赖与不可并行项
+              verify: &id001
+              - 每道工序都有产出物
+              - 依赖顺序已标注
+            execute:
+              name: 分派与盯进
+              playbook: 按依赖序分派岗位，逐项回收产物，卡住立刻降级重试而非等人
+            handoff:
+              name: 收敛汇总
+              playbook: 把各岗位产物收敛成一份结论，列出未闭合项与风险
+    stakeholders:
+      upstream:
+      - 用户
+      downstream:
+      - product
+      - architect
+      - developer
+      - reviewer
+      beneficiaries:
+      - 用户
+      - 各执行岗位
+      blockers:
+      - 需求模糊
+      - 跨岗口径不一致
+      incentives:
+      - 流程越顺，秘书越少被返工拖住
+      risk_notes:
+      - 过度编排会让简单诉求变重，需按量级裁剪工序
+    capability:
+      core:
+      - 任务拆解
+      - 依赖排序
+      - 状态收敛
+      - 风险识别
+      tools:
+      - 状态卡
+      - 交接卡
+      - 树形拓扑
+      knowledge:
+      - 通用交付流程
+      - 交接协议
+      soft:
+      - 沟通
+      - 结构化表达
+      scoring:
+        domain: 3.0
+        tooling: 5.0
+        judging: 4.0
+        execution: 4.0
+        comms: 5.0
+  workflows:
+  - id: wf-orchestrate
+    name: 诉求编排流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 诉求拆解
+      playbook: 把原话拆成可交付的工序，标出依赖与不可并行项
+      outputs: &id003
+      - 诉求备忘
+      - 验收口径
+      verify: *id001
+      runtime: agent
+      agent_role: secretary
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id004
+      - 诉求备忘已确认
+      outputs: &id005
+      - 输入清单
+      verify: &id006
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: secretary
+    - id: execute
+      name: 分派与盯进
+      playbook: 按依赖序分派岗位，逐项回收产物，卡住立刻降级重试而非等人
+      preconditions: &id007
+      - 输入清单齐备
+      outputs: &id017
+      - 交付物主体
+      verify: &id018
+      - 满足验收口径
+      runtime: agent
+      agent_role: secretary
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id010
+      - 自检记录
+      verify: &id011
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: secretary
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: &id012
+      - 交付说明
+      verify: &id013
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: secretary
+    - id: handoff
+      name: 收敛汇总
+      playbook: 把各岗位产物收敛成一份结论，列出未闭合项与风险
+      outputs: &id014
+      - 交接卡
+      verify: &id015
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: secretary
+  plugin_artifacts:
+  - name: secretary-orchestration
+    kind: skill
+    path: docs/industry/units/dongjiagoushi/README.md
+  sources:
+  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id002
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    downstream:
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    blockers:
+    - raw: 需求模糊
+      value: 需求模糊
+      kind: industry_class
+      ref: industry_class:需求模糊
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: architect
+  unit_id: dongjiagoushi
+  industry: 软件研发
+  prefix: '[架构]'
+  description: 架构设计 架构方案 总体设计 技术方案 系统设计
+  keywords:
+  - 架构设计
+  - 架构方案
+  - 架构师
+  - 做架构
+  - 总体设计
+  - 技术方案
+  - 系统设计
+  - 方案设计
+  - 架构
+  readiness:
+    role_name: architect
+    unit_id: dongjiagoushi
+    score: 93.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.72
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 架构方案流
+    industry_alias:
+    - 研发
+    - 架构师
+    - 软件开发
+    - dev
+    - 架构
+    - 软件
+    - 程序员
+    - 编程
+    - Web开发
+    - 网站建设
+    triggers:
+    - 架构设计
+    - 架构方案
+    - 架构师
+    - 做架构
+    - 总体设计
+    - 技术方案
+    - 系统设计
+    - 方案设计
+    - 架构
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 用一套能落地的结构方案，把需求与实现之间的鸿沟填平
+      deliverables:
+      - 架构方案
+      - 模块划分与接口约定
+      - 技术与权衡记录
+      inputs:
+      - 需求与验收口径
+      - 现有系统与约束
+      outputs:
+      - 方案文档
+      - 约束清单
+      kpis:
+      - 方案可落地性
+      - 后期返工率
+    persona:
+      seniority: 资深架构师
+      mindset: 一切设计都是权衡，先讲约束再讲方案
+      tone: 严谨、先给结论与代价
+      decision_rights:
+      - 可定技术选型与模块边界
+      - 不可越过需求方改范围
+      constraints:
+      - 不写业务决策
+      - 不为炫技引入无必要复杂度
+    plugin:
+      bundle: architecture
+      tools:
+      - 架构图
+      - 接口契约
+      - 决策记录
+      mcp_categories:
+      - 代码仓库
+      - 文档协作
+      artifacts:
+      - name: architecture
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/architecture/SKILL.md
+      - name: system-design
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/system-design/SKILL.md
+      install_hint: 技能包随仓库内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      templates:
+      - template: standard-delivery
+        id: wf-architecture
+        name: 架构方案流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 方案设计
+              playbook: 先列约束与非功能要求，再出候选方案，最后给出推荐与代价
+              outputs: &id008
+              - 架构方案
+              - 权衡记录
+              verify: &id009
+              - 每项关键选择都写明了代价
+            selfcheck:
+              name: 可落地性自检
+              playbook: 检查方案能否被开发直接执行、接口是否闭合、失败路径是否定义
+    stakeholders:
+      upstream:
+      - product
+      - 用户
+      downstream:
+      - developer
+      - reviewer
+      beneficiaries:
+      - 开发
+      - 运维
+      blockers:
+      - 需求仍在变却要求定架构
+      - 既有系统债务不可动
+      incentives:
+      - 方案被开发直接执行，架构师才算交付
+      risk_notes:
+      - 过度设计会把成本留给未来三个月
+    capability:
+      core:
+      - 结构设计
+      - 权衡判断
+      - 接口契约
+      - 风险预判
+      tools:
+      - 架构图
+      - 决策记录
+      knowledge:
+      - 分布式系统
+      - 数据建模
+      - 性能与成本
+      soft:
+      - 说服
+      - 边界感
+      scoring:
+        domain: 5.0
+        tooling: 3.0
+        judging: 3.0
+        execution: 3.0
+        comms: 4.0
+  workflows:
+  - id: wf-architecture
+    name: 架构方案流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id003
+      verify: &id016
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: architect
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: architect
+    - id: execute
+      name: 方案设计
+      playbook: 先列约束与非功能要求，再出候选方案，最后给出推荐与代价
+      preconditions: *id007
+      outputs: *id008
+      verify: *id009
+      runtime: agent
+      agent_role: architect
+    - id: selfcheck
+      name: 可落地性自检
+      playbook: 检查方案能否被开发直接执行、接口是否闭合、失败路径是否定义
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: architect
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: architect
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: architect
+  plugin_artifacts:
+  - name: architecture
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/architecture/SKILL.md
+  - name: system-design
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/system-design/SKILL.md
+  sources:
+  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    downstream:
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 开发
+      value: 开发
+      kind: industry_class
+      ref: industry_class:开发
+      index: &id021
+        source: 组织架构
+        query:
+        - 研发团队
+      note: 岗位类
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    blockers:
+    - raw: 需求仍在变却要求定架构
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍
+    - raw: 既有系统债务不可动
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
+- role: developer
+  unit_id: dongjiagoushi
+  industry: 软件研发
+  prefix: '[开发]'
+  description: 开发 编码 实现 写代码 落地 编程 网站开发 前端开发 后端开发 小程序开发
+  keywords:
+  - 开发
+  - 编码
+  - 实现
+  - 写代码
+  - 落地
+  - 编程
+  - 写程序
+  - 部署
+  - 网站开发
+  - 爬虫
+  - 做网页
+  - 网页设计
+  - CRM
+  - ERP
+  - 接口开发
+  - API开发
+  - 做APP
+  - 做个网站
+  - 做个小程序
+  - 搭建网站
+  - 代码
+  - 程序
+  - 做个网页
+  - 搭个网站
+  - 搭个前端
+  - 做个前端
+  - 做个后端
+  - 搭个后端
+  - 做个官网
+  - 前端开发
+  - 后端开发
+  - 小程序开发
+  - 建个网站
+  - 建网站
+  - 搭建网页
+  - 搭个网页
+  - 搭个官网
+  - 搭小程序
+  readiness:
+    role_name: developer
+    unit_id: dongjiagoushi
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 编码实现流
+    industry_alias:
+    - 研发
+    - 架构师
+    - 软件开发
+    - dev
+    - 架构
+    - 软件
+    - 程序员
+    - 编程
+    - Web开发
+    - 网站建设
+    triggers:
+    - 开发
+    - 编码
+    - 实现
+    - 写代码
+    - 落地
+    - 编程
+    - 写程序
+    - 部署
+    - 网站开发
+    - 爬虫
+    - 做网页
+    - 网页设计
+    - CRM
+    - ERP
+    - 接口开发
+    - API开发
+    - 做APP
+    - 做个网站
+    - 做个小程序
+    - 搭建网站
+    - 代码
+    - 程序
+    - 做个网页
+    - 搭个网站
+    - 搭个前端
+    - 做个前端
+    - 做个后端
+    - 搭个后端
+    - 做个官网
+    - 前端开发
+    - 后端开发
+    - 小程序开发
+    - 建个网站
+    - 建网站
+    - 搭建网页
+    - 搭个网页
+    - 搭个官网
+    - 搭小程序
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把方案变成能跑、能读、能改的代码
+      deliverables:
+      - 可运行代码
+      - 自动化测试
+      - 变更说明
+      inputs:
+      - 架构方案与接口约定
+      - 需求验收口径
+      outputs:
+      - 代码提交
+      - 测试结果
+      kpis:
+      - 测试通过率
+      - 缺陷密度
+      - 变更可读性
+    persona:
+      seniority: 中级到资深工程师
+      mindset: 能跑只是起点，能被下一个人读懂才算完成
+      tone: 直接、贴代码与事实
+      decision_rights:
+      - 可决定实现细节
+      - 不可擅自改接口与范围
+      constraints:
+      - 不跳过测试
+      - 不做与需求无关的重构
+    plugin:
+      bundle: coding
+      tools:
+      - 代码仓库
+      - 测试运行器
+      - 静态检查
+      mcp_categories:
+      - 代码仓库
+      - 持续集成
+      artifacts:
+      - name: code-review
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
+      - name: testing-strategy
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/testing-strategy/SKILL.md
+      - name: debug
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/debug/SKILL.md
+      install_hint: 技能包随仓库内置
+    workflow:
+      default_flow: standard-delivery
+      templates:
+      - template: standard-delivery
+        id: wf-implement
+        name: 编码实现流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 实现
+              playbook: 按接口约定实现，边写边补测试，遇到方案漏洞先反馈不硬改
+            selfcheck:
+              name: 测试与自检
+              playbook: 跑自动化测试与静态检查，确认失败路径也有覆盖
+              verify: &id019
+              - 测试全部通过
+              - 变更范围与需求一致
+    stakeholders:
+      upstream:
+      - architect
+      - product
+      downstream:
+      - reviewer
+      - 运维
+      beneficiaries:
+      - 用户
+      - 后续维护者
+      blockers:
+      - 方案与需求打架
+      - 测试基建缺失
+      incentives:
+      - 一次过评审比返工省三倍时间
+      risk_notes:
+      - 抄近路省下的时间会在半年后连本带利还
+    capability:
+      core:
+      - 编码实现
+      - 测试设计
+      - 缺陷定位
+      tools:
+      - Git
+      - 测试框架
+      - 调试器
+      knowledge:
+      - 语言与框架
+      - 数据与接口
+      - 构建与部署
+      soft:
+      - 自驱
+      - 提问
+      scoring:
+        domain: 4.0
+        tooling: 5.0
+        judging: 3.0
+        execution: 5.0
+        comms: 3.0
+  workflows:
+  - id: wf-implement
+    name: 编码实现流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id003
+      verify: *id016
+      runtime: agent
+      agent_role: developer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: developer
+    - id: execute
+      name: 实现
+      playbook: 按接口约定实现，边写边补测试，遇到方案漏洞先反馈不硬改
+      preconditions: *id007
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: developer
+    - id: selfcheck
+      name: 测试与自检
+      playbook: 跑自动化测试与静态检查，确认失败路径也有覆盖
+      outputs: *id010
+      verify: *id019
+      runtime: agent
+      agent_role: developer
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: developer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: developer
+  plugin_artifacts:
+  - name: code-review
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
+  - name: testing-strategy
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/testing-strategy/SKILL.md
+  - name: debug
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/debug/SKILL.md
+  sources:
+  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: product
+      value: product
+      kind: role
+      ref: role:dongjiagoushi/product
+      unit: dongjiagoushi
+    downstream:
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 后续维护者
+      value: 后续维护者
+      kind: industry_class
+      ref: industry_class:后续维护者
+      index:
+        source: 代码仓库
+        query:
+        - CODEOWNERS
+      note: 岗位类
+    blockers:
+    - raw: 方案与需求打架
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
+    - raw: 测试基建缺失
+      value: 测试基建缺失
+      kind: industry_class
+      ref: industry_class:测试基建缺失
+      note: 阻碍
+- role: reviewer
+  unit_id: dongjiagoushi
+  industry: 软件研发
+  prefix: '[评审]'
+  description: 评审 审查 复核 走查 检视
+  keywords:
+  - 评审
+  - 审查
+  - 复核
+  - 走查
+  - 检视
+  - 代码审查
+  - 复审
+  readiness:
+    role_name: reviewer
+    unit_id: dongjiagoushi
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 变更评审流
+    industry_alias:
+    - 研发
+    - 架构师
+    - 软件开发
+    - dev
+    - 架构
+    - 软件
+    - 程序员
+    - 编程
+    - Web开发
+    - 网站建设
+    triggers:
+    - 评审
+    - 审查
+    - 复核
+    - 走查
+    - 检视
+    - 代码审查
+    - 复审
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 在合并前拦住事实性错误，不为风格偏好浪费别人的时间
+      deliverables:
+      - 评审结论
+      - 问题清单与级别
+      inputs:
+      - 代码变更
+      - 需求与方案
+      outputs:
+      - 通过或返工结论
+      kpis:
+      - 阻断缺陷数
+      - 误报率
+    persona:
+      seniority: 资深工程师
+      mindset: 只对事实性错误提意见，其余放行
+      tone: 克制、就事论事、条条可定位
+      decision_rights:
+      - 可否决合并
+      - 不可亲自改代码
+      constraints:
+      - 不评审自己写的代码
+      - 不把偏好当缺陷
+    plugin:
+      bundle: review
+      tools:
+      - 变更对比
+      - 测试结果读取
+      mcp_categories:
+      - 代码仓库
+      - 持续集成
+      artifacts:
+      - name: code-review
+        kind: skill
+        path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
+      install_hint: 内置
+    workflow:
+      default_flow: review-gate
+      templates:
+      - template: review-gate
+        id: wf-review
+        name: 变更评审流
+        default: true
+        override:
+          steps:
+            inspect:
+              playbook: 只看本次改动的行为差异，逐条核对逻辑、边界、异常路径与测试覆盖
+            verdict:
+              playbook: 分四档——阻断（会出错）、应修（该修但不阻塞）、建议、放行；无问题就明确说无问题
+    stakeholders:
+      upstream:
+      - developer
+      - architect
+      downstream:
+      - 合并门禁
+      - 运维
+      beneficiaries:
+      - 用户
+      - 团队
+      blockers:
+      - 变更过大无法审
+      - 无测试导致无法判断行为
+      incentives:
+      - 早拦一个缺陷，省一次线上事故
+      risk_notes:
+      - 评审变成风格警察会让好代码也过不去
+    capability:
+      core:
+      - 缺陷识别
+      - 风险分级
+      - 测试覆盖判断
+      tools:
+      - 变更对比
+      - 静态分析
+      knowledge:
+      - 语言与框架
+      - 常见失效模式
+      soft:
+      - 克制
+      - 表达
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 5.0
+        execution: 4.0
+        comms: 4.0
+  workflows:
+  - id: wf-review
+    name: 变更评审流
+    default: true
+    template: review-gate
+    trigger: 收到待评审的产物
+    handoff_out: 评审结论回传产出方或出口复核
+    steps:
+    - id: fetch
+      name: 取件与范围界定
+      playbook: 明确评审对象、版本与评审口径（只对本次改动或本次交付负责）
+      outputs:
+      - 评审范围
+      verify:
+      - 范围与版本已锁定
+      runtime: agent
+      agent_role: reviewer
+    - id: inspect
+      name: 逐项判定
+      playbook: 只看本次改动的行为差异，逐条核对逻辑、边界、异常路径与测试覆盖
+      outputs:
+      - 问题清单
+      verify:
+      - 每条问题可定位到具体位置与依据
+      runtime: agent
+      agent_role: reviewer
+    - id: verdict
+      name: 结论分级
+      playbook: 分四档——阻断（会出错）、应修（该修但不阻塞）、建议、放行；无问题就明确说无问题
+      outputs:
+      - 评审结论
+      verify:
+      - 每条问题都有级别
+      runtime: agent
+      agent_role: reviewer
+    - id: feedback
+      name: 回传与闭环
+      playbook: 生成回传清单，明确返工点与复评条件
+      outputs:
+      - 回传清单
+      verify:
+      - 返工点可执行、复评条件明确
+      runtime: agent
+      agent_role: reviewer
+  plugin_artifacts:
+  - name: code-review
+    kind: skill
+    path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
+  sources:
+  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    downstream:
+    - raw: 合并门禁
+      value: 合并门禁
+      kind: interface
+      ref: industry_class:合并门禁
+      note: 接口
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 团队
+      value: 团队
+      kind: industry_class
+      ref: industry_class:团队
+      note: 内部组织
+    blockers:
+    - raw: 变更过大无法审
+      value: 技术债
+      kind: industry_class
+      ref: industry_class:技术债
+      note: 阻碍
+    - raw: 无测试导致无法判断行为
+      value: 测试基建缺失
+      kind: industry_class
+      ref: industry_class:测试基建缺失
+      note: 阻碍
+- role: product
+  unit_id: dongjiagoushi
+  industry: 软件研发
+  prefix: '[产品]'
+  description: 产品 需求 规划 排期
+  keywords:
+  - 产品
+  - 需求
+  - 规划
+  - 排期
+  - 产品方案
+  - 需求分析
+  - 竞品分析
+  readiness:
+    role_name: product
+    unit_id: dongjiagoushi
+    score: 94.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.76
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 需求定义流
+    industry_alias:
+    - 研发
+    - 架构师
+    - 软件开发
+    - dev
+    - 架构
+    - 软件
+    - 程序员
+    - 编程
+    - Web开发
+    - 网站建设
+    triggers:
+    - 产品
+    - 需求
+    - 规划
+    - 排期
+    - 产品方案
+    - 需求分析
+    - 竞品分析
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把"想要什么"翻译成"做什么、为谁做、做到什么程度"
+      deliverables:
+      - 需求说明
+      - 验收口径
+      - 优先级排期
+      inputs:
+      - 用户诉求
+      - 业务目标
+      - 竞品与约束
+      outputs:
+      - 需求清单
+      - 验收标准
+      kpis:
+      - 需求返工率
+      - 验收一次通过率
+    persona:
+      seniority: 资深产品
+      mindset: 先问价值再问方案，砍掉一半需求才是本事
+      tone: 清晰、有取舍、讲人话
+      decision_rights:
+      - 可决定做什么与不做什么
+      - 不可直接定技术实现方案
+      constraints:
+      - 不写实现细节
+      - 不承诺无法验证的目标
+    plugin:
+      bundle: product-spec
+      tools:
+      - 需求文档模板
+      - 优先级矩阵
+      mcp_categories:
+      - 项目追踪
+      - 文档协作
+      artifacts:
+      - name: 需求说明技能
+        kind: skill
+        path: docs/industry/units/dongjiagoushi/README.md
+      install_hint: 内置
+    workflow:
+      default_flow: standard-delivery
+      templates:
+      - template: standard-delivery
+        id: wf-requirement
+        name: 需求定义流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 需求与验收口径
+              playbook: 输出需求清单与可验证的验收标准，明确不做什么
+              verify: &id020
+              - 每条需求都有验收标准
+              - 范围外已显式排除
+    stakeholders:
+      upstream:
+      - 用户
+      - secretary
+      - 市场与销售
+      downstream:
+      - architect
+      - developer
+      - reviewer
+      beneficiaries:
+      - 用户
+      - 开发
+      blockers:
+      - 目标不清晰却强推排期
+      - 需求方中途改口径
+      incentives:
+      - 需求越清楚，下游越少来回
+      risk_notes:
+      - 需求膨胀会让交付质量断崖式下降
+    capability:
+      core:
+      - 需求抽象
+      - 价值排序
+      - 验收设计
+      tools:
+      - 优先级矩阵
+      - 用户故事模板
+      knowledge:
+      - 领域业务知识
+      - 竞品格局
+      soft:
+      - 追问
+      - 取舍
+      scoring:
+        domain: 4.0
+        tooling: 3.0
+        judging: 5.0
+        execution: 3.0
+        comms: 4.0
+  workflows:
+  - id: wf-requirement
+    name: 需求定义流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id003
+      verify: *id016
+      runtime: agent
+      agent_role: product
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: product
+    - id: execute
+      name: 需求与验收口径
+      playbook: 输出需求清单与可验证的验收标准，明确不做什么
+      preconditions: *id007
+      outputs: *id017
+      verify: *id020
+      runtime: agent
+      agent_role: product
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: product
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: product
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: product
+  plugin_artifacts:
+  - name: 需求说明技能
+    kind: skill
+    path: docs/industry/units/dongjiagoushi/README.md
+  sources:
+  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  chain_refs:
+    upstream:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: secretary
+      value: secretary
+      kind: role
+      ref: role:dongjiagoushi/secretary
+      unit: dongjiagoushi
+    - raw: 市场与销售
+      value: 市场与销售
+      kind: industry_class
+      ref: industry_class:市场与销售
+      index:
+        source: 组织架构
+        query:
+        - 市场与销售部门
+      note: 需求方
+    downstream:
+    - raw: architect
+      value: architect
+      kind: role
+      ref: role:dongjiagoushi/architect
+      unit: dongjiagoushi
+    - raw: developer
+      value: developer
+      kind: role
+      ref: role:dongjiagoushi/developer
+      unit: dongjiagoushi
+    - raw: reviewer
+      value: reviewer
+      kind: role
+      ref: role:dongjiagoushi/reviewer
+      unit: dongjiagoushi
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id002
+      note: 需求方
+    - raw: 开发
+      value: 开发
+      kind: industry_class
+      ref: industry_class:开发
+      index: *id021
+      note: 岗位类
+    blockers:
+    - raw: 目标不清晰却强推排期
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍
+    - raw: 需求方中途改口径
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍

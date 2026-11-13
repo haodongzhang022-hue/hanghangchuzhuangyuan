@@ -1,0 +1,27 @@
+# 企业内部组织
+#
+# 管理层、用人部门、团队角色这类只在本组织内成立的类目
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: internal   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 内部组织
+  法务: {kind: 内部组织, index: null}
+  财务: {kind: 内部组织, index: null}
+  品牌: {kind: 内部组织, index: null}
+  管理层: {kind: 内部组织, index: null}
+  决策者: {kind: 内部组织, index: null}
+  全体成员: {kind: 内部组织, index: null}
+  业务执行方: {kind: 内部组织, index: {source: 组织架构, query: [承接部门]}}
+  用人部门: {kind: 内部组织, index: null}
+  用人经理: {kind: 内部组织, index: null}
+  员工: {kind: 内部组织, index: null}
+  各执行岗位: {kind: 内部组织, index: null}
+  团队: {kind: 内部组织, index: null}
+
+  # ---- kind: 岗位类
+  前端开发: {kind: 岗位类, index: {source: 组织架构, query: [前端团队]}}
+  后续维护者: {kind: 岗位类, index: {source: 代码仓库, query: [CODEOWNERS]}}
+  产品: {kind: 岗位类, index: {source: 组织架构, query: [产品团队]}}
+  开发: {kind: 岗位类, index: {source: 组织架构, query: [研发团队]}}

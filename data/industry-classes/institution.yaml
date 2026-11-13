@@ -1,0 +1,11 @@
+# 外部机构
+#
+# 医院、学校、监管等专业机构类目
+#
+# 只登记「类目」和「怎么查到具体公司」的检索方案，不存公司名录。
+# 域: institution   由 data/industry-classes.yaml 汇总引用
+
+classes:
+  # ---- kind: 机构
+  医疗与专业机构: {kind: 机构, index: {source: 医疗机构名录, query: [医疗机构]}}
+  医疗机构: {kind: 机构, index: {source: 医疗机构名录, query: [医疗机构]}}

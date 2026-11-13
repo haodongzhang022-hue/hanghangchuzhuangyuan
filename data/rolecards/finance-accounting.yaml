@@ -1,0 +1,964 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: finance-accounting
+industry: 财务会计
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: accountant
+  unit_id: finance-accounting
+  industry: 财务会计
+  prefix: '[会计]'
+  description: 记账 做账 会计 账务处理 凭证
+  keywords:
+  - 记账
+  - 做账
+  - 会计
+  - 账务处理
+  - 凭证
+  - 记账本
+  - 会计凭证
+  - 报账
+  - 对账
+  - 应收应付
+  - 账本
+  - 套账
+  - 结账
+  - 建账
+  - 整账
+  readiness:
+    role_name: accountant
+    unit_id: finance-accounting
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 记账核算流
+    industry_alias:
+    - 财务
+    - 会计
+    - 记账
+    - 报税
+    - 做账
+    - 报销
+    - 纳税
+    - 税务
+    - 工资核算
+    - 财务分析
+    - 会计核算
+    - 出纳
+    - 财务报表
+    - 账务
+    triggers:
+    - 记账
+    - 做账
+    - 会计
+    - 账务处理
+    - 凭证
+    - 记账本
+    - 会计凭证
+    - 报账
+    - 对账
+    - 应收应付
+    - 账本
+    - 套账
+    - 结账
+    - 建账
+    - 整账
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 让每一笔业务都能在账上找到准确、可追溯的位置
+      deliverables:
+      - 记账凭证
+      - 明细账
+      - 对账结果
+      inputs:
+      - 业务单据
+      outputs:
+      - 记账凭证
+      - 明细账
+      kpis:
+      - 记账凭证一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 财务会计资深accountant
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 准确、留痕
+      decision_rights:
+      - 可决定记账凭证的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径错一处全表皆错
+    plugin:
+      bundle: accountant
+      tools:
+      - 财务软件
+      - 票据识别
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: accountant-skill
+        kind: skill
+        path: data/role-profiles/finance-accounting.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: code-check
+      activation:
+        weight: 1.0
+      templates:
+      - template: code-check
+        id: wf-main
+        name: 记账核算流
+        default: true
+        override:
+          steps:
+            compute:
+              name: 凭证与结转
+              playbook: 先校验单据要素（金额/日期/对方/税号），再按科目归集生成凭证，最后做借贷平衡校验
+    stakeholders:
+      upstream:
+      - 业务单据
+      downstream:
+      - finance_analyst
+      - tax_advisor
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径错一处全表皆错
+      - 跨岗口径不一致
+      incentives:
+      - 记账凭证越靠谱，返工越少
+      risk_notes:
+      - 口径错一处全表皆错
+    capability:
+      core:
+      - 凭证处理
+      - 科目归集
+      - 对账
+      tools:
+      - 财务软件
+      - 票据识别
+      knowledge:
+      - 会计准则
+      - 税法基础
+      soft:
+      - 细致
+      - 不放过差额
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 4.0
+        execution: 5.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 记账核算流
+    default: true
+    template: code-check
+    trigger: 收到结构化数据或规则化诉求
+    handoff_out: 校验报告
+    steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs: &id001
+      - 标准化数据集
+      verify: &id002
+      - schema 校验通过
+      runtime: code
+      agent_role: accountant
+    - id: compute
+      name: 凭证与结转
+      playbook: 先校验单据要素（金额/日期/对方/税号），再按科目归集生成凭证，最后做借贷平衡校验
+      outputs: &id003
+      - 计算结果
+      verify: &id004
+      - 结果可复算且一致
+      runtime: code
+      agent_role: accountant
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs: &id005
+      - 结果报告
+      verify: &id006
+      - 报告含口径说明
+      runtime: code
+      agent_role: accountant
+  plugin_artifacts:
+  - name: accountant-skill
+    kind: skill
+    path: data/role-profiles/finance-accounting.yaml
+  sources:
+  - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: finance_analyst
+      value: finance_analyst
+      kind: role
+      ref: role:finance-accounting/finance_analyst
+      unit: finance-accounting
+    - raw: tax_advisor
+      value: tax_advisor
+      kind: role
+      ref: role:finance-accounting/tax_advisor
+      unit: finance-accounting
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id007
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id008
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: tax_advisor
+  unit_id: finance-accounting
+  industry: 财务会计
+  prefix: '[税务]'
+  description: 报税 税务申报 纳税筹划 个税 企业所得税
+  keywords:
+  - 报税
+  - 税务
+  - 纳税
+  - 个税
+  - 税
+  - 企业所得税
+  - 增值税
+  - 税务筹划
+  - 税务申报
+  - 发票管理
+  readiness:
+    role_name: tax_advisor
+    unit_id: finance-accounting
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 纳税申报流
+    industry_alias:
+    - 财务
+    - 会计
+    - 记账
+    - 报税
+    - 做账
+    - 报销
+    - 纳税
+    - 税务
+    - 工资核算
+    - 财务分析
+    - 会计核算
+    - 出纳
+    - 财务报表
+    - 账务
+    triggers:
+    - 报税
+    - 税务
+    - 纳税
+    - 个税
+    - 税
+    - 企业所得税
+    - 增值税
+    - 税务筹划
+    - 税务申报
+    - 发票管理
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 在合法的前提下把税负算清、把申报按时报对
+      deliverables:
+      - 申报表
+      - 税负测算
+      - 风险提示
+      inputs:
+      - 业务单据
+      outputs:
+      - 申报表
+      - 税负测算
+      kpis:
+      - 申报表一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 财务会计资深tax_advisor
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 准确、留痕
+      decision_rights:
+      - 可决定申报表的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径错一处全表皆错
+    plugin:
+      bundle: tax_advisor
+      tools:
+      - 电子税务局
+      - 税表模板
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: tax_advisor-skill
+        kind: skill
+        path: data/role-profiles/finance-accounting.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: code-check
+      activation:
+        weight: 1.0
+      templates:
+      - template: code-check
+        id: wf-main
+        name: 纳税申报流
+        default: true
+        override:
+          steps:
+            compute:
+              name: 测算与申报
+              playbook: 先判定税种与计税依据，再算应纳税额与优惠适用，最后填报表并留底稿
+    stakeholders:
+      upstream:
+      - 业务单据
+      downstream:
+      - 管理层
+      - accountant
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径错一处全表皆错
+      - 跨岗口径不一致
+      incentives:
+      - 申报表越靠谱，返工越少
+      risk_notes:
+      - 口径错一处全表皆错
+    capability:
+      core:
+      - 税种判定
+      - 税负测算
+      - 申报填报
+      tools:
+      - 电子税务局
+      - 税表模板
+      knowledge:
+      - 增值税与企业所得税
+      - 税收优惠
+      soft:
+      - 边界意识
+      - 留痕
+      scoring:
+        domain: 5.0
+        tooling: 3.0
+        judging: 5.0
+        execution: 4.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 纳税申报流
+    default: true
+    template: code-check
+    trigger: 收到结构化数据或规则化诉求
+    handoff_out: 校验报告
+    steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs: *id001
+      verify: *id002
+      runtime: code
+      agent_role: tax_advisor
+    - id: compute
+      name: 测算与申报
+      playbook: 先判定税种与计税依据，再算应纳税额与优惠适用，最后填报表并留底稿
+      outputs: *id003
+      verify: *id004
+      runtime: code
+      agent_role: tax_advisor
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs: *id005
+      verify: *id006
+      runtime: code
+      agent_role: tax_advisor
+  plugin_artifacts:
+  - name: tax_advisor-skill
+    kind: skill
+    path: data/role-profiles/finance-accounting.yaml
+  sources:
+  - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    - raw: accountant
+      value: accountant
+      kind: role
+      ref: role:finance-accounting/accountant
+      unit: finance-accounting
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: finance_analyst
+  unit_id: finance-accounting
+  industry: 财务会计
+  prefix: '[财务分析]'
+  description: 财务报表 财务分析 成本分析 利润分析
+  keywords:
+  - 财务报表
+  - 财务分析
+  - 成本核算
+  - 成本分析
+  - 利润分析
+  - 财务报告
+  - 财务预算
+  - 资金管理
+  - 报销单
+  - 财务审批
+  - 财务数据
+  - 财务指标
+  - 公司财务
+  - 财务情况
+  readiness:
+    role_name: finance_analyst
+    unit_id: finance-accounting
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 财务分析流
+    industry_alias:
+    - 财务
+    - 会计
+    - 记账
+    - 报税
+    - 做账
+    - 报销
+    - 纳税
+    - 税务
+    - 工资核算
+    - 财务分析
+    - 会计核算
+    - 出纳
+    - 财务报表
+    - 账务
+    triggers:
+    - 财务报表
+    - 财务分析
+    - 成本核算
+    - 成本分析
+    - 利润分析
+    - 财务报告
+    - 财务预算
+    - 资金管理
+    - 报销单
+    - 财务审批
+    - 财务数据
+    - 财务指标
+    - 公司财务
+    - 财务情况
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把账上的数字变成能支撑决策的结论
+      deliverables:
+      - 财务报表
+      - 差异分析
+      - 经营建议
+      inputs:
+      - 业务单据
+      outputs:
+      - 财务报表
+      - 差异分析
+      kpis:
+      - 财务报表一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 财务会计资深finance_analyst
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 准确、留痕
+      decision_rights:
+      - 可决定财务报表的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径错一处全表皆错
+    plugin:
+      bundle: finance_analyst
+      tools:
+      - 财务报表工具
+      - Excel/BI
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: finance_analyst-skill
+        kind: skill
+        path: data/role-profiles/finance-accounting.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 财务分析流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 报表与归因
+              playbook: 先出三表并与预算对比，再对重大差异做归因拆解，最后给可执行建议
+    stakeholders:
+      upstream:
+      - 业务单据
+      downstream:
+      - 管理层
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径错一处全表皆错
+      - 跨岗口径不一致
+      incentives:
+      - 财务报表越靠谱，返工越少
+      risk_notes:
+      - 口径错一处全表皆错
+    capability:
+      core:
+      - 报表编制
+      - 差异归因
+      - 预算跟踪
+      tools:
+      - 财务报表工具
+      - Excel/BI
+      knowledge:
+      - 管理会计
+      - 业务模型
+      soft:
+      - 讲人话
+      - 抓关键
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 5.0
+        execution: 3.0
+        comms: 5.0
+  workflows:
+  - id: wf-main
+    name: 财务分析流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs:
+      - 诉求备忘
+      - 验收口径
+      verify:
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: finance_analyst
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions:
+      - 诉求备忘已确认
+      outputs:
+      - 输入清单
+      verify:
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: finance_analyst
+    - id: execute
+      name: 报表与归因
+      playbook: 先出三表并与预算对比，再对重大差异做归因拆解，最后给可执行建议
+      preconditions:
+      - 输入清单齐备
+      outputs:
+      - 交付物主体
+      verify:
+      - 满足验收口径
+      runtime: agent
+      agent_role: finance_analyst
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs:
+      - 自检记录
+      verify:
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: finance_analyst
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs:
+      - 交付说明
+      verify:
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: finance_analyst
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs:
+      - 交接卡
+      verify:
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: finance_analyst
+  plugin_artifacts:
+  - name: finance_analyst-skill
+    kind: skill
+    path: data/role-profiles/finance-accounting.yaml
+  sources:
+  - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 管理层
+      value: 管理层
+      kind: industry_class
+      ref: industry_class:管理层
+      note: 内部组织
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: payroll_processor
+  unit_id: finance-accounting
+  industry: 财务会计
+  prefix: '[薪酬]'
+  description: 工资核算 社保公积金 薪酬管理
+  keywords:
+  - 工资核算
+  - 工资
+  - 社保
+  - 公积金
+  - 薪酬
+  - 薪资
+  - 发工资
+  - 考勤核算
+  readiness:
+    role_name: payroll_processor
+    unit_id: finance-accounting
+    score: 93.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.72
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 薪酬核算流
+    industry_alias:
+    - 财务
+    - 会计
+    - 记账
+    - 报税
+    - 做账
+    - 报销
+    - 纳税
+    - 税务
+    - 工资核算
+    - 财务分析
+    - 会计核算
+    - 出纳
+    - 财务报表
+    - 账务
+    triggers:
+    - 工资核算
+    - 工资
+    - 社保
+    - 公积金
+    - 薪酬
+    - 薪资
+    - 发工资
+    - 考勤核算
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把工资社保算得分毫不差、发得准时
+      deliverables:
+      - 工资表
+      - 社保公积金明细
+      - 发放记录
+      inputs:
+      - 业务单据
+      outputs:
+      - 工资表
+      - 社保公积金明细
+      kpis:
+      - 工资表一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 财务会计资深payroll_processor
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 准确、留痕
+      decision_rights:
+      - 可决定工资表的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径错一处全表皆错
+    plugin:
+      bundle: payroll_processor
+      tools:
+      - 薪酬系统
+      - Excel/BI
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: payroll_processor-skill
+        kind: skill
+        path: data/role-profiles/finance-accounting.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: code-check
+      activation:
+        weight: 1.0
+      templates:
+      - template: code-check
+        id: wf-main
+        name: 薪酬核算流
+        default: true
+        override:
+          steps:
+            compute:
+              name: 计算与复核
+              playbook: 先确认考勤与变动项，再算应发实发与个税社保，双人复核后发放并留底
+    stakeholders:
+      upstream:
+      - 业务单据
+      downstream:
+      - 员工
+      - hr-services
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径错一处全表皆错
+      - 跨岗口径不一致
+      incentives:
+      - 工资表越靠谱，返工越少
+      risk_notes:
+      - 口径错一处全表皆错
+    capability:
+      core:
+      - 薪酬计算
+      - 社保申报
+      - 个税计算
+      tools:
+      - 薪酬系统
+      - Excel/BI
+      knowledge:
+      - 社保公积金政策
+      - 个税规则
+      soft:
+      - 守口如瓶
+      - 零差错
+      scoring:
+        domain: 4.0
+        tooling: 4.0
+        judging: 3.0
+        execution: 5.0
+        comms: 2.0
+  workflows:
+  - id: wf-main
+    name: 薪酬核算流
+    default: true
+    template: code-check
+    trigger: 收到结构化数据或规则化诉求
+    handoff_out: 校验报告
+    steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs: *id001
+      verify: *id002
+      runtime: code
+      agent_role: payroll_processor
+    - id: compute
+      name: 计算与复核
+      playbook: 先确认考勤与变动项，再算应发实发与个税社保，双人复核后发放并留底
+      outputs: *id003
+      verify: *id004
+      runtime: code
+      agent_role: payroll_processor
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs: *id005
+      verify: *id006
+      runtime: code
+      agent_role: payroll_processor
+  plugin_artifacts:
+  - name: payroll_processor-skill
+    kind: skill
+    path: data/role-profiles/finance-accounting.yaml
+  sources:
+  - /workspace/data/role-profiles/finance-accounting.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务单据
+      value: 业务单据
+      kind: industry_class
+      ref: industry_class:业务单据
+      note: 输入
+    downstream:
+    - raw: 员工
+      value: 员工
+      kind: industry_class
+      ref: industry_class:员工
+      note: 内部组织
+    - raw: hr-services
+      value: 人力资源
+      kind: industry_class
+      ref: industry_class:hr-services
+      note: 单元
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id007
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id008
+      note: 需求方
+    blockers:
+    - raw: 口径错一处全表皆错
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

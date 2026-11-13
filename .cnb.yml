@@ -67,6 +67,18 @@ $:
             # 变更感知内核自校验：工具自身改动也会被护栏兜底（评审 #26 🟡2）。
             # ca-plan 属于"基建"，不会触发业务回归；故独立固定 fixture 校验其穿透逻辑不回退。
             python3 scripts/ca-plan-selfcheck.py
+            # M11 岗位卡一致性：改了 data/role-profiles 或 data/workflow-templates
+            # 却忘了重渲 data/rolecards 时，这里直接拦下（否则产物与数据静默分叉）。
+            python3 scripts/gen_rolecards.py --check
+            # M11.1 链条守门：链上出现公司名 / 未登记行业类 → 直接失败。
+            # 「类落到列表和索引，公司靠检索查」这条规矩由数据校验兜住，不靠人盯。
+            python3 src/hanghang/cli/main.py role chain --check
+            # M11.2 词表目录化后，DDL 与数据字典是从域文件生成的产物：
+            # 改了类目却忘了重导出，这里拦下（否则库里结构和仓库里的口径会分叉）。
+            python3 scripts/export_class_db.py --check
+            # M11.3 实库：把画像 + 词表建成真库，再读回来逐字段比对。
+            # 改了画像忘了重建库 → 这里失败；库与仓库分叉不会静默发生。
+            python3 scripts/build_role_db.py --check
             bash scripts/change-aware-test.sh
             # CLI 冒烟测试
             echo ""

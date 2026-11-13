@@ -1,0 +1,753 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: data-analytics
+industry: 数据分析
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: data_analyst
+  unit_id: data-analytics
+  industry: 数据分析
+  prefix: '[数分]'
+  description: 数据分析 数据报表 商业分析 数据可视化
+  keywords:
+  - 数据分析
+  - 数据报表
+  - 商业分析
+  - 数据可视化
+  - 经营分析
+  - 报表分析
+  - 报表设计
+  - 商业洞察
+  - 分析报告
+  - 数据报告
+  - 网站数据分析
+  - 运营数据分析
+  - 网站运营数据
+  - 流量分析
+  - 用户行为分析
+  - 访问数据分析
+  - 网页数据分析
+  - 用户数据分析
+  - 流量数据
+  - 访问数据
+  - 浏览数据
+  - 点击数据
+  readiness:
+    role_name: data_analyst
+    unit_id: data-analytics
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 数据分析流
+    industry_alias:
+    - 数据分析
+    - 数据挖掘
+    - 大数据
+    - 商业分析
+    - 数据报表
+    - 经营分析
+    - 数据洞察
+    - 分析报告
+    - 数据报告
+    triggers:
+    - 数据分析
+    - 数据报表
+    - 商业分析
+    - 数据可视化
+    - 经营分析
+    - 报表分析
+    - 报表设计
+    - 商业洞察
+    - 分析报告
+    - 数据报告
+    - 网站数据分析
+    - 运营数据分析
+    - 网站运营数据
+    - 流量分析
+    - 用户行为分析
+    - 访问数据分析
+    - 网页数据分析
+    - 用户数据分析
+    - 流量数据
+    - 访问数据
+    - 浏览数据
+    - 点击数据
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把一个模糊的业务问题变成一句有数据支撑的回答
+      deliverables:
+      - 分析结论
+      - 口径说明
+      - 可视化结果
+      inputs:
+      - 业务方
+      outputs:
+      - 分析结论
+      - 口径说明
+      kpis:
+      - 分析结论一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 数据分析资深data_analyst
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 拿数据说话，标注口径
+      decision_rights:
+      - 可决定分析结论的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径不一致得出错误结论
+    plugin:
+      bundle: data_analyst
+      tools:
+      - SQL
+      - BI 看板
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: data_analyst-skill
+        kind: skill
+        path: data/role-profiles/data-analytics.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 数据分析流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 取数与分析
+              playbook: 先对齐指标口径与时间窗，再取数做对比与拆解，结论必须写清口径与置信边界
+    stakeholders:
+      upstream:
+      - 业务方
+      downstream:
+      - 决策者
+      - bi_engineer
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径不一致得出错误结论
+      - 跨岗口径不一致
+      incentives:
+      - 分析结论越靠谱，返工越少
+      risk_notes:
+      - 口径不一致得出错误结论
+    capability:
+      core:
+      - 口径设计
+      - SQL 取数
+      - 结论表达
+      tools:
+      - SQL
+      - BI 看板
+      knowledge:
+      - 业务指标体系
+      - 统计常识
+      soft:
+      - 追问能力
+      - 不糊弄
+      scoring:
+        domain: 4.0
+        tooling: 5.0
+        judging: 4.0
+        execution: 4.0
+        comms: 4.0
+  workflows:
+  - id: wf-main
+    name: 数据分析流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: &id002
+      - 诉求备忘
+      - 验收口径
+      verify: &id003
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: data_analyst
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id004
+      - 诉求备忘已确认
+      outputs: &id005
+      - 输入清单
+      verify: &id006
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: data_analyst
+    - id: execute
+      name: 取数与分析
+      playbook: 先对齐指标口径与时间窗，再取数做对比与拆解，结论必须写清口径与置信边界
+      preconditions: &id007
+      - 输入清单齐备
+      outputs: &id008
+      - 交付物主体
+      verify: &id009
+      - 满足验收口径
+      runtime: agent
+      agent_role: data_analyst
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id010
+      - 自检记录
+      verify: &id011
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: data_analyst
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: &id012
+      - 交付说明
+      verify: &id013
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: data_analyst
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id014
+      - 交接卡
+      verify: &id015
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: data_analyst
+  plugin_artifacts:
+  - name: data_analyst-skill
+    kind: skill
+    path: data/role-profiles/data-analytics.yaml
+  sources:
+  - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: &id001
+        source: 组织架构
+        query:
+        - 业务部门
+      note: 需求方
+    downstream:
+    - raw: 决策者
+      value: 决策者
+      kind: industry_class
+      ref: industry_class:决策者
+      note: 内部组织
+    - raw: bi_engineer
+      value: bi_engineer
+      kind: role
+      ref: role:data-analytics/bi_engineer
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id016
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: data_scientist
+  unit_id: data-analytics
+  industry: 数据分析
+  prefix: '[数科]'
+  description: 数据挖掘 机器学习建模 特征工程 预测模型
+  keywords:
+  - 数据挖掘
+  - 机器学习建模
+  - 特征工程
+  - 预测模型
+  - 算法建模
+  - 预测分析
+  readiness:
+    role_name: data_scientist
+    unit_id: data-analytics
+    score: 96.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.84
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 建模评估流
+    industry_alias:
+    - 数据分析
+    - 数据挖掘
+    - 大数据
+    - 商业分析
+    - 数据报表
+    - 经营分析
+    - 数据洞察
+    - 分析报告
+    - 数据报告
+    triggers:
+    - 数据挖掘
+    - 机器学习建模
+    - 特征工程
+    - 预测模型
+    - 算法建模
+    - 预测分析
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 用模型给不确定性定个可验证的量级，而不是给个玄学结论
+      deliverables:
+      - 模型方案
+      - 评估报告
+      - 上线建议
+      inputs:
+      - 业务方
+      outputs:
+      - 模型方案
+      - 评估报告
+      kpis:
+      - 模型方案一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 数据分析资深data_scientist
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 拿数据说话，标注口径
+      decision_rights:
+      - 可决定模型方案的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径不一致得出错误结论
+    plugin:
+      bundle: data_scientist
+      tools:
+      - Python
+      - 实验平台
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: data_scientist-skill
+        kind: skill
+        path: data/role-profiles/data-analytics.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 建模评估流
+        default: true
+        override:
+          steps:
+            execute:
+              name: 建模与评估
+              playbook: 先定标签与评估指标，再建基线模型，逐轮改进并如实报告离线/在线差异
+    stakeholders:
+      upstream:
+      - 业务方
+      downstream:
+      - 决策者
+      - bi_engineer
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径不一致得出错误结论
+      - 跨岗口径不一致
+      incentives:
+      - 模型方案越靠谱，返工越少
+      risk_notes:
+      - 口径不一致得出错误结论
+    capability:
+      core:
+      - 问题建模
+      - 特征工程
+      - 模型评估
+      tools:
+      - Python
+      - 实验平台
+      knowledge:
+      - 统计与机器学习
+      - 实验设计
+      soft:
+      - 诚实报误差
+      - 跨岗翻译
+      scoring:
+        domain: 5.0
+        tooling: 5.0
+        judging: 4.0
+        execution: 4.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 建模评估流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id002
+      verify: *id003
+      runtime: agent
+      agent_role: data_scientist
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id004
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: data_scientist
+    - id: execute
+      name: 建模与评估
+      playbook: 先定标签与评估指标，再建基线模型，逐轮改进并如实报告离线/在线差异
+      preconditions: *id007
+      outputs: *id008
+      verify: *id009
+      runtime: agent
+      agent_role: data_scientist
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: data_scientist
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs: *id012
+      verify: *id013
+      runtime: agent
+      agent_role: data_scientist
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id014
+      verify: *id015
+      runtime: agent
+      agent_role: data_scientist
+  plugin_artifacts:
+  - name: data_scientist-skill
+    kind: skill
+    path: data/role-profiles/data-analytics.yaml
+  sources:
+  - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 决策者
+      value: 决策者
+      kind: industry_class
+      ref: industry_class:决策者
+      note: 内部组织
+    - raw: bi_engineer
+      value: bi_engineer
+      kind: role
+      ref: role:data-analytics/bi_engineer
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍
+- role: bi_engineer
+  unit_id: data-analytics
+  industry: 数据分析
+  prefix: '[BI]'
+  description: 数据仓库 ETL BI报表 数据管道
+  keywords:
+  - 数据仓库
+  - ETL
+  - BI报表
+  - 数据管道
+  - 看板报表
+  - 数据报告
+  readiness:
+    role_name: bi_engineer
+    unit_id: data-analytics
+    score: 95.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 0.8
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 指标落库流
+    industry_alias:
+    - 数据分析
+    - 数据挖掘
+    - 大数据
+    - 商业分析
+    - 数据报表
+    - 经营分析
+    - 数据洞察
+    - 分析报告
+    - 数据报告
+    triggers:
+    - 数据仓库
+    - ETL
+    - BI报表
+    - 数据管道
+    - 看板报表
+    - 数据报告
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 让每个人打开面板看到的数都是一致的、可信的
+      deliverables:
+      - 数据模型
+      - 看板
+      - 血缘与口径文档
+      inputs:
+      - 业务方
+      outputs:
+      - 数据模型
+      - 看板
+      kpis:
+      - 数据模型一次通过率
+      - 返工次数
+      - 交付及时率
+    persona:
+      seniority: 数据分析资深bi_engineer
+      mindset: 先问清目标，再动手；不确定的地方显式标注
+      tone: 拿数据说话，标注口径
+      decision_rights:
+      - 可决定数据模型的专业判断
+      - 不可越权替代下游岗位下结论
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：口径不一致得出错误结论
+    plugin:
+      bundle: bi_engineer
+      tools:
+      - 数仓
+      - 调度
+      - BI 工具
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: bi_engineer-skill
+        kind: skill
+        path: data/role-profiles/data-analytics.yaml
+      install_hint: 随行业单元内置，按需挂载
+      upstream_plugin: ''
+    workflow:
+      default_flow: code-check
+      activation:
+        weight: 1.0
+      templates:
+      - template: code-check
+        id: wf-main
+        name: 指标落库流
+        default: true
+        override:
+          steps:
+            compute:
+              name: 建模与落库
+              playbook: 先统一指标定义与唯一口径，再建模做幂等计算，最后暴露看板并登记血缘
+    stakeholders:
+      upstream:
+      - 业务方
+      downstream:
+      - 业务方
+      - data_analyst
+      beneficiaries:
+      - 业务方
+      - 用户
+      blockers:
+      - 口径不一致得出错误结论
+      - 跨岗口径不一致
+      incentives:
+      - 数据模型越靠谱，返工越少
+      risk_notes:
+      - 口径不一致得出错误结论
+    capability:
+      core:
+      - 维度建模
+      - ETL 编排
+      - 看板设计
+      tools:
+      - 数仓
+      - 调度
+      - BI 工具
+      knowledge:
+      - 数仓建模
+      - 数据质量治理
+      soft:
+      - 口径洁癖
+      - 沟通
+      scoring:
+        domain: 4.0
+        tooling: 5.0
+        judging: 3.0
+        execution: 5.0
+        comms: 3.0
+  workflows:
+  - id: wf-main
+    name: 指标落库流
+    default: true
+    template: code-check
+    trigger: 收到结构化数据或规则化诉求
+    handoff_out: 校验报告
+    steps:
+    - id: load
+      name: 取数与校验
+      playbook: 读取数据源，校验 schema 与必填字段
+      outputs:
+      - 标准化数据集
+      verify:
+      - schema 校验通过
+      runtime: code
+      agent_role: bi_engineer
+    - id: compute
+      name: 建模与落库
+      playbook: 先统一指标定义与唯一口径，再建模做幂等计算，最后暴露看板并登记血缘
+      outputs:
+      - 计算结果
+      verify:
+      - 结果可复算且一致
+      runtime: code
+      agent_role: bi_engineer
+    - id: report
+      name: 出报告
+      playbook: 按模板生成结果报告与异常清单
+      outputs:
+      - 结果报告
+      verify:
+      - 报告含口径说明
+      runtime: code
+      agent_role: bi_engineer
+  plugin_artifacts:
+  - name: bi_engineer-skill
+    kind: skill
+    path: data/role-profiles/data-analytics.yaml
+  sources:
+  - /workspace/data/role-profiles/data-analytics.yaml
+  chain_refs:
+    upstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    downstream:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: data_analyst
+      value: data_analyst
+      kind: role
+      ref: role:data-analytics/data_analyst
+      unit: data-analytics
+    beneficiaries:
+    - raw: 业务方
+      value: 业务方
+      kind: industry_class
+      ref: industry_class:业务方
+      index: *id001
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id016
+      note: 需求方
+    blockers:
+    - raw: 口径不一致得出错误结论
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 跨岗口径不一致
+      value: 跨岗口径不一致
+      kind: industry_class
+      ref: industry_class:跨岗口径不一致
+      note: 阻碍

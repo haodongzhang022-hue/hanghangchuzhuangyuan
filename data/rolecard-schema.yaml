@@ -1,0 +1,91 @@
+# ============================================================================
+# M11 岗位画像 · 数据契约 v1（rolecard-schema）
+# 用途：定义「一个岗位」被数字化收编时，必须/可选提供哪些字段。
+# 两源分离：
+#   data/role-profiles/<unit_id>.yaml  ← 人工画像基线（六维评估，人写，慢变）
+#   data/rolecards/<unit_id>.yaml      ← 渲染产物（画像基线 × 注册表 × 工作流模板，机器生成）
+# 本文件由 scripts/gen_rolecards.py 读取；字段名即校验口径，不写进代码。
+# ============================================================================
+version: "1.0"
+updated_at: "2026-10-29"
+note: |
+  数据驱动：新增岗位画像只需写 profile，不改引擎代码。
+  渲染器对缺失字段做【降级+缺口登记】，不抛异常——因为很多行业当前用不上，
+  架构上先允许"半成品"，由 readiness 评分如实暴露还缺什么。
+
+# ------------------------------------------------ 六维评估（画像主体）
+dimensions:
+  analysis:                    # ① 岗位分析：这岗位到底在干什么
+    label: 岗位分析
+    required: true
+    fields: [mission, deliverables, inputs, outputs, kpis]
+  persona:                     # ② 岗位画像：谁来干、什么脾气、什么边界
+    label: 岗位画像
+    required: true
+    fields: [seniority, mindset, tone, decision_rights, constraints]
+  plugin:                      # ③ 插件：把能力包成可挂载的包
+    label: 插件封装
+    required: true
+    fields: [bundle, tools, mcp_categories, artifacts, install_hint]
+  workflow:                    # ④ 工作流：从诉求到交付的工序
+    label: 工作流
+    required: true
+    fields: [templates, default_flow, handoff_out]
+  stakeholders:                # ⑤ 利益链条：上下游、谁受影响、风险
+    label: 利益链条
+    required: true
+    fields: [upstream, downstream, beneficiaries, blockers, incentives, risk_notes]
+  capability:                  # ⑥ 核心能力：可量化打分的维度
+    label: 核心能力
+    required: true
+    fields: [core, tools, knowledge, soft, scoring]
+
+# ------------------------------------------------ 能力评分维度（capability.scoring）
+capability_dims:
+  domain:     {label: 领域深度, weight: 0.30}
+  tooling:    {label: 工具熟练, weight: 0.20}
+  judging:    {label: 判断力,   weight: 0.20}
+  execution:  {label: 执行力,   weight: 0.15}
+  comms:      {label: 沟通交付, weight: 0.15}
+score_scale: {min: 0, max: 5}
+
+# ------------------------------------------------ 工作流模板（可复用）
+# 模板位置：data/workflow-templates/<template_id>.yaml
+# 岗位 profile 里只写 {template: <id>, override: {...}}，渲染器做深合并。
+workflow_step_fields: [id, name, agent_role, playbook, preconditions, outputs, verify, runtime]
+runtime_enum: [agent, n8n, code]
+
+# ------------------------------------------------ 评分口径（readiness）
+readiness:
+  bands:              # 综合得分 → 评级（先匹配先返回）
+    - {min: 75, grade: A, label: 可直接跑通}
+    - {min: 55, grade: B, label: 可跑需人工兜底}
+    - {min: 35, grade: C, label: 仅能问答}
+    - {min: 0,  grade: D, label: 只有骨架}
+  weights:            # 五因子加权（合计 1.0）
+    six_dims: 0.35    # 六维评估覆盖度（契约字段是否齐全）
+    capability: 0.25  # 核心能力平均分（0-5 → 归一到 0-1）
+    workflow: 0.20    # 工作流可执行度（步骤 playbook/verify/runtime 完整度）
+    plugin: 0.10      # 插件就绪度（bundle/tools/artifacts 是否落地）
+    beneficiaries: 0.10  # 利益链条清晰度（受益方/阻碍方/风险是否写明）
+
+# ------------------------------------------------ 利益链条归一（M11.1）
+# 链上只写行业类目，具体公司靠 index 现查，名录不进本仓库。
+# 词表（目录化）：data/industry-classes.yaml 汇总 + data/industry-classes/<域>.yaml 分域
+#   supply/demand/delivery/internal/institution/blocker/unit 七个域，按 kind 家族拆
+#   溯源：IndustryClassIndex.sources 记住每个类目声明在哪个文件
+# 归一与校验：src/hanghang/rolecard/chain.py
+# 数据库形态：data/db/*.sql（由 scripts/export_class_db.py 生成，不含公司名录）
+# 云仓检索：src/hanghang/rolecard/cloudstore.py（CNB 知识库只读，失败降级本地）
+chain:
+  fields: [upstream, downstream, beneficiaries, blockers]
+  ref_kinds: [industry_class, interface, role]
+  rules:
+    - 公司形态（XX有限公司/某某厂/XX集团）→ error，禁止落库
+    - 未登记类目 → error，先登记再引用
+    - 类目无 index 且本该可查 → warn，如实暴露未接索引
+    - 跨单元岗位引用 → warn，须写明 unit
+  marker_source: data/industry-classes.yaml#company_markers
+
+# ------------------------------------------------ 路由激活（M1 用）
+activation_fields: [workflows, industry_alias, triggers, weight]
