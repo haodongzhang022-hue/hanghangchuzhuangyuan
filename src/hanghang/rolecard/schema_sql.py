@@ -226,6 +226,10 @@ _TABLES: List[dict] = [
             ("position", "int", True),
         ],
         "pk": ("unit_id", "role_name", "name"),
+        # 与 artifact 的归属一致：技能包挂岗位，不挂工作流。写入侧原本靠「每岗必有
+        # workflow」才把 artifact 写进去，这条 FK 让「没工序但有技能包」立刻报错，
+        # 而不是静默丢行。
+        "fk": [(("unit_id", "role_name"), "industry_role", None)],
     },
     {
         "name": "readiness",

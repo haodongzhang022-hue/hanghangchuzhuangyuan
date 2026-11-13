@@ -246,13 +246,15 @@ def _insert_cards(conn: sqlite3.Connection, cards: List[RoleCard], when: str) ->
                     " VALUES (?, ?, ?, ?, ?)", asserts)
                 counts["step_assertion"] += len(asserts)
 
-            arts = [(uid, rname, str(a.get("name") or ""), _text(a.get("kind")),
-                     _text(a.get("path")), _text(a.get("upstream")), pos)
-                    for pos, a in enumerate(card.plugin_artifacts, 1)]
-            conn.executemany(
-                "INSERT INTO plugin_artifact (unit_id, role_name, name, kind, path, upstream,"
-                " position) VALUES (?, ?, ?, ?, ?, ?, ?)", arts)
-            counts["plugin_artifact"] += len(arts)
+        # 技能包挂岗位，不挂工序：放进 workflow 的循环里，没写工序的岗位
+        # （还没接默认模板）会连技能包一起静默丢掉。
+        arts = [(uid, rname, str(a.get("name") or ""), _text(a.get("kind")),
+                 _text(a.get("path")), _text(a.get("upstream")), pos)
+                for pos, a in enumerate(card.plugin_artifacts, 1)]
+        conn.executemany(
+            "INSERT INTO plugin_artifact (unit_id, role_name, name, kind, path, upstream,"
+            " position) VALUES (?, ?, ?, ?, ?, ?, ?)", arts)
+        counts["plugin_artifact"] += len(arts)
 
         # readiness 独立于画像：没写画像的岗位同样有就绪度（D 级 + 缺口清单），
         # 它不挂在 role_profile 的外键上，所以放在 if 之外。

@@ -189,7 +189,8 @@ CREATE TABLE IF NOT EXISTS "plugin_artifact" (
     position          INTEGER NOT NULL,
     PRIMARY KEY ("unit_id",
     "role_name",
-    "name")
+    "name"),
+    FOREIGN KEY ("unit_id", "role_name") REFERENCES "industry_role"("unit_id", "role_name")
 );
 
 -- 就绪度：分数 + 评级 + 缺口（渲染产物视图，不是人工数据）

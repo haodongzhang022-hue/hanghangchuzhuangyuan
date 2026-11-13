@@ -242,6 +242,24 @@ def test_cli_role_db_missing_reports_how_to_build():
     assert "Traceback" not in proc.stdout + proc.stderr, proc.stderr
 
 
+def test_artifact_lands_even_without_workflow():
+    """技能包挂岗位，不挂工序。
+
+    artifact 的写入曾放在 workflow 循环里：岗位还没接默认模板（workflows 为空）时，
+    技能包会跟着一起静默丢行——库里有岗位行、查不到任何技能包，且 --check 不报。
+    """
+    path = _built()
+    conn = sqlite3.connect(path)
+    rows = conn.execute("SELECT unit_id, role_name FROM plugin_artifact").fetchall()
+    want = {(c.unit_id, c.role) for c in RoleCardStore().all_cards() if c.plugin_artifacts}
+    assert {(r[0], r[1]) for r in rows} == want, "技能包落库与内存画像不一致"
+    orphans = conn.execute(
+        "SELECT DISTINCT unit_id, role_name FROM plugin_artifact WHERE (unit_id, role_name)"
+        " NOT IN (SELECT unit_id, role_name FROM industry_role)").fetchall()
+    assert not orphans, f"技能包挂在注册岗位之外：{orphans}"
+    conn.close()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
