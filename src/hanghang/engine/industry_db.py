@@ -908,7 +908,7 @@ class IndustryDatabase:
                     f"职业 {o.get('id')} 的 access={raw!r} 不在合法通道 "
                     f"{list(ACCESS_SIDES)} 中（写错会被静默当成 {DEFAULT_ACCESS}）")
 
-        # 18. pending_partition：把 note 里的隐形契约变成可校验的数据
+        # 18-a. pending_partition：把 note 里的隐形契约变成可校验的数据
         part_ids_now = {x.get("id") for x in self.partitions if x.get("id")}
         edge_occs = {m.get("occupation") for m in self.axis_view.memberships}
         for o in self.occupations:
@@ -975,7 +975,7 @@ class IndustryDatabase:
                     f"分区 {pid} 的 gdp_confidence={conf!r} 不在 "
                     f"{list(GDP_CONFIDENCE)} 中")
 
-        # 18. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
+        # 18-b. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
         # 与第 14 条同口径：加载失败要报出来，不能因为"读不出来"就静默当没问题。
         if self.isco is None:
             problems.append(

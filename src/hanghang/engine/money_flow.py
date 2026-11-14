@@ -80,6 +80,10 @@ class MoneyFlowBook:
         self.flows: List[dict] = []
         self.unobserved: List[dict] = []
         self.leaks: List[dict] = []
+        # `pools` 必须在 __init__ 里就有：文件缺失时走降级路径，
+        # 而任何访问 book.pools 的代码（导出、校验、测试）都会 AttributeError——
+        # 降级路径本身不该比错误数据更脆。
+        self.pools: List[dict] = []
         # 先绑分区表再 _load：pools 段派生行业池节点时要用分区中文名
         self._partitions = partitions or []
         self._load()
@@ -351,6 +355,27 @@ class MoneyFlowBook:
                     f"unobserved 里节点 {u.get('node')} 没写缺什么"
                     f"（没有说明就等于没有登记）")
 
+        # 4-b. gap 业务主键唯一：库里 money_gap 的主键是 (node, kind, side)，
+        # 而 unobserved 的 side 恒为空串、leaks 不写 side 时也是空串。
+        # 同一节点登记第二条未观测、或同一节点同一侧记两笔差额时，
+        # validate 早先返回 []（只查节点存在性与原因非空），
+        # 而 data_sql 会生成两条撞主键的 INSERT → IntegrityError。
+        # 「同一笔钱记两遍」在 flow 上是明确拦的，gap 上不能漏。
+        gap_keys: Dict[tuple, int] = {}
+        for u in self.unobserved:
+            key = (u.get("node", ""), "unobserved", "")
+            gap_keys[key] = gap_keys.get(key, 0) + 1
+        for lk in self.leaks:
+            key = (lk.get("node", ""), "gap", lk.get("side", "") or "")
+            gap_keys[key] = gap_keys.get(key, 0) + 1
+        for (node, kind, side), cnt in gap_keys.items():
+            if cnt > 1:
+                where = f"{kind}" + (f"/{side}" if side else "")
+                problems.append(
+                    f"节点 {node} 的 {where} 登记了 {cnt} 次"
+                    f"（money_gap 主键是 (node, kind, side)，"
+                    f"重复会在导入时报 UNIQUE 冲突；多条原因请合并成一条写清）")
+
         # 6. 差额说明（leaks）必须指向真实节点并给出原因：
         #    允许有已知差额，但不允许"差额存在且没人解释"
         for lk in self.leaks:
@@ -384,8 +409,11 @@ class MoneyFlowBook:
                  "能抓漏的是**节点与外部口径对账**，不是这个恒等式",
                  "-" * 78]
         rec = {(r["node"], r["side"]): r for r in self.reconcile()}
-        lines.append(f"{'节点':<20}{'流入(亿)':>14}{'流出(亿)':>14}"
-                     f"{'净额(亿)':>14}{'对账':<10}待补边")
+        # 表头也必须走 _cell：f-string 的 '<22' 按**字符数**补，中文一个字占两列，
+        # '节点' 补到 22 字符 = 44 显示列，比表体的 22 列宽出 22 列，整行错位。
+        lines.append(_cell("节点", 22) + _right("流入(亿)", 14)
+                     + _right("流出(亿)", 14) + _right("净额(亿)", 14)
+                     + "  " + _cell("对账", 20) + _right("待补边", 8))
         for n in self.nodes:
             nid = n.get("id", "")
             pos = self.position(nid)
@@ -398,12 +426,12 @@ class MoneyFlowBook:
                     flags.append(f"{side}:Δ{r['gap_ratio']:.0%}")
                 elif r.get("status") == "no_declared":
                     flags.append(f"{side}:未声明")
-            lines.append(f"{_cell(n.get('name', nid), 20)}"
-                         f"{pos['inflow'] / 1e8:>14,.0f}"
-                         f"{pos['outflow'] / 1e8:>14,.0f}"
-                         f"{pos['net'] / 1e8:>14,.0f}"
-                         f"{_cell('/'.join(flags) or '-', 10)}"
-                         f"{pos['unknown_edges']}")
+            lines.append(_cell(n.get("name", nid), 22)
+                         + _right(f"{pos['inflow'] / 1e8:,.0f}", 14)
+                         + _right(f"{pos['outflow'] / 1e8:,.0f}", 14)
+                         + _right(f"{pos['net'] / 1e8:,.0f}", 14) + "  "
+                         + _cell("/".join(flags) or "-", 20)
+                         + _right(pos["unknown_edges"], 8))
         lines.append("-" * 78)
         lines.append("资金流明细（`null` = 路径已知、数额待补，不是 0）：")
         for f in self.flows:
@@ -432,5 +460,12 @@ def _disp_width(text: str) -> int:
 
 
 def _cell(text, width: int) -> str:
+    """左对齐：width 是**显示宽度**（中文一字两列）。"""
     text = str(text)
     return text + " " * max(0, width - _disp_width(text))
+
+
+def _right(text, width: int) -> str:
+    """右对齐（数字列）：同样按显示宽度补，不用 f-string 的 '>14'。"""
+    text = str(text)
+    return " " * max(0, width - _disp_width(text)) + text

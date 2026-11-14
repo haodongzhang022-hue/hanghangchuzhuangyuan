@@ -1,20 +1,20 @@
 -- ⚠️ 本文件由 scripts/export_industry_db.py 生成，请勿手改。
 -- 数据（10-data.sql）由 `industry export` 生成，不随结构进版本库。
 CREATE TABLE IF NOT EXISTS "dataset_meta" (
-  "key" TEXT,
+  "key" TEXT NOT NULL,
   "value" TEXT,
   PRIMARY KEY ("key")
 );
 
 CREATE TABLE IF NOT EXISTS "partition" (
-  "id" TEXT,
-  "name" TEXT,
+  "id" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
   "aliases" TEXT,
-  "status" TEXT,
+  "status" TEXT NOT NULL,
   "unit_id" TEXT,
   "priority" TEXT,
   "gdp_cny" INTEGER,
-  "gdp_kind" TEXT,
+  "gdp_kind" TEXT NOT NULL,
   "gdp_confidence" TEXT,
   "gdp_scope" TEXT,
   "gdp_source" TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS "partition" (
   "access_org_internal" REAL,
   "access_household" REAL,
   "employment_wan" REAL,
-  "member_count" INTEGER,
+  "member_count" INTEGER NOT NULL,
   "axes" TEXT,
   "axis_edges" TEXT,
   "planned_roles" TEXT,
@@ -44,14 +44,14 @@ CREATE TABLE IF NOT EXISTS "partition" (
 );
 
 CREATE TABLE IF NOT EXISTS "occupation" (
-  "code" TEXT,
-  "id" TEXT,
-  "name" TEXT,
+  "code" TEXT NOT NULL,
+  "id" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
   "deliverable" TEXT,
   "provider" TEXT,
   "billing" TEXT,
-  "access" TEXT,
-  "baseline" INTEGER,
+  "access" TEXT NOT NULL,
+  "baseline" INTEGER NOT NULL,
   "gb_code" TEXT,
   "gb_name" TEXT,
   "note" TEXT,
@@ -60,10 +60,10 @@ CREATE TABLE IF NOT EXISTS "occupation" (
 );
 
 CREATE TABLE IF NOT EXISTS "membership" (
-  "occupation" TEXT,
-  "partition" TEXT,
-  "axis" TEXT,
-  "weight" REAL,
+  "occupation" TEXT NOT NULL,
+  "partition" TEXT NOT NULL,
+  "axis" TEXT NOT NULL,
+  "weight" REAL NOT NULL,
   "unit_role" TEXT,
   PRIMARY KEY ("occupation", "partition", "axis"),
   FOREIGN KEY ("occupation") REFERENCES "occupation"("id"),
@@ -71,8 +71,8 @@ CREATE TABLE IF NOT EXISTS "membership" (
 );
 
 CREATE TABLE IF NOT EXISTS "gb_catalog" (
-  "code" TEXT,
-  "name" TEXT,
+  "code" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
   "gbm" TEXT,
   "major" TEXT,
   "middle" TEXT,
@@ -84,8 +84,8 @@ CREATE TABLE IF NOT EXISTS "gb_catalog" (
 );
 
 CREATE TABLE IF NOT EXISTS "scale_metric" (
-  "partition" TEXT,
-  "metric" TEXT,
+  "partition" TEXT NOT NULL,
+  "metric" TEXT NOT NULL,
   "value" REAL,
   "unit" TEXT,
   "kind" TEXT,
@@ -98,22 +98,22 @@ CREATE TABLE IF NOT EXISTS "scale_metric" (
 );
 
 CREATE TABLE IF NOT EXISTS "money_node" (
-  "id" TEXT,
-  "type" TEXT,
+  "id" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
   "sector" TEXT,
   "partition" TEXT,
-  "name" TEXT,
-  "declared_in_cny" REAL,
-  "declared_out_cny" REAL,
+  "name" TEXT NOT NULL,
+  "declared_in_cny" INTEGER,
+  "declared_out_cny" INTEGER,
   "source" TEXT,
   PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "money_flow" (
-  "src" TEXT,
-  "dst" TEXT,
-  "kind" TEXT,
-  "amount_cny" REAL,
+  "src" TEXT NOT NULL,
+  "dst" TEXT NOT NULL,
+  "kind" TEXT NOT NULL,
+  "amount_cny" INTEGER,
   "confidence" TEXT,
   "basis" TEXT,
   PRIMARY KEY ("src", "dst", "kind"),
@@ -122,11 +122,11 @@ CREATE TABLE IF NOT EXISTS "money_flow" (
 );
 
 CREATE TABLE IF NOT EXISTS "money_gap" (
-  "node" TEXT,
-  "kind" TEXT,
+  "node" TEXT NOT NULL,
+  "kind" TEXT NOT NULL,
   "side" TEXT,
-  "amount_cny" REAL,
-  "reason" TEXT,
+  "amount_cny" INTEGER,
+  "reason" TEXT NOT NULL,
   PRIMARY KEY ("node", "kind", "side"),
   FOREIGN KEY ("node") REFERENCES "money_node"("id")
 );

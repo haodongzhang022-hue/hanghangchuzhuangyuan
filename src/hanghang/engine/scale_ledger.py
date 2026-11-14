@@ -143,17 +143,45 @@ class ScaleLedger:
                 return p
         return None
 
-    @staticmethod
-    def _amount(cell) -> Optional[float]:
-        """口径值：`cny` 为主，`wan`（万人）仅就业用。缺失就是 None，不当 0。"""
+    # 每个口径只认一个金额键：`wan` 是就业口径的写法，`value` 是资源口径的写法。
+    # 早先这里对所有 key 一视同仁地取，于是 profit 手滑写成 {wan: 9e6} 时
+    # `_amount` 照样返回 9e6，而 cross_check 按 profit["cny"] 取 → KeyError，
+    # `industry check` 直接 traceback。**校验器自己挂了**是最难查的故障：
+    # 红灯既不是"数据坏了"也不是"绿"。
+    AMOUNT_KEY = {"gdp": "cny", "employment": "wan",
+                  "profit": "cny", "asset": "cny", "valuation": "cny",
+                  "resource": "value"}
+
+    @classmethod
+    def _amount(cls, cell, name: str = "") -> Optional[float]:
+        """口径值：按口径只认它自己那一个键。缺失/键不对就是 None，不当 0。"""
         if not isinstance(cell, dict):
             return None
-        for key in ("cny", "wan", "value"):
-            val = cell.get(key)
+        key = cls.AMOUNT_KEY.get(name)
+        keys = (key,) if key else ("cny", "wan", "value")
+        for k in keys:
+            val = cell.get(k)
             if isinstance(val, bool) or not isinstance(val, (int, float)):
                 continue
             return float(val)
         return None
+
+    @classmethod
+    def wrong_amount_key(cls, cell, name: str) -> str:
+        """金额写在了别的口径的键上（profit 写成 wan 这类）。
+
+        返回那个错误的键名，正确或没写返回空串。数据没错但键写错的后果是
+        **这一格静默变空**，而空格的语义是"没统计到"——两件事完全不同。
+        """
+        if not isinstance(cell, dict):
+            return ""
+        want = cls.AMOUNT_KEY.get(name)
+        if not want or want in cell:
+            return ""
+        for k in ("cny", "wan", "value"):
+            if k in cell:
+                return k
+        return ""
 
     def metric(self, part_id: str, name: str) -> Optional[dict]:
         """单个口径的完整记录（含来源/置信度/单位）。无数据返回 None。
@@ -178,7 +206,7 @@ class ScaleLedger:
         cell = (self.entries.get(part_id) or {}).get(name)
         if not isinstance(cell, dict):
             return None
-        if self._amount(cell) is None:
+        if self._amount(cell, name) is None:
             return None
         return dict(cell)
 
@@ -306,7 +334,10 @@ class ScaleLedger:
 
             # 3. 估值倍数：PE 与 PS 至少有一个落在正常区间
             if val and val.get("cny"):
-                if profit and profit.get("cny"):
+                # 亏损行业（利润 ≤ 0）的 PE 没有意义：负利润算出来是负倍数，
+                # 会被当成"倍数爆表"误报。按本模块立场——误报一次整条校验就会被
+                # 当噪音关掉——所以利润不为正时直接跳过 PE。
+                if profit and profit.get("cny") and profit["cny"] > 0:
                     pe = val["cny"] / profit["cny"]
                     if not (self.PE_WINDOW[0] <= pe <= self.PE_WINDOW[1]):
                         problems.append(
@@ -344,14 +375,28 @@ class ScaleLedger:
             if pid not in known:
                 problems.append(
                     f"规模账里的分区 {pid} 不是已知分区（悬空记录，永远查不到）")
+            # missing 的键必须是真口径名：拼错（assett）时该格显示"未填原因"，
+            # 而 validate 不报 —— "说不出总量又不说什么缺"正是这套账要守的一条。
+            for key in (entry.get("_missing") or {}):
+                if key not in SCALE_METRICS:
+                    problems.append(
+                        f"分区 {pid} 的 missing 键 {key!r} 不是口径名 "
+                        f"{list(SCALE_METRICS)}（拼错会让该格静默变成「未填原因」）")
             for name in LEDGER_METRICS:
                 cell = entry.get(name)
                 if cell is None:
                     continue
-                val = self._amount(cell)
+                wrong = self.wrong_amount_key(cell, name)
+                if wrong:
+                    problems.append(
+                        f"分区 {pid} 的 {name} 把金额写在了 {wrong!r} 键上"
+                        f"（{name} 只认 {self.AMOUNT_KEY[name]!r}）——"
+                        f"键写错会让这一格静默变空，而「没统计到」与「写错了」不是一回事")
+                val = self._amount(cell, name)
                 if val is None:
                     problems.append(
-                        f"分区 {pid} 的 {name} 没有 cny/wan/value 数值"
+                        f"分区 {pid} 的 {name} 缺少 "
+                        f"{self.AMOUNT_KEY[name]!r} 数值"
                         f"（空槽请整个省略，并在 missing 里写原因）")
                 elif val < 0 and name != "profit":
                     problems.append(
@@ -371,52 +416,6 @@ class ScaleLedger:
                             f"必须带单位，否则数字没有意义）")
         return problems
 
-    # ------------------------------------------------------------- render
-    def render_text(self, top: int = 0, only: str = "") -> str:
-        rows = self.visibility_all()
-        if only:
-            rows = [r for r in rows if r["level"] == only]
-        if top:
-            rows = rows[:top]
-        counts = {lv: sum(1 for r in self.visibility_all() if r["level"] == lv)
-                  for lv in VISIBILITY_LEVELS}
-        lines = ["=" * 78,
-                 f"行业规模账 · 六口径可见度  v{self.version}"
-                 f"  口径年份 {self.year_basis or '-'}  updated {self.updated_at}",
-                 "-" * 78,
-                 f"分区 {sum(counts.values())} 个：看清大半(full) {counts['full']}"
-                 f" / 至少一面可见(partial) {counts['partial']}"
-                 f" / 全空(hidden) {counts['hidden']}",
-                 "口径: " + " / ".join(f"{m}={METRIC_LABELS[m]}" for m in SCALE_METRICS),
-                 "立场: 一个行业只要**任一**口径有数就没隐身；产值只是六格之一",
-                 "-" * 78,
-                 "".join(_cell(t, w) for t, w in
-                         (("分区", 22), ("口径数", 7), ("等级", 9))) + "已有口径"]
-        mark = {"full": "full", "partial": "part", "hidden": "HIDDEN"}
-        for r in rows:
-            p = self.partition(r["partition"]) or {}
-            lines.append(
-                _cell(p.get("name", r["partition"]), 22)
-                + _cell(f"{r['count']}/6", 7)
-                + _cell(mark[r["level"]], 9)
-                + "、".join(r["present"]) or "-")
-        lines.append("-" * 78)
-        lines.append("缺口逐条带着原因（`industry scale --gaps` 看全部）：")
-        for r in rows:
-            if r["level"] != "hidden":
-                continue
-            for m, why in r["missing_detail"].items():
-                lines.append(f"  {r['partition']:<20}{m:<12}{why}")
-        lines.append("=" * 78)
-        return "\n".join(lines)
 
-
-def _disp_width(text: str) -> int:
-    import unicodedata
-    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
-               for ch in str(text))
-
-
-def _cell(text, width: int) -> str:
-    text = str(text)
-    return text + " " * max(0, width - _disp_width(text))
+# 渲染留在 CLI（`cmd_industry_scale` / `cmd_industry_money`）：同一份表格写两遍，
+# 迟早一边改了另一边没改，然后没人知道哪个是对的。engine 只出结构化数据。

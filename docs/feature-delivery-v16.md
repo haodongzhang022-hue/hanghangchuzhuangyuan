@@ -158,12 +158,34 @@ python3 src/hanghang/cli/main.py industry money --kinds
 
 ## 六、验证
 
-- 36 个测试文件全通过（新增 `tests/test_scale_money_m11.py` 30 项）
+- 36 个测试文件全通过（新增 `tests/test_scale_money_m11.py`）
 - `industry check` 23 条校验 41 分区 / 178 职业，双向对齐无缺口，退出码 0
 - `export_industry_db.py --check` 导入往返 9 表 / 2344 行一致
 - 其余产物校验全绿（rolecards / role chain / class db / role db）
 
-## 七、还没做的（下轮）
+## 七、评审返工（PR #34 首轮）
+
+首轮评审给了 10 条，逐条核实**全部成立**，两条是 P0：
+
+| # | 问题 | 为什么测试跑不到 | 修法 |
+|---|---|---|---|
+| 1 | `profit` 手滑写成 `{wan: ...}` → `cross_check` KeyError → `industry check` traceback | 数据正常时永远不触发；而**校验器自己挂了**是最难查的故障——红灯既不是"数据坏了"也不是"绿" | `ScaleLedger.AMOUNT_KEY`：每个口径只认自己那一个键（`wan` 是就业的、`value` 是资源的），写错键单独报"金额写在了错误的键上" |
+| 2 | `gdp_cny INTEGER` 存 33 万亿 → PostgreSQL 建不出库 | SQLite 不做数字类型强校验，导入往返自检全绿；**这个错只有真进 PG 才露** | `_TYPES` 加 `bigint` 档，金额列一律 BIGINT。补断言「PG DDL 里承载金额的列不得是 INTEGER」 |
+| 3 | `.cnb.yml` 注释写 `data/industry-db/*.sql`，实际在 `data/db/industry/` | 注释不参与执行 | 改正 |
+| 4 | `money_gap` 主键 `(node, kind, side)`，`unobserved` 的 `side` 恒空 → 重复登记时 validate 绿、导库撞 UNIQUE | validate 只查节点存在性与原因非空，不查重复 | 补 `(node, kind, side)` 唯一性检查 |
+| 5 | `MoneyFlowBook.pools` 未在 `__init__` 初始化 | 只在文件缺失的降级路径上炸，而这条路径上一轮刚加 | `__init__` 里就赋空列表 |
+| 6 | `_col_sql` 两个分支都返回空串 → DDL 里 `NOT NULL` 计数为 0 | 不报错，只是**契约不成立**：`money_gap.reason` 可为 NULL，而 validate 要求"有差额不解释不行" | `" NOT NULL" if notnull else ""` |
+| 7 | `missing` 键名拼错（`assett`）→ 该格显示"未填原因"，validate 不报 | 正是"说不出总量又不说什么缺"这条被绕过 | 校验 `_missing` 的键 ⊆ `SCALE_METRICS` |
+| 8 | 亏损行业的 PE 是负倍数，被当成"倍数爆表"误报 | 现有数据里没有负利润，潜伏 | PE 只在 `profit > 0` 时判 |
+| 9 | `ScaleLedger.render_text` 死代码，CLI 另写一份同样逻辑 | — | 删掉，engine 只出结构化数据；顺带修 `... or "-"` 的无效兜底 |
+| 10 | 文档写"30 项"，实际 33 项 | 手抄数字 | 不再写死条数 |
+
+评审第 8 条那句话我照抄了一遍：**误报一次，整条校验就会被当成噪音关掉**。
+所以这轮所有修复都遵守同一条：宁可漏报，不可误报；宁可报"写错了"，不可静默变空。
+
+返工新增 10 项回归用例（共 43 项），全部瞄准"已想到的路之外的路径"。
+
+## 八、还没做的（下轮）
 
 1. **行业池份额切分的规则**。8 个池的流入数额全待补，卡在「中间投入怎么去重」
    这个口径问题上——不是拿不到数，是拿了会重复计。

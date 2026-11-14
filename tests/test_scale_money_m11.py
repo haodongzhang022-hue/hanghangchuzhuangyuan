@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 
 from hanghang.engine.industry_db import IndustryDatabase          # noqa: E402
 from hanghang.engine.money_flow import MoneyFlowBook, RECONCILE_TOLERANCE  # noqa: E402
-from hanghang.engine.scale_ledger import SCALE_METRICS, ScaleLedger  # noqa: E402
+from hanghang.engine.scale_ledger import SCALE_METRICS  # noqa: E402
 
 
 def _db():
@@ -304,6 +304,23 @@ def test_scale_metric_table_is_one_row_per_metric():
         assert (value is None) != (reason == ""), (metric, value, reason)
 
 
+def test_money_table_columns_are_aligned():
+    """评审 4-补充：CJK 按字符数补空格会把后几列顶歪（'待补边' 3 字 6 列，给 5 列就超）"""
+    import unicodedata
+
+    def width(t):
+        return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+                   for c in t)
+
+    lines = _db().money.render_text().splitlines()
+    head = next(i for i, ln in enumerate(lines) if "流入(亿)" in ln)
+    rows = [ln for ln in lines[head:head + 6] if ln.startswith(("居民", "非金融"))]
+    assert rows
+    for ln in rows:
+        assert width(ln) == width(lines[head]), (
+            f"列宽错位: {width(ln)} vs {width(lines[head])}\n{ln}")
+
+
 def test_export_includes_ledgers():
     """导出必须带两本账：缺口本身就是要交付的信息"""
     import json
@@ -319,6 +336,99 @@ def test_export_includes_ledgers():
         assert data["money"]["summary"]["nodes"] >= 5
         for name in ("scales.csv", "money-nodes.csv", "money-flows.csv"):
             assert os.path.getsize(os.path.join(td, name)) > 0, name
+
+
+# ------------------------------------------------- 评审回归（PR #34）
+def test_wrong_amount_key_does_not_crash_cross_check():
+    """评审 1：profit 写成 {wan: ...} 时 cross_check 曾 KeyError → industry check traceback。
+
+    校验器自己挂了是最难查的故障：红灯既不是"数据坏了"也不是"绿"。
+    现在按口径只认它自己那一个键，写错键单独报出来（键写错会让这一格静默变空，
+    而「没统计到」与「写错了」不是一回事）。
+    """
+    db = _db()
+    db.scales.entries["manufacturing"]["profit"] = {"wan": 9e6}
+    assert db.scales.cross_check() == []          # 不崩
+    problems = db.validate()
+    assert any("manufacturing" in p and "'wan'" in p for p in problems), problems
+
+
+def test_wrong_amount_key_on_other_metrics():
+    """asset / valuation / resource 写错键同样要报，不只是 profit"""
+    # asset/valuation 认 cny，resource 认 value —— 各自写成别的口径的键都要报
+    for name, wrong in (("asset", "wan"), ("valuation", "wan"),
+                        ("resource", "cny")):
+        db = _db()
+        db.scales.entries["manufacturing"][name] = {wrong: 1e9}
+        assert any(name in p and wrong in p for p in db.validate()), (name, wrong)
+
+
+def test_missing_key_typo_is_reported():
+    """评审 7：missing 的键拼错（assett）→ 该格显示"未填原因"而 validate 不报，
+    正是"说不出总量又不说什么缺"这条最该守住的东西被绕过。"""
+    db = _db()
+    db.scales.entries["manufacturing"]["_missing"]["assett"] = "拼错了"
+    assert any("assett" in p for p in db.validate())
+
+
+def test_loss_making_industry_does_not_trigger_pe_alarm():
+    """评审 8：亏损行业（利润 < 0）的 PE 是负倍数，不该被当成"倍数爆表"误报"""
+    db = _db()
+    entry = db.scales.entries["manufacturing"]
+    entry["profit"]["cny"] = -1e10          # 亏损
+    entry["valuation"] = {"cny": 1.2e12}
+    assert db.scales.cross_check() == [], db.scales.cross_check()
+
+
+def test_duplicate_gap_registration_is_reported():
+    """评审 4：money_gap 主键 (node, kind, side)，重复登记时 validate 曾返回 []
+    而导库撞 UNIQUE。同一笔钱记两遍在 flow 上拦了，gap 上不能漏。"""
+    db = _db()
+    db.money.unobserved.append({"node": "pool:manufacturing",
+                               "missing": "第二条第", "reason": "重复登记"})
+    assert any("pool:manufacturing" in p and "登记了 2 次" in p
+               for p in db.money.validate())
+
+
+def test_pools_exists_even_when_file_missing():
+    """评审 5：资金流文件缺失时 pools 未初始化 → 降级路径比错误数据更脆"""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        book = MoneyFlowBook(data_dir=td)
+        assert book.pools == []
+        assert book.validate(), "空账必须报出来"
+
+
+def test_money_columns_are_bigint_in_postgresql():
+    """评审 2：gdp_cny 最大 33 万亿，而 PG 的 INTEGER 上限 21 亿 →
+    "拿到 SQL 直接跑"会在第一条 partition 就 numeric field overflow。
+    SQLite 不做类型强校验，所以导入往返自检全绿，这个错只有真进 PG 才露。
+    """
+    from hanghang.engine import industry_schema as sch
+    pg = sch.ddl("postgresql")
+    for table in ("partition", "money_node", "money_flow", "money_gap"):
+        cols = [c for c in pg.split(f'CREATE TABLE IF NOT EXISTS "{table}"')[1]
+                .split(");")[0].splitlines()]
+        for line in cols:
+            name = line.strip().split('"')[1] if '"' in line else ""
+            if name.endswith("_cny"):
+                assert "BIGINT" in line, f"{table}.{name} 不是 BIGINT: {line}"
+                assert " INTEGER" not in line, f"{table}.{name} 仍是 INTEGER"
+
+
+def test_not_null_is_actually_rendered():
+    """评审 6：_col_sql 两个分支都返回空串，生成的 DDL 里 NOT NULL 计数为 0。
+    后果不是报错而是契约不成立：money_gap.reason 可为 NULL，而 validate 要求
+    "有差额不解释不行"。"""
+    from hanghang.engine import industry_schema as sch
+    for dialect in ("sqlite", "postgresql"):
+        ddl = sch.ddl(dialect)
+        assert "NOT NULL" in ddl, dialect
+    # 主键列必须 NOT NULL（SQLite 的非整数主键不拒绝 NULL，靠这行兜住）
+    pg = sch.ddl("postgresql")
+    for name in ("money_gap", "scale_metric"):
+        body = pg.split(f'CREATE TABLE IF NOT EXISTS "{name}"')[1].split(");")[0]
+        assert '"node" TEXT NOT NULL' in body or '"partition" TEXT NOT NULL' in body
 
 
 def test_missing_data_files_never_self_check_pass():
