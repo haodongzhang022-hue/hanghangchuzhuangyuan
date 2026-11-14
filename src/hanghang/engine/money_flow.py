@@ -170,6 +170,19 @@ class MoneyFlowBook:
         return [f for f in self.flows
                 if f.get("from") == node_id or f.get("to") == node_id]
 
+    @staticmethod
+    def _num(value) -> Optional[float]:
+        """金额取值：非数值一律当"没有数"，绝不让它参与加法。
+
+        YAML 里 `amount_cny: 64e12` 会读成 float，但 `"64e12"`（带引号）是字符串；
+        一条字符串混进去，`position()` / `totals()` 就在 `+=` 上抛 TypeError ——
+        而这两个是 CLI 与导出都要走的路。数字不对是数据问题，不该变成崩溃。
+        真正该报的是 validate()：它把"不是数值"明确报出来。
+        """
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return float(value)
+
     def position(self, node_id: str) -> dict:
         """节点资金头寸：流入、流出、净额，以及"有多少条边数额待补"。
 
@@ -179,7 +192,7 @@ class MoneyFlowBook:
         inflow = outflow = 0.0
         unknown = 0
         for f in self.flows_of(node_id):
-            amt = f.get("amount_cny")
+            amt = self._num(f.get("amount_cny"))
             if amt is None:
                 unknown += 1
                 continue
@@ -191,8 +204,8 @@ class MoneyFlowBook:
                 "net": inflow - outflow, "unknown_edges": unknown}
 
     def totals(self) -> dict:
-        known = [f.get("amount_cny") for f in self.flows
-                 if f.get("amount_cny") is not None]
+        known = [v for v in (self._num(f.get("amount_cny"))
+                             for f in self.flows) if v is not None]
         return {
             "nodes": len(self.nodes),
             "flows": len(self.flows),
@@ -216,7 +229,7 @@ class MoneyFlowBook:
             nid = n.get("id", "")
             pos = self.position(nid)
             for side, key in (("in", "inflow"), ("out", "outflow")):
-                declared = n.get(f"declared_{side}_cny")
+                declared = self._num(n.get(f"declared_{side}_cny"))
                 row = {"node": nid, "name": n.get("name", ""), "side": side,
                        "declared": declared, "traced": pos[key],
                        "unknown_edges": pos["unknown_edges"]}

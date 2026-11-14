@@ -386,7 +386,11 @@ def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
             ))
         for lk in money.leaks:
             rows["money_gap"].append((
-                lk.get("node", ""), "gap", lk.get("side", "") or "",
+                # side 必须走 gap_side()：导出与校验不共用同一个口径，
+                # 就出现"校验认 n/a、导出写空串"两套主键，导库时照样撞 UNIQUE。
+                lk.get("node", ""), "gap",
+                (db.money.gap_side(lk, "gap") if db.money else
+                 (lk.get("side") or "n/a")),
                 lk.get("amount_cny"), lk.get("reason", "") or "",
             ))
         for u in money.unobserved:

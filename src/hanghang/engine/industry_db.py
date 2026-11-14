@@ -949,6 +949,16 @@ class IndustryDatabase:
                     problems.append(
                         f"分区 {pid} 的 employment={emp!r} 不是非负数"
                         f"（没口径请留空，别填 0 冒充实测）")
+            # 17-b. gdp_cny 必须是数值。字符串（"33e12" / "不是数字"）会让两本账
+            # 的 metric() 读出垃圾参与口径比较，也会让导出侧按字符串落库。
+            # 数据问题在这里报，不在读取路径上炸。
+            gdp_raw = p.get("gdp_cny")
+            if gdp_raw is not None and (
+                    isinstance(gdp_raw, bool)
+                    or not isinstance(gdp_raw, (int, float))):
+                problems.append(
+                    f"分区 {pid} 的 gdp_cny={gdp_raw!r} 不是数值"
+                    f"（字符串会被两本账当成缺数，同时在交叉验证里抛错）")
             # 20. 产值口径标签（gdp_kind）：不标口径的数字加在一起就是误导。
             # 三件事一起守：枚举合法、有无产值与口径类型互斥一致、置信度合法。
             kind = p.get("gdp_kind")

@@ -143,6 +143,10 @@ class ScaleLedger:
                 return p
         return None
 
+    # partition 上的字段名与账本里的键名不同：账本里 gdp 写成 {cny: x}，
+    # partition 上是 gdp_cny；就业则是 employment / {wan: x}。
+    PARTITION_KEY = {"gdp": "gdp_cny", "employment": "employment"}
+
     # 每个口径只认一个金额键：`wan` 是就业口径的写法，`value` 是资源口径的写法。
     # 早先这里对所有 key 一视同仁地取，于是 profit 手滑写成 {wan: 9e6} 时
     # `_amount` 照样返回 9e6，而 cross_check 按 profit["cny"] 取 → KeyError，
@@ -153,12 +157,22 @@ class ScaleLedger:
                   "resource": "value"}
 
     @classmethod
-    def _amount(cls, cell, name: str = "") -> Optional[float]:
-        """口径值：按口径只认它自己那一个键。缺失/键不对就是 None，不当 0。"""
+    def _amount(cls, cell, name: str = "", partition_side: bool = False
+                ) -> Optional[float]:
+        """口径值：按口径只认它自己那一个键。缺失/键不对就是 None，不当 0。
+
+        `partition_side=True` 读的是 partition 上的字段名（gdp_cny / employment），
+        否则读账本里的键名（cny / wan / value）。两套名字由 PARTITION_KEY
+        显式映射，不靠"试着取一遍"——那正是写错键也能静默取到数的来源。
+        """
         if not isinstance(cell, dict):
             return None
-        key = cls.AMOUNT_KEY.get(name)
-        keys = (key,) if key else ("cny", "wan", "value")
+        if partition_side:
+            key = cls.PARTITION_KEY.get(name)
+            keys = (key,) if key else ()
+        else:
+            key = cls.AMOUNT_KEY.get(name)
+            keys = (key,) if key else ("cny", "wan", "value")
         for k in keys:
             val = cell.get(k)
             if isinstance(val, bool) or not isinstance(val, (int, float)):
@@ -189,18 +203,24 @@ class ScaleLedger:
         这是"槽位"的读取口：返回 None 不代表"这个行业没有这件事"，
         只代表"这一面还没拿到数"。两者在可见度报告里分开写。
         """
-        p = self.partition(part_id)
+        p = self.partition(part_id) or {}
         if name == "gdp":
-            if not p or p.get("gdp_cny") is None:
+            # partition 上的 gdp_cny 可能是字符串（yaml 写错/导入脏数据）。
+            # 这里不抛：metric() 是只读出口，CLI/Web/导出都要走它，一份脏数据
+            # 不该让看数据的人拿到 traceback。类型错由 industry_db.validate()
+            # 第 17-b 条明确报出——数据问题在数据校验里报，不在读取路径上炸。
+            val = self._amount(p, "gdp", partition_side=True)
+            if val is None:
                 return None
-            return {"cny": float(p["gdp_cny"]), "kind": p.get("gdp_kind", ""),
+            return {"cny": val, "kind": p.get("gdp_kind", ""),
                     "confidence": p.get("gdp_confidence", ""),
                     "basis": p.get("gdp_scope", ""),
                     "source": p.get("gdp_source", "")}
         if name == "employment":
-            if not p or p.get("employment") is None:
+            val = self._amount(p, "employment", partition_side=True)
+            if val is None:
                 return None
-            return {"wan": float(p["employment"]),
+            return {"wan": val,
                     "basis": "从业人员规模",
                     "source": p.get("employment_source", "")}
         cell = (self.entries.get(part_id) or {}).get(name)

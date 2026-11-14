@@ -304,6 +304,98 @@ def test_scale_metric_table_is_one_row_per_metric():
         assert (value is None) != (reason == ""), (metric, value, reason)
 
 
+def test_non_numeric_gdp_never_crashes_readers():
+    """partition.gdp_cny 是字符串时，metric()/cross_check()/CLI 都不许抛。
+
+    partition 上的字段名（gdp_cny/employment）与账本键名（cny/wan）不同，
+    早先直接 float() 转换 → ValueError 一路冒到 CLI。数据问题该由 validate 报。
+    """
+    db = _db()
+    db.partition("manufacturing")["gdp_cny"] = "不是数字"
+    assert db.scales.metric("manufacturing", "gdp") is None       # 不许抛
+    assert db.scales.cross_check() == []                          # 不许抛
+    db.scales.visibility("manufacturing")                         # 不许抛
+    assert any("gdp_cny" in p and "不是数值" in p for p in db.validate())
+
+
+def test_partition_side_keys_are_mapped_explicitly():
+    """gdp→gdp_cny / employment→employment 必须显式映射，不靠"试着取一遍"。"""
+    from hanghang.engine.scale_ledger import ScaleLedger
+    assert ScaleLedger.PARTITION_KEY == {"gdp": "gdp_cny",
+                                         "employment": "employment"}
+    db = _db()
+    assert db.scales.metric("manufacturing", "gdp")["cny"] == 33e12
+    assert db.scales.metric("manufacturing", "employment")["wan"] == 8000
+
+
+def test_non_numeric_amount_never_crashes_position_or_totals():
+    """评审三轮：amount_cny 写成带引号的 "64e12" 时，position()/totals() 在 += 上
+    TypeError —— 而这两个是 CLI 与导出都要走的路。
+
+    数字不对是数据问题，不该变成崩溃；该报的是 validate()。
+    """
+    db = _db()
+    db.money.flows.append({"from": "sector-enterprise", "to": "sector-household",
+                           "kind": "other", "amount_cny": "64e12"})
+    pos = db.money.position("sector-household")       # 不许抛
+    assert pos["unknown_edges"] == 1
+    assert db.money.totals()["flows_without_amount"] >= 1   # 不许抛
+    assert any("不是数值" in p for p in db.money.validate())
+    # 声明口径也可能是字符串同理
+    db.money.node("sector-household")["declared_in_cny"] = "80800000000000"
+    db.money.reconcile()                               # 不许抛
+
+
+def test_gap_side_export_and_validate_share_one_rule():
+    """评审三轮：导出侧用原始 side、校验侧用 gap_side() → 两套主键。
+
+    校验认 n/a、导出写空串，导库时照样撞 UNIQUE —— "修复"本身成了漏洞。
+    两边必须调同一个函数。
+    """
+    from hanghang.engine import industry_schema
+    db = _db()
+    db.money.leaks.append({"node": "sector-government", "amount_cny": 1e11,
+                           "reason": "不写 side 的一笔"})
+    keys_check = {(lk.get("node"), db.money.gap_side(lk, "gap"))
+                  for lk in db.money.leaks}
+    rows = [r for r in industry_schema.rows_of(db, db.compute())["money_gap"]
+            if r[1] == "gap"]
+    keys_export = {(r[0], r[2]) for r in rows}
+    assert keys_export == keys_check, (keys_export, keys_check)
+    assert ("sector-government", "n/a") in keys_export, keys_export
+
+
+def test_scale_cli_survives_dirty_metric_value():
+    """评审三轮：`scale --partition` 把 None 送进 f-string 的 ":,.0f" 会 TypeError。
+
+    只读命令不该让看数据的人拿到 traceback——一份脏数据不等于一次崩溃。
+    """
+    import subprocess
+    import textwrap
+    code = textwrap.dedent("""
+        import sys
+        sys.path.insert(0, "src")
+        import hanghang.engine.scale_ledger as sl
+        orig = sl.ScaleLedger.metric
+        def fake(self, pid, name):
+            r = orig(self, pid, name)
+            if r and name == "employment":
+                r.pop("wan", None)      # 模拟槽位里只剩来源、没有数值
+            return r
+        sl.ScaleLedger.metric = fake
+        from hanghang.cli.industry_commands import cmd_industry_scale
+        class A:
+            partition = "manufacturing"; top = 0; only = ""; gaps = False
+            data_dir = ""
+        cmd_industry_scale(A)
+    """)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                         text=True, cwd=ROOT)
+    assert "Traceback" not in out.stderr, out.stderr
+    assert out.returncode == 0, out.stderr
+    assert "从业人数" in out.stdout
+
+
 def test_empty_ledger_file_is_not_silent_pass():
     """评审二轮：文件在、内容只有注释（空账）时 `exists()` 返回 True，
     于是"每条校验都没有违规"，自检全绿。缺文件和空账必须分开报。"""

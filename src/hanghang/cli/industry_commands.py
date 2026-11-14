@@ -469,12 +469,20 @@ def cmd_industry_scale(args):
                 why = sl.missing_reason(part, m) or "未填原因"
                 print(f"  {label:<12} —        {why}")
                 continue
+            # 数值缺失时绝不能把 None 送进 f-string 的 ":,.0f" —— 那会 TypeError，
+            # 而这是只读命令：一份脏数据不该让看数据的人拿到 traceback。
+            # 缺值按"这一格是空的 + 原因"走，与 rec is None 同一条路。
+            amount = sl._amount(rec, m)
+            if amount is None:
+                why = sl.missing_reason(part, m) or "数值缺失（键写错或没填）"
+                print(f"  {label:<12} —        {why}")
+                continue
             if m == "employment":
-                val = f"{rec.get('wan'):,.0f} 万人"
+                val = f"{amount:,.0f} 万人"
             elif m == "resource":
-                val = sl.human_resource(rec.get("value"), rec.get("unit", ""))
+                val = sl.human_resource(amount, rec.get("unit", ""))
             else:
-                val = f"{rec.get('cny') / 1e8:,.0f} 亿元"
+                val = f"{amount / 1e8:,.0f} 亿元"
             extra = []
             if rec.get("kind"):
                 extra.append(f"口径={rec['kind']}")
