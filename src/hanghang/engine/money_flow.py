@@ -237,6 +237,19 @@ class MoneyFlowBook:
     def validate(self) -> List[str]:
         """守恒账自检。每一条都对应一种"钱静默消失"的方式。"""
         problems: List[str] = []
+
+        # 0. 数据源可用：文件缺失时节点为空，逐条校验都会"通过"——
+        # 那正是本仓库第 13 条在防的「0 分区 0 职业还自检通过」。
+        # 一张没有节点的守恒账不可能守恒任何东西，必须显式报出。
+        if not os.path.exists(self.path):
+            problems.append(
+                f"未读到资金流守恒账: {self.path}"
+                f"（数据源缺失，自检不能视为通过）")
+        elif not self.nodes:
+            problems.append(
+                f"资金流守恒账里没有任何节点: {self.path}"
+                f"（空账不可能守恒任何东西）")
+
         ids = self.node_ids()
 
         # 1. 节点：id 唯一、类型合法、部门节点必须落在已知部门里

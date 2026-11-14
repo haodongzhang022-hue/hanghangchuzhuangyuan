@@ -321,6 +321,29 @@ def test_export_includes_ledgers():
             assert os.path.getsize(os.path.join(td, name)) > 0, name
 
 
+def test_missing_data_files_never_self_check_pass():
+    """两本账的数据文件缺失时必须报出来。
+
+    这是本仓库第 13 条防的那类故障：0 个节点、0 条边，"每条校验都没有违规"，
+    于是自检全绿 —— 而它其实一张空账。空账不可能守恒任何东西。
+    """
+    import shutil
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        for name in os.listdir(os.path.join(ROOT, "data")):
+            src = os.path.join(ROOT, "data", name)
+            dst = os.path.join(td, name)
+            if os.path.isdir(src):
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+        for name in ("industry-scales.yaml", "industry-money-flows.yaml"):
+            os.remove(os.path.join(td, name))
+        problems = IndustryDatabase(data_dir=td).validate()
+    assert any("未读到六口径规模账" in p for p in problems), problems
+    assert any("未读到资金流守恒账" in p for p in problems), problems
+
+
 def test_cli_scale_and_money_run():
     """CLI 两条命令能跑出人话（不是 traceback）"""
     for argv, needle in ((["industry", "scale", "--gaps"], "六口径"),

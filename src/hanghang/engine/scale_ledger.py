@@ -333,6 +333,12 @@ class ScaleLedger:
     def validate(self) -> List[str]:
         """口径账本自检：槽位语法、枚举、可见度必须有解释。"""
         problems: List[str] = []
+        # 数据源可用：文件缺失时 entries 为空，而"分区没落点"那条会逐分区报出来；
+        # 但分区表也缺的话就无人可报，所以这里单独守一道。
+        if not os.path.exists(self.path) and not self.entries:
+            problems.append(
+                f"未读到六口径规模账: {self.path}"
+                f"（数据源缺失，自检不能视为通过）")
         known = {p.get("id") for p in (self._partitions or []) if p.get("id")}
         for pid, entry in self.entries.items():
             if pid not in known:
