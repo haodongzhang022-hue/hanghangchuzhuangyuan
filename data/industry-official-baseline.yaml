@@ -1,0 +1,310 @@
+# ============================================================================
+# 官方口径基准 · 逐年表值（industry-official-baseline）
+#
+# ## 为什么要有这份文件
+#
+# `gdp_cny` 现在是**量级估算**，`gdp_confidence` 是人工判读。于是"high"这个词
+# 变成了自我声明：谁都可以标 high，没人能证明。这份文件把它变成**可核对**的：
+#
+#   分区产值  ←对比→  官方口径的同一笔钱（同口径、同年份、可追溯来源）
+#
+# 对完账，confidence 才有意义：
+#   high   必须有一条**通过**的官方对表（equal 或 envelope），且声明年份
+#   medium 可以对表不通过（口径差、年限差），但必须写清为什么
+#   low    第三方测算，只能排序，不参与对外引用
+#
+# ## 三条对表关系（relation）
+#
+#   equal        分区口径 = 官方口径的同一范围。比的是**偏差**
+#                （|分区 - 官方| / 官方 ≤ tolerance，默认 10%）
+#   envelope     分区 ⊆ 官方口径（官方是门类总量，分区是其中一块）。
+#                比的是**上界**（分区 ≤ 官方 × (1 + tolerance)）
+#                —— 分区比门类还大，必然是重复计或口径混了
+#   incomparable 两者口径不同（如「营业收入」对「增加值」），**不能相减**。
+#                必须写 reason，且该分区不得标 high：口径不同就不能当对外引用的背书
+#
+# ## 为什么 series 是**逐年**的
+#
+# 单年对表只能证明"这一年碰巧对上"。官方表值每年修订（初步核算 → 最终核实），
+# 所以基准按年存，partition 上用 `gdp_year` 指明自己对齐的是哪一年。
+# 有两年以上的 series，才谈得上"逐年对齐"和同比（yoy）。
+#
+# ## 数值立场（与 gdp_cny / amount_cny 同源）
+#
+# 这里存的是**公开年度统计口径的量级值**，用于对账，不是发布级数据：
+# 官方最终核实值每年会修订 1-3%，`source` 里写清取自哪张表。
+# 拿不准的口径（年鉴里分行业增加值有修订的门类）**宁可不给**，也不编一个数凑齐
+# —— 缺的进 `unlinked`，逐组写清为什么没有可比口径。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-11-15"
+unit: CNY
+# 分区侧对齐年份集合（partition.gdp_year 必须落在基准已有年份里）
+years: [2022, 2023]
+# 对表的默认容差：官方初步核算与最终核实的固有差 + 分区量级估算的误差
+tolerance: 0.10
+
+# ---------------------------------------------------------------------------
+# 官方基准：一个 id 一个口径，series 按年存
+#   id      基准 id（稳定，勿改）
+#   name    官方口径全名（年鉴里的叫法）
+#   kind    口径类型，枚举同 GDP_KINDS —— 只有同 kind 才允许 equal 比对
+#   axis    归口：national_accounts（国民经济核算）/ industry_stat（行业统计）
+#   series  [{year, value_cny, source, confidence}]
+# ---------------------------------------------------------------------------
+benchmarks:
+
+  - id: gdp-total
+    name: 国内生产总值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 121020700000000, source: 国家统计局年度数据·国内生产总值, confidence: high}
+      - {year: 2023, value_cny: 126058200000000, source: 国家统计局年度数据·国内生产总值, confidence: high}
+    note: 分母。任何分区的产值都不可能超过它，超了就是加总口径混了。
+
+  - id: va-primary
+    name: 第一产业增加值（农林牧渔业）
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 8820700000000, source: 国家统计局·分行业增加值(第一产业), confidence: high}
+      - {year: 2023, value_cny: 8975500000000, source: 国家统计局·分行业增加值(第一产业), confidence: high}
+
+  - id: va-manufacturing
+    name: 制造业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 31600000000000, source: 国家统计局·分行业增加值(制造业，占GDP 26.1%), confidence: medium}
+      - {year: 2023, value_cny: 33000000000000, source: 国家统计局·分行业增加值(制造业，占GDP 26.2%), confidence: medium}
+    note: 占 GDP 比重口径反算，年鉴分行业增加值表按年修订，故 medium。
+
+  - id: go-construction
+    name: 建筑业总产值
+    kind: gross_output
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 31200000000000, source: 国家统计局·建筑业总产值, confidence: medium}
+      - {year: 2023, value_cny: 31600000000000, source: 国家统计局·建筑业总产值, confidence: medium}
+    note: 总产值口径（含中间投入与分包）。与 va-construction 差 3.7 倍，两者绝不能混用。
+
+  - id: va-construction
+    name: 建筑业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 8300000000000, source: 国家统计局·分行业增加值(建筑业), confidence: medium}
+      - {year: 2023, value_cny: 8600000000000, source: 国家统计局·分行业增加值(建筑业), confidence: medium}
+    note: 生产法恒等式的另一半：建筑业总产出 31.6 万亿 - 增加值 8.6 万亿 = 中间投入 23 万亿。
+
+  - id: revenue-catering
+    name: 全国餐饮收入
+    kind: revenue
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 4400000000000, source: 国家统计局·社会消费品零售总额中餐饮收入, confidence: high}
+      - {year: 2023, value_cny: 5290000000000, source: 国家统计局·社会消费品零售总额中餐饮收入, confidence: high}
+
+  - id: revenue-online-retail
+    name: 全国网上零售额
+    kind: gmv
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 13790000000000, source: 国家统计局·网上零售额, confidence: high}
+      - {year: 2023, value_cny: 15430000000000, source: 国家统计局·网上零售额, confidence: high}
+    note: 交易额口径（GMV），两头都计价，**不是增加值**。它只能和同为 GMV 的数比。
+
+  - id: social-retail
+    name: 社会消费品零售总额
+    kind: gmv
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 43970000000000, source: 国家统计局·社会消费品零售总额, confidence: high}
+      - {year: 2023, value_cny: 47150000000000, source: 国家统计局·社会消费品零售总额, confidence: high}
+    note: 上限参照：任何"面向消费者的交易额"口径都不该超过它。
+
+  - id: total-health-exp
+    name: 卫生总费用
+    kind: cost_total
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 8480000000000, source: 国家卫健委·卫生总费用(占GDP 7.0%), confidence: medium}
+      - {year: 2023, value_cny: 9060000000000, source: 国家卫健委·卫生总费用(占GDP 7.2%), confidence: medium}
+    note: 成本总额口径，含财政与医保支付；不是增加值，也不是市场化收入。
+
+  - id: rnd-exp
+    name: 研究与试验发展经费
+    kind: cost_total
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 3090000000000, source: 国家统计局·R&D 经费投入统计公报, confidence: high}
+      - {year: 2023, value_cny: 3330000000000, source: 国家统计局·R&D 经费投入统计公报, confidence: high}
+
+  - id: logistics-cost
+    name: 社会物流总费用
+    kind: cost_total
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 17800000000000, source: 中国物流与采购联合会·社会物流总费用(占GDP 14.7%), confidence: medium}
+      - {year: 2023, value_cny: 18200000000000, source: 中国物流与采购联合会·社会物流总费用(占GDP 14.4%), confidence: medium}
+    note: 各行业的中间投入，本身是成本不是产出 —— 并入产值会重复计算。
+
+  - id: va-financial
+    name: 金融业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 9700000000000, source: 国家统计局·分行业增加值(金融业，占GDP 8.0%), confidence: medium}
+      - {year: 2023, value_cny: 10100000000000, source: 国家统计局·分行业增加值(金融业，占GDP 8.0%), confidence: medium}
+
+  - id: va-ict
+    name: 信息传输、软件和信息技术服务业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 5000000000000, source: 国家统计局·分行业增加值(信息传输软件和信息技术服务业，占GDP 4.1%), confidence: medium}
+      - {year: 2023, value_cny: 5500000000000, source: 国家统计局·分行业增加值(信息传输软件和信息技术服务业，占GDP 4.4%), confidence: medium}
+    note: 增加值口径。软件业务收入 6 万亿是**收入**口径，含中间投入，比这个数大 —— 两者不能相减。
+
+  - id: va-culture
+    name: 文化及相关产业增加值
+    kind: value_added
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 5300000000000, source: 国家统计局·文化及相关产业增加值, confidence: medium}
+      - {year: 2023, value_cny: 5900000000000, source: 国家统计局·文化及相关产业增加值, confidence: low}
+    note: 2023 值为量级推算，最终核实值待补。
+
+  - id: va-mining
+    name: 采矿业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 5200000000000, source: 国家统计局·分行业增加值(采矿业), confidence: medium}
+      - {year: 2023, value_cny: 5300000000000, source: 国家统计局·分行业增加值(采矿业), confidence: medium}
+    note: 分区 mining-resources 就取采矿业整体，故用 equal 而非 envelope。
+
+  - id: va-utilities
+    name: 电力、热力、燃气及水生产和供应业增加值
+    kind: value_added
+    axis: national_accounts
+    series:
+      - {year: 2022, value_cny: 4300000000000, source: 国家统计局·分行业增加值(电力热力燃气及水), confidence: medium}
+      - {year: 2023, value_cny: 4600000000000, source: 国家统计局·分行业增加值(电力热力燃气及水), confidence: medium}
+    note: 分区 utilities 取整个门类，故用 equal。
+
+  - id: sports-output
+    name: 全国体育产业总产出
+    kind: gross_output
+    axis: industry_stat
+    series:
+      - {year: 2022, value_cny: 3300000000000, source: 国家体育总局·全国体育产业总规模与增加值, confidence: medium}
+    note: 只有 2022 一年（体育产业统计为隔年发布）。所以分区若声明 2023，就没有可比表值。
+
+# ---------------------------------------------------------------------------
+# 分区 → 官方基准 的对表关系
+#   partition             分区 id
+#   benchmark             基准 id
+#   relation              equal / envelope / incomparable
+#   value_added_benchmark 可选：这个分区的**增加值**该看哪个基准
+#                         （gross_output 类分区专用：总产值对总产值，增加值另有口径）
+#   tolerance             可选：覆盖默认容差
+#   reason                incomparable 必填；equal/envelope 建议写清范围
+# ---------------------------------------------------------------------------
+links:
+  - partition: manufacturing
+    benchmark: va-manufacturing
+    relation: equal
+    reason: 制造业整体口径，分区就取整行业，range 与官方一致
+  - partition: agriculture
+    benchmark: va-primary
+    relation: equal
+    reason: 农林牧渔业整体；第一产业增加值即农林牧渔业增加值（含专业及辅助性活动）
+  - partition: construction-eng
+    benchmark: go-construction
+    relation: equal
+    value_added_benchmark: va-construction
+    reason: 总产值对总产值。增加值另取 va-construction（8.6 万亿），两者是生产法恒等式的两端
+  - partition: e-commerce
+    benchmark: revenue-online-retail
+    relation: equal
+    reason: 网上零售额（GMV 口径）对网上零售额
+  - partition: food-beverage
+    benchmark: revenue-catering
+    relation: equal
+    reason: 全国餐饮收入对餐饮收入
+  - partition: healthcare
+    benchmark: total-health-exp
+    relation: equal
+    reason: 卫生总费用对卫生总费用（成本总额口径，含财政与医保支付）
+  - partition: logistics-supply
+    benchmark: logistics-cost
+    relation: equal
+    reason: 社会物流总费用对物流总费用（成本总额口径）
+  - partition: research-academic
+    benchmark: rnd-exp
+    relation: envelope
+    reason: 分区是 R&D 经费中的**外部研发服务**部分，只能做上界校验（分区 ⊆ R&D 经费总额）
+  - partition: finance-invest
+    benchmark: va-financial
+    relation: envelope
+    reason: 分区只覆盖财富管理/经纪相关部分，是金融业增加值的子集
+  - partition: culture-art
+    benchmark: va-culture
+    relation: envelope
+    reason: 分区是文化及相关产业增加值中的内容创作生产部分
+  - partition: mining-resources
+    benchmark: va-mining
+    relation: equal
+    reason: 分区就是采矿业整体（不含油气开采服务的外包部分，差在容差内）
+  - partition: utilities
+    benchmark: va-utilities
+    relation: equal
+    reason: 分区就是电力/热力/燃气/水生产供应业整体
+  - partition: sport-games
+    benchmark: sports-output
+    relation: envelope
+    reason: 分区是体育产业总产出的一部分（官方为产业整体宽口径）
+  - partition: dongjiagoushi
+    benchmark: va-ict
+    relation: incomparable
+    reason: >
+      分区 6 万亿是**软件业务收入**（含中间投入与硬件，工信部口径），
+      基准 5.5 万亿是**增加值**（统计局口径）。收入必然大于增加值，
+      相减得到的"差额"没有任何经济含义 —— 所以这里只登记关系、不做对表，
+      分区因此不能标 high，要等收入口径的官方总量（信息服务业营业收入）接进来。
+
+# ---------------------------------------------------------------------------
+# 没有官方可比口径的分区：按组写清为什么
+#
+# 不逐条重复同一句话：分组写，但**每个有产值的分区都必须落在这里或 links 里**，
+# 一个都不能少 —— 少了就是"这个行业的数没有出处，而且没人说过为什么"。
+# ---------------------------------------------------------------------------
+unlinked:
+  - partitions: [game-dev-unit, content-creation, live-streaming, esports,
+                 video-media]
+    reason: >
+      官方无独立的产业增加值口径：游戏/直播/电竞/影视挂在「文化及相关产业」或
+      「信息传输、软件和信息技术服务业」下面，不单列。这些分区的规模来自行业
+      协会年报（收入/GMV 口径），与统计局增加值不同源，等行业协会与国家统计
+      口径对齐后再接 benchchmark。
+  - partitions: [data-analytics, marketing, finance-accounting, hr-services,
+                 legal-services, design-visual, admin-office, translation,
+                 interpretation]
+    reason: >
+      专业服务/企业职能类：没有独立发布的产业增加值。它们的需求方是企业预算，
+      产值体现在别的行业里（如软件研发、制造业），单列会重复计。
+  - partitions: [education-training, public-affairs, public-safety,
+                 international-org, sport-fitness]
+    reason: >
+      以财政/非市场口径统计（教育经费、一般公共预算支出），没有市场化产值口径；
+      就业与支出规模已有登记，产值格刻意留空（见 partition.gdp_kind=none 或
+      gdp_scope 说明）。
+  - partitions: [home-design, real-estate, energy-environment,
+                 water-marine, auto-service, personal-services, beauty-grooming,
+                 tourism-hospitality]
+    reason: >
+      年鉴有门类口径但分区范围与之不对应（房地产含开发/物业/中介，分区只取一段；
+      旅游业总收入与住宿餐饮重叠；采矿业与电力热力燃气水在年鉴中按工业门类合计），
+      强行对表会把两个不同范围比成一个。等分区口径与门类口径能一对一映射后再接。

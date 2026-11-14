@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 from hanghang.engine import industry_schema
 from hanghang.engine.industry_db import GDP_KINDS, IndustryDatabase
 from hanghang.engine.money_flow import FLOW_KINDS, RECONCILE_TOLERANCE
+from hanghang.engine.official_baseline import RELATIONS
 from hanghang.engine.scale_ledger import METRIC_LABELS, SCALE_METRICS
 
 
@@ -610,6 +611,290 @@ def cmd_industry_money(args):
     print(book.render_text())
 
 
+# ---- 官方口径基准：逐年对表 ----
+_BASELINE_STATUS = {
+    "ok": "✓ 对上",
+    "gap": "❌ 超容差",
+    "incomparable": "≈ 不可比",
+    "no_series": "— 无该年表值",
+    "no_value": "— 分区无数",
+    "unlinked": "· 无官方口径",
+    "unexplained": "❗ 未说明",
+}
+
+
+def _r(text, width: int) -> str:
+    """右对齐（数字列）：按显示宽度补，中文一字两列。
+
+    不用 f-string 的 `>14`：那按**字符数**补，中文列会整行错位 ——
+    这个坑在 money_flow 的表头踩过一次，别踩第二次。
+    """
+    from hanghang.engine.money_flow import _right
+    return _right(text, width)
+
+
+def _scales_amt(v):
+    """元 → 亿元。只用于显示，不参与计算。"""
+    return f"{v / 1e8:,.0f} 亿元" if isinstance(v, (int, float)) else "—"
+
+
+def cmd_industry_baseline(args):
+    """官方口径基准：逐年对表，把 gdp_confidence 从自我声明变成可核对。
+
+    单年对表只证明"这一年碰巧对上"。官方表值每年修订（初步核算 → 最终核实），
+    所以基准按年存，分区声明自己对齐哪一年；有两年以上才谈得上同比。
+    """
+    db = _db(args)
+    base = db.baseline
+    pid = getattr(args, "partition", "") or ""
+
+    if getattr(args, "benchmarks", False) or pid:
+        if pid:
+            lk = base.link_of(pid)
+            if not lk:
+                why = base.unlinked_reason(pid)
+                print(f"分区 {pid} 没有官方可比口径"
+                      + (f"：{why}" if why else "（且没写为什么 —— 校验第 24 条会报）"))
+                return
+            bid = lk.get("benchmark", "")
+            bench = base.benchmark(bid) or {}
+            p = db.partition(pid) or {}
+            year, src = base.part_year(p)
+            print(f"■ {p.get('name')} ({pid})  对表关系={lk.get('relation')}"
+                  f"  对齐年份={year or '-'}"
+                  + ("（显式声明 gdp_year）" if src == "declared" else "（由年份区间推出）"))
+            print(f"  分区产值 {_scales_amt(p.get('gdp_cny'))}  "
+                  f"口径={p.get('gdp_kind')}  标注置信度={p.get('gdp_confidence') or '-'}")
+            print(f"  官方基准 {bid}：{bench.get('name')}  口径={bench.get('kind')}")
+            for r in (bench.get("series") or []):
+                mark = "←" if r.get("year") == (year or (bench.get("series") or [{}])[-1].get("year")) else " "
+                print(f"    {mark} {r.get('year')}  "
+                      f"{(r.get('value_cny') or 0) / 1e8:>12,.0f} 亿元"
+                      f"  [{r.get('confidence') or '-'}]  {r.get('source')}")
+            yoy = base.yoy(bid)
+            if yoy is not None:
+                print(f"  官方同比: {yoy:+.1%}（{len(bench.get('series') or [])} 年 series）")
+            rows = [r for r in base.compare() if r["partition"] == pid]
+            for r in rows:
+                st = _BASELINE_STATUS.get(r["status"], r["status"])
+                dev = f"  偏差 {r['deviation']:+.1%}" if r["deviation"] is not None else ""
+                print(f"  结论: {st}{dev}  容差 {r['tolerance']:.0%}")
+                if r.get("reason"):
+                    print(f"  说明: {r['reason'].strip()}")
+            print(f"  机器判定的置信度上限: {base.confidence_of(pid)}"
+                  f"（标注的是 {p.get('gdp_confidence') or '-'}；"
+                  f"high 只能由通过的对表背书）")
+            return
+
+        print("=" * 96)
+        print(f"官方口径基准  v{base.version}  年份 {base.years}  "
+              f"容差 {base.tolerance:.0%}  updated {base.updated_at}")
+        print("-" * 96)
+        print(f"{db._cell('基准', 24)}{db._cell('口径', 16)}"
+              f"{db._cell('2022(亿)', 14)}{db._cell('2023(亿)', 14)}"
+              f"{db._cell('同比', 10)}出处")
+        for b in base.benchmarks:
+            vals = {r.get("year"): r.get("value_cny")
+                    for r in (b.get("series") or [])}
+            cells = ""
+            for y in (base.years or sorted(vals)):
+                v = vals.get(y)
+                cells += db._cell(f"{v / 1e8:,.0f}" if v else "-", 14)
+            yoy = base.yoy(b.get("id", ""))
+            src = ((b.get("series") or [{}])[-1]).get("source", "")
+            print(db._cell(b.get("id", ""), 24) + db._cell(b.get("kind", ""), 16)
+                  + cells + db._cell(f"{yoy:+.1%}" if yoy is not None else "-", 10)
+                  + src[:40])
+        print("-" * 96)
+        print("只有同 kind 才允许 equal 比对：GMV 对营业收入、收入对增加值，"
+              "相减得到的差额没有任何经济含义。")
+        print("=" * 96)
+        return
+
+    rows = base.compare()
+    summ = base.summary()
+    counts = summ["status_counts"]
+    print("=" * 104)
+    print(f"逐年对表  v{base.version}  基准 {summ['benchmarks']} 个"
+          f"（其中 {summ['series_two_year']} 个有两年以上 series）"
+          f"  年份 {base.years}  容差 {base.tolerance:.0%}")
+    print("-" * 104)
+    linked = [r for r in rows if r["relation"]]
+    print(f"分区 {len(rows)} 个：接官方基准 {len(linked)}"
+          f" / 对上 {counts.get('ok', 0)} / 超容差 {counts.get('gap', 0)}"
+          f" / 不可比 {counts.get('incomparable', 0)}"
+          f" / 无该年表值 {counts.get('no_series', 0)}"
+          f" / 没接（已说明）{counts.get('unlinked', 0)}"
+          f" / **没接又没说明 {counts.get('unexplained', 0)}**")
+    print("立场: high 置信度只能由「同口径 + 同年份 + 偏差在容差内」的对表背书，"
+          "不许自己写。")
+    print("-" * 104)
+    top = getattr(args, "top", 0) or 0
+    only = getattr(args, "only", "") or ""
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    if top:
+        rows = rows[:top]
+    print(db._cell("分区", 22) + db._cell("年份", 6) + db._cell("关系", 13)
+          + _r("分区值(亿)", 14) + _r("官方值(亿)", 14)
+          + _r("偏差", 9) + "  结论")
+    for r in rows:
+        p = db.partition(r["partition"]) or {}
+        pv = r["part_value"]
+        bv = r["bench_value"]
+        dev = r["deviation"]
+        print(db._cell(p.get("name", r["partition"]), 22)
+              + db._cell(r.get("year") or "-", 6)
+              + db._cell(r.get("relation") or "—", 13)
+              + _r(f"{pv / 1e8:,.0f}" if pv else "-", 14)
+              + _r(f"{bv / 1e8:,.0f}" if bv else "-", 14)
+              + _r(f"{dev:+.1%}" if dev is not None else "-", 9)
+              + "  " + _BASELINE_STATUS.get(r["status"], r["status"]))
+    print("-" * 104)
+    print("`industry baseline --partition <id>` 看单个分区的基准逐年值与出处，"
+          "`--benchmarks` 只看官方基准表")
+    print("=" * 104)
+
+
+def cmd_industry_io(args):
+    """投入产出账：生产法三端 + 中间投入去重 + 行业池能不能切。
+
+    这是上轮资金流账卡住那件事的直接答案：「8 个行业池份额切分数额全待补，卡点不是
+    拿不到数，是拿了会重复计」。生产法恒等式 总产出 = 增加值 + 中间投入 就是去重规则。
+    """
+    db = _db(args)
+    book = db.input_output
+    pid = getattr(args, "partition", "") or ""
+
+    if pid:
+        p = db.partition(pid) or {}
+        r = book.identity(pid)
+        print(f"■ {p.get('name')} ({pid})  生产法结论={r['status']}"
+              f"  {'（中间投入由相减得出）' if r['derived'] else ''}")
+        print("-" * 78)
+        for name, label in (("output", "总产出"), ("value_added", "增加值"),
+                            ("intermediate", "中间投入")):
+            v = r[name]
+            line = f"  {label:<8}" + (f"{v / 1e8:>12,.0f} 亿元" if v is not None
+                                      else "          —")
+            acc = book.accounts.get(pid) or {}
+            cell = acc.get(name) or {}
+            if cell.get("basis"):
+                line += f"   {cell['basis']}"
+            print(line)
+            if cell.get("source"):
+                print(f"  {'':<8}   来源: {cell['source']}")
+            if v is None:
+                why = book.missing_reason(pid, name) or "未填原因"
+                print(f"  {'':<8}   为什么空: {why}")
+        ratio = r["va_ratio"]
+        print(f"  增加值率 {ratio:.3f}" if ratio else "  增加值率 —（缺一端就算不出来）")
+        if r["status"] == "ok":
+            print(f"  恒等式 ✓ 总产出 = 增加值 + 中间投入（偏差 "
+                  f"{r['deviation']:+.1%}，容差 {r['tolerance']:.0%}）")
+        elif r["status"] == "gap":
+            print(f"  恒等式 ❌ 偏差 {r['deviation']:+.1%} 超容差 {r['tolerance']:.0%}"
+                  f"（三边不同源，必有一个是别的口径）")
+        elif r["status"] == "partial":
+            miss = [n for n in ("output", "value_added", "intermediate")
+                    if r[n] is None]
+            print(f"  恒等式 — 缺 {miss}，验不了（缺的一端要在 missing 里写原因）")
+        inputs = (book.accounts.get(pid) or {}).get("inputs") or []
+        if inputs:
+            print("-" * 78)
+            print("  中间投入构成:")
+            for it in inputs:
+                amt = book._input_amount(it)
+                print(f"    ← {db._cell(it.get('from', '?'), 24)}"
+                      f"{(f'{amt / 1e8:,.0f} 亿元' if amt else '按 share')}"
+                      f"  {it.get('basis', '')}")
+        else:
+            why = book.missing_reason(pid, "inputs")
+            if why:
+                print(f"  中间投入构成: 空 —— {why}")
+        rule = next((x for x in book.pool_feasibility()
+                     if x["partition"] == pid), None)
+        if rule:
+            mark = {"ready": "✓ 可切", "blocked": "✗ 不可切",
+                    "unruled": "· 未登记规则"}[rule["status"]]
+            print(f"  行业池切分: {mark}  锚点={rule['anchor'] or '-'}"
+                  + (f"  锚值 {rule['anchor_value'] / 1e8:,.0f} 亿元"
+                     if rule["anchor_value"] else ""))
+            if rule.get("note"):
+                print(f"    {rule['note']}")
+        return
+
+    if getattr(args, "pools", False):
+        print("=" * 92)
+        print("行业池切分可行性（部门层总额是增加值性质，所以锚点只能是增加值）")
+        print("-" * 92)
+        print(db._cell("分区", 24) + db._cell("状态", 10) + db._cell("锚点", 14)
+              + _r("锚值(亿)", 14) + "  说明")
+        for r in book.pool_feasibility():
+            if r["status"] == "unruled":
+                continue
+            p = db.partition(r["partition"]) or {}
+            mark = {"ready": "✓ 可切", "blocked": "✗ 不可切"}[r["status"]]
+            print(db._cell(p.get("name", r["partition"]), 24)
+                  + db._cell(mark, 10) + db._cell(r["anchor"] or "-", 14)
+                  + _r(f"{r['anchor_value'] / 1e8:,.0f}"
+                              if r["anchor_value"] else "-", 14)
+                  + "  " + r.get("note", "")[:46])
+        ready = [r for r in book.pool_feasibility() if r["status"] == "ready"]
+        blocked = [r for r in book.pool_feasibility() if r["status"] == "blocked"]
+        print("-" * 92)
+        print(f"可切 {len(ready)} 个 / 不可切 {len(blocked)} 个。"
+              f"不可切不是缺数据，是缺**同口径的增加值锚点**：拿 GMV、成本总额、"
+              f"营业收入去切部门总额，切出来的份额必然虚高且看不出来。")
+        print("=" * 92)
+        return
+
+    summ = book.summary()
+    counts = summ["identity_counts"]
+    print("=" * 96)
+    print(f"投入产出账  v{book.version}  年份 {book.year}  "
+          f"容差 {book.tolerance:.0%}  updated {book.updated_at}")
+    print("-" * 96)
+    print(f"账户 {summ['accounts']} 个：恒等式闭合 {counts.get('ok', 0)}"
+          f" / 只够一端 {counts.get('partial', 0)}"
+          f" / 还没有落点 {counts.get('missing', 0)}"
+          f" / 对不上 {counts.get('gap', 0)}")
+    print(f"行业池 {len(book.pool_rules)} 个：可切 {summ['pool_counts'].get('ready', 0)}"
+          f" / 不可切 {summ['pool_counts'].get('blocked', 0)}")
+    print("立场: 总产出 = 增加值 + 中间投入。三端不同源必有一个是别的口径；"
+          "缺一端就验不了，所以缺的一端必须写清为什么。")
+    print("-" * 96)
+    print(db._cell("分区", 22) + _r("总产出(亿)", 14)
+          + _r("增加值(亿)", 14) + _r("中间投入(亿)", 14)
+          + _r("增加值率", 10) + "  结论")
+    only = getattr(args, "only", "") or ""
+    top = getattr(args, "top", 0) or 0
+    rows = [book.identity(p.get("id", "")) for p in db.partitions]
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    rows.sort(key=lambda r: ({"ok": 0, "gap": 1, "partial": 2, "missing": 3}
+                             [r["status"]],
+                             -(r["value_added"] or 0)))
+    if top:
+        rows = rows[:top]
+    for r in rows:
+        p = db.partition(r["partition"]) or {}
+        ratio = r["va_ratio"]
+        print(db._cell(p.get("name", r["partition"]), 22)
+              + _r(f"{(r['output'] or 0) / 1e8:,.0f}" if r["output"] else "-", 14)
+              + _r(f"{(r['value_added'] or 0) / 1e8:,.0f}"
+                          if r["value_added"] else "-", 14)
+              + _r(f"{(r['intermediate'] or 0) / 1e8:,.0f}"
+                          if r["intermediate"] else "-", 14)
+              + _r(f"{ratio:.2f}" if ratio else "-", 10)
+              + "  " + {"ok": "✓ 闭合", "gap": "❌ 对不上",
+                        "partial": "— 缺一端", "missing": "· 无落点"}[r["status"]])
+    print("-" * 96)
+    print("`industry io --partition construction-eng` 看单户三端与中间投入构成，"
+          "`--pools` 只看行业池能不能切")
+    print("=" * 96)
+
+
 def cmd_industry_check(args):
     """数据一致性自检：职业↔单元岗位 双向对齐
 
@@ -690,7 +975,18 @@ def cmd_industry_export(args):
                                  "nodes": db.money.nodes,
                                  "flows": db.money.flows,
                                  "leaks": db.money.leaks,
-                                 "unobserved": db.money.unobserved}}, fh,
+                                 "unobserved": db.money.unobserved},
+                       # 官方基准 + 投入产出：这两本账回答"这个数有没有出处"
+                       # 与"这个数会不会重复计"，是"可对外引用"的两个前提。
+                       "baseline": {"summary": db.baseline.summary(),
+                                    "benchmarks": db.baseline.benchmarks,
+                                    "links": db.baseline.links,
+                                    "compare": db.baseline.compare()},
+                       "input_output": {
+                           "summary": db.input_output.summary(),
+                           "accounts": list(db.input_output.accounts.values()),
+                           "pool_rules": db.input_output.pool_rules,
+                           "pools": db.input_output.pool_feasibility()}}, fh,
                       ensure_ascii=False, indent=2)
         written.append(path)
 
@@ -821,13 +1117,62 @@ def cmd_industry_export(args):
         with open(fpath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["from", "to", "kind", "kind_label", "amount_cny",
-                        "confidence", "basis"])
+                        "confidence", "basis", "memo"])
             for f in db.money.flows:
+                # memo 列必须在扁平表里：下游一句 SUM(amount_cny) WHERE memo=0
+                # 才算得对总资金量，否则份额摊开的 41 万亿会当成新增流出加进去。
                 w.writerow([f.get("from", ""), f.get("to", ""), f.get("kind", ""),
                             FLOW_KINDS.get(f.get("kind", ""), ""),
                             f.get("amount_cny") if f.get("amount_cny") is not None else "",
-                            f.get("confidence", "") or "", f.get("basis", "") or ""])
+                            f.get("confidence", "") or "", f.get("basis", "") or "",
+                            1 if f.get("memo") else 0])
         written.append(fpath)
+
+        # 官方基准对表扁平表：一个分区一行，带结论与偏差。
+        # BI 一句 SQL 就能查「哪些分区的数没有出处」。
+        bpath = os.path.join(out, "baseline-check.csv")
+        with open(bpath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "benchmark", "relation", "year", "year_source",
+                        "part_value_cny", "bench_value_cny", "deviation",
+                        "tolerance", "status", "reason"])
+            for r in db.baseline.compare():
+                w.writerow([r["partition"], r.get("benchmark", ""),
+                            r.get("relation", ""), r.get("year") or "",
+                            r.get("year_source", ""),
+                            int(r["part_value"]) if r.get("part_value") is not None else "",
+                            int(r["bench_value"]) if r.get("bench_value") is not None else "",
+                            r.get("deviation") if r.get("deviation") is not None else "",
+                            r.get("tolerance", ""), r["status"],
+                            (r.get("reason") or "").strip()])
+        written.append(bpath)
+
+        # 生产法扁平表：三端 + 增加值率 + 能不能切。
+        ipath = os.path.join(out, "io-accounts.csv")
+        with open(ipath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "year", "output_cny", "value_added_cny",
+                        "intermediate_cny", "intermediate_derived", "va_ratio",
+                        "identity_status", "deviation", "anchor", "pool_status"])
+            rules = {x["partition"]: x for x in db.input_output.pool_feasibility()}
+            for p in db.partitions:
+                pid = p.get("id", "")
+                if not pid:
+                    continue
+                r = db.input_output.identity(pid)
+                rule = rules.get(pid) or {}
+                has_acc = pid in db.input_output.accounts
+                w.writerow([pid, (db.input_output.year or "") if has_acc else "",
+                            int(r["output"]) if r["output"] is not None else "",
+                            int(r["value_added"]) if r["value_added"] is not None else "",
+                            int(r["intermediate"]) if r["intermediate"] is not None else "",
+                            1 if r["derived"] else 0,
+                            r["va_ratio"] if r["va_ratio"] is not None else "",
+                            r["status"],
+                            r["deviation"] if r["deviation"] is not None else "",
+                            rule.get("anchor", "") or "",
+                            rule.get("status", "") or ""])
+        written.append(ipath)
 
     if fmt in ("all", "sqlite"):
         import sqlite3

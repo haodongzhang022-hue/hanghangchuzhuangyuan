@@ -33,3 +33,10 @@ data/state/context_baseline/
 # 产物形态（DDL / 数据字典）进库，随时可 rebuild。
 data/db/*.db
 data/db/*.db-journal
+
+# M11 导出产物（industry export / gen_data_inventory 生成）
+# 与 data/db/*.db 同一条道理：数据可由 yaml 秒级重建，把 1.6 MB 生成 SQL 和
+# 一份 sqlite 二进制提交进 git 只会得到看不见的 diff + 解不了的冲突。
+# 进库的是**结构**（data/db/industry/*.sql）与**盘存清单**
+# （docs/industry/data-inventory.md），产物随时可 rebuild。
+out/

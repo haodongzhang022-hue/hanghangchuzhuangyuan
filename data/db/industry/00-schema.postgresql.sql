@@ -116,9 +116,57 @@ CREATE TABLE IF NOT EXISTS "money_flow" (
   "amount_cny" BIGINT,
   "confidence" TEXT,
   "basis" TEXT,
+  "memo" INTEGER NOT NULL,
   PRIMARY KEY ("src", "dst", "kind"),
   FOREIGN KEY ("src") REFERENCES "money_node"("id"),
   FOREIGN KEY ("dst") REFERENCES "money_node"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "baseline_series" (
+  "benchmark" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "kind" TEXT NOT NULL,
+  "axis" TEXT,
+  "year" INTEGER NOT NULL,
+  "value_cny" BIGINT,
+  "source" TEXT,
+  "confidence" TEXT,
+  "note" TEXT,
+  PRIMARY KEY ("benchmark", "year")
+);
+
+CREATE TABLE IF NOT EXISTS "baseline_link" (
+  "partition" TEXT NOT NULL,
+  "benchmark" TEXT NOT NULL,
+  "relation" TEXT NOT NULL,
+  "value_added_benchmark" TEXT,
+  "tolerance" DOUBLE PRECISION,
+  "reason" TEXT,
+  "status" TEXT NOT NULL,
+  "year" INTEGER,
+  "year_source" TEXT,
+  "part_value_cny" BIGINT,
+  "bench_value_cny" BIGINT,
+  "deviation" DOUBLE PRECISION,
+  PRIMARY KEY ("partition"),
+  FOREIGN KEY ("partition") REFERENCES "partition"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "io_account" (
+  "partition" TEXT NOT NULL,
+  "year" INTEGER,
+  "output_cny" BIGINT,
+  "value_added_cny" BIGINT,
+  "intermediate_cny" BIGINT,
+  "intermediate_derived" INTEGER NOT NULL,
+  "va_ratio" DOUBLE PRECISION,
+  "identity_status" TEXT NOT NULL,
+  "deviation" DOUBLE PRECISION,
+  "anchor" TEXT,
+  "pool_status" TEXT,
+  "missing_reason" TEXT,
+  PRIMARY KEY ("partition"),
+  FOREIGN KEY ("partition") REFERENCES "partition"("id")
 );
 
 CREATE TABLE IF NOT EXISTS "money_gap" (
@@ -150,3 +198,13 @@ CREATE INDEX IF NOT EXISTS "idx_money_flow_src" ON "money_flow" ("src");
 CREATE INDEX IF NOT EXISTS "idx_money_flow_dst" ON "money_flow" ("dst");
 
 CREATE INDEX IF NOT EXISTS "idx_money_flow_kind" ON "money_flow" ("kind");
+
+CREATE INDEX IF NOT EXISTS "idx_money_flow_memo" ON "money_flow" ("memo");
+
+CREATE INDEX IF NOT EXISTS "idx_baseline_series_year" ON "baseline_series" ("year");
+
+CREATE INDEX IF NOT EXISTS "idx_baseline_link_status" ON "baseline_link" ("status");
+
+CREATE INDEX IF NOT EXISTS "idx_io_identity" ON "io_account" ("identity_status");
+
+CREATE INDEX IF NOT EXISTS "idx_io_pool" ON "io_account" ("pool_status");

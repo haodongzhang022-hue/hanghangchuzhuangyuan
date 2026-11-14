@@ -884,11 +884,13 @@ partitions:
     demand_side: [用户用能缴费, 政府定价]
     provider_mix: {ai: 0.0, hybrid: 50.0, human: 50.0}
     provider_mix_estimated: {ai: 25, hybrid: 35, human: 40}   # 人工估算留档，不参与展示
-    gdp_cny: 4000000000000
+    gdp_cny: 4600000000000
     gdp_kind: value_added
     gdp_scope: 电力热力燃气及水生产供应业增加值
-    gdp_source: 国家统计局增加值
+    gdp_source: 国家统计局·分行业增加值(电力热力燃气及水)
     gdp_confidence: high
+    gdp_year: 2023
+    gdp_year_basis: "2022-2023"
     employment: 300
     employment_source: 电力热力燃气水生产供应业从业人数
     unit_id: ''

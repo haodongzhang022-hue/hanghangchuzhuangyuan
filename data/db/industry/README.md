@@ -25,7 +25,10 @@ psql -d hanghang -f out/industry-db/10-data.sql
 - `gb_catalog`（9 列）— 职业分类大典（2022）参考表：只读旁证，补缺口时不必再找原始 PDF
 - `scale_metric`（9 列）— 六口径规模账：一行一个口径，缺的口径也占一行并写明为什么缺
 - `money_node`（8 列）— 资金流守恒账节点：五个机构部门 + 行业池
-- `money_flow`（6 列）— 资金流：from → to 双边记账，金额全用元（口径混用是这类账的头号死法）
+- `money_flow`（7 列）— 资金流：from → to 双边记账，金额全用元（口径混用是这类账的头号死法）
+- `baseline_series`（9 列）— 官方口径基准逐年表值：一个基准一个口径，一年一行
+- `baseline_link`（12 列）— 分区↔官方基准对表关系：equal/envelope 要比数值，incomparable 只登记
+- `io_account`（12 列）— 投入产出账：生产法三端 + 增加值率 + 行业池切分可行性
 - `money_gap`（5 列）— 对账差额与未观测登记：允许有差额，不允许差额没人解释
 
 ## 与另一套库的分工

@@ -55,7 +55,7 @@ FLOW_KINDS = {
     "export": "出口收入（境外 → 行业池）",
     "import": "进口支付（行业池 → 境外）",
     "intermediate": "中间投入（行业池 → 行业池）",
-    "allocation": "份额切分（部门总额 → 行业池，属分配而非交易）",
+    "allocation": "份额切分（部门总额 → 行业池；属摊开看，非新增流向，必须 memo）",
     "other": "其它（须在 note 说明）",
 }
 CONFIDENCE = ("high", "medium", "low")
@@ -63,6 +63,16 @@ CONFIDENCE = ("high", "medium", "low")
 # 节点对账容差：资金流量表与分项汇总本身就有口径差（约 3-8%），
 # 定 10% 只抓"漏了一整条流向"，不抓统计口径的零头。
 RECONCILE_TOLERANCE = 0.10
+
+
+# 备忘边：`allocation` 把部门总额**摊开看**，不是新发生的一笔钱。
+#
+# 为什么必须区分：制造业 33 万亿增加值本就含在企业部门那 110.5 万亿里，
+# 再记一条「企业 → 制造业 33 万亿」的流出，企业部门流出立刻变 143.5 万亿，
+# 对账偏差 30% 直接爆红 —— 而两条记录各自都是对的。**同一个数被记两遍，
+# 总计就假了**，这正是这套账要防的头号错。所以 memo 边不参与节点头寸与对账，
+# 只在"这个行业的钱是哪一段"这个视角里出现。
+MEMO_KINDS = ("allocation",)
 
 
 class MoneyFlowBook:
@@ -187,6 +197,11 @@ class MoneyFlowBook:
             return None
         return float(value)
 
+    @staticmethod
+    def is_memo(flow: dict) -> bool:
+        """这条边是不是"摊开看"的备忘边（不计入头寸与对账）。"""
+        return bool((flow or {}).get("memo"))
+
     def position(self, node_id: str) -> dict:
         """节点资金头寸：流入、流出、净额，以及"有多少条边数额待补"。
 
@@ -195,7 +210,13 @@ class MoneyFlowBook:
         """
         inflow = outflow = 0.0
         unknown = 0
+        memo = 0
         for f in self.flows_of(node_id):
+            if self.is_memo(f):
+                # 备忘边既不进流入也不进流出：它是对已有总额的分解，
+                # 计入任何一侧都会让这个节点凭空多出一笔钱。
+                memo += 1
+                continue
             amt = self._num(f.get("amount_cny"))
             if amt is None:
                 unknown += 1
@@ -205,16 +226,24 @@ class MoneyFlowBook:
             if f.get("from") == node_id:
                 outflow += amt
         return {"inflow": inflow, "outflow": outflow,
-                "net": inflow - outflow, "unknown_edges": unknown}
+                "net": inflow - outflow, "unknown_edges": unknown,
+                "memo_edges": memo}
 
     def totals(self) -> dict:
-        known = [v for v in (self._num(f.get("amount_cny"))
-                             for f in self.flows) if v is not None]
+        memo = [f for f in self.flows if self.is_memo(f)]
+        real = [f for f in self.flows if not self.is_memo(f)]
+        known = [v for v in (self._num(f.get("amount_cny")) for f in real)
+                 if v is not None]
         return {
             "nodes": len(self.nodes),
             "flows": len(self.flows),
             "flows_with_amount": len(known),
-            "flows_without_amount": len(self.flows) - len(known),
+            "flows_without_amount": len(real) - len(known),
+            # 备忘边单列：它参与"份额摊开"的完整性，不参与总资金量。
+            # 混进 gross 就等于把同一笔钱数两遍，总量直接虚增。
+            "memo_flows": len(memo),
+            "memo_with_amount": sum(1 for f in memo
+                                    if self._num(f.get("amount_cny")) is not None),
             "gross_cny": sum(known),
             # 双边记账的恒等式：全局流入合计 ≡ 全局流出合计。
             # 放在这里是为了让读的人一眼看见它是恒等式，别当校验点。
@@ -260,6 +289,41 @@ class MoneyFlowBook:
                 out.append(row)
         return out
 
+    # ---------------------------------------------------- 用生产法锚点切线
+    def allocation_rows(self, anchors: Dict[str, float]) -> List[dict]:
+        """行业池份额切分：拿到**增加值口径**锚点后才算，锚点由投入产出账给。
+
+        这是上轮"8 个池数额全待补"的直接收口：切分规则写在 input_output 的
+        `pool_rules` 里，能不能切由生产法决定（GMV / 成本总额 / 营业收入一律不可切，
+        因为部门层总额是增加值性质），这里只做"拿到锚点 → 填上金额"这一步。
+
+        三条刻意：
+          · 锚点缺失时**不填 0**，也不按产值比例摊 —— 摊出来的份额看起来合理，
+            实际上是错的，而错的数一旦进库，后面所有人都会当实测用。
+          · 返回的是**新行**，不改 self.flows：补数是幂等操作，改原对象会让
+            第二次调用看到"已经有金额"，于是再也补不回来或被覆盖成别的数。
+          · `kind` 固定 allocation（部门总额 → 行业池属分配，不是交易），
+            分类是聚合的唯一维度，混进 wage/tax 里按类型汇总时就会静默多出一笔。
+        """
+        rows: List[dict] = []
+        for f in self.flows:
+            dst = f.get("to") or ""
+            if not dst.startswith("pool:") or f.get("kind") != "allocation":
+                continue
+            pid = dst.split(":", 1)[1]
+            anchor = anchors.get(pid)
+            rows.append({
+                "from": f.get("from", ""), "to": dst, "kind": "allocation",
+                "partition": pid,
+                "amount_cny": anchor if anchor else None,
+                "confidence": "medium" if anchor else "low",
+                "basis": ("按投入产出账的增加值锚点切分（同口径，可入库）"
+                          if anchor else
+                          "无增加值口径锚点，不切（拿收入/GMV 切会重复计）"),
+                "filled": bool(anchor),
+            })
+        return rows
+
     def coverage_summary(self) -> dict:
         """这张账的可信度：多少节点有对账口径、多少资金流还没数额。"""
         rec = self.reconcile()
@@ -276,10 +340,15 @@ class MoneyFlowBook:
             "flows_without_amount": t["flows_without_amount"],
             "unobserved_entries": len(self.unobserved),
             "leaks": len(self.leaks),
-            # 闭合度：有多少比例的边已经有数额。这不是"准确度"，
+            # 闭合度：有多少比例的**真实**边已经有数额。这不是"准确度"，
             # 是"这张图画完了多少"，两者不能混着说。
-            "amount_coverage": (t["flows_with_amount"] / t["flows"]
-                                if t["flows"] else 0.0),
+            # 分母只算真实流：备忘边（份额摊开）本来就没数额，算进分母会让
+            # "图画完了"这个数永远上不去，于是没人再认真看它。
+            "amount_coverage": (t["flows_with_amount"]
+                                / (t["flows"] - t["memo_flows"])
+                                if (t["flows"] - t["memo_flows"]) else 0.0),
+            "memo_coverage": (t["memo_with_amount"] / t["memo_flows"]
+                              if t["memo_flows"] else 0.0),
         }
 
     # ------------------------------------------------------------ validate
@@ -364,6 +433,21 @@ class MoneyFlowBook:
                 problems.append(
                     f"资金流 {src}→{dst} 的 confidence={conf!r} 不在 "
                     f"{list(CONFIDENCE)} 中")
+            # memo 与 kind 必须一致：allocation 是"摊开看"，写进节点头寸就双计；
+            # 反过来把 wage 标成 memo 则会静默漏掉一笔真钱。
+            memo = f.get("memo")
+            if memo is not None and not isinstance(memo, bool):
+                problems.append(
+                    f"资金流 {src}→{dst} 的 memo={memo!r} 不是布尔"
+                    f"（写字符串 'true' 会被当真值，写 'false' 会被当假值，两种都危险）")
+            if kind in MEMO_KINDS and memo is not True:
+                problems.append(
+                    f"资金流 {src}→{dst} 的 kind={kind} 必须标 memo: true"
+                    f"（份额切分是对已有总额的分解，计入头寸会让部门凭空多出一笔钱）")
+            if kind not in MEMO_KINDS and memo is True:
+                problems.append(
+                    f"资金流 {src}→{dst} 的 kind={kind} 被标了 memo: true"
+                    f"（只有 {list(MEMO_KINDS)} 是备忘边；标错会静默漏掉一笔真钱）")
             key = (src, dst, kind)
             edge_seen[key] = edge_seen.get(key, 0) + 1
         for (src, dst, kind), cnt in edge_seen.items():
@@ -461,9 +545,12 @@ class MoneyFlowBook:
         lines = ["=" * 78,
                  f"资金流守恒账  v{self.version}  口径年份 {self.year_basis or '-'}",
                  "-" * 78,
-                 f"节点 {t['nodes']} 个（部门 + 行业池）  资金流 {t['flows']} 条："
+                 f"节点 {t['nodes']} 个（部门 + 行业池）  "
+                 f"**真实资金流** {t['flows'] - t['memo_flows']} 条："
                  f"已填数额 {t['flows_with_amount']} 条 / 待补 "
                  f"{t['flows_without_amount']} 条（图完整度 {s['amount_coverage']:.0%}）",
+                 f"备忘边 {t['memo_flows']} 条（份额摊开，不参与头寸与对账）："
+                 f"已填 {t['memo_with_amount']} 条 —— 计入头寸就会让部门凭空多出一笔钱",
                  f"对账口径: {s['nodes_with_declared']} 个节点有外部总量可比，"
                  f"其中对得上 {s['nodes_reconciled_ok']} 个；"
                  f"未观测登记 {s['unobserved_entries']} 条，已知差额 {s['leaks']} 条",
@@ -502,7 +589,8 @@ class MoneyFlowBook:
                 f"  {_cell(f.get('from', '?'), 22)}→ {_cell(f.get('to', '?'), 22)}"
                 f"{_cell(f.get('kind', ''), 14)}"
                 f"{(f'{amt / 1e8:,.0f} 亿' if amt is not None else '待补'):>14}"
-                f"  {f.get('confidence', '-')}")
+                f"  {f.get('confidence', '-')}"
+                + ("  [memo 摊开看]" if self.is_memo(f) else ""))
         if self.leaks:
             lines.append("-" * 78)
             lines.append("已知差额（有差额可以，不解释不行）：")

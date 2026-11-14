@@ -30,6 +30,8 @@ from typing import Dict, List, Optional
 import yaml
 
 from .global_framework import ClassificationSources, IscoCatalog
+from .input_output import InputOutputBook
+from .official_baseline import OfficialBaseline
 from .money_flow import MoneyFlowBook
 from .occupation_axis import AXES as OCC_AXES, OccupationAxis
 from .occupation_catalog import OccupationCatalog
@@ -111,8 +113,16 @@ class IndustryDatabase:
         # 资金流全 no_declared —— 那会进 validate，不会静默通过。
         self.scales: ScaleLedger = ScaleLedger(self.data_dir)
         self.money: MoneyFlowBook = MoneyFlowBook(self.data_dir)
+        # 官方口径基准（逐年对表）+ 投入产出账（生产法三端与去重）。
+        # 两本都是"框架先立、数后补"的账，缺失即降级为空账 —— 但空账会让
+        # high 置信度全部失去背书、生产法全部验不了，那会进 validate，不会静默通过。
+        self.baseline: OfficialBaseline = OfficialBaseline(self.data_dir)
+        self.input_output: InputOutputBook = InputOutputBook(self.data_dir)
         self.version = "0.1"
         self.updated_at = ""
+        # 分区文件顶层的年份声明（gdp_year_basis）。逐个分区回填这个字段会把
+        # 同一句话抄 41 遍，抄漏一处就静默变成"没有年份"，所以留在文件级。
+        self.gdp_year_basis = ""
         self.occupations: List[dict] = []
         self.partitions: List[dict] = []
         self._memberships_raw: List[dict] = []
@@ -144,6 +154,7 @@ class IndustryDatabase:
             with open(self.part_path, "r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
             self.partitions = data.get("partitions", []) or []
+            self.gdp_year_basis = str(data.get("gdp_year_basis", "") or "")
         else:
             logging.warning(f"缺少分区清单: {self.part_path}")
 
@@ -162,6 +173,8 @@ class IndustryDatabase:
         两本账不复制这两个字段，所以每次数据变动都要重新绑定。"""
         self.scales.bind(self.partitions)
         self.money.bind(self.partitions)
+        self.baseline.bind(self.partitions, self.gdp_year_basis)
+        self.input_output.bind(self.partitions)
 
     def _reindex(self) -> None:
         """按当前列表重建 id 索引（显式保留首次出现，不依赖 dict 覆盖顺序）。
@@ -463,6 +476,13 @@ class IndustryDatabase:
                 # 缺的数字照样是结论（"没有独立资产口径"本身就是行业特征），
                 # 所以它跟有数的口径一样要给出来。
                 "visibility": self.scales.visibility(p.get("id", "")),
+                # 对表结论：（官方基准、关系、偏差、结论）。没有可比口径的
+                # 分区给 status=unlinked 并带原因 —— "没有出处"本身是结论，
+                # 但必须能被下游看见，不能只在数据文件里写着。
+                "baseline": next((r for r in self.baseline.compare()
+                                  if r["partition"] == p.get("id", "")), None),
+                # 生产法结论：三端是否闭合、缺哪一端。切分可行性看它。
+                "input_output": self.input_output.identity(p.get("id", "")),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
 
@@ -560,6 +580,11 @@ class IndustryDatabase:
             # 资金流守恒账：图完整度（有多少边已填数额）与对账情况。
             # 恒等式「流入合计 = 流出合计」不在此列——它是恒等式，不是成果。
             "money": self.money.coverage_summary() if self.money else {},
+            # 官方口径基准：high 置信度有没有对表背书、逐年覆盖到什么程度。
+            # "有出处的数"与"没人验过的数"在出口上必须分得开。
+            "baseline": self.baseline.summary() if self.baseline else {},
+            # 投入产出账：生产法验到什么程度、哪些行业池现在能切（有增加值锚点）。
+            "input_output": self.input_output.summary() if self.input_output else {},
             "rows": rows,
         }
 
@@ -669,7 +694,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 23
+    VALIDATE_CHECK_COUNT = 25
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -748,6 +773,15 @@ class IndustryDatabase:
             **节点与外部口径对账**——图中画出的边求和与权威总量偏差超 10%
             即报，说明还有流向没画出来；没有对账口径的节点必须在 unobserved
             登记缺什么，否则"保证会漏"却静默通过。
+        24. 官方口径基准（逐年对表）：基准 id 唯一、series 年份在册且不重复、每个
+            基准都写出处；对表关系合法且 `incomparable` 必写 reason；**每个有产值的
+            分区都必须有对表、或没可比口径的说明**；`gap`（偏差超容差）逐条报；
+            标了 `gdp_confidence=high` 的分区必须有**通过**的对表背书 —— 否则
+            high 只是一句自我声明，谁都可以写，没人能证明。
+        25. 投入产出账（生产法）：`总产出 = 增加值 + 中间投入` 三端对不上即报；
+            缺的一端必须写清为什么；有产值的分区必须有生产法落点；三处不得重复计
+            —— 中间投入构成合计 = 总额（声明 complete 时）、某分区作为投入方的合计
+            不超过它自己的总产出、所有分区增加值合计不超过全国 GDP。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -1053,6 +1087,13 @@ class IndustryDatabase:
         # 23. 资金流守恒账：先守"账本真的读到了"（空账会逐条静默通过），
         #     再守双边记账与节点对账
         problems.extend(self.money.validate())
+
+        # 24-25. 官方口径基准（逐年对表）+ 投入产出账（生产法三端）。
+        # 这两本账回答的是同一个问题的两半：**这个数有没有出处**（对表）、
+        # **这个数会不会重复计**（生产法）。缺任一半，"可对外引用"就是空话。
+        self._bind_ledgers()
+        problems.extend(self.baseline.validate())
+        problems.extend(self.input_output.validate())
         return problems
 
     def _check_primary_keys(self) -> List[str]:

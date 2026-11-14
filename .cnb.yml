@@ -98,6 +98,10 @@ $:
             # 改了分区/职业字段却忘了重生成，或者 DDL 与数据灌不进库，这里拦下。
             # --check 会真灌一份临时 SQLite 再读回行数，不只看文件非空。
             python3 scripts/export_industry_db.py --check
+            # 数据盘存清单是「东西都在哪」的唯一答案：改了数据忘了重生成，
+            # 清单就会指向一份已不存在的文件 —— 而过期的清单比没有清单更坏，
+            # 它让人相信某份文件还在被用。
+            python3 scripts/gen_data_inventory.py --check
             # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
             # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
             # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
@@ -323,6 +327,7 @@ main:
             if [ "$rc" = "2" ]; then echo "⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
             python3 scripts/export_industry_db.py --check
+            python3 scripts/gen_data_inventory.py --check
         - name: M11 导出扁平表
           # 只做"导得出来"的产物校验：仓库没有 generic 制品库，CNB 也没有通用的
           # 文件产物上传入口（git:release 不支持附件），所以这里不假装有发布通道。
@@ -331,14 +336,16 @@ main:
             set -e
             pip install -q -r requirements.txt
             python3 src/hanghang/cli/main.py industry export --out out/industry-db
-            # 10 份产物：7 份给 BI/知识库直接吃（含六口径规模账与资金流守恒账的
-            # 扁平表），3 份是「买服务器直接建库」用的双方言 DDL + 与方言无关的数据 SQL。
+            # 12 份产物：9 份给 BI/知识库直接吃（六口径规模账、资金流守恒账、
+            # 官方基准对表、投入产出生产法各一份扁平表），3 份是「买服务器直接建库」
+            # 用的双方言 DDL + 与方言无关的数据 SQL。
             for f in industry-db.json partitions.csv occupations.csv industry.sqlite \
                      scales.csv money-nodes.csv money-flows.csv \
+                     baseline-check.csv io-accounts.csv \
                      00-schema.sqlite.sql 00-schema.postgresql.sql 10-data.sql; do
               test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
             done
-            echo "  ✅ 行业分区库 10 份导出产物齐全（含六口径账/资金流账与双方言 DDL）"
+            echo "  ✅ 行业分区库 12 份导出产物齐全（六口径/资金流/官方对表/生产法 + 双方言 DDL）"
     - name: build-knowledge-base
       stages:
         - name: knowledge update

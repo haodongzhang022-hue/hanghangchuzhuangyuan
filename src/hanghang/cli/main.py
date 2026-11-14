@@ -20,6 +20,7 @@ from hanghang.cli.industry_commands import (
     cmd_industry_catalog, cmd_industry_axis, cmd_industry_access,
     cmd_industry_occupation, cmd_industry_filter,
     cmd_industry_scale, cmd_industry_money,
+    cmd_industry_baseline, cmd_industry_io,
     cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
@@ -480,6 +481,28 @@ def build_parser():
     imoney.add_argument("--kinds", action="store_true", help="列出资金流类型及本账条数")
     imoney.add_argument("--data-dir", default="", help="自定义 data 目录")
     imoney.set_defaults(func=cmd_industry_money)
+
+    ibase = ind_sub.add_parser(
+        "baseline", help="官方口径基准：逐年对表，把 gdp_confidence 从自我声明变成可核对")
+    ibase.add_argument("--partition", default="", help="看单个分区的基准逐年值与出处")
+    ibase.add_argument("--benchmarks", action="store_true", help="只看官方基准表（逐年 series + 同比）")
+    ibase.add_argument("--only", default="",
+                       choices=["", "ok", "gap", "incomparable", "no_series",
+                                "unlinked", "unexplained"],
+                       help="只看某种对表结论")
+    ibase.add_argument("--top", type=int, default=0, help="只看前 N 条（0=全部）")
+    ibase.add_argument("--data-dir", default="", help="自定义 data 目录")
+    ibase.set_defaults(func=cmd_industry_baseline)
+
+    iio = ind_sub.add_parser(
+        "io", help="投入产出账：生产法三端 + 中间投入去重 + 行业池能不能切")
+    iio.add_argument("--partition", default="", help="看单个分区的三端与中间投入构成")
+    iio.add_argument("--pools", action="store_true", help="只看行业池切分可行性")
+    iio.add_argument("--only", default="", choices=["", "ok", "gap", "partial", "missing"],
+                     help="只看某种生产法结论")
+    iio.add_argument("--top", type=int, default=0, help="只看前 N 条（0=全部）")
+    iio.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iio.set_defaults(func=cmd_industry_io)
 
     icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
     icheck.add_argument("--data-dir", default="", help="自定义 data 目录")

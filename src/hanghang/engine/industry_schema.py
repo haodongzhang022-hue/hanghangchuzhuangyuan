@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple
 
 from .scale_ledger import SCALE_METRICS
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 
 # 列类型：text / int / bigint / real，两种方言各自映射到自己的类型名。
 #
@@ -183,9 +183,73 @@ TABLES: List[dict] = [
             ("amount_cny", "bigint", False),       # 元；NULL = 路径已知、数额待补，不是 0
             ("confidence", "text", False),
             ("basis", "text", False),
+            # 备忘边：把已有总额**摊开看**，不是新发生的一笔钱（allocation 恒为 1）。
+            # 不加这一列的话，下游按 src 求和会把制造业 33 万亿当成企业部门新增流出，
+            # 与 wage/tax 那些真实边一起加，总量凭空多出 41 万亿。
+            ("memo", "int", True),
         ],
         "pk": ("src", "dst", "kind"),
         "fk": [("src", "money_node", "id"), ("dst", "money_node", "id")],
+    },
+    {
+        # 官方表值逐年存：单年对表只证明"这一年碰巧对上"，官方每年修订，
+        # 所以年份是主键的一部分，不是一列备注。
+        "name": "baseline_series",
+        "comment": "官方口径基准逐年表值：一个基准一个口径，一年一行",
+        "columns": [
+            ("benchmark", "text", True),
+            ("name", "text", True),
+            ("kind", "text", True),               # 口径类型，同 GDP_KINDS
+            ("axis", "text", False),              # national_accounts / industry_stat
+            ("year", "int", True),
+            ("value_cny", "bigint", False),
+            ("source", "text", False),
+            ("confidence", "text", False),
+            ("note", "text", False),
+        ],
+        "pk": ("benchmark", "year"),
+    },
+    {
+        "name": "baseline_link",
+        "comment": "分区↔官方基准对表关系：equal/envelope 要比数值，incomparable 只登记",
+        "columns": [
+            ("partition", "text", True),
+            ("benchmark", "text", True),
+            ("relation", "text", True),           # equal / envelope / incomparable
+            ("value_added_benchmark", "text", False),
+            ("tolerance", "real", False),
+            ("reason", "text", False),
+            ("status", "text", True),             # ok/gap/incomparable/no_series/unlinked
+            ("year", "int", False),
+            ("year_source", "text", False),       # declared / basis_range
+            ("part_value_cny", "bigint", False),
+            ("bench_value_cny", "bigint", False),
+            ("deviation", "real", False),
+        ],
+        "pk": ("partition",),
+        "fk": [("partition", "partition", "id")],
+    },
+    {
+        # 生产法三端：总产出 = 增加值 + 中间投入。一行一个分区，缺的一端留 NULL
+        # 并有 missing_reason —— "缺一端"与"这一端是 0"在库里必须分得开。
+        "name": "io_account",
+        "comment": "投入产出账：生产法三端 + 增加值率 + 行业池切分可行性",
+        "columns": [
+            ("partition", "text", True),
+            ("year", "int", False),
+            ("output_cny", "bigint", False),
+            ("value_added_cny", "bigint", False),
+            ("intermediate_cny", "bigint", False),
+            ("intermediate_derived", "int", True),   # 1 = 由恒等式相减得出
+            ("va_ratio", "real", False),
+            ("identity_status", "text", True),       # ok/gap/partial/missing
+            ("deviation", "real", False),
+            ("anchor", "text", False),               # value_added / va_ratio / none
+            ("pool_status", "text", False),          # ready / blocked / unruled / ''
+            ("missing_reason", "text", False),       # 缺的那一端为什么缺（JSON 串）
+        ],
+        "pk": ("partition",),
+        "fk": [("partition", "partition", "id")],
     },
     {
         "name": "money_gap",
@@ -213,6 +277,11 @@ INDEXES = [
     ("idx_money_flow_src", "money_flow", ("src",)),
     ("idx_money_flow_dst", "money_flow", ("dst",)),
     ("idx_money_flow_kind", "money_flow", ("kind",)),
+    ("idx_money_flow_memo", "money_flow", ("memo",)),
+    ("idx_baseline_series_year", "baseline_series", ("year",)),
+    ("idx_baseline_link_status", "baseline_link", ("status",)),
+    ("idx_io_identity", "io_account", ("identity_status",)),
+    ("idx_io_pool", "io_account", ("pool_status",)),
 ]
 
 
@@ -275,6 +344,17 @@ def _lit(value) -> str:
     if isinstance(value, (int, float)):
         return repr(value)
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def _int(v):
+    """金额落库前转整：元为单位的金额不该带浮点尾巴。
+
+    33 万亿写进 BIGINT 是精确的，但 Python 侧算出来的是 float（`33000000000000.0`）。
+    直接入库不会报错，只是导出 SQL 里全是 `.0`，读的人会以为这是估算出来的小数。
+    """
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    return v
 
 
 def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
@@ -383,6 +463,7 @@ def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
                 f.get("from", ""), f.get("to", ""), f.get("kind", ""),
                 f.get("amount_cny"), f.get("confidence", "") or "",
                 f.get("basis", "") or "",
+                1 if f.get("memo") else 0,
             ))
         for lk in money.leaks:
             rows["money_gap"].append((
@@ -397,6 +478,57 @@ def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
             rows["money_gap"].append((
                 u.get("node", ""), "unobserved", "",
                 None, u.get("reason", "") or u.get("missing", "") or "",
+            ))
+    # ---- 官方基准逐年表值 + 分区对表结论 ----
+    base = getattr(db, "baseline", None)
+    if base is not None:
+        for b in base.benchmarks:
+            note = b.get("note", "") or ""
+            for r in (b.get("series") or []):
+                rows["baseline_series"].append((
+                    b.get("id", ""), b.get("name", ""), b.get("kind", ""),
+                    b.get("axis", "") or "",
+                    r.get("year"), r.get("value_cny"),
+                    r.get("source", "") or "", r.get("confidence", "") or "",
+                    note,
+                ))
+        for r in base.compare():
+            lk = base.link_of(r["partition"]) or {}
+            rows["baseline_link"].append((
+                r["partition"], r.get("benchmark", "") or "",
+                r.get("relation", "") or "",
+                lk.get("value_added_benchmark", "") or "",
+                r.get("tolerance"), r.get("reason", "") or "",
+                r["status"], r.get("year"), r.get("year_source", "") or "",
+                _int(r.get("part_value")), _int(r.get("bench_value")),
+                r.get("deviation"),
+            ))
+
+    # ---- 投入产出账：生产法三端 + 切分可行性 ----
+    io = getattr(db, "input_output", None)
+    if io is not None:
+        import json as _json
+        rules = {x["partition"]: x for x in io.pool_feasibility()}
+        for p in db.partitions:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            r = io.identity(pid)
+            rule = rules.get(pid) or {}
+            acc = io.accounts.get(pid) or {}
+            miss = {k: io.missing_reason(pid, k)
+                    for k in ("output", "value_added", "intermediate", "inputs")
+                    if io.missing_reason(pid, k)}
+            # 没有账户的分区不写年份：写上等于说"这一年的数已经核过"，
+            # 而它连三端都没有。空着才与 「missing」 语义一致。
+            rows["io_account"].append((
+                pid, io.year if acc else None,
+                _int(r["output"]), _int(r["value_added"]), _int(r["intermediate"]),
+                1 if r["derived"] else 0, r["va_ratio"], r["status"],
+                r["deviation"],
+                rule.get("anchor", "") or "",
+                rule.get("status", "") or "",
+                _json.dumps(miss, ensure_ascii=False) if miss else "",
             ))
     return rows
 

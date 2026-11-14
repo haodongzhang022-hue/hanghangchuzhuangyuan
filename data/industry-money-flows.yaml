@@ -122,6 +122,11 @@ pools:
 #   kind          资金类型（wage/consumption/procurement/transfer/tax/saving/
 #                 credit/interest/capex/export/import/intermediate/allocation/other）
 #   amount_cny    金额（元）；null = 路径已知、数额待补，**不是 0**
+#   memo          备忘边：这条不是新发生的钱，而是把已有总额**摊开看**。
+#                 `allocation` 一律 memo —— 制造业 33 万亿增加值本就含在企业部门
+#                 那 110.5 万亿里，再记一条流出，企业部门流出立刻变 143.5 万亿，
+#                 对账偏差 30% 爆红，而两条记录各自都是对的。同一个数记两遍，
+#                 总计就假了。memo 边不参与头寸与对账，只在"钱是哪一段"里出现。
 #   confidence    high / medium / low
 # ---------------------------------------------------------------------------
 flows:
@@ -264,6 +269,7 @@ flows:
   - from: sector-enterprise
     to: pool:manufacturing
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -271,6 +277,7 @@ flows:
   - from: sector-enterprise
     to: pool:construction-eng
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -278,6 +285,7 @@ flows:
   - from: sector-enterprise
     to: pool:logistics-supply
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -285,6 +293,7 @@ flows:
   - from: sector-enterprise
     to: pool:e-commerce
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -292,6 +301,7 @@ flows:
   - from: sector-enterprise
     to: pool:finance-invest
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -299,6 +309,7 @@ flows:
   - from: sector-enterprise
     to: pool:dongjiagoushi
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -306,6 +317,7 @@ flows:
   - from: sector-enterprise
     to: pool:healthcare
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
@@ -313,6 +325,7 @@ flows:
   - from: sector-enterprise
     to: pool:education-training
     kind: allocation
+    memo: true
     amount_cny: null
     confidence: low
     basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）

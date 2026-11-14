@@ -276,12 +276,32 @@ def test_pool_nodes_are_derived_from_pools_section():
 
 
 def test_null_amount_is_not_zero():
-    """amount_cny 为 null 的边仍让图完整，但不能被当成 0 参与净额"""
+    """amount_cny 为 null 的边仍让图完整，但不能被当成 0 参与净额。
+
+    行业池那条 `allocation` 现在是备忘边（memo）：它把部门总额摊开看，
+    不是新发生的一笔钱，所以既不进流入也不进"待补边"—— 但它照样挂在图上，
+    `memo_edges` 记着它存在。真正的"待补数额"要看非 memo 边。
+    """
     book = _db().money
     pos = book.position("pool:manufacturing")
     assert pos["inflow"] == 0.0
-    assert pos["unknown_edges"] == 1, pos
     assert pos["net"] == 0.0
+    # 摊开看的边要能被看见，但不能混进"待补数额"
+    assert pos["memo_edges"] >= 1, pos
+    assert all(f.get("memo") for f in book.flows_of("pool:manufacturing"))
+
+
+def test_null_real_flow_counts_as_unknown_not_zero():
+    """非 memo 边的 null 必须计进待补，且不许当 0 参与净额"""
+    book = _db().money
+    node = "sector-household"
+    before = book.position(node)
+    book.flows.append({"from": node, "to": "sector-government",
+                       "kind": "tax", "amount_cny": None})
+    after = book.position(node)
+    book.flows.pop()
+    assert after["unknown_edges"] == before["unknown_edges"] + 1, after
+    assert after["outflow"] == before["outflow"], after
 
 
 # ------------------------------------------------- 5. 汇总与导出
