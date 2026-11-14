@@ -24,8 +24,20 @@
 #   planned_roles 岗位命名骨架（待建分区专填）：单元未建时 unit_role 可空，
 #                 一旦填了就必须落在这份骨架里，防止建单元时随手编角色名。
 #   gdp_cny       年产值(元, 中国口径, 约占该产业规模)；null = 未可靠估算（禁止编造）
-#   gdp_scope     产值口径说明
+#   gdp_scope     产值口径说明（人话，给评审看）
 #   gdp_source    来源/估算方法
+#   gdp_kind      ★产值口径类型（机器可读，排序/汇总先按它分组）：
+#                   value_added  增加值（GDP 口径，可相互加总、可与国家统计局对表）
+#                   gross_output 总产值/总产出（含中间投入，加总会重复计算）
+#                   revenue      营业收入/行业收入（企业口径，含中间投入）
+#                   market_size  市场规模（第三方测算，范围常与统计口径不同）
+#                   cost_total   成本总额（物流费用/R&D 经费，本身就是投入不是产出）
+#                   gmv          交易额/流水（电商零售额、直播打赏，非增加值）
+#                   none         无市场口径（刻意留空，gdp_cny 必为 null）
+#                 加总只允许同口径相加：把 GMV 和增加值加在一起，数字越大越误导。
+#   gdp_confidence 口径置信度 high / medium / low（无 gdp_cny 时省略）：
+#                 高 = 官方统计直接可取；中 = 官方总额按分项拆分或行业报告；
+#                 低 = 第三方测算或量级拍脑袋 —— 低置信的数不参与对外引用。
 #   employment    该分区从业人员规模(万人，量级参考)；null/缺省 = 无可靠口径
 #   employment_source 就业口径来源
 #   unit_id       已承接该分区的注册单元（空=未建单元）
@@ -74,8 +86,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 62.5, human: 37.5}
     provider_mix_estimated: {ai: 50, hybrid: 40, human: 10}
     gdp_cny: 6000000000000
+    gdp_kind: revenue
     gdp_scope: 软件业务收入 + 信息技术服务收入（规上口径）
     gdp_source: 工信部软件业统计公报(量级估算)
+    gdp_confidence: medium
     employment: 900
     employment_source: 工信部软件业务收入口径从业人数(量级估算)
     unit_id: dongjiagoushi
@@ -93,8 +107,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 75.0, human: 25.0}
     provider_mix_estimated: {ai: 35, hybrid: 45, human: 20}
     gdp_cny: 3300000000000
+    gdp_kind: revenue
     gdp_scope: 游戏市场实际销售收入
     gdp_source: 中国音数协游戏工委年度报告(量级估算)
+    gdp_confidence: medium
     employment: 90
     employment_source: 音数协游戏工委从业人数(量级估算)
     unit_id: game-dev-unit
@@ -111,8 +127,10 @@ partitions:
     provider_mix: {ai: 25.0, hybrid: 50.0, human: 25.0}
     provider_mix_estimated: {ai: 40, hybrid: 50, human: 10}
     gdp_cny: 270000000000
+    gdp_kind: revenue
     gdp_scope: 法律服务行业营业收入
     gdp_source: 司法部/律协行业统计(量级估算)
+    gdp_confidence: medium
     employment: 80
     employment_source: 司法部律师/律所从业人数
     unit_id: legal-services
@@ -129,8 +147,10 @@ partitions:
     provider_mix: {ai: 50.0, hybrid: 50.0, human: 0.0}
     provider_mix_estimated: {ai: 60, hybrid: 35, human: 5}
     gdp_cny: 500000000000
+    gdp_kind: revenue
     gdp_scope: 数字内容/新媒体内容生产相关收入(窄口径, 不含版权交易)
     gdp_source: 平台公开口径+行业报告(量级估算, 低置信)
+    gdp_confidence: low
     employment: 300
     employment_source: 网络内容从业者估算(低置信，含兼职)
     unit_id: content-creation
@@ -147,8 +167,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 50.0, human: 50.0}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 800000000000
+    gdp_kind: market_size
     gdp_scope: 大数据产业市场规模中"分析服务"部分
     gdp_source: 大数据产业生态报告(量级估算, 与软件研发存在重叠)
+    gdp_confidence: medium
     employment: 150
     employment_source: 大数据产业从业人数(与软件研发重叠)
     unit_id: data-analytics
@@ -165,8 +187,10 @@ partitions:
     provider_mix: {ai: 20.0, hybrid: 60.0, human: 20.0}
     provider_mix_estimated: {ai: 40, hybrid: 40, human: 20}
     gdp_cny: 15000000000000
+    gdp_kind: gmv
     gdp_scope: 全国网上零售额(含平台交易额, 非增加值)
     gdp_source: 国家统计局社零/网上零售额(量级估算)
+    gdp_confidence: high
     employment: 700
     employment_source: 电商直接从业人数(含店主/客服/运营)
     unit_id: e-commerce
@@ -184,8 +208,10 @@ partitions:
     provider_mix: {ai: 16.7, hybrid: 66.7, human: 16.7}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 300000000000
+    gdp_kind: market_size
     gdp_scope: 代理记账/财税服务市场规模(窄口径)
     gdp_source: 财政部代理记账行业与市场报告(量级估算)
+    gdp_confidence: medium
     employment: 400
     employment_source: 代理记账+会计从业人员(窄口径)
     unit_id: finance-accounting
@@ -202,8 +228,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
     provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 1200000000000
+    gdp_kind: revenue
     gdp_scope: 广告经营额 + 营销服务收入
     gdp_source: 市场监管总局广告业统计(量级估算)
+    gdp_confidence: medium
     employment: 250
     employment_source: 广告与营销服务从业人数
     unit_id: marketing
@@ -220,8 +248,10 @@ partitions:
     provider_mix: {ai: 33.3, hybrid: 66.7, human: 0.0}
     provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 2000000000000
+    gdp_kind: market_size
     gdp_scope: 教育培训行业市场规模(含非学历培训)
     gdp_source: 教育部/行业报告(量级估算)
+    gdp_confidence: medium
     employment: 1100
     employment_source: 教育培训行业从业人数(含非学历培训)
     unit_id: education-training
@@ -238,8 +268,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 60.0, human: 40.0}
     provider_mix_estimated: {ai: 30, hybrid: 45, human: 25}
     gdp_cny: 9000000000000
+    gdp_kind: cost_total
     gdp_scope: 卫生总费用(含公立医疗, 其中市场化服务仅一部分)
     gdp_source: 国家卫健委卫生统计公报(量级估算)
+    gdp_confidence: high
     employment: 1400
     employment_source: 卫生技术人员数(含公立医疗)
     unit_id: healthcare
@@ -257,8 +289,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
     provider_mix_estimated: {ai: 35, hybrid: 45, human: 20}
     gdp_cny: 4000000000000
+    gdp_kind: market_size
     gdp_scope: 家装家居市场规模(含材料与施工)
     gdp_source: 建筑装饰协会/家装行业报告(量级估算)
+    gdp_confidence: medium
     employment: 600
     employment_source: 家装家居行业从业人数
     unit_id: home-design
@@ -275,8 +309,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 100.0, human: 0.0}
     provider_mix_estimated: {ai: 45, hybrid: 45, human: 10}
     gdp_cny: 2500000000000
+    gdp_kind: revenue
     gdp_scope: 人力资源服务业营业收入
     gdp_source: 人社部人力资源服务业统计(量级估算)
+    gdp_confidence: medium
     employment: 250
     employment_source: 人力资源服务业从业人数
     unit_id: hr-services
@@ -293,6 +329,7 @@ partitions:
     provider_mix: {ai: 25.0, hybrid: 50.0, human: 25.0}
     provider_mix_estimated: {ai: 50, hybrid: 40, human: 10}
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 无独立行业口径（属企业内部职能，产值计入各自主业）
     gdp_source: 不适用，刻意留空不编造
     employment: 1000
@@ -312,8 +349,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 80.0, human: 20.0}
     provider_mix_estimated: {ai: 55, hybrid: 40, human: 5}
     gdp_cny: 500000000000
+    gdp_kind: revenue
     gdp_scope: 设计服务业营业收入(含工业设计/平面设计)
     gdp_source: 设计行业报告(量级估算, 置信中等)
+    gdp_confidence: medium
     employment: 200
     employment_source: 设计服务业从业人数
     unit_id: design-visual
@@ -331,6 +370,7 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 10, hybrid: 35, human: 55}
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 并入语言服务总收入，本分区无独立口径（刻意留空，不按比例拍脑袋切分）
     gdp_source: 不适用，刻意留空；口径见 翻译本地化(translation)
     employment: null
@@ -355,8 +395,10 @@ partitions:
     provider_mix: {ai: 75.0, hybrid: 25.0, human: 0.0}
     provider_mix_estimated: {ai: 70, hybrid: 28, human: 2}
     gdp_cny: 70000000000
+    gdp_kind: gross_output
     gdp_scope: 语言服务行业总产值(含口译，口径未拆)
     gdp_source: 中国翻译协会年度报告(量级估算)
+    gdp_confidence: medium
     employment: 50
     employment_source: 翻译协会口径从业人数(含兼职，含口译)
     unit_id: ''
@@ -378,8 +420,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
     provider_mix_estimated: {ai: 45, hybrid: 40, human: 15}
     gdp_cny: 2500000000000
+    gdp_kind: revenue
     gdp_scope: 广播电视与网络视听行业收入
     gdp_source: 广电总局统计公报(量级估算)
+    gdp_confidence: medium
     employment: 300
     employment_source: 广电视听从业人数
     unit_id: ''
@@ -397,8 +441,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 30, hybrid: 40, human: 30}
     gdp_cny: 3000000000000
+    gdp_kind: value_added
     gdp_scope: 金融业增加值中财富管理/经纪相关部分
     gdp_source: 央行/证监会统计(量级估算)
+    gdp_confidence: medium
     employment: 800
     employment_source: 金融业从业人数(含银行/保险/证券代理)
     unit_id: ''
@@ -417,8 +463,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 30, hybrid: 40, human: 30}
     gdp_cny: 1500000000000
+    gdp_kind: revenue
     gdp_scope: 房地产服务业(中介/物业)收入
     gdp_source: 住建部/行业协会统计(量级估算)
+    gdp_confidence: medium
     employment: 500
     employment_source: 房地产中介与物业从业人数
     unit_id: ''
@@ -436,8 +484,10 @@ partitions:
     provider_mix: {ai: 42.9, hybrid: 0.0, human: 57.1}
     provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 5000000000000
+    gdp_kind: gross_output
     gdp_scope: 旅游业总收入(含住宿/餐饮/景区, 与餐饮有重叠)
     gdp_source: 文旅部统计(量级估算)
+    gdp_confidence: medium
     employment: 900
     employment_source: 旅游直接从业人数
     unit_id: ''
@@ -455,8 +505,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 20, hybrid: 30, human: 50}
     gdp_cny: 5000000000000
+    gdp_kind: revenue
     gdp_scope: 全国餐饮收入
     gdp_source: 国家统计局社零餐饮收入
+    gdp_confidence: high
     employment: 2000
     employment_source: 餐饮业从业人数
     unit_id: ''
@@ -475,8 +527,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 42.9, human: 57.1}
     provider_mix_estimated: {ai: 45, hybrid: 30, human: 25}
     gdp_cny: 18000000000000
+    gdp_kind: cost_total
     gdp_scope: 社会物流总费用(成本口径, 非增加值)
     gdp_source: 中国物流与采购联合会统计
+    gdp_confidence: medium
     employment: 5000
     employment_source: 物流与快递从业人数(含骑手/快递员)
     unit_id: ''
@@ -494,8 +548,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
     provider_mix_estimated: {ai: 30, hybrid: 30, human: 40}
     gdp_cny: 33000000000000
+    gdp_kind: value_added
     gdp_scope: 制造业增加值(整行业口径, 其中管理与技术岗是 AI 可承接部分)
     gdp_source: 国家统计局工业增加值
+    gdp_confidence: high
     employment: 8000
     employment_source: 制造业从业人数(规上+规下估算)
     unit_id: ''
@@ -514,8 +570,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 16.7, human: 83.3}
     provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: 32000000000000
+    gdp_kind: gross_output
     gdp_scope: 建筑业总产值
     gdp_source: 国家统计局建筑业统计
+    gdp_confidence: high
     employment: 5000
     employment_source: 建筑业从业人数
     unit_id: ''
@@ -533,8 +591,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 35, hybrid: 35, human: 30}
     gdp_cny: 800000000000
+    gdp_kind: revenue
     gdp_scope: 环保产业营业收入(含装备, 服务部分更小)
     gdp_source: 生态环境部环保产业统计(量级估算)
+    gdp_confidence: medium
     employment: 300
     employment_source: 环保产业从业人数
     unit_id: ''
@@ -552,8 +612,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: 5000000000000
+    gdp_kind: market_size
     gdp_scope: 汽车后市场市场规模(不含整车制造)
     gdp_source: 汽车流通协会/行业报告(量级估算)
+    gdp_confidence: medium
     employment: 400
     employment_source: 汽车后市场从业人数
     unit_id: ''
@@ -571,8 +633,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 25, hybrid: 25, human: 50}
     gdp_cny: 1000000000000
+    gdp_kind: revenue
     gdp_scope: 家政服务业营业收入(量级估算)
     gdp_source: 商务部家政服务业统计(量级估算)
+    gdp_confidence: low
     employment: 3000
     employment_source: 家政/照护从业人数(不含家庭无酬劳动)
     unit_id: ''
@@ -590,8 +654,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}
     gdp_cny: 500000000000
+    gdp_kind: market_size
     gdp_scope: 美容美发行业市场规模(量级估算)
     gdp_source: 行业协会报告(低置信)
+    gdp_confidence: low
     employment: 800
     employment_source: 美容美发从业人数
     unit_id: ''
@@ -609,8 +675,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}
     gdp_cny: 9000000000000
+    gdp_kind: value_added
     gdp_scope: 农林牧渔业增加值
     gdp_source: 国家统计局农业增加值
+    gdp_confidence: high
     employment: 17000
     employment_source: 农林牧渔业就业人数
     unit_id: ''
@@ -628,8 +696,10 @@ partitions:
     provider_mix: {ai: 16.7, hybrid: 33.3, human: 50.0}
     provider_mix_estimated: {ai: 40, hybrid: 35, human: 25}
     gdp_cny: 1000000000000
+    gdp_kind: value_added
     gdp_scope: 文化及相关产业增加值中内容创作生产部分
     gdp_source: 国家统计局文化产业统计
+    gdp_confidence: medium
     employment: 300
     employment_source: 文化内容生产从业人数(窄口径)
     unit_id: ''
@@ -647,6 +717,7 @@ partitions:
     provider_mix: {ai: 20.0, hybrid: 40.0, human: 40.0}
     provider_mix_estimated: {ai: 40, hybrid: 45, human: 15}
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 无市场产值口径（公共管理增加值不构成市场付费分区）
     gdp_source: 不适用，刻意留空
     employment: 2000
@@ -668,8 +739,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 20, hybrid: 15, human: 65}
     gdp_cny: 2000000000000
+    gdp_kind: gmv
     gdp_scope: 网络表演(直播)行业营收(含打赏流水口径，非增加值)；不含电竞与陪玩
     gdp_source: 中国演出行业协会网络表演分会年度报告(量级估算，低置信)
+    gdp_confidence: low
     employment: null
     employment_source: 网络表演从业人数与其他直播形态混统，故留空；口径见 note
     unit_id: ''
@@ -695,6 +768,7 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 33.3, human: 66.7}
     provider_mix_estimated: {ai: 15, hybrid: 30, human: 55}
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 并入文体娱乐业口径，本分区无独立统计（刻意留空，不与直播打赏合并算一份）
     gdp_source: 不适用，刻意留空；年度口径见音数协电竞报告(低置信)
     employment: null
@@ -718,6 +792,7 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 25, hybrid: 30, human: 45}
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 体育服务业中健身/培训分项，无单独发布口径（刻意留空）
     gdp_source: 不适用，刻意留空；体育产业总产出口径见 sport-games
     employment: null
@@ -742,8 +817,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 0.0, human: 100.0}
     provider_mix_estimated: {ai: 20, hybrid: 30, human: 50}
     gdp_cny: 3000000000000
+    gdp_kind: gross_output
     gdp_scope: 体育产业总产出(含用品制造，范围为产业整体，不是本分区独占)
     gdp_source: 国家体育总局体育产业统计(宽口径，量级估算)
+    gdp_confidence: medium
     employment: 500
     employment_source: 体育产业从业人数(宽口径，含用品制造与健身，量级估算)
     unit_id: ''
@@ -764,8 +841,10 @@ partitions:
     provider_mix: {ai: 33.3, hybrid: 33.3, human: 33.3}
     provider_mix_estimated: {ai: 50, hybrid: 45, human: 5}
     gdp_cny: 2500000000000
+    gdp_kind: cost_total
     gdp_scope: 研究与试验发展(R&D)经费中外部服务部分(窄口径)
     gdp_source: 国家统计局R&D经费投入统计
+    gdp_confidence: medium
     employment: 600
     employment_source: R&D人员中外部服务相关部分(窄口径)
     unit_id: ''
@@ -784,8 +863,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
     provider_mix_estimated: {ai: 15, hybrid: 20, human: 65}   # 人工估算留档，不参与展示
     gdp_cny: 5000000000000
+    gdp_kind: value_added
     gdp_scope: 采矿业增加值
     gdp_source: 国家统计局采矿业增加值
+    gdp_confidence: high
     employment: 400
     employment_source: 采矿业从业人数
     unit_id: ''
@@ -804,8 +885,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 50.0, human: 50.0}
     provider_mix_estimated: {ai: 25, hybrid: 35, human: 40}   # 人工估算留档，不参与展示
     gdp_cny: 4000000000000
+    gdp_kind: value_added
     gdp_scope: 电力热力燃气及水生产供应业增加值
     gdp_source: 国家统计局增加值
+    gdp_confidence: high
     employment: 300
     employment_source: 电力热力燃气水生产供应业从业人数
     unit_id: ''
@@ -824,8 +907,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 33.3, human: 66.7}
     provider_mix_estimated: {ai: 30, hybrid: 35, human: 35}   # 人工估算留档，不参与展示
     gdp_cny: 1000000000000
+    gdp_kind: market_size
     gdp_scope: 安防行业市场规模(量级估算)
     gdp_source: 安防协会报告(低置信)
+    gdp_confidence: low
     employment: 500
     employment_source: 军队/消防/安防从业人数(含现役，量级估算)
     unit_id: ''
@@ -843,8 +928,10 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 66.7, human: 33.3}
     provider_mix_estimated: {ai: 20, hybrid: 25, human: 55}   # 人工估算留档，不参与展示
     gdp_cny: 1500000000000
+    gdp_kind: gross_output
     gdp_scope: 水利环境与海洋产业相关投资/产值(口径杂, 量级参考)
     gdp_source: 水利部/自然资源部统计(量级估算)
+    gdp_confidence: low
     employment: 200
     employment_source: 水利与海洋产业从业人数
     unit_id: ''
@@ -863,6 +950,7 @@ partitions:
     provider_mix: {ai: 0.0, hybrid: 50.0, human: 50.0}
     provider_mix_estimated: {ai: 25, hybrid: 40, human: 35}   # 人工估算留档，不参与展示
     gdp_cny: null
+    gdp_kind: none
     gdp_scope: 无市场产值口径
     gdp_source: 不适用，刻意留空
     employment: 10

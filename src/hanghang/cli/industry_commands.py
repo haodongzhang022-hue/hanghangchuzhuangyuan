@@ -8,7 +8,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from hanghang.engine.industry_db import IndustryDatabase
+from hanghang.engine import industry_schema
+from hanghang.engine.industry_db import GDP_KINDS, IndustryDatabase
 
 
 def _db(args):
@@ -100,8 +101,15 @@ def cmd_industry_partition(args):
           + (f"（{p['employment_source']}）" if p.get("employment_source") else ""))
     print(f"  视角: {'/'.join(db.axes_of(p))}")
     print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
+    # 口径类型必须跟着数一起露脸：只说"2.5 万亿"不说是什么口径，
+    # 下游拿去和增加值并列就会把 GMV 当成 GDP。
+    kind = p.get("gdp_kind") or "未标口径"
+    conf = p.get("gdp_confidence")
+    print(f"  产值口径类型: {kind}"
+          + (f"（{GDP_KINDS[kind]}）" if kind in GDP_KINDS else "")
+          + (f"  置信度={conf}" if conf else ""))
     if p.get("gdp_scope"):
-        print(f"  产值口径: {p['gdp_scope']}")
+        print(f"  产值口径说明: {p['gdp_scope']}")
     if p.get("gdp_source"):
         print(f"  来源: {p['gdp_source']}")
     print(f"  单元: {p.get('unit_id') or '未建'}")
@@ -503,7 +511,8 @@ def cmd_industry_export(args):
         with open(ppath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["id", "name", "aliases", "status", "unit_id", "priority",
-                        "member_count", "gdp_cny", "gdp_scope", "provider_ai",
+                        "member_count", "gdp_cny", "gdp_kind", "gdp_confidence",
+                        "gdp_scope", "provider_ai",
                         "provider_hybrid", "provider_human", "provider_ai_declared",
                         "provider_hybrid_declared", "provider_human_declared",
                         "provider_ai_estimated", "provider_hybrid_estimated",
@@ -519,6 +528,9 @@ def cmd_industry_export(args):
                 w.writerow([r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                             r["unit_id"], r["priority"], r["member_count"],
                             r["gdp_cny"] if r["gdp_cny"] is not None else "",
+                            # 口径类型紧跟数字：只有 csv 里也带着，下游才不会把
+                            # GMV 和增加值丢进同一个 sum()
+                            r.get("gdp_kind", ""), r.get("gdp_confidence", ""),
                             r["gdp_scope"], mix.get("ai", ""), mix.get("hybrid", ""),
                             mix.get("human", ""),
                             dec.get("ai", ""), dec.get("hybrid", ""),
@@ -570,77 +582,30 @@ def cmd_industry_export(args):
         if os.path.exists(spath):
             os.remove(spath)
         conn = sqlite3.connect(spath)
-        conn.execute("""CREATE TABLE partition(
-            id TEXT PRIMARY KEY, name TEXT, aliases TEXT, status TEXT,
-            unit_id TEXT, priority TEXT, gdp_cny INTEGER, gdp_scope TEXT,
-            gdp_source TEXT, provider_ai REAL, provider_hybrid REAL,
-            provider_human REAL, provider_ai_declared REAL,
-            provider_hybrid_declared REAL, provider_human_declared REAL,
-            provider_ai_estimated REAL, provider_hybrid_estimated REAL,
-            provider_human_estimated REAL,
-            access_paid_direct REAL, access_non_market REAL,
-            access_org_internal REAL, access_household REAL,
-            employment_wan REAL, axes TEXT, axis_edges TEXT,
-            demand_side TEXT, cluster_basis TEXT, channels TEXT, note TEXT)""")
-        conn.execute("""CREATE TABLE occupation(
-            code TEXT PRIMARY KEY, id TEXT UNIQUE, name TEXT,
-            deliverable TEXT, provider TEXT, billing TEXT, access TEXT,
-            baseline INTEGER, gb_code TEXT, gb_name TEXT, note TEXT)""")
-        # 边单独一张表：多视角是常态，塞进 occupation 行里就退化成单值归属
-        conn.execute("""CREATE TABLE membership(
-            occupation TEXT, partition TEXT, axis TEXT, weight REAL,
-            unit_role TEXT, PRIMARY KEY (occupation, partition, axis))""")
-        for r in snapshot["rows"]:
-            mix = r["provider_mix"] or {}
-            dec = r.get("provider_mix_declared") or {}
-            acc = r.get("access_mix") or {}
-            est = r.get("provider_mix_estimated") or {}
-            conn.execute(
-                f"INSERT INTO partition VALUES ({','.join('?' * 29)})",
-                (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
-                 r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
-                 r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
-                 mix.get("human"), dec.get("ai"), dec.get("hybrid"),
-                 dec.get("human"),
-                 est.get("ai"), est.get("hybrid"), est.get("human"),
-                 acc.get("paid_direct"), acc.get("non_market"),
-                 acc.get("org_internal"), acc.get("household"),
-                 r.get("employment"), "|".join(r.get("axes", [])),
-                 "|".join(f"{k}:{v}" for k, v in
-                          (r.get("axis_edges") or {}).items() if v),
-                 "|".join(r["demand_side"]),
-                 "|".join(r["cluster_basis"]), "|".join(r["channels"]),
-                 r["note"]))
-        for o in db.occupations:
-            gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
-            entry = db.catalog.entry(gb) if (db.catalog and gb) else None
-            conn.execute(
-                f"INSERT INTO occupation VALUES ({','.join('?' * 11)})",
-                (o.get("code", ""), o.get("id", ""), o.get("name", ""),
-                 o.get("deliverable", ""), o.get("provider", ""),
-                 o.get("billing", ""), db.access_of(o),
-                 1 if o.get("baseline_occupation") else 0,
-                 gb, (entry or {}).get("name", ""), o.get("note", "")))
-        for m in db.axis_view.memberships:
-            conn.execute("INSERT OR REPLACE INTO membership VALUES (?,?,?,?,?)",
-                         (m.get("occupation", ""), m.get("partition", ""),
-                          m.get("axis", ""), m.get("weight", 1.0),
-                          m.get("unit_role", "")))
-        # 大典参考表整表导出：补全缺口时不必再去找原始 PDF
-        if db.catalog is not None:
-            conn.execute("""CREATE TABLE gb_catalog(
-                code TEXT PRIMARY KEY, name TEXT, gbm TEXT, major TEXT,
-                middle TEXT, minor TEXT, marks TEXT, path TEXT, desc TEXT)""")
-            for e in db.catalog.occupations:
-                conn.execute("INSERT INTO gb_catalog VALUES (?,?,?,?,?,?,?,?,?)",
-                             (e.get("code", ""), e.get("name", ""), e.get("gbm", ""),
-                              e.get("major", ""), e.get("middle", ""),
-                              e.get("minor", ""), "|".join(e.get("marks") or []),
-                              db.catalog.path_of(e.get("code", "")),
-                              e.get("desc", "")))
+        # 建表语句从单源渲染，不再手写在 CLI 里：手写那版只有 SQLite 方言、
+        # 列顺序靠 tuple 位置对齐，加一列要同时改三处，漏一处就静默错位。
+        conn.executescript(industry_schema.ddl("sqlite"))
+        rows = industry_schema.rows_of(db, snapshot)
+        for table in industry_schema.TABLES:      # 按定义顺序插入，外键不悬空
+            cols = industry_schema.columns_of(table["name"])
+            sql = (f'INSERT INTO "{table["name"]}" ('
+                   + ", ".join(f'"{c}"' for c in cols) + ") VALUES ("
+                   + ", ".join("?" * len(cols)) + ")")
+            conn.executemany(sql, rows[table["name"]])
         conn.commit()
         conn.close()
         written.append(spath)
+
+        # 双方言 DDL + 与方言无关的数据 SQL：买服务器时把这三份丢进去就能建库，
+        # 不需要跑 Python，也不需要人工把 SQLite 语法改写成 PG。
+        for name, content in (
+                ("00-schema.sqlite.sql", industry_schema.ddl("sqlite")),
+                ("00-schema.postgresql.sql", industry_schema.ddl("postgresql")),
+                ("10-data.sql", industry_schema.data_sql(db, snapshot))):
+            path = os.path.join(out, name)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            written.append(path)
 
     print(f"已导出 {len(written)} 个文件到 {out}/ :")
     for p in written:

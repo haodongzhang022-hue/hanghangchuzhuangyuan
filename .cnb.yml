@@ -94,6 +94,10 @@ $:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            # 结构产物（data/industry-db/*.sql）是「买服务器怎么建库」的契约：
+            # 改了分区/职业字段却忘了重生成，或者 DDL 与数据灌不进库，这里拦下。
+            # --check 会真灌一份临时 SQLite 再读回行数，不只看文件非空。
+            python3 scripts/export_industry_db.py --check
             # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
             # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
             # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
@@ -318,6 +322,7 @@ main:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            python3 scripts/export_industry_db.py --check
         - name: M11 导出扁平表
           # 只做"导得出来"的产物校验：仓库没有 generic 制品库，CNB 也没有通用的
           # 文件产物上传入口（git:release 不支持附件），所以这里不假装有发布通道。
@@ -326,10 +331,13 @@ main:
             set -e
             pip install -q -r requirements.txt
             python3 src/hanghang/cli/main.py industry export --out out/industry-db
-            for f in industry-db.json partitions.csv occupations.csv industry.sqlite; do
+            # 7 份产物：4 份给 BI/知识库直接吃，3 份是「买服务器直接建库」用的
+            # 双方言 DDL + 与方言无关的数据 SQL。
+            for f in industry-db.json partitions.csv occupations.csv industry.sqlite \
+                     00-schema.sqlite.sql 00-schema.postgresql.sql 10-data.sql; do
               test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
             done
-            echo "  ✅ 行业分区库 4 个扁平表导出正常"
+            echo "  ✅ 行业分区库 7 份导出产物齐全（含双方言 DDL 与数据 SQL）"
     - name: build-knowledge-base
       stages:
         - name: knowledge update

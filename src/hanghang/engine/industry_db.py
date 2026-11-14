@@ -52,6 +52,22 @@ DEFAULT_ACCESS = "paid_direct"
 # 四根轴（与 global_framework.AXES 对齐）。分区缺省即四轴都可看。
 AXES = ("occupation", "industry", "tax", "output")
 
+# 产值口径类型（gdp_kind）。**加总只允许同口径**：把 GMV 和增加值加在一起，
+# 数字越大越误导 —— 电商 15 万亿是交易额，制造业 33 万亿是增加值，两者不同义。
+GDP_KINDS = {
+    "value_added": "增加值（GDP 口径，可加总、可与统计年鉴对表）",
+    "gross_output": "总产值/总产出（含中间投入，加总会重复计算）",
+    "revenue": "营业收入/行业收入（企业口径，含中间投入）",
+    "market_size": "市场规模（第三方测算，范围常与统计口径不同）",
+    "cost_total": "成本总额（物流费用/R&D 经费，本身就是投入不是产出）",
+    "gmv": "交易额/流水（零售额、打赏流水，非增加值）",
+    "none": "无市场口径（刻意留空，gdp_cny 必为 null）",
+}
+# 口径置信度：低置信的数可以排序定权重，但不许对外引用
+GDP_CONFIDENCE = ("high", "medium", "low")
+# 没有市场口径时唯一合法的口径类型
+GDP_KIND_NONE = "none"
+
 
 class IndustryDatabase:
     """行业分区定义库：occupation（最小单位）+ partition（聚类结果）。"""
@@ -327,6 +343,23 @@ class IndustryDatabase:
         gdp_total = sum(p.get("gdp_cny") or 0 for p in self.partitions)
         gdp_covered = sum(p.get("gdp_cny") or 0 for p in self.partitions
                           if p.get("status") == "covered")
+        # 按口径分组：**只有同口径的数才能相加**。把 GMV 和增加值求和，
+        # 得到的"合计产值"越大越误导，所以汇总得按 gdp_kind 分开给。
+        gdp_by_kind: Dict[str, dict] = {}
+        for p in self.partitions:
+            kind = p.get("gdp_kind") or "unlabeled"
+            bucket = gdp_by_kind.setdefault(kind, {
+                "kind": kind, "label": GDP_KINDS.get(kind, "未标口径"),
+                "partitions": 0, "with_gdp": 0, "total_cny": 0,
+                "confidence": {k: 0 for k in GDP_CONFIDENCE},
+            })
+            bucket["partitions"] += 1
+            if p.get("gdp_cny"):
+                bucket["with_gdp"] += 1
+                bucket["total_cny"] += p["gdp_cny"]
+            conf = p.get("gdp_confidence")
+            if conf in bucket["confidence"]:
+                bucket["confidence"][conf] += 1
 
         # 供给结构：一律由成员职业的 provider 实测得出，与「不存第二份清单」一致。
         # 分区手写的 provider_mix 只作对账留档（provider_mix_declared），不参与展示。
@@ -366,6 +399,9 @@ class IndustryDatabase:
                 "gdp_cny": p.get("gdp_cny"),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
+                "gdp_kind": p.get("gdp_kind", "") or "",
+                "gdp_kind_label": GDP_KINDS.get(p.get("gdp_kind", ""), ""),
+                "gdp_confidence": p.get("gdp_confidence", "") or "",
                 "employment": p.get("employment"),
                 "employment_source": p.get("employment_source", ""),
                 "access_mix": self._round_mix(
@@ -439,9 +475,14 @@ class IndustryDatabase:
                                   if buildable else 0.0,
             "evaluated_partitions": sum(
                 1 for p in self.partitions if p.get("status") == "evaluated"),
+            # 合计产值只是**量级参考**：跨口径相加没有经济学意义（GMV + 增加值 +
+            # 成本总额），所以真正的分组在 gdp_by_kind，这个总和只用于看体量级。
             "gdp_total_cny": gdp_total,
             "gdp_covered_cny": gdp_covered,
             "gdp_known_partitions": len(gdp_known),
+            "gdp_by_kind": [gdp_by_kind[k] for k in
+                            sorted(gdp_by_kind, key=lambda k: -gdp_by_kind[k]["total_cny"])],
+            "gdp_comparable_cny": (gdp_by_kind.get("value_added") or {}).get("total_cny", 0),
             "provider_mix": provider_mix,
             "provider_mix_n": mix_n["n"],
             "access_mix": access_mix,
@@ -520,9 +561,22 @@ class IndustryDatabase:
                          + self._cell(r["member_count"], 8)
                          + self._cell(gdp, 10) + self._cell(ai, 7) + demand)
         lines.append("-" * 72)
-        lines.append(f"有产值口径的分区 {s['gdp_known_partitions']}/{s['total_partitions']}，"
-                     f"合计产值 {s['gdp_total_cny'] / 1e12:.1f} 万亿元(量级参考，"
-                     f"非官方统计，含口径重叠)")
+        lines.append(f"有产值口径的分区 {s['gdp_known_partitions']}/{s['total_partitions']}"
+                     f"（量级参考，非官方统计）。**按口径分组，只有同口径才能相加**：")
+        # 只打口径键不打中文标签：中文按字符数定宽会把后面几列顶歪，
+        # 而口径解释本来就不该占表格（文档里有对照表）。
+        for b in s["gdp_by_kind"]:
+            head = "  " + self._cell(b["kind"], 14)
+            if b["kind"] == "none":
+                lines.append(head + f"{b['partitions']:>3} 个分区（刻意留空，不参与加总）")
+                continue
+            lines.append(head + f"{b['with_gdp']:>3} 个分区有数"
+                         f"  合计 {b['total_cny'] / 1e12:>7.1f} 万亿元"
+                         f"  置信度 高{b['confidence']['high']}"
+                         f"/中{b['confidence']['medium']}"
+                         f"/低{b['confidence']['low']}")
+        lines.append(f"  → 可对外引用的只有增加值口径：{s['gdp_comparable_cny'] / 1e12:.1f}"
+                     f" 万亿元；其余口径（GMV/成本总额/总产值）跨口径相加会让数字越大越错")
         lines.append("=" * 72)
         return "\n".join(lines)
 
@@ -564,7 +618,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 19
+    VALIDATE_CHECK_COUNT = 20
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -621,6 +675,10 @@ class IndustryDatabase:
             认领，建单元那天会直接对不上）；反过来，成员填了 unit_role 而骨架没
             声明，由第 10 条报"缺骨架"。只认**本分区**的边：岗位名是分区内命名，
             拿别处的同名边背书等于允许凭空加一个别处在用的名字。
+        20. 产值口径标签 gdp_kind 必须合法，且与 gdp_cny 互斥一致：有产值必须指明
+            口径类型（增加值/总产值/营业收入/市场规模/成本总额/GMV），无产值必须是
+            ``none``。不标口径的数字加在一起就是误导 —— 把电商交易额和制造业增加值
+            求和，得到的数越大越错。gdp_confidence 若填必须是 high/medium/low。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -838,6 +896,34 @@ class IndustryDatabase:
                     problems.append(
                         f"分区 {pid} 的 employment={emp!r} 不是非负数"
                         f"（没口径请留空，别填 0 冒充实测）")
+            # 20. 产值口径标签（gdp_kind）：不标口径的数字加在一起就是误导。
+            # 三件事一起守：枚举合法、有无产值与口径类型互斥一致、置信度合法。
+            kind = p.get("gdp_kind")
+            if kind is None:
+                problems.append(
+                    f"分区 {pid} 缺 gdp_kind（有产值须标增加值/总产值/营业收入/"
+                    f"市场规模/成本总额/GMV，无产值须标 none；不标口径的数不能加总）")
+            elif kind not in GDP_KINDS:
+                problems.append(
+                    f"分区 {pid} 的 gdp_kind={kind!r} 不在合法口径 "
+                    f"{list(GDP_KINDS)} 中（拼错会让口径分组漏掉这一行）")
+            elif p.get("gdp_cny") and kind == GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 填了 gdp_cny={p.get('gdp_cny')} 却标 "
+                    f"gdp_kind=none（口径与数字自相矛盾）")
+            elif not p.get("gdp_cny") and p.get("gdp_cny") is not None \
+                    and kind != GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 的 gdp_cny=0 且 gdp_kind={kind}（0 是实测值不是缺失，"
+                    f"没有口径请留空并标 none）")
+            elif p.get("gdp_cny") is None and kind != GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 无 gdp_cny 却标 gdp_kind={kind}（无产值口径须标 none）")
+            conf = p.get("gdp_confidence")
+            if conf is not None and conf not in GDP_CONFIDENCE:
+                problems.append(
+                    f"分区 {pid} 的 gdp_confidence={conf!r} 不在 "
+                    f"{list(GDP_CONFIDENCE)} 中")
 
         # 18. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
         # 与第 14 条同口径：加载失败要报出来，不能因为"读不出来"就静默当没问题。
