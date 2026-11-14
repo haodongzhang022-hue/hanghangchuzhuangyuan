@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple
 
 from .scale_ledger import SCALE_METRICS
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 
 # 列类型：text / int / bigint / real，两种方言各自映射到自己的类型名。
 #

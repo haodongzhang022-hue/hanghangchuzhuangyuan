@@ -84,6 +84,10 @@ class MoneyFlowBook:
         # 而任何访问 book.pools 的代码（导出、校验、测试）都会 AttributeError——
         # 降级路径本身不该比错误数据更脆。
         self.pools: List[dict] = []
+        # 是否真读到了东西：`os.path.exists` 答不了这个问题 —— 文件在、内容却
+        # 只有注释（一个空账）时它照样返回 True，于是"每条校验都没有违规"，
+        # 自检全绿。缺文件和空账要分开报，而且都是硬失败。
+        self.loaded = False
         # 先绑分区表再 _load：pools 段派生行业池节点时要用分区中文名
         self._partitions = partitions or []
         self._load()
@@ -102,6 +106,8 @@ class MoneyFlowBook:
         self.unobserved = data.get("unobserved", []) or []
         self.leaks = data.get("leaks", []) or []
         self.pools = data.get("pools", []) or []
+        # 有 flows 或有 nodes 才算真读到账；只写了 version 注释的文件不算。
+        self.loaded = bool(self.flows or self.nodes or self.pools)
         self._derive_pool_nodes()
 
     def _derive_pool_nodes(self) -> None:
@@ -143,6 +149,19 @@ class MoneyFlowBook:
             if n.get("id") == node_id:
                 return n
         return None
+
+    @staticmethod
+    def gap_side(row: dict, kind: str) -> str:
+        """money_gap 的 side 规范化：空串 → ``n/a``。
+
+        导出与校验**必须共用这一个函数**：主键是 (node, kind, side)，而
+        `unobserved` 的 side 恒空、`leaks` 不写 side 时也空 —— 不规范化的话
+        库里会出现 side='' 的两条，SQLite 的非整数主键不去重 NULL/空串，
+        validate 又只查节点存在性，于是"校验绿、导库撞 UNIQUE"。
+        """
+        if kind == "unobserved":
+            return ""
+        return (row.get("side") or "") or "n/a"
 
     def node_ids(self) -> List[str]:
         return [n.get("id", "") for n in self.nodes if n.get("id")]
@@ -222,6 +241,7 @@ class MoneyFlowBook:
         declared = [r for r in rec if r["status"] in ("ok", "gap")]
         t = self.totals()
         return {
+            "loaded": bool(self.loaded),
             "nodes": t["nodes"],
             "nodes_with_declared": len({r["node"] for r in declared}),
             "nodes_reconciled_ok": len({r["node"] for r in rec
@@ -249,6 +269,10 @@ class MoneyFlowBook:
             problems.append(
                 f"未读到资金流守恒账: {self.path}"
                 f"（数据源缺失，自检不能视为通过）")
+        elif not self.loaded:
+            problems.append(
+                f"资金流守恒账是空账: {self.path}"
+                f"（文件在但没有任何节点/资金流——空账不可能守恒任何东西）")
         elif not self.nodes:
             problems.append(
                 f"资金流守恒账里没有任何节点: {self.path}"
@@ -363,10 +387,10 @@ class MoneyFlowBook:
         # 「同一笔钱记两遍」在 flow 上是明确拦的，gap 上不能漏。
         gap_keys: Dict[tuple, int] = {}
         for u in self.unobserved:
-            key = (u.get("node", ""), "unobserved", "")
+            key = (u.get("node", ""), "unobserved", self.gap_side(u, "unobserved"))
             gap_keys[key] = gap_keys.get(key, 0) + 1
         for lk in self.leaks:
-            key = (lk.get("node", ""), "gap", lk.get("side", "") or "")
+            key = (lk.get("node", ""), "gap", self.gap_side(lk, "gap"))
             gap_keys[key] = gap_keys.get(key, 0) + 1
         for (node, kind, side), cnt in gap_keys.items():
             if cnt > 1:

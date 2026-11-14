@@ -241,6 +241,38 @@ def test_committed_ddl_matches_current_schema():
     assert "导入往返" in proc.stdout, proc.stdout
 
 
+def test_int_columns_hold_the_values_they_store():
+    """评审 2 的通用化：任何 int 档列的实际值都必须落在该类型的区间内。
+
+    只断言"金额列叫 BIGINT"不够 —— 下次谁再加一个以元计的列却写成 `int`，
+    PG 会在 `psql -f 10-data.sql` 那一刻炸，而 SQLite 一声不响。
+    这里遍历**所有** int 档列的真实值去比上限。
+    """
+    from hanghang.engine import industry_schema as sch
+    db = _db()
+    rows = sch.rows_of(db, db.compute())
+    limits = {"int": 2 ** 31 - 1, "bigint": 2 ** 63 - 1}
+    bad = []
+    for table in sch.TABLES:
+        for idx, (col, typ, _nullable) in enumerate(table["columns"]):
+            if typ not in limits:
+                continue
+            for row in rows[table["name"]]:
+                val = row[idx]
+                if isinstance(val, bool) or not isinstance(val, int):
+                    continue
+                if abs(val) > limits[typ]:
+                    bad.append(f"{table['name']}.{col}={val} 超出 {typ} 上限")
+    assert not bad, bad
+
+
+def test_ci_pipeline_points_to_real_ddl_dir():
+    """评审 3：注释里写错路径，后面就有人照它找文件"""
+    cfg = open(os.path.join(ROOT, ".cnb.yml"), encoding="utf-8").read()
+    assert "data/db/industry/*.sql" in cfg
+    assert "data/industry-db/*.sql" not in cfg
+
+
 def test_csv_and_sqlite_carry_gdp_kind():
     """口径标签要一路带到出口：csv 里只有数字、没有口径，下游就会把 GMV 当 GDP"""
     import csv as _csv

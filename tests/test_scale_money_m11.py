@@ -304,6 +304,51 @@ def test_scale_metric_table_is_one_row_per_metric():
         assert (value is None) != (reason == ""), (metric, value, reason)
 
 
+def test_empty_ledger_file_is_not_silent_pass():
+    """评审二轮：文件在、内容只有注释（空账）时 `exists()` 返回 True，
+    于是"每条校验都没有违规"，自检全绿。缺文件和空账必须分开报。"""
+    import shutil
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        for name in ("industry-occupations.yaml", "industry-partitions.yaml",
+                     "occupation-memberships.yaml"):
+            shutil.copy2(os.path.join(ROOT, "data", name),
+                         os.path.join(td, name))
+        shutil.copytree(os.path.join(ROOT, "data", "reference"),
+                        os.path.join(td, "reference"))
+        shutil.copy2(os.path.join(ROOT, "data", "industry-scales.yaml"),
+                     os.path.join(td, "industry-scales.yaml"))
+        with open(os.path.join(td, "industry-money-flows.yaml"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("version: '0.1'\n# 只有注释\n")
+        problems = IndustryDatabase(data_dir=td).validate()
+    assert any("空账" in p for p in problems), problems
+
+
+def test_gap_side_is_normalized_for_export_and_validate():
+    """评审二轮：money_gap 主键 (node,kind,side)，leaks 不写 side 时要规范成 n/a，
+    导出与校验必须共用同一个口径 —— 否则「没写」和「写了空」永远分不清。"""
+    from hanghang.engine import industry_schema
+    db = _db()
+    # 已有 leaks 里 sector-government/in 已有一条；再记一笔同侧的就是重复
+    db.money.leaks.append({"node": "sector-government", "side": "in",
+                           "amount_cny": 1e11, "reason": "第二笔"})
+    assert any("sector-government" in p and "登记了 2 次" in p
+               for p in db.money.validate())
+    # 删掉重复项后必须能干净落库（反证：不是靠报错掩盖主键冲突）
+    db.money.leaks.pop()
+    rows = industry_schema.rows_of(db, db.compute())["money_gap"]
+    keys = [(r[0], r[1], r[2]) for r in rows]
+    assert len(keys) == len(set(keys)), keys
+    assert all(r[2] for r in rows if r[1] == "gap"), "gap 行的 side 不许为空"
+
+
+def test_loaded_flag_is_exposed():
+    """读 summary 的人不该看到一张"干净且空"的账"""
+    db = _db()
+    assert db.money.coverage_summary()["loaded"] is True
+
+
 def test_money_table_columns_are_aligned():
     """评审 4-补充：CJK 按字符数补空格会把后几列顶歪（'待补边' 3 字 6 列，给 5 列就超）"""
     import unicodedata
