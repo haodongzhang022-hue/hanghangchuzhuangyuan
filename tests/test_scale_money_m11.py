@@ -304,6 +304,63 @@ def test_scale_metric_table_is_one_row_per_metric():
         assert (value is None) != (reason == ""), (metric, value, reason)
 
 
+def test_default_data_dir_points_to_repo_data():
+    """评审四轮 P0：默认 data_dir 少一级（../../data 只到 src/data）。
+
+    不带参数构造必然读到空账，而空账在 CLI/Web 上表现为"六个口径全空 /
+    零个资金流节点"——看起来像数据没补，实际是路径错了。
+    """
+    from hanghang.engine.money_flow import MoneyFlowBook
+    from hanghang.engine.scale_ledger import ScaleLedger
+    sl, book = ScaleLedger(), MoneyFlowBook()
+    assert os.path.exists(sl.path), sl.path
+    assert os.path.exists(book.path), book.path
+    assert sl.path.endswith(os.path.join("data", "industry-scales.yaml"))
+    assert sl.entries, "默认构造读到 0 条 = 路径错了"
+    assert book.nodes, "默认构造读到 0 个节点 = 路径错了"
+
+
+def test_render_path_uses_same_num_rule_as_validate():
+    """评审四轮：render_text / `--node` 仍用裸值除法，带引号金额直接 traceback。
+
+    「修好了金额」只修好了其中一条路 —— 渲染和校验必须是同一套取值规则。
+    """
+    db = _db()
+    db.money.flows[0]["amount_cny"] = "64e12"
+    db.money.leaks[0]["amount_cny"] = "8.6e12"
+    db.money.render_text()                              # 不许抛
+    assert db.money.position("sector-household")        # 不许抛
+    assert any("不是数值" in p for p in db.money.validate())
+
+
+def test_non_numeric_declared_is_reported_not_downgraded():
+    """评审四轮：declared_in_cny 非数值时被降级成 no_declared，validate 不报。
+
+    这等于把**唯一能抓漏的那条**对账静默关掉 —— 比报错更坏。
+    """
+    db = _db()
+    db.money.node("sector-household")["declared_in_cny"] = "80800000000000"
+    row = next(r for r in db.money.reconcile()
+               if r["node"] == "sector-household" and r["side"] == "in")
+    assert row["status"] == "invalid_declared", row
+    assert any("declared_in_cny" in p and "不是数值" in p
+               for p in db.money.validate())
+
+
+def test_dirty_gdp_never_crashes_compute_or_render():
+    """compute() 里 `sum(p["gdp_cny"])` 遇到字符串会 TypeError，而 compute()
+    被 render_text / Web / 导出共用，一处崩三处一起挂。"""
+    import hanghang.cli.industry_commands as ic
+    db = _db()
+    db.partition("manufacturing")["gdp_cny"] = "不是数字"
+    db.partition("logistics-supply")["employment"] = "5000"
+    s = db.compute()                                    # 不许抛
+    db.render_text(top=3)                               # 不许抛
+    assert any("gdp_cny" in p and "不是数值" in p for p in db.validate())
+    assert any("logistics-supply" in p and "employment" in p
+               for p in db.validate()), db.validate()[:5]
+
+
 def test_non_numeric_gdp_never_crashes_readers():
     """partition.gdp_cny 是字符串时，metric()/cross_check()/CLI 都不许抛。
 

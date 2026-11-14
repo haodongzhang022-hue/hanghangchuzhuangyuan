@@ -95,8 +95,12 @@ class ScaleLedger:
 
     def __init__(self, data_dir: Optional[str] = None,
                  partitions: Optional[List[dict]] = None):
+        # 默认目录：本文件在 src/hanghang/engine/，仓库根是 ../../../。
+        # 早先写成 "../../data" 只到 src/data —— 不带参数构造必然读到空账，
+        # 而空账在 CLI/Web 上表现为"六个口径全空 / 零个资金流节点"，
+        # 看起来像数据没补，实际是路径错了。
         self.data_dir = data_dir or os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../../data")
+            os.path.dirname(os.path.abspath(__file__)), "../../../data")
         self.path = os.path.join(self.data_dir, "industry-scales.yaml")
         self.version = "0.1"
         self.updated_at = ""

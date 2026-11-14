@@ -70,8 +70,12 @@ class MoneyFlowBook:
 
     def __init__(self, data_dir: Optional[str] = None,
                  partitions: Optional[List[dict]] = None):
+        # 默认目录：本文件在 src/hanghang/engine/，仓库根是 ../../../。
+        # 早先写成 "../../data" 只到 src/data —— 不带参数构造必然读到空账，
+        # 而空账在 CLI/Web 上表现为"六个口径全空 / 零个资金流节点"，
+        # 看起来像数据没补，实际是路径错了。
         self.data_dir = data_dir or os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../../data")
+            os.path.dirname(os.path.abspath(__file__)), "../../../data")
         self.path = os.path.join(self.data_dir, "industry-money-flows.yaml")
         self.version = "0.1"
         self.updated_at = ""
@@ -229,11 +233,19 @@ class MoneyFlowBook:
             nid = n.get("id", "")
             pos = self.position(nid)
             for side, key in (("in", "inflow"), ("out", "outflow")):
-                declared = self._num(n.get(f"declared_{side}_cny"))
+                raw = n.get(f"declared_{side}_cny")
+                declared = self._num(raw)
+                # 写了但读不成数值 ≠ 没写。早先非数值被降级成 no_declared，
+                # validate 不报、industry check 全绿 —— 等于把唯一能抓漏的那条
+                # 对账静默关掉。这里打上 invalid 标记，由 validate 报硬错。
+                invalid = raw is not None and declared is None
                 row = {"node": nid, "name": n.get("name", ""), "side": side,
                        "declared": declared, "traced": pos[key],
                        "unknown_edges": pos["unknown_edges"]}
-                if declared is None:
+                if invalid:
+                    row["gap"] = None
+                    row["status"] = "invalid_declared"
+                elif declared is None:
                     row["gap"] = None
                     row["status"] = "no_declared"
                 elif not declared:
@@ -371,9 +383,22 @@ class MoneyFlowBook:
                 f"偏差 {row['gap_ratio']:.1%} > {RECONCILE_TOLERANCE:.0%}）"
                 f"—— 说明还有流向没画出来，或口径混用了")
 
+        # 3-b. 声明了但读不成数值：不许降级成"没声明"蒙过去
+        for row in self.reconcile():
+            if row["status"] != "invalid_declared":
+                continue
+            n = self.node(row["node"]) or {}
+            raw = n.get(f"declared_{row['side']}_cny")
+            problems.append(
+                f"节点 {row['node']} 的 declared_{row['side']}_cny={raw!r} 不是数值"
+                f"（读不成数就被降级成「没有对账口径」，等于把唯一能抓漏的那条"
+                f"对账静默关掉）")
+
         # 4. 没对账口径的节点必须登记未观测流向：否则"保证会漏"却静默通过
+        # invalid_declared 也算"已经表白过了"：它已经报硬错，不该再叠一条
+        # "没登记未观测"的噪音 —— 一条错报两次，读的人只会记住噪音。
         declared_nodes = {r["node"] for r in self.reconcile()
-                          if r["status"] in ("ok", "gap")}
+                          if r["status"] in ("ok", "gap", "invalid_declared")}
         noted = {u.get("node") for u in self.unobserved if u.get("node")}
         for nid in ids:
             if nid in declared_nodes or nid in noted:
@@ -472,7 +497,7 @@ class MoneyFlowBook:
         lines.append("-" * 78)
         lines.append("资金流明细（`null` = 路径已知、数额待补，不是 0）：")
         for f in self.flows:
-            amt = f.get("amount_cny")
+            amt = self._num(f.get("amount_cny"))
             lines.append(
                 f"  {_cell(f.get('from', '?'), 22)}→ {_cell(f.get('to', '?'), 22)}"
                 f"{_cell(f.get('kind', ''), 14)}"
@@ -482,7 +507,7 @@ class MoneyFlowBook:
             lines.append("-" * 78)
             lines.append("已知差额（有差额可以，不解释不行）：")
             for lk in self.leaks:
-                amt = lk.get("amount_cny")
+                amt = self._num(lk.get("amount_cny"))
                 lines.append(f"  {_cell(lk.get('node', ''), 22)}"
                              f"{(f'{amt / 1e8:,.0f} 亿' if amt is not None else '-'):>14}"
                              f"  {lk.get('reason', '')}")

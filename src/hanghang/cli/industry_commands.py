@@ -102,7 +102,10 @@ def cmd_industry_partition(args):
     print(f"  从业人员: {f'{emp} 万人' if emp is not None else '无就业口径'}"
           + (f"（{p['employment_source']}）" if p.get("employment_source") else ""))
     print(f"  视角: {'/'.join(db.axes_of(p))}")
-    print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
+    # gdp 可能是字符串（脏数据）：只读命令不该因此 traceback。
+    # 类型错由 industry check 第 17-b 条报，这里按"无口径"展示。
+    gdp_num = gdp if isinstance(gdp, (int, float)) and not isinstance(gdp, bool) else None
+    print(f"  年产值: {f'{gdp_num / 1e8:,.0f} 亿元' if gdp_num else '无市场口径(刻意留空)'}")
     # 口径类型必须跟着数一起露脸：只说"2.5 万亿"不说是什么口径，
     # 下游拿去和增加值并列就会把 GMV 当成 GDP。
     kind = p.get("gdp_kind") or "未标口径"
@@ -179,7 +182,9 @@ def cmd_industry_axis(args):
         mark = {"covered": "已建", "pending": "待建",
                 "evaluated": "不建"}.get(r["status"], r["status"])
         if axis == "output":
-            gdp = f"{r['gdp_cny'] / 1e8:,.0f}亿" if r.get("gdp_cny") else "无口径"
+            _g = r.get("gdp_cny")
+            _g = _g if isinstance(_g, (int, float)) and not isinstance(_g, bool) else None
+            gdp = f"{_g / 1e8:,.0f}亿" if _g else "无口径"
             emp = f"{r['employment']}万人" if r.get("employment") is not None else "无就业口径"
             print(db._cell(mark, 5) + db._cell(r["name"], 22)
                   + db._cell(gdp, 12) + db._cell(emp, 12)
@@ -583,7 +588,10 @@ def cmd_industry_money(args):
         print("-" * 78)
         print("  资金流明细（null = 路径已知、数额待补，不是 0）：")
         for f in book.flows_of(node):
-            amt = f.get("amount_cny")
+            # 走 book._num()：带引号的 "64e12" 是字符串，裸除会 TypeError。
+            # 渲染路径和 validate 路径必须是同一套取值规则，否则"修好了金额"
+            # 只是修好了其中一条路。
+            amt = book._num(f.get("amount_cny"))
             other = f.get("to") if f.get("from") == node else f.get("from")
             arrow = "→" if f.get("from") == node else "←"
             print(f"    {arrow} {db._cell(other or '', 24)}"

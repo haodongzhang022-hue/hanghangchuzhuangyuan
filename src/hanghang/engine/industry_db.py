@@ -353,10 +353,19 @@ class IndustryDatabase:
                     if m.get("partition") in known_parts}
         linked_baseline = [o for o in baseline_occs if o.get("id") in referred]
 
-        # 产值只统计"有市场口径"的分区；None 表示刻意留空，不当作 0 参与排序
-        gdp_known = [p for p in self.partitions if p.get("gdp_cny")]
-        gdp_total = sum(p.get("gdp_cny") or 0 for p in self.partitions)
-        gdp_covered = sum(p.get("gdp_cny") or 0 for p in self.partitions
+        # 产值只统计"有市场口径"的分区；None 表示刻意留空，不当作 0 参与排序。
+        # 非数值（字符串）一律按缺数处理：脏数据不该让 compute() 抛 TypeError ——
+        # 它被 render_text / Web / 导出共用，一处崩三处一起挂。
+        # 类型错由 validate() 第 17-b 条报。
+        def _gdp_of(row):
+            val = row.get("gdp_cny")
+            if isinstance(val, bool) or not isinstance(val, (int, float)):
+                return None
+            return val
+
+        gdp_known = [p for p in self.partitions if _gdp_of(p)]
+        gdp_total = sum(_gdp_of(p) or 0 for p in self.partitions)
+        gdp_covered = sum(_gdp_of(p) or 0 for p in self.partitions
                           if p.get("status") == "covered")
         # 按口径分组：**只有同口径的数才能相加**。把 GMV 和增加值求和，
         # 得到的"合计产值"越大越误导，所以汇总得按 gdp_kind 分开给。
@@ -369,9 +378,10 @@ class IndustryDatabase:
                 "confidence": {k: 0 for k in GDP_CONFIDENCE},
             })
             bucket["partitions"] += 1
-            if p.get("gdp_cny"):
+            amt = _gdp_of(p)
+            if amt:
                 bucket["with_gdp"] += 1
-                bucket["total_cny"] += p["gdp_cny"]
+                bucket["total_cny"] += amt
             conf = p.get("gdp_confidence")
             if conf in bucket["confidence"]:
                 bucket["confidence"][conf] += 1
@@ -386,8 +396,14 @@ class IndustryDatabase:
 
         # 产出轴的就业口径：有人没产值（军队/家庭无酬）也算就业，
         # "多少人吃饭"本身就是市场画像，不能因为没有 gdp 就一起丢掉。
-        emp_known = [p for p in self.partitions if p.get("employment") is not None]
-        employment_total = sum(p.get("employment") or 0 for p in self.partitions)
+        def _emp_of(row):
+            val = row.get("employment")
+            if isinstance(val, bool) or not isinstance(val, (int, float)):
+                return None
+            return val
+
+        emp_known = [p for p in self.partitions if _emp_of(p) is not None]
+        employment_total = sum(_emp_of(p) or 0 for p in self.partitions)
 
         # 软归属统计：边数 ≠ 职业数。一个职业挂三个视角，人还是一个。
         total_edges = len(self.axis_view.memberships)
@@ -414,7 +430,7 @@ class IndustryDatabase:
                 "provider_mix_n": _measured["n"],
                 "provider_mix_declared": p.get("provider_mix", {}) or {},
                 "provider_mix_estimated": p.get("provider_mix_estimated", {}) or {},
-                "gdp_cny": p.get("gdp_cny"),
+                "gdp_cny": _gdp_of(p),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
                 "gdp_kind": p.get("gdp_kind", "") or "",
