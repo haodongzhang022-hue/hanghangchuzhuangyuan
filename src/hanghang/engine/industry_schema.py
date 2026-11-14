@@ -17,7 +17,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-SCHEMA_VERSION = "1.0.0"
+from .scale_ledger import SCALE_METRICS
+
+SCHEMA_VERSION = "1.1.0"
 
 # 列类型只保留三种（text/int/real），两种方言各自映射到自己的类型名。
 _TYPES = {
@@ -128,6 +130,68 @@ TABLES: List[dict] = [
         ],
         "pk": ("code",),
     },
+    {
+        # 六口径摊成**行**而不是列：一行一个口径，缺的口径也占一行（missing_reason 有值）。
+        # 摊成列的话，"这个行业六个口径全空"就变成六个 NULL，和"根本没登记"长得一样，
+        # 隐身这件事在库里就看不见了。
+        "name": "scale_metric",
+        "comment": "六口径规模账：一行一个口径，缺的口径也占一行并写明为什么缺",
+        "columns": [
+            ("partition", "text", True),
+            ("metric", "text", True),            # gdp/employment/profit/asset/valuation/resource
+            ("value", "real", False),             # NULL = 该口径无数（与 0 不同）
+            ("unit", "text", False),              # CNY / wan / tce / kwh ...
+            ("kind", "text", False),              # 产值口径（仅 gdp 有意义）
+            ("basis", "text", False),
+            ("source", "text", False),
+            ("confidence", "text", False),
+            ("missing_reason", "text", False),    # 有值 = 这个口径为什么空
+        ],
+        "pk": ("partition", "metric"),
+        "fk": [("partition", "partition", "id")],
+    },
+    {
+        "name": "money_node",
+        "comment": "资金流守恒账节点：五个机构部门 + 行业池",
+        "columns": [
+            ("id", "text", True),
+            ("type", "text", True),               # sector / industry
+            ("sector", "text", False),
+            ("partition", "text", False),
+            ("name", "text", True),
+            ("declared_in_cny", "real", False),   # NULL = 没有可比外部总量
+            ("declared_out_cny", "real", False),
+            ("source", "text", False),
+        ],
+        "pk": ("id",),
+    },
+    {
+        "name": "money_flow",
+        "comment": "资金流：from → to 双边记账，金额全用元（口径混用是这类账的头号死法）",
+        "columns": [
+            ("src", "text", True),
+            ("dst", "text", True),
+            ("kind", "text", True),
+            ("amount_cny", "real", False),        # NULL = 路径已知、数额待补，不是 0
+            ("confidence", "text", False),
+            ("basis", "text", False),
+        ],
+        "pk": ("src", "dst", "kind"),
+        "fk": [("src", "money_node", "id"), ("dst", "money_node", "id")],
+    },
+    {
+        "name": "money_gap",
+        "comment": "对账差额与未观测登记：允许有差额，不允许差额没人解释",
+        "columns": [
+            ("node", "text", True),
+            ("kind", "text", True),               # gap(已知差额) / unobserved(未观测)
+            ("side", "text", False),
+            ("amount_cny", "real", False),
+            ("reason", "text", True),
+        ],
+        "pk": ("node", "kind", "side"),
+        "fk": [("node", "money_node", "id")],
+    },
 ]
 
 INDEXES = [
@@ -137,6 +201,10 @@ INDEXES = [
     ("idx_occupation_baseline", "occupation", ("baseline",)),
     ("idx_membership_partition", "membership", ("partition",)),
     ("idx_membership_occupation", "membership", ("occupation",)),
+    ("idx_scale_metric_name", "scale_metric", ("metric",)),
+    ("idx_money_flow_src", "money_flow", ("src",)),
+    ("idx_money_flow_dst", "money_flow", ("dst",)),
+    ("idx_money_flow_kind", "money_flow", ("kind",)),
 ]
 
 
@@ -256,6 +324,60 @@ def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
                 e.get("major", ""), e.get("middle", ""), e.get("minor", ""),
                 "|".join(e.get("marks") or []), db.catalog.path_of(e.get("code", "")),
                 e.get("desc", ""),
+            ))
+
+    # ---- 六口径规模账：缺的口径也占一行，让"隐身"在库里看得见 ----
+    scales = getattr(db, "scales", None)
+    if scales is not None:
+        for p in db.partitions:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            for name in SCALE_METRICS:
+                rec = scales.metric(pid, name)
+                if rec is None:
+                    rows["scale_metric"].append((
+                        pid, name, None,
+                        "" if name != "employment" else "wan",
+                        "", "", "", "",
+                        scales.missing_reason(pid, name) or ""))
+                    continue
+                if name == "employment":
+                    value, unit = rec.get("wan"), "wan"
+                elif name == "resource":
+                    value, unit = rec.get("value"), rec.get("unit", "")
+                else:
+                    value, unit = rec.get("cny"), "CNY"
+                rows["scale_metric"].append((
+                    pid, name, value, unit, rec.get("kind", "") or "",
+                    rec.get("basis", "") or "", rec.get("source", "") or "",
+                    rec.get("confidence", "") or "", ""))
+
+    # ---- 资金流守恒账：节点 / 边 / 差额 ----
+    money = getattr(db, "money", None)
+    if money is not None:
+        for n in money.nodes:
+            rows["money_node"].append((
+                n.get("id", ""), n.get("type", ""), n.get("sector", "") or "",
+                n.get("partition", "") or "", n.get("name", ""),
+                n.get("declared_in_cny"), n.get("declared_out_cny"),
+                n.get("source", "") or "",
+            ))
+        for f in money.flows:
+            rows["money_flow"].append((
+                f.get("from", ""), f.get("to", ""), f.get("kind", ""),
+                f.get("amount_cny"), f.get("confidence", "") or "",
+                f.get("basis", "") or "",
+            ))
+        for lk in money.leaks:
+            rows["money_gap"].append((
+                lk.get("node", ""), "gap", lk.get("side", "") or "",
+                lk.get("amount_cny"), lk.get("reason", "") or "",
+            ))
+        for u in money.unobserved:
+            rows["money_gap"].append((
+                u.get("node", ""), "unobserved", "",
+                None, u.get("reason", "") or u.get("missing", "") or "",
             ))
     return rows
 

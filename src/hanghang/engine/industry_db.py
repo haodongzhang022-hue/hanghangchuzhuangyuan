@@ -30,9 +30,11 @@ from typing import Dict, List, Optional
 import yaml
 
 from .global_framework import ClassificationSources, IscoCatalog
+from .money_flow import MoneyFlowBook
 from .occupation_axis import AXES as OCC_AXES, OccupationAxis
 from .occupation_catalog import OccupationCatalog
 from .registry import Registry
+from .scale_ledger import SCALE_METRICS, ScaleLedger
 
 # 参与"应建设"分母的分区状态；evaluated 表示评估后明确不建单元
 _BUILDABLE = ("covered", "pending")
@@ -104,6 +106,11 @@ class IndustryDatabase:
         # 归属边（occupation × partition × axis）。缺失不报错：老数据仍能用
         # occupation.unit_id 单值推出等价的一条边，别让"没这个文件"变成不可用。
         self.member_path = os.path.join(self.data_dir, "occupation-memberships.yaml")
+        # 六口径规模账 + 资金流守恒账：两本都是"框架先立、数后补"的账本，
+        # 文件缺失即降级为空账（不阻断主库），但空账会让可见度全 hidden、
+        # 资金流全 no_declared —— 那会进 validate，不会静默通过。
+        self.scales: ScaleLedger = ScaleLedger(self.data_dir)
+        self.money: MoneyFlowBook = MoneyFlowBook(self.data_dir)
         self.version = "0.1"
         self.updated_at = ""
         self.occupations: List[dict] = []
@@ -147,7 +154,14 @@ class IndustryDatabase:
             # 没有 memberships 段就当作"没写这张表"，交给 profile 派生
             self._memberships_raw = rows if isinstance(rows, list) else []
 
+        self._bind_ledgers()
         self._reindex()
+
+    def _bind_ledgers(self) -> None:
+        """把分区表交给两本账：gdp/employment 的单一来源是 partition，
+        两本账不复制这两个字段，所以每次数据变动都要重新绑定。"""
+        self.scales.bind(self.partitions)
+        self.money.bind(self.partitions)
 
     def _reindex(self) -> None:
         """按当前列表重建 id 索引（显式保留首次出现，不依赖 dict 覆盖顺序）。
@@ -190,6 +204,7 @@ class IndustryDatabase:
               sum(id(o) for o in self.occupations),
               sum(id(o) for o in self.partitions))
         if fp != self._fingerprint:
+            self._bind_ledgers()
             self._reindex()
 
     @staticmethod
@@ -381,6 +396,9 @@ class IndustryDatabase:
                               self.axis_view.of_occupation(o.get("id", ""))}) > 1]
         free_occs = self.axis_view.free_occupations()
 
+        self._bind_ledgers()
+        vis = self.scales.visibility_all()
+
         rows = []
         for p in self.partitions:
             members = self.members_of(p.get("id", ""))
@@ -425,6 +443,10 @@ class IndustryDatabase:
                 # 用来看"这个分区大致落在大典哪几块"，不是权威归属。
                 "gb_majors": self._gb_majors(members),
                 "note": p.get("note", ""),
+                # 六口径落点：这个行业在哪些口径上有数、缺的为什么缺。
+                # 缺的数字照样是结论（"没有独立资产口径"本身就是行业特征），
+                # 所以它跟有数的口径一样要给出来。
+                "visibility": self.scales.visibility(p.get("id", "")),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
 
@@ -509,6 +531,19 @@ class IndustryDatabase:
             "occupation_axes_present": list(OCC_AXES),
             "employment_known_partitions": len(emp_known),
             "catalog": catalog_stat,
+            # 六口径可见度：一个行业只要任一口径有数就没隐身，与"有没有产值"无关。
+            # 这里给汇总而不是逐分区明细——明细在 rows[*]["visibility"]。
+            "scale": {
+                "metrics": list(SCALE_METRICS),
+                "level_counts": {lv: sum(1 for v in vis if v["level"] == lv)
+                                 for lv in ("full", "partial", "hidden")},
+                "present_counts": {m: sum(1 for v in vis if m in v["present"])
+                                   for m in SCALE_METRICS},
+                "hidden": [v["partition"] for v in vis if v["level"] == "hidden"],
+            },
+            # 资金流守恒账：图完整度（有多少边已填数额）与对账情况。
+            # 恒等式「流入合计 = 流出合计」不在此列——它是恒等式，不是成果。
+            "money": self.money.coverage_summary() if self.money else {},
             "rows": rows,
         }
 
@@ -618,7 +653,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 20
+    VALIDATE_CHECK_COUNT = 23
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -679,6 +714,21 @@ class IndustryDatabase:
             口径类型（增加值/总产值/营业收入/市场规模/成本总额/GMV），无产值必须是
             ``none``。不标口径的数字加在一起就是误导 —— 把电商交易额和制造业增加值
             求和，得到的数越大越错。gdp_confidence 若填必须是 high/medium/low。
+        21. 六口径账本自检 + **每个分区必须有落点**：profit/asset/valuation/resource
+            槽位语法与枚举合法，分区不得悬空；且 41 个分区每一个都要在
+            industry-scales.yaml 里出现一次。漏掉一个 = 这个行业在六口径视角里
+            没有任何落点（产值没有、利润没有、资产没有、人也数不出来），
+            它就整体隐身了——而覆盖率不会因此变红半格。
+        22. 六口径交叉验证：利润÷产值、产值÷人数、估值 PE/PS、资产÷利润 四组
+            互推，只抓数量级错（万元填成元、GMV 当营业收入、人数差 1e4）。
+            这类错每个数单看都对、加起来才不对，只能靠两个独立来源互推。
+            另外：六口径全空的分区必须在 missing 里写清每一个口径为什么空，
+            「说不出总量又不说什么缺」等于保证会漏。
+        23. 资金流守恒账自检：节点/边/对账/未观测登记四关。双边记账下
+            「全局流入 = 全局流出」是恒等式（不是校验点），真正能抓漏的是
+            **节点与外部口径对账**——图中画出的边求和与权威总量偏差超 10%
+            即报，说明还有流向没画出来；没有对账口径的节点必须在 unobserved
+            登记缺什么，否则"保证会漏"却静默通过。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -945,6 +995,34 @@ class IndustryDatabase:
             except Exception as exc:  # noqa: BLE001
                 problems.append(
                     f"分类来源表自检失败（{type(exc).__name__}），无法校验")
+
+        # 21. 六口径账本：槽位合法 + 每个分区都要有落点
+        # 漏一个分区，这个行业就在六口径视角里整体消失（产值没统计、利润没登记、
+        # 资产没取、人也数不出来），而覆盖率不会因此变红 —— 这类"隐身"必须报。
+        self._bind_ledgers()
+        problems.extend(self.scales.validate())
+        uncovered = [p.get("id") for p in self.partitions
+                     if p.get("id") and p.get("id") not in self.scales.entries]
+        for pid in uncovered:
+            problems.append(
+                f"分区 {pid} 未出现在 industry-scales.yaml"
+                f"（六口径视角里没有任何落点 = 该行业整体隐身；"
+                f"没有数的口径也要写 missing 原因）")
+
+        # 22. 口径互推 + 全空分区必须逐格解释
+        problems.extend(self.scales.cross_check())
+        for row in self.scales.visibility_all():
+            if row["level"] != "hidden":
+                continue
+            unexplained = [m for m, why in row["missing_detail"].items()
+                           if why in ("", "未填原因")]
+            if unexplained:
+                problems.append(
+                    f"分区 {row['partition']} 六口径全空，且 {unexplained} "
+                    f"没有说明为什么空（说不出总量又不说什么缺 = 保证会漏）")
+
+        # 23. 资金流守恒账：双边记账是恒等式，能抓漏的是节点对账
+        problems.extend(self.money.validate())
         return problems
 
     def _check_primary_keys(self) -> List[str]:

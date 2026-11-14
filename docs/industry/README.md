@@ -9,6 +9,7 @@ docs/industry/
 ├── register-spec.md               # 单元接入规范（L1-M2 抓取 industry-register.yaml 的契约）
 ├── industry-partition-db.md       # M11 行业分区定义库（职业=最小单位，行业=聚类结果）
 ├── industry-db-import.md          # 可导入产物：双方言 DDL + 数据 SQL，怎么把库装进去
+├── industry-scales-and-money-flows.md  # 六口径规模账 + 资金流守恒账（行业不会隐身 / 钱不会漏）
 ├── occupation-catalog.md          # 职业分类大典参考表（1636 个职业 + 国家标准编码）
 ├── global-framework.md            # 全球分类框架（职业/行业/税收/产出 四根轴 + 国外体系与接法）
 ├── dongjiagoushi-m1-routing.md    # 首行业单元外挂验证（dongjiagoushi × M1 自动路由）

@@ -331,13 +331,14 @@ main:
             set -e
             pip install -q -r requirements.txt
             python3 src/hanghang/cli/main.py industry export --out out/industry-db
-            # 7 份产物：4 份给 BI/知识库直接吃，3 份是「买服务器直接建库」用的
-            # 双方言 DDL + 与方言无关的数据 SQL。
+            # 10 份产物：7 份给 BI/知识库直接吃（含六口径规模账与资金流守恒账的
+            # 扁平表），3 份是「买服务器直接建库」用的双方言 DDL + 与方言无关的数据 SQL。
             for f in industry-db.json partitions.csv occupations.csv industry.sqlite \
+                     scales.csv money-nodes.csv money-flows.csv \
                      00-schema.sqlite.sql 00-schema.postgresql.sql 10-data.sql; do
               test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
             done
-            echo "  ✅ 行业分区库 7 份导出产物齐全（含双方言 DDL 与数据 SQL）"
+            echo "  ✅ 行业分区库 10 份导出产物齐全（含六口径账/资金流账与双方言 DDL）"
     - name: build-knowledge-base
       stages:
         - name: knowledge update

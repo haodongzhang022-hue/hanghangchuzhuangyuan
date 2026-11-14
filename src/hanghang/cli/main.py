@@ -19,6 +19,7 @@ from hanghang.cli.industry_commands import (
     cmd_industry_occupations, cmd_industry_check, cmd_industry_export,
     cmd_industry_catalog, cmd_industry_axis, cmd_industry_access,
     cmd_industry_occupation, cmd_industry_filter,
+    cmd_industry_scale, cmd_industry_money,
     cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
@@ -461,6 +462,24 @@ def build_parser():
                       help="只看某个通道")
     iacc.add_argument("--data-dir", default="", help="自定义 data 目录")
     iacc.set_defaults(func=cmd_industry_access)
+
+    iscale = ind_sub.add_parser(
+        "scale", help="六口径规模账：盈利/资产/估值/从业/资源消耗/产值 谁有数谁说话")
+    iscale.add_argument("--partition", default="", help="看单个分区的六口径全貌")
+    iscale.add_argument("--top", type=int, default=0, help="只看前 N 条（0=全部）")
+    iscale.add_argument("--only", default="", choices=["", "full", "partial", "hidden"],
+                        help="只看某可见度等级")
+    iscale.add_argument("--gaps", action="store_true",
+                        help="只看六口径全空的分区（含逐格原因）")
+    iscale.add_argument("--data-dir", default="", help="自定义 data 目录")
+    iscale.set_defaults(func=cmd_industry_scale)
+
+    imoney = ind_sub.add_parser(
+        "money", help="资金流守恒账：钱从哪来/经谁的手/沉在哪里（双边记账 + 节点对账）")
+    imoney.add_argument("--node", default="", help="看单个节点：头寸/对账差额/明细")
+    imoney.add_argument("--kinds", action="store_true", help="列出资金流类型及本账条数")
+    imoney.add_argument("--data-dir", default="", help="自定义 data 目录")
+    imoney.set_defaults(func=cmd_industry_money)
 
     icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
     icheck.add_argument("--data-dir", default="", help="自定义 data 目录")

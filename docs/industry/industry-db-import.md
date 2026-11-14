@@ -11,7 +11,7 @@
 | `data/db/industry/00-schema.sqlite.sql` | `scripts/export_industry_db.py` | ✅ | SQLite 建表 |
 | `data/db/industry/00-schema.postgresql.sql` | 同上 | ✅ | PostgreSQL 建表（同表同列） |
 | `out/industry-db/10-data.sql` | `industry export` | ❌ | 数据（与方言无关，两边都能跑） |
-| `out/industry-db/*.csv` / `.json` / `.sqlite` | 同上 | ❌ | 给 BI / 知识库 / 本地查表直接吃 |
+| `out/industry-db/*.csv` / `.json` / `.sqlite` | 同上 | ❌ | 给 BI / 知识库 / 本地查表直接吃（含 `scales.csv` / `money-nodes.csv` / `money-flows.csv`） |
 
 **结构进库、数据不进库**：结构是契约，改一列要评审、要能被下游看见；数据可从 yaml
 秒级重建，把 1.6 MB 生成 SQL 提交进 git 只会得到看不见的 diff，改一次数据冲突一次。
@@ -39,17 +39,21 @@ psql -d hanghang -f out/industry-db/10-data.sql
 （那是 MySQL 扩展，SQLite 与 PG 都不认）、不依赖 `PRAGMA`。所以一份数据两种方言共用，
 不会出现「给 PG 维护了第二套转义、结果两边字符不一样」这种最难查的错。
 
-## 3. 表结构（5 张）
+## 3. 表结构（9 张）
 
 ```
 partition      分区：付费方 / 供给结构 / 产值口径 / 建不建单元
 occupation     职业：交付物 / 提供者 / 计费 / 承接通道（**不带归属**）
 membership     归属边：职业 × 分区 × 轴 × 权重 —— 多视角是常态
 gb_catalog     职业分类大典（2022）1636 条，只读旁证
+scale_metric   六口径规模账：**一行一个口径**，缺的口径也占一行并写明为什么缺
+money_node     资金流节点：五个机构部门 + 行业池（declared_* 是外部对账口径）
+money_flow     资金流：from → to 双边记账，金额全用元（null = 待补，不是 0）
+money_gap      对账差额与未观测登记：允许有差额，不允许差额没人解释
 dataset_meta   数据集元信息：版本、生成器、口径免责
 ```
 
-三条设计约束，不是风格问题：
+五条设计约束，不是风格问题：
 
 1. **归属单独成表**。把 `partition_id` 塞回 `occupation` 就退化成硬分类：
    一个职业不能同时接两个行业的活，改分区还得批量改职业。
@@ -57,8 +61,50 @@ dataset_meta   数据集元信息：版本、生成器、口径免责
    分开存的话，总有人 `sum(gdp_cny)` 时忘了 join 口径，把 GMV 和增加值加在一起。
 3. **NULL ≠ 0**。无市场口径的分区 `gdp_cny` 是 `NULL`，不是 0；填 0 会把
    「没数据」伪装成「实测为零」，而这两种情况在决策上是反的。
+4. **六口径摊成行，不摊成列**。`scale_metric` 一行一个（分区，口径）。
+   摊成宽表的话，「六个口径全空」就变成六个 NULL，和「这个分区根本没登记」
+   长得一样——隐身这件事在库里就看不见了。摊成行之后，缺的口径照样占一行，
+   `missing_reason` 里就是那句「为什么这一格是空的」。
+5. **行业池节点由 pools 段派生**。同一个分区在 `pools` 里已经声明过
+   「它是钱的一个容器」，再手抄一个 node 就是同一件事存两份；而错的那份
+   不会报错，只会让钱流向一个不存在的节点（`pool:<分区id>`）。
 
-## 4. 产值口径：加总只允许同口径
+## 4. 六口径与资金流：两条「防漏」的账
+
+两本账都是**框架先立、数后补**。用 `null` 留空、用 `missing`/`unobserved`
+把「为什么这里是空的」写成可校验的句子——这比编一个数填上强得多，
+因为编出来的数后面所有人都会当真。
+
+### 4.1 `scale_metric`：行业不该因产值缺失整体隐身
+
+```
+partition    metric        value    unit  kind          missing_reason
+manufacturing gdp       3.3e13   CNY   value_added   （有数）
+manufacturing employment 8000    wan                 （有数）
+manufacturing valuation   NULL    ——                 制造业板块市值按 GB/T 门类无法对齐
+admin-office  profit       NULL   ——                 企业内部职能，无独立利润口径
+```
+
+只要六格里任一有数，这个行业就还在表里，能排序、能比较、能进分母。
+六格全空必须逐格写原因，否则 `validate` 第 22 条报错。
+
+### 4.2 `money_flow`：钱不会凭空生灭
+
+```sql
+-- 哪个节点的流入对不上外部口径？这就是「漏画了流向」的那一栏
+SELECT n.id, n.name, n.declared_in_cny, SUM(f.amount_cny) AS traced
+FROM money_node n JOIN money_flow f ON f.dst = n.id
+WHERE n.declared_in_cny IS NOT NULL
+GROUP BY n.id;
+
+-- 有多少条边的数额还没补（图完整度）
+SELECT COUNT(*) FILTER (WHERE amount_cny IS NULL) AS pending FROM money_flow;
+```
+
+「全局流入合计 = 全局流出合计」是双边记账的**恒等式**，查它只会永远为真。
+真正要查的是上面那条：**节点与外部口径对账**。
+
+## 5. 产值口径：加总只允许同口径
 
 这是本轮补的最后一刀。之前 41 个分区都有 `gdp_cny`，但混着四种完全不同的钱：
 
@@ -94,7 +140,7 @@ none            6 个分区（刻意留空，不参与加总）
 - `medium` 官方总额按分项拆分，或行业组织年度报告；
 - `low` 第三方测算或量级拍脑袋 —— **低置信的数可以排序定权重，不许对外引用**。
 
-## 5. 与岗位画像库（`data/db/hanghang.db`）的分工
+## 6. 与岗位画像库（`data/db/hanghang.db`）的分工
 
 仓库里有两套库，别混：
 
@@ -108,7 +154,7 @@ none            6 个分区（刻意留空，不参与加总）
 两套都是「结构单源 + 双方言 + 产物可校验」，规矩一致，只是回答的问题不同：
 一个回答「这个行业谁付钱、多少钱」，另一个回答「这个岗位怎么干活、还差什么」。
 
-## 6. CI 守什么
+## 7. CI 守什么
 
 `.cnb.yml` 的 PR 检查与 main 全量回归各加一条：
 

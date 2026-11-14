@@ -83,6 +83,54 @@ CREATE TABLE IF NOT EXISTS "gb_catalog" (
   PRIMARY KEY ("code")
 );
 
+CREATE TABLE IF NOT EXISTS "scale_metric" (
+  "partition" TEXT,
+  "metric" TEXT,
+  "value" REAL,
+  "unit" TEXT,
+  "kind" TEXT,
+  "basis" TEXT,
+  "source" TEXT,
+  "confidence" TEXT,
+  "missing_reason" TEXT,
+  PRIMARY KEY ("partition", "metric"),
+  FOREIGN KEY ("partition") REFERENCES "partition"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "money_node" (
+  "id" TEXT,
+  "type" TEXT,
+  "sector" TEXT,
+  "partition" TEXT,
+  "name" TEXT,
+  "declared_in_cny" REAL,
+  "declared_out_cny" REAL,
+  "source" TEXT,
+  PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "money_flow" (
+  "src" TEXT,
+  "dst" TEXT,
+  "kind" TEXT,
+  "amount_cny" REAL,
+  "confidence" TEXT,
+  "basis" TEXT,
+  PRIMARY KEY ("src", "dst", "kind"),
+  FOREIGN KEY ("src") REFERENCES "money_node"("id"),
+  FOREIGN KEY ("dst") REFERENCES "money_node"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "money_gap" (
+  "node" TEXT,
+  "kind" TEXT,
+  "side" TEXT,
+  "amount_cny" REAL,
+  "reason" TEXT,
+  PRIMARY KEY ("node", "kind", "side"),
+  FOREIGN KEY ("node") REFERENCES "money_node"("id")
+);
+
 CREATE INDEX IF NOT EXISTS "idx_partition_status" ON "partition" ("status");
 
 CREATE INDEX IF NOT EXISTS "idx_partition_kind" ON "partition" ("gdp_kind");
@@ -94,3 +142,11 @@ CREATE INDEX IF NOT EXISTS "idx_occupation_baseline" ON "occupation" ("baseline"
 CREATE INDEX IF NOT EXISTS "idx_membership_partition" ON "membership" ("partition");
 
 CREATE INDEX IF NOT EXISTS "idx_membership_occupation" ON "membership" ("occupation");
+
+CREATE INDEX IF NOT EXISTS "idx_scale_metric_name" ON "scale_metric" ("metric");
+
+CREATE INDEX IF NOT EXISTS "idx_money_flow_src" ON "money_flow" ("src");
+
+CREATE INDEX IF NOT EXISTS "idx_money_flow_dst" ON "money_flow" ("dst");
+
+CREATE INDEX IF NOT EXISTS "idx_money_flow_kind" ON "money_flow" ("kind");

@@ -408,7 +408,8 @@ python3 tests/test_roledb_m11_3.py  # M11.3 实库（建库回读/双方言 DDL/
 - **三层递进**：职业 → 分区（聚类）→ 单元（真正能被路由）。`status` 区分
   `covered` 已建 / `pending` 待建 / `evaluated` 评估后不建（不计分母，避免永久缺口）。
 - **不引入外部数据库，但备好交接**：yaml 是权威源（可评审、可回滚、可被知识库切片），
-  `industry export` 一键生成 7 份产物：`industry.sqlite` + 两份 csv + json 给 BI/知识库直接吃，
+  `industry export` 一键生成 10 份产物：`industry.sqlite` + 五份 csv（含六口径账与资金流账）
+  + json 给 BI/知识库直接吃，
   `00-schema.sqlite.sql` / `00-schema.postgresql.sql` / `10-data.sql` 是「买好服务器直接建库」用的
   双方言 DDL 与与方言无关的数据 SQL，拿到不跑 Python 也能装。详见 `docs/industry/industry-db-import.md`。
 - **产值口径诚实，且必须同列**：`gdp_cny` 是量级参考，用于排序定权重；无市场口径的分区
@@ -416,13 +417,80 @@ python3 tests/test_roledb_m11_3.py  # M11.3 实库（建库回读/双方言 DDL/
   `gdp_kind`（增加值/总产值/营业收入/市场规模/成本总额/GMV/none）——**只有同口径才能相加**：
   可对外引用的只有增加值口径的 55 万亿，旧版那句「合计 181.7 万亿」把 GMV、物流费用、
   建筑业总产值和制造业增加值加在了一起。
-- **双向自检**：`industry check` 跑 20 条校验（唯一编号/主键唯一/状态枚举/归属边悬空/权重越界/
-  同边重复/职业↔岗位对齐/岗位骨架反查/大典映射外键/供给结构对账/产值口径标签/数据源存在），其中三条专守"分母被悄悄缩小"
+- **双向自检**：`industry check` 跑 23 条校验（唯一编号/主键唯一/状态枚举/归属边悬空/权重越界/
+  同边重复/职业↔岗位对齐/岗位骨架反查/大典映射外键/供给结构对账/产值口径标签/六口径落点/
+  口径互推/资金流对账/数据源存在），其中三条专守"分母被悄悄缩小"
   的暗沟——分区 id 写重、`status` 拼错、标了 `covered` 却没登记岗位，这三种错不会让覆盖率变红，
   只会让它变好看。明确**不校验**"归属是否唯一"：那是伪命题。
   条数只有一处来源（`IndustryDatabase.VALIDATE_CHECK_COUNT`），README、文档标题、
   CLI 回执都读它——上次这数被手抄三份，抄成了 15/17/18 三个数，评审纠了两轮。
   流水线在 PR 测试、合并门禁、main 全量回归三处都会跑它，数据漂移不靠自觉。
+
+## 行业规模账：六口径，谁有数谁说话
+
+**一个大行业不该因为「产值没统计」就整体隐身。** 产值（增加值）是最难拿的一格——
+全国只有约 20 个门类有官方增加值，细分行业往往没有独立统计。但同一个行业在别处
+留着痕迹：利润总额、资产总计、上市板块市值、从业人数、能耗水耗。
+
+所以口径不是「更精确的同一个数」，而是**同一批钱的六个侧面**：
+
+| 口径 | 回答什么 | 谁最常给 |
+|---|---|---|
+| `gdp` | 一年新增多少价值 | 统计局分行业增加值 |
+| `employment` | 多少人在干 | 统计年鉴从业人数 |
+| `profit` | 兜里剩下多少 | 规上企业利润总额 / 上市公司年报 |
+| `asset` | 压着多少钱 | 规上企业资产总计 / 资产负债表 |
+| `valuation` | 市场给多少钱 | 上市板块总市值 / 一级市场估值 |
+| `resource` | 吃掉多少实物 | 能源消费/用电/用水/原料（保留实物单位，不折成钱） |
+
+```bash
+python3 src/hanghang/cli/main.py industry scale            # 41 个分区 × 六口径落点
+python3 src/hanghang/cli/main.py industry scale --partition manufacturing
+python3 src/hanghang/cli/main.py industry scale --gaps     # 只看全空分区 + 逐格原因
+```
+
+当前 **41 个分区没有一个全空**：看清大半（≥4 个口径）19 个，至少一面可见 22 个。
+`admin-office`（行政办公）只有就业一格——它就是企业内部职能，没有独立产值/利润/资产，
+这不是缺数据，这是行业特征；`missing` 里逐格写着这句话。
+
+三条规矩（与 `gdp_cny` 同源）：**没有口径就不填数字**（`null` ≠ 0）；
+**不重复存**（`gdp`/`employment` 从 `partition` 现读，账本不抄第二份）；
+**缺格必须写原因**（说不出总量又不说什么缺 = 保证会漏）。
+
+## 资金流守恒账：钱不会凭空生灭
+
+只列「某个行业产了多少值」，一定会漏——钱从哪来、经谁的手、最后沉在哪里，
+一条链上任何一环没画，汇总出来的总额就是假的，而且**错得看不出来**（每个数都对，
+加起来不对）。所以这里做**双边记账的资金流量账**：
+
+```
+sector-enterprise → sector-household   wage         64.0 万亿   （劳动报酬）
+sector-household  → sector-enterprise  consumption  47.0 万亿   （居民消费）
+sector-enterprise → sector-government  tax          19.7 万亿
+sector-government → sector-household   transfer     10.0 万亿
+sector-enterprise → pool:manufacturing allocation   待补        （份额切分，规则未定）
+```
+
+三条不变式，缺一条这套账就变成自说自话：
+
+1. **双边记账**：每条 flow 都是 `from → to`。所以「全局流入 ≡ 全局流出」是**恒等式**，
+   不是校验点——把它当校验点只会得到一句永远为真的绿灯。
+2. **节点与外部口径对账**：这才是能抓漏的一条。图里画出来的边求和，必须对得上
+   居民可支配收入、一般公共预算收入这类权威总量。偏差超 10%（资金流量表与分项
+   汇总的固有口径差）即报「还有流向没画出来」。
+3. **没有对账口径，就必须登记未观测流向**：说不出总量、又不说什么缺，等于保证会漏，
+   而它会静默通过。`unobserved` 就是逼着把这句话写下来的字段。
+
+```bash
+python3 src/hanghang/cli/main.py industry money                       # 全景：头寸 + 对账 + 明细
+python3 src/hanghang/cli/main.py industry money --node sector-household
+python3 src/hanghang/cli/main.py industry money --kinds                # 资金流类型及条数
+```
+
+当前：5 个机构部门全部对账闭合，8 个行业池的份额切分「路径已知、数额待补」
+（`amount_cny: null` 而不是 0——编一个数填上比留空坏得多，后面所有人都会拿它当真）。
+两处**已知差额**写在 `leaks` 里并解释清楚：政府性基金与土地出让收入 8.6 万亿、
+影子银行表外往来 3.5 万亿。有差额可以，不解释不行。
 
 **国际口径**：职业轴再接一层 ISCO-08（ILO，436 细类 + 1931 条官方示例职位名），
 行业轴与税收轴的口径与接法见 `docs/industry/global-framework.md`。

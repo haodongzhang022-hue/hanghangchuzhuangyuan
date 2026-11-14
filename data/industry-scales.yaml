@@ -1,0 +1,337 @@
+# ============================================================================
+# 行业规模账 · 六口径槽位（industry-scales）
+#
+# 为什么要有这份文件：
+#   一个行业**不该因为产值没统计就整体隐身**。产值（增加值）是最难拿的一格，
+#   全国只有约 20 个门类有官方增加值；但同一个行业还有别的痕迹——利润总额、
+#   资产总计、上市板块市值、从业人数、能耗水耗。只要**任一口径有数**，
+#   这个行业就还在表里，能排序、能比较、能进分母。
+#
+# 六个口径（同一批钱的六个侧面，不是"更精确的同一个数"）：
+#   gdp         年产值/增加值   ← 读 partition.gdp_cny + gdp_kind（单一来源，不在此重复存）
+#   employment  从业人数        ← 读 partition.employment（单一来源）
+#   profit      盈利规模        ← 本文件
+#   asset       资产规模        ← 本文件
+#   valuation   估值规模        ← 本文件
+#   resource    资源消耗        ← 本文件（实物量 + 单位，不折算成钱）
+#
+# 三条规矩（与本仓库 gdp_cny 同源）：
+#   1. **没有口径就不填数字。** 缺了就在 missing 里写原因，null 不等于 0。
+#   2. **不重复存。** gdp / employment 已挂在 partition 上，这里只补另外四个；
+#      同一件事存两份，迟早对不上，而且没人知道哪份是对的。
+#   3. **资源消耗保留实物单位。** 把"耗电 800 亿度"折成人民币要选电价，
+#      一选就把实测变成估算。单位合法值：tce（吨标煤）/ kwh / ton / ton_water /
+#      m3 / gwh。
+#
+# 交叉验证（抓数量级错，不抓行业差异）：
+#   利润 ÷ 产值 超出按口径分档的窗口、产值 ÷ 人数 超窗口、估值 PE/PS 超窗口、
+#   资产比利润还小三个数量级 —— 报错。这类错「每个数单看都对，加起来才不对」，
+#   只能靠两个独立来源互推。
+#
+# 产值免责：所有数值为**量级参考**，用于排序定权重与交叉验证，
+#           不可对外发布；校准以国家统计局/行业主管部门口径为准。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-11-15"
+year_basis: 2023-2024
+unit: CNY
+#
+# 字段：
+#   partition      分区 id（= industry-partitions.yaml 的 id）
+#   profit         {cny: 元, basis: 口径说明, source: 来源, confidence: high|medium|low}
+#   asset          同上
+#   valuation      同上（上市板块总市值 / 一级市场估值）
+#   resource       {value: 实物量, unit: 见上, basis: 口径, source:, confidence:}
+#   missing        {metric: 为什么这一格是空的} —— 把"没数据"写成可校验的句子
+#   note
+#
+# 每个分区都必须在这里出现一次（有数就写数，没数就写 missing 原因）：
+# 漏掉一个分区 = 这个行业在六口径视角里没有任何落点，validate 会报。
+# ============================================================================
+scales:
+
+  - partition: dongjiagoushi
+    profit: {cny: 1400000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    valuation: {cny: 3200000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      asset: 软件业无「规上企业资产总计」公开口径，需从上市公司资产负债表聚合
+      resource: 软件研发无显著实物消耗，只有电力（数据中心）且未单列
+
+  - partition: game-dev-unit
+    profit: {cny: 180000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    valuation: {cny: 1500000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      asset: 游戏公司资产总计无行业级口径，需从上市板块（约 60 家）聚合
+      resource: 研发与运营的服务器用电未按行业单列统计
+
+  - partition: legal-services
+    profit: {cny: 60000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 律所多为合伙制，不以企业资产口径披露
+      valuation: 法律服务无上市板块，一级市场估值样本极少
+      resource: 无显著实物消耗口径
+
+  - partition: content-creation
+    profit: {cny: 30000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 内容公司资产口径不统一（版权计入方式差异大）
+      valuation: 上市内容公司跨传媒/平台，无法单独切分板块
+      resource: 无显著实物消耗口径
+
+  - partition: data-analytics
+    profit: {cny: 80000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 数据分析多为企业内部职能兼外部服务，资产口径不独立
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: e-commerce
+    profit: {cny: 350000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 4000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    valuation: {cny: 1200000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      resource: 电商自身不消耗实物，物流耗能计入物流供应链分区（避免重复计算）
+
+  - partition: finance-accounting
+    profit: {cny: 50000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 代理记账机构轻资产，无行业级资产统计
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: marketing
+    profit: {cny: 90000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 营销服务企业资产口径未单列
+      valuation: 广告营销板块市值与平台公司混计，需人工切分
+      resource: 无显著实物消耗口径
+
+  - partition: education-training
+    profit: {cny: 150000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 民办教育资产口径分散（含学校固定资产与机构轻资产）
+      valuation: 教培上市板块在「双减」后样本不足，代表性差
+      resource: 无显著实物消耗口径
+
+  - partition: healthcare
+    profit: {cny: 50000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 9000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 120000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 公立医疗不上市，社会办医市值样本小且不公开聚合
+
+  - partition: home-design
+    profit: {cny: 200000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 家装企业以中小为主，无规上资产统计
+      valuation: 无独立上市板块
+      resource: 材料耗能计入建材生产（制造业），此处不重复计
+
+  - partition: hr-services
+    profit: {cny: 180000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 人力资源服务机构轻资产，无资产总计口径
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: admin-office
+    missing:
+      profit: 企业内部职能，无独立利润口径（成本计入各自主业）
+      asset: 同上，资产属各自主业
+      valuation: 无独立主体
+      resource: 办公耗能未按职能拆分
+
+  - partition: design-visual
+    profit: {cny: 40000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 设计机构轻资产，无行业级资产统计
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: interpretation
+    profit: {cny: 10000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 口译多为个体/合伙执业，无资产口径
+      valuation: 无独立主体
+      resource: 无显著实物消耗口径
+
+  - partition: translation
+    profit: {cny: 15000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 语言服务机构轻资产，无资产统计
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: video-media
+    profit: {cny: 150000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    valuation: {cny: 600000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      asset: 影视公司资产口径因版权/应收结构差异大，暂不取
+      resource: 拍摄制作耗能分散在剧组与设备，未按行业单列统计
+
+  - partition: finance-invest
+    profit: {cny: 2400000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 450000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    missing:
+      valuation: 金融业含银行/保险/券商/基金，板块切分与分区定义不一致
+      resource: 金融业实物消耗可忽略（办公用电未单列）
+
+  - partition: real-estate
+    profit: {cny: 1200000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 300000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    valuation: {cny: 1500000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      resource: 开发建设耗能计入建筑业，此处不重复计
+
+  - partition: tourism-hospitality
+    profit: {cny: 300000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    resource: {value: 50000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      asset: 住宿餐饮资产分散在个体户与集团，无可比口径
+      valuation: 无独立上市板块
+
+  - partition: food-beverage
+    profit: {cny: 600000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 18000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    valuation: {cny: 2000000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    resource: {value: 250000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+
+  - partition: logistics-supply
+    profit: {cny: 900000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 30000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 450000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 物流板块市值含平台型公司，与分区口径不一致
+
+  - partition: manufacturing
+    profit: {cny: 9000000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 1700000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 2600000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 制造业板块市值按 GB/T 门类无法直接对齐（电子/机械/化工混计）
+
+  - partition: construction-eng
+    profit: {cny: 850000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 190000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 300000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 建筑板块市值样本以央企为主，不能代表全行业
+
+  - partition: energy-environment
+    profit: {cny: 80000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 200000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 3400000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 能源板块跨煤/电/油/新能源，与分区口径不一致
+
+  - partition: auto-service
+    profit: {cny: 400000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    resource: {value: 80000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      asset: 汽车服务以 4S 店与维修个体为主，无规上资产口径
+      valuation: 无独立上市板块
+
+  - partition: personal-services
+    profit: {cny: 200000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 生活服务以个体户为主，无资产统计
+      valuation: 无独立上市板块
+      resource: 耗能分散在居民端，无法与家庭消费切分
+
+  - partition: beauty-grooming
+    profit: {cny: 80000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 美业以个体门店为主，无资产统计
+      valuation: 无独立上市板块
+      resource: 耗能计入居民生活用电，无行业单列
+
+  - partition: agriculture
+    profit: {cny: 600000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 25000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 350000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 农业板块市值以种植/养殖龙头为主，与 1.7 亿从业者口径严重不同源
+
+  - partition: culture-art
+    profit: {cny: 90000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 文化事业单位与民营机构混编，无统一资产口径
+      valuation: 无独立板块（含在传媒板块内）
+      resource: 无显著实物消耗口径
+
+  - partition: public-affairs
+    missing:
+      profit: 政务公共不以营利为目标，无利润口径
+      asset: 行政事业单位资产未按职能分区拆分
+      valuation: 无市场估值
+      resource: 公共机构耗能未按行业单列
+
+  - partition: live-streaming
+    profit: {cny: 50000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    valuation: {cny: 600000000000, basis: 上市板块总市值, source: A股/港股对应板块(量级估算), confidence: low}
+    missing:
+      asset: 直播平台资产与母公司混计，无法切分
+      resource: 直播耗能集中在数据中心与终端，未按行业单列（与软件研发同源，避免双计）
+
+  - partition: esports
+    profit: {cny: 15000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 电竞俱乐部多为轻资产且未上市
+      valuation: 无独立上市板块
+      resource: 无显著实物消耗口径
+
+  - partition: sport-fitness
+    profit: {cny: 30000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    missing:
+      asset: 健身门店资产以租赁装修为主，无行业统计
+      valuation: 无独立上市板块
+      resource: 耗能计入商业建筑用电，未单列
+
+  - partition: sport-games
+    profit: {cny: 60000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    resource: {value: 20000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      asset: 体育赛事运营以轻资产为主，无资产口径
+      valuation: 无独立上市板块
+
+  - partition: research-academic
+    resource: {value: 90000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      profit: 科研以财政经费为主，非营利，无利润口径
+      asset: 科研仪器设备资产未按行业分区拆分
+      valuation: 无市场估值
+
+  - partition: mining-resources
+    profit: {cny: 1200000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 150000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 600000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 矿业板块市值以龙头为主，与全行业不符
+
+  - partition: utilities
+    profit: {cny: 500000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 220000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 1500000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 公用事业板块市值与分区口径不完全一致
+
+  - partition: public-safety
+    missing:
+      profit: 公共安全由财政供养，无利润口径
+      asset: 装备资产未按行业分区拆分
+      valuation: 无市场估值
+      resource: 耗能未单列
+
+  - partition: water-marine
+    profit: {cny: 300000000000, basis: 利润总额, source: 行业主管部门/统计局规上口径(量级估算), confidence: medium}
+    asset: {cny: 40000000000000, basis: 资产总计, source: 规上企业/上市板块资产负债表(量级估算), confidence: low}
+    resource: {value: 50000000, unit: tce, basis: 能源消费(折标煤), source: 统计年鉴分行业能源消费(量级估算), confidence: low}
+    missing:
+      valuation: 海洋经济无统一上市板块
+
+  - partition: international-org
+    missing:
+      profit: 国际组织在华机构非营利，无利润口径
+      asset: 驻华机构资产不纳入国内统计
+      valuation: 无市场估值
+      resource: 耗能极小且未单列
