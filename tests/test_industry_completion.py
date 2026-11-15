@@ -575,14 +575,15 @@ def test_every_pipeline_declares_its_own_runner_size():
         cpus = (pipe.get("runner") or {}).get("cpus")
         if not cpus:
             missing.append(pipe.get("name"))
-        elif cpus > 2:
+        elif cpus > 1:
             too_big.append(f"{pipe.get('name')}={cpus}")
     assert not missing, (
         "这些流水线没写 runner.cpus，会静默跑在 8 核默认节点上"
         f"（每次预冻结 1.33 核时，额度一紧就 Prepare 红）：{missing}")
     assert not too_big, (
-        f"这些流水线申请的核数超过 2 核：串行测试与 AI 接口等待吃不满多核，"
-        f"多出来的核只按核时烧额度：{too_big}")
+        f"这些流水线申请的核数超过 1 核：本仓库所有 job 都是串行 python 测试"
+        f"或等在 AI 接口上（实测全量 37 个测试文件单进程 470s，多核用不上），"
+        f"多出来的核不被使用却按节点规格计入冻结量，纯烧额度：{too_big}")
 
 
 def test_no_pipeline_defines_a_roleless_ok_stage():
@@ -630,6 +631,80 @@ def test_no_pipeline_defines_a_roleless_ok_stage():
                 f"stage {stage.get('name')} 的 script 只有日志、没有职责："
                 "删掉它，或让它真的承担一件事"
             )
+
+
+def test_pipeline_prompts_never_summon_bare_codebuddy():
+    """流水线自己的提示词里不许写裸 `@CodeBuddy`：那是另一套配置，也是另一份配额
+
+    `.cnb.yml` 里声明的 `runner.cpus` 只管**本仓库配置的流水线**。裸 `@CodeBuddy`
+    命中的是平台系统 NPC，它按系统默认配置起机器——本仓库管不到，实际是 8 核。
+
+    实测（本仓库历史构建，按标题区分两种召唤形式，同一条 PR 流水线）：
+      裸 `@CodeBuddy`        144 次 / 268.3 核时
+      全限定 `@repo(CodeBuddy)` 72 次 /  27.0 核时
+    同样的事，差 10 倍。2026-11-15 那次 CI 连红在 Prepare，报
+    `insufficient for pre-freezing`：本月已用 274.6 核时，而免费额度是 160 核时/月
+    —— 缺口的大头就是这么烧掉的。
+
+    除了配额，裸名还绕过本仓库提示词里写死的边界（评审员只读、修复者禁止 push、
+    空修复检测、二选一纪律都不在那个系统提示词里）。所以这里守两件事：
+    提示词不许出现裸名；出现召唤就必须是全限定名。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+    qualified = "@dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)"
+
+    def pipelines(node):
+        if isinstance(node, list):
+            for x in node:
+                yield from pipelines(x)
+        elif isinstance(node, dict):
+            if "stages" in node:
+                yield node
+            else:
+                for v in node.values():
+                    yield from pipelines(v)
+
+    bare = []
+    for pipe in pipelines(data):
+        for stage in pipe["stages"]:
+            opts = stage.get("options") or {}
+            prompt = f"{opts.get('systemPrompt') or ''}{opts.get('userPrompt') or ''}"
+            # 全限定名本身含 "CodeBuddy"，先剔掉再找残留的裸名。
+            rest = prompt.replace(qualified, "")
+            hits = [m for m in re.findall(r"@[\w\-./]*CodeBuddy\w*", rest) if m == "@CodeBuddy"]
+            if hits:
+                bare.append(f"{pipe.get('name')} / {stage.get('name')}")
+    assert not bare, (
+        "这些流水线的提示词在教 NPC 写裸 `@CodeBuddy`：裸名命中的是平台系统 NPC，"
+        "不读本仓库 .cnb.yml（跑 8 核默认规格，实测核时差 10 倍），也不受本仓库"
+        f"提示词里的权限边界约束。改成全限定名 {qualified}：{bare}"
+    )
+
+
+def test_review_prompt_forbids_double_dispatch():
+    """评审员不许既召唤修复又打回：那是两条并行会话改同一批代码
+
+    主通道是评审结论里召唤 `pull_request.comment@npc`，`pull_request.changes_requested`
+    只是兜底。两条同时开火时，两个修复 Agent 会在同一个分支上改同一批文件。
+
+    实测本仓库历史：29 次 `changes_requested` 里 22 次都与一条 `@CodeBuddy` 会话在
+    同一分钟内起跑（间隔 ≤3 min），11 月这条通道烧掉 80.1 核时，几乎全是重复。
+
+    这里守提示词里那句纪律还在：它不是文档，是让两条通道不并发的唯一机制。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+
+    review_job = next(j for j in data["$"]["pull_request"] if j.get("name") == "npc-code-review")
+    prompt = (review_job["stages"][0].get("options") or {}).get("userPrompt") or ""
+
+    assert "二选一" in prompt, (
+        "评审提示词必须写明「召唤修复」与「提交打回」只能二选一，"
+        "否则两条通道会各自拉起一个修复 Agent 改同一批代码"
+    )
+    for token in ("changes_requested", "不要"):
+        assert token in prompt, f"评审提示词缺少约束：{token}"
 
 
 if __name__ == "__main__":
