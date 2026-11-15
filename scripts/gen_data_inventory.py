@@ -10,8 +10,11 @@
 清单更坏 —— 它会让人相信某份文件还在被用。`--check` 让产物与数据不许分叉（CI 拦）。
 
 用法：
-  python3 scripts/gen_data_inventory.py            # 重生成
-  python3 scripts/gen_data_inventory.py --check    # 产物是否过期（CI）
+  python3 scripts/gen_data_inventory.py            # 重生成（md + csv）
+  python3 scripts/gen_data_inventory.py --check    # 只校验进库的 md 是否过期（CI）
+
+CSV 不进 `--check`：它落在被 .gitignore 忽略的 out/ 下，干净克隆里必然不存在，
+算进去就等于一条永远红的守卫。
 """
 from __future__ import annotations
 
@@ -238,13 +241,18 @@ def main() -> int:
                     help="只校验产物是否过期（CI 用），不写文件")
     args = ap.parse_args()
 
-    md, cv = render_md(), csv_text()
     if args.check:
+        md = render_md()
+        # 只校验进版本库的那一份（docs/industry/data-inventory.md）。
+        # CSV 落在 out/ 下，而 out/ 被 .gitignore 忽略 —— 干净克隆里它必然不存在，
+        # 把它算进 --check 就得到一个「永远过期」的守卫：每次 CI 都红，且红得毫无
+        # 信息量，所有人第一件事就是把它关掉。这与脚本开头自己写的那条规矩冲突
+        # （过期的清单比没有清单更坏，但永远报过期的校验比两者都坏）。
+        # CSV 是导出产物，谁需要谁生成；一致性由生成时同源计算天然保证。
         stale = []
-        for path, want in ((DOC, md), (CSV_OUT, cv)):
-            have = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
-            if have != want:
-                stale.append(path)
+        have = open(DOC, encoding="utf-8").read() if os.path.exists(DOC) else ""
+        if have != md:
+            stale.append(DOC)
         if stale:
             print("❌ 数据盘存清单已过期（改了数据却没重跑本脚本）：")
             for p in stale:
@@ -254,6 +262,7 @@ def main() -> int:
         print("✅ 数据盘存清单与数据一致")
         return 0
 
+    md, cv = render_md(), csv_text()
     os.makedirs(os.path.dirname(DOC), exist_ok=True)
     os.makedirs(os.path.dirname(CSV_OUT), exist_ok=True)
     with open(DOC, "w", encoding="utf-8") as fh:
