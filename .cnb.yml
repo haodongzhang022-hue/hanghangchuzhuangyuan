@@ -159,9 +159,11 @@ $:
             mergeType: squash
             removeSourceBranch: true
     - name: npc-code-review
-      # 同 review-fix-loop：默认 8 核预冻结超额，显式降到 2 核。
+      # NPC 流水线的成本在等 AI 接口，不在算力：1 核足够，冻结量再减半
+      # （1 核 × 5min = 0.17 核时，2 核是 0.33）。它和 review-fix-loop 同时起跑，
+      # 两条都按 2 核申请时是把同一份余额一起抢——降到 1 核给测试那条留出余量。
       runner:
-        cpus: 2
+        cpus: 1
       <<: *npc_default
       stages:
         - name: NPC 代码审查
@@ -218,7 +220,7 @@ $:
   pull_request.changes_requested:
     - name: auto-fix
       runner:
-        cpus: 2
+        cpus: 1   # 同 npc-code-review：等 AI 接口为主，1 核足够
       <<: *npc_default
       stages:
         - name: CodeBuddy 自动修复
@@ -249,7 +251,7 @@ $:
   pull_request.comment@npc:
     - name: npc-manual-invoke
       runner:
-        cpus: 2
+        cpus: 1   # 同 NPC 类流水线：等 AI 接口为主，1 核足够
       <<: *npc_default
       stages:
         - name: CodeBuddy 按 @ 指令处理
@@ -285,7 +287,7 @@ $:
   issue.comment@npc:
     - name: issue-npc-reply
       runner:
-        cpus: 2
+        cpus: 1   # 同 NPC 类流水线：等 AI 接口为主，1 核足够
       <<: *npc_default
       stages:
         - name: CodeBuddy 回应
@@ -363,7 +365,7 @@ main:
             echo "  ✅ 行业分区库 12 份导出产物齐全（六口径/资金流/官方对表/生产法 + 双方言 DDL）"
     - name: build-knowledge-base
       runner:
-        cpus: 2
+        cpus: 1   # 知识库更新是调 embedding 接口，算力不是瓶颈
       stages:
         - name: knowledge update
           type: knowledge:update
