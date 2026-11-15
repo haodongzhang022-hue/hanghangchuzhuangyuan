@@ -58,6 +58,11 @@ class RoleCardStore:
         # M11.1：行业类词表（链上只存类，公司靠索引现查）
         self.classes = IndustryClassIndex(
             self.data_dir, unit_roles_from_registry(self.registry))
+        # 行业战略视图：岗位卡说"这个岗位怎么干"，它说"这个行业的钱在哪"。
+        # 缺失即空表（不阻断渲染），但漏了整个岗位卡就只剩岗位视角。
+        # 延迟导入：engine/__init__ 会反向导入本包，顶层 import 会成环。
+        from ..engine.strategy_view import StrategyView
+        self.strategy = StrategyView(self.data_dir)
         self._cards: Dict[str, RoleCard] = {}
 
     # ---------------------------------------------------------- 基础加载
@@ -202,9 +207,19 @@ class RoleCardStore:
             sources=[profile.source] if profile and profile.source else [],
         )
         card.chain_refs = self._normalize_chain(card, unit.unit_id)
+        # 行业战略视图：只取本岗位所在分区的判断（分区 id 与 unit_id 缺省同名）
+        card.industry_view = self.strategy.row(self._partition_of(unit.unit_id))
         card.activation = self._derive_activation(card, unit)
         self.scorer.score(card)
         return card
+
+    def _partition_of(self, unit_id: str) -> str:
+        """单元 → 行业分区 id。缺省同名（M11 的一致性对齐键），找不到就原样给。
+
+        不在这里做模糊匹配：单元名与分区名对不上时，宁可空着让人看见，
+        也不要猜一个"差不多的分区"，那样战略判断会静默套到别的行业上。
+        """
+        return unit_id
 
     def _normalize_chain(self, card: RoleCard, unit_id: str) -> Dict[str, List[dict]]:
         """把利益链条归一：行业类目带 ref/index，岗位带 unit，公司不落库。"""

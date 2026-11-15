@@ -30,6 +30,7 @@ psql -d hanghang -f out/industry-db/10-data.sql
 - `baseline_link`（12 列）— 分区↔官方基准对表关系：equal/envelope 要比数值，incomparable 只登记
 - `io_account`（12 列）— 投入产出账：生产法三端 + 增加值率 + 行业池切分可行性
 - `money_gap`（5 列）— 对账差额与未观测登记：允许有差额，不允许差额没人解释
+- `strategy_view`（14 列）— 行业战略视图：价值链/利润池/杠杆/驱动/风险/AI 承接面/岗位落点
 
 ## 与另一套库的分工
 

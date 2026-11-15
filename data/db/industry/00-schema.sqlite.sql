@@ -179,6 +179,25 @@ CREATE TABLE IF NOT EXISTS "money_gap" (
   FOREIGN KEY ("node") REFERENCES "money_node"("id")
 );
 
+CREATE TABLE IF NOT EXISTS "strategy_view" (
+  "partition" TEXT NOT NULL,
+  "position" TEXT,
+  "value_chain" TEXT,
+  "profit_pool" TEXT,
+  "leverage" TEXT,
+  "drivers" TEXT,
+  "risks" TEXT,
+  "ai_strong" TEXT,
+  "ai_weak" TEXT,
+  "ai_boundary" TEXT,
+  "human_decides" TEXT,
+  "ai_fills" TEXT,
+  "role_focus" TEXT,
+  "missing" TEXT,
+  PRIMARY KEY ("partition"),
+  FOREIGN KEY ("partition") REFERENCES "partition"("id")
+);
+
 CREATE INDEX IF NOT EXISTS "idx_partition_status" ON "partition" ("status");
 
 CREATE INDEX IF NOT EXISTS "idx_partition_kind" ON "partition" ("gdp_kind");
@@ -208,3 +227,5 @@ CREATE INDEX IF NOT EXISTS "idx_baseline_link_status" ON "baseline_link" ("statu
 CREATE INDEX IF NOT EXISTS "idx_io_identity" ON "io_account" ("identity_status");
 
 CREATE INDEX IF NOT EXISTS "idx_io_pool" ON "io_account" ("pool_status");
+
+CREATE INDEX IF NOT EXISTS "idx_strategy_focus" ON "strategy_view" ("role_focus");

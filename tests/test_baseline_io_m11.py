@@ -349,7 +349,7 @@ def test_schema_version_bumped_and_tables_present():
     for t in ("baseline_series", "baseline_link", "io_account"):
         assert t in names, names
     assert "memo" in industry_schema.columns_of("money_flow")
-    assert industry_schema.SCHEMA_VERSION == "1.3.0"
+    assert industry_schema.SCHEMA_VERSION == "1.4.0"
 
 
 def test_rows_are_written_not_empty():
@@ -379,14 +379,14 @@ def test_cli_io_pools_runs():
     assert "可切" in out.stdout and "不可切" in out.stdout
 
 
-def test_validate_check_count_is_25():
-    """条数仍是一处来源：常量说 25，docstring 编号必须 1..25 连续"""
+def test_validate_check_count_is_26():
+    """条数仍是一处来源：常量说 26，docstring 编号必须 1..26 连续"""
     import inspect
     import re
     src = inspect.getsource(IndustryDatabase.validate)
     nums = [int(x) for x in re.findall(r"^        (\d+)\. ", src, re.M)]
     assert nums == list(range(1, IndustryDatabase.VALIDATE_CHECK_COUNT + 1)), nums
-    assert IndustryDatabase.VALIDATE_CHECK_COUNT == 25
+    assert IndustryDatabase.VALIDATE_CHECK_COUNT == 26
 
 
 # ------------------------------------------------- 6. 数据盘存清单

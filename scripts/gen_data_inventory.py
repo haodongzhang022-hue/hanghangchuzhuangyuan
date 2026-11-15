@@ -50,6 +50,9 @@ SOURCES = [
      "OfficialBaseline", "官方口径基准：逐年表值 + 分区↔基准对表关系"),
     ("data/industry-input-output.yaml", "accounts",
      "InputOutputBook", "投入产出账：生产法三端 + 中间投入构成 + 池切分锚点"),
+    ("data/industry-strategy.yaml", "partitions",
+     "StrategyView", "行业战略视图：价值链/利润池/杠杆/驱动/风险/AI 承接面/岗位落点"
+                     "（粒度只到岗位/角色，工序与话术由 AI 上岗后补）"),
     ("data/industry-classes.yaml", "aliases",
      "ClassStore", "行业类词表汇总入口（类目本体在 data/industry-classes/*.yaml），"
                    "公司靠索引现查不落库"),
@@ -142,8 +145,10 @@ def rows() -> list:
             ("money-flows.csv", "资金流明细（memo 列区分「摊开看」与真钱）"),
             ("baseline-check.csv", "官方基准对表结论（一分区一行，带偏差）"),
             ("io-accounts.csv", "生产法三端 + 增加值率 + 能否切分"),
+            ("io-input-plan.csv", "中间投入构成还缺什么、卡住哪一步、谁在消费这个分区"),
+            ("strategy.csv", "行业战略视图：价值链/利润池/AI 承接面/岗位落点"),
             ("data-inventory.csv", "本清单自身"),
-            ("industry.sqlite", "单文件库（12 表）"),
+            ("industry.sqlite", "单文件库（13 表）"),
             ("00-schema.sqlite.sql", "建库 DDL（SQLite）"),
             ("00-schema.postgresql.sql", "建库 DDL（PostgreSQL）"),
             ("10-data.sql", "与方言无关的数据 SQL（10-data.sql 是文件名，非表数）")):
@@ -202,7 +207,7 @@ def render_md() -> str:
         lines.append(f"| `{name}` | {n} |")
     lines += ["", f"合计 {sum(counts.values())} 行 / {len(counts)} 张表"
               "（`export_industry_db.py --check` 会真灌一份临时库再读回来比对）。", "",
-              "## 五、四本账各守什么", "",
+              "## 五、五本账各守什么", "",
               "| 账 | 文件 | 守的一件事 | 抓得住什么 |", "|---|---|---|---|",
               "| 六口径规模账 | `data/industry-scales.yaml` | 行业不因产值没统计就整体隐身 "
               "| 任一格有数就在表里；缺的格子必须写原因 |",
@@ -211,7 +216,10 @@ def render_md() -> str:
               "| 官方口径基准 | `data/industry-official-baseline.yaml` "
               "| `high` 置信度必须可核对 | 同口径 + 同年份对表；口径不同（`incomparable`）不许相减 |",
               "| 投入产出账 | `data/industry-input-output.yaml` | 切分不重复计 "
-              "| 生产法恒等式三端闭合；GMV/成本总额不许当增加值锚点 |", "",
+              "| 生产法恒等式三端闭合；GMV/成本总额不许当增加值锚点 |",
+              "| 行业战略视图 | `data/industry-strategy.yaml` "
+              "| 钱为什么在这、AI 该站哪一段 "
+              "| 粒度只到岗位/角色：工序与话术由 AI 上岗后补，写死在这里的那版一定过期 |", "",
               "## 六、平台路径", "",
               "- 仓库内：`data/`（源）、`data/db/industry/`（结构）、`out/industry-db/`（导出）",
               "- 知识库：本文件与 `docs/industry/*.md` 会被切成片段供检索"

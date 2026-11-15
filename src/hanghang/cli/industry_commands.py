@@ -830,6 +830,43 @@ def cmd_industry_io(args):
                 print(f"    {rule['note']}")
         return
 
+    if getattr(args, "inputs", False):
+        print("=" * 96)
+        print("中间投入构成：还缺什么、接进来能支撑什么判断")
+        print("-" * 96)
+        print("卡住的地方不是数据源，是**接了没有落点**。一轮只解决一件事：")
+        print("把「知道建材 8 万亿之后放哪、用来干什么」写清楚，再去要数据。")
+        print("-" * 96)
+        plan = book.input_plan()
+        print(db._cell("分区", 22) + _r("中间投入总额(亿)", 18)
+              + db._cell("卡住", 14) + "  要补的口径")
+        for r in plan[:getattr(args, "top", 0) or len(plan)]:
+            p = db.partition(r["partition"]) or {}
+            print(db._cell(p.get("name", r["partition"]), 22)
+                  + _r(f"{r['intermediate'] / 1e8:,.0f}"
+                       if r["intermediate"] else "-", 18)
+                  + db._cell(r["blocks"], 14) + "  "
+                  + r["need"].replace("\n", "")[:34])
+        print("-" * 96)
+        print(f"共 {len(plan)} 个分区还没有中间投入构成。构成合计必须等于总额"
+              f"（声明 complete 时才校验）——两套数并存必有一天对不上。")
+        ledger = book.dedup_ledger()
+        print("-" * 96)
+        if not ledger:
+            print("还没有任何分区被当作中间投入引用 —— 供给侧的边一条都没画，"
+                  "所以「供不出比自己产出更多的东西」这条关门条件暂时无事可守。")
+        else:
+            print("已被别人当作中间投入引用的分区（再往它头上加供给会撞超产）：")
+            for r in ledger:
+                own = (f"{r['own_output_cny'] / 1e8:,.0f} 亿"
+                       if r["own_output_cny"] else "无总产出口径")
+                ratio = f"{r['ratio']:.0%}" if r["ratio"] is not None else "-"
+                print(f"  {r['partition']}: 已供给 {r['supplied_cny'] / 1e8:,.0f} 亿"
+                      f" / 自身总产出 {own}（{ratio}）"
+                      f"  消费者: {r['consumers']}")
+        print("=" * 96)
+        return
+
     if getattr(args, "pools", False):
         print("=" * 92)
         print("行业池切分可行性（部门层总额是增加值性质，所以锚点只能是增加值）")
@@ -899,6 +936,106 @@ def cmd_industry_io(args):
     print("`industry io --partition construction-eng` 看单户三端与中间投入构成，"
           "`--pools` 只看行业池能不能切")
     print("=" * 96)
+
+
+def cmd_industry_strategy(args):
+    """行业战略视图：钱为什么在这、AI 该站哪一段（粒度只到岗位/角色）。
+
+    这一层不回答"这个岗位怎么干"——那是 AI 上岗认领职责后自己补的。它回答的是
+    **派活之前必须先知道的事**：这个行业的钱沉在哪几段、靠什么换钱、什么会杀死它、
+    AI 现在站得住哪一段。不知道这些，AI 会认真把一个不赚钱的环节做到极致。
+    """
+    db = _db(args)
+    book = db.strategy
+    pid = getattr(args, "partition", "") or ""
+
+    if pid:
+        p = db.partition(pid)
+        if not p:
+            print(f"未找到分区: {pid}")
+            return
+        r = book.row(pid)
+        print(f"■ {p.get('name')} ({pid})  {p.get('status')}")
+        print("-" * 84)
+        if r["value_chain"]:
+            print("  价值链: " + " → ".join(r["value_chain"]))
+        print(f"  议价位置: {r['position'] or '—'}")
+        if r["profit_pool"]:
+            print("  利润池:")
+            for it in r["profit_pool"]:
+                print(f"    ● {it.get('where')}  —— {it.get('why')}")
+        print("  杠杆: " + ("、".join(r["leverage"]) or "—"))
+        print("  驱动: " + ("、".join(r["drivers"]) or "—"))
+        print("  风险: " + ("、".join(r["risks"]) or "—"))
+        print(f"  AI 站得住: " + ("、".join(r["ai_strong"]) or "—"))
+        print(f"  AI 站不住: " + ("、".join(r["ai_weak"]) or "—"))
+        print(f"  AI 边界: {r['ai_boundary'] or '—'}")
+        print("  人管: " + ("、".join(r["human_decides"]) or "—"))
+        print("  AI 补: " + ("、".join(r["ai_fills"]) or "—"))
+        focus = "、".join(r["role_focus_valid"]) or "—"
+        print(f"  岗位落点: {focus}")
+        if r["role_focus_dangling"]:
+            print(f"  ⚠️ 落点不存在: {r['role_focus_dangling']}")
+        if r["missing"]:
+            print("  缺段说明:")
+            for k, v in r["missing"].items():
+                print(f"    - {k}: {v}")
+        return
+
+    rows = book.cross_view(db)
+    print("=" * 100)
+    print(f"行业战略视图  v{book.version}  updated {book.updated_at}"
+          f"  粒度红线: 只到岗位/角色（工序与话术由 AI 上岗后按职责补）")
+    print("-" * 100)
+    s = book.summary()
+    print(f"分区 {s['partitions']} 个，有战略视图 {s['covered']} 个，"
+          f"岗位落点成立 {s['with_role_focus']} 个，悬空落点 {s['dangling_focus']} 个")
+    print(db._cell("分区", 20) + db._cell("链", 4) + db._cell("池", 4)
+          + db._cell("AI强", 6) + db._cell("AI弱", 6)
+          + db._cell("实测AI%", 10) + db._cell("落点", 6) + "  议价位置")
+    only = getattr(args, "only", "") or ""
+    top = getattr(args, "top", 0) or 0
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    rows.sort(key=lambda r: (r["status"], -(r["chain_len"] or 0), r["partition"]))
+    if top:
+        rows = rows[:top]
+    for r in rows:
+        e = book.entry(r["partition"]) or {}
+        print(db._cell((db.partition(r["partition"]) or {}).get("name", ""), 20)
+              + db._cell(str(r["chain_len"]), 4) + db._cell(str(r["pools"]), 4)
+              + db._cell(str(r["ai_strong"]), 6) + db._cell(str(r["ai_weak"]), 6)
+              + db._cell(f"{r['ai_share_measured']:.0f}" if r["ai_share_measured"]
+                         is not None else "-", 10)
+              + db._cell(str(r["role_focus"]), 6)
+              + "  " + (e.get("position", "") or "-")[:40])
+    print("-" * 100)
+    print("`industry strategy --partition construction-eng` 看单个行业的价值链与利润池；"
+          "`--gaps` 只看缺段")
+    print("=" * 100)
+
+
+def cmd_industry_strategy_gaps(args):
+    """战略视图的缺口：哪个分区哪一段空着、为什么空。"""
+    db = _db(args)
+    book = db.strategy
+    gaps = [r for r in book.rows() if r["missing"] or r["role_focus_dangling"]
+            or len(r["value_chain"]) < 3 or not r["profit_pool"]]
+    if not gaps:
+        print(f"✅ 战略视图无缺口：{len(book.entries)} 个分区都有价值链、利润池与岗位落点")
+        return
+    print(f"战略视图缺口 {len(gaps)} 个分区：")
+    for r in gaps:
+        p = db.partition(r["partition"]) or {}
+        print(f"- {p.get('name', r['partition'])} ({r['partition']})")
+        if len(r["value_chain"]) < 3:
+            print(f"    价值链只有 {len(r['value_chain'])} 段")
+        if not r["profit_pool"]:
+            print("    没有利润池判断")
+        for name in r["role_focus_dangling"]:
+            print(f"    落点不存在: {name}")
+        for k, v in r["missing"].items():
+            print(f"    {k}: {v}")
 
 
 def cmd_industry_check(args):
@@ -992,7 +1129,16 @@ def cmd_industry_export(args):
                            "summary": db.input_output.summary(),
                            "accounts": list(db.input_output.accounts.values()),
                            "pool_rules": db.input_output.pool_rules,
-                           "pools": db.input_output.pool_feasibility()}}, fh,
+                           "pools": db.input_output.pool_feasibility(),
+                           # 接进口：还缺哪几段构成、缺到哪一步。补构成的人靠它开工，
+                           # 不用重读 yaml。
+                           "input_plan": db.input_output.input_plan(),
+                           "dedup": db.input_output.dedup_ledger()},
+                       # 战略视图：钱为什么在这、AI 该站哪一段（粒度只到岗位/角色）。
+                       # 单独成段而不是塞进 partitions：两者的更新节奏完全不同——
+                       # 产值随统计年鉴变，战略判断随市场变。
+                       "strategy": {"summary": db.strategy.summary(),
+                                    "partitions": db.strategy.rows()}}, fh,
                       ensure_ascii=False, indent=2)
         written.append(path)
 
@@ -1179,6 +1325,53 @@ def cmd_industry_export(args):
                             rule.get("anchor", "") or "",
                             rule.get("status", "") or ""])
         written.append(ipath)
+
+        # 中间投入构成接进口：一行一个还缺构成的分区。给要数据的人一张清单，
+        # 而不是让下一个人重新读一遍 yaml 才知道缺在哪。
+        ipath2 = os.path.join(out, "io-input-plan.csv")
+        with open(ipath2, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "intermediate_cny", "declared_complete",
+                        "blocks", "need", "consumers_of_this_partition"])
+            dedup = {r["partition"]: r for r in db.input_output.dedup_ledger()}
+            for r in db.input_output.input_plan():
+                w.writerow([r["partition"],
+                            int(r["intermediate"]) if r["intermediate"] else "",
+                            1 if r["declared_complete"] else 0,
+                            r["blocks"], r["need"],
+                            "|".join((dedup.get(r["partition"]) or {})
+                                     .get("consumers", []))])
+        written.append(ipath2)
+
+        # 战略视图扁平表：一行一个分区。position/ai_boundary 是长句，单独给列。
+        spath3 = os.path.join(out, "strategy.csv")
+        with open(spath3, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "name", "status", "position",
+                        "value_chain", "profit_pool", "leverage", "drivers",
+                        "risks", "ai_strong", "ai_weak", "ai_boundary",
+                        "human_decides", "ai_fills", "role_focus",
+                        "role_focus_dangling", "ai_share_measured", "missing"])
+            for row in db.strategy.cross_view(db):
+                r = db.strategy.row(row["partition"])
+                e = db.strategy.entry(row["partition"]) or {}
+                w.writerow([
+                    row["partition"], row["name"], row["status"],
+                    r["position"], "|".join(r["value_chain"]),
+                    # 利润池的 where 与 why 必须成对出现，所以压成 "环节:原因" 再拼
+                    "|".join(f"{it.get('where')}:{it.get('why')}"
+                             for it in r["profit_pool"]),
+                    "|".join(r["leverage"]), "|".join(r["drivers"]),
+                    "|".join(r["risks"]), "|".join(r["ai_strong"]),
+                    "|".join(r["ai_weak"]), r["ai_boundary"],
+                    "|".join(r["human_decides"]), "|".join(r["ai_fills"]),
+                    "|".join(r["role_focus"]),
+                    "|".join(r["role_focus_dangling"]),
+                    (row["ai_share_measured"]
+                     if row["ai_share_measured"] is not None else ""),
+                    "|".join(f"{k}:{v}" for k, v in (e.get("missing") or {}).items()),
+                ])
+        written.append(spath3)
 
     if fmt in ("all", "sqlite"):
         import sqlite3

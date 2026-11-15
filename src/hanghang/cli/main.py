@@ -21,6 +21,7 @@ from hanghang.cli.industry_commands import (
     cmd_industry_occupation, cmd_industry_filter,
     cmd_industry_scale, cmd_industry_money,
     cmd_industry_baseline, cmd_industry_io,
+    cmd_industry_strategy, cmd_industry_strategy_gaps,
     cmd_reference_isco, cmd_reference_sources,
 )
 from hanghang.cli.state_commands import (
@@ -498,11 +499,26 @@ def build_parser():
         "io", help="投入产出账：生产法三端 + 中间投入去重 + 行业池能不能切")
     iio.add_argument("--partition", default="", help="看单个分区的三端与中间投入构成")
     iio.add_argument("--pools", action="store_true", help="只看行业池切分可行性")
+    iio.add_argument("--inputs", action="store_true",
+                     help="看中间投入构成还缺什么、接进来能支撑什么判断")
     iio.add_argument("--only", default="", choices=["", "ok", "gap", "partial", "missing"],
                      help="只看某种生产法结论")
     iio.add_argument("--top", type=int, default=0, help="只看前 N 条（0=全部）")
     iio.add_argument("--data-dir", default="", help="自定义 data 目录")
     iio.set_defaults(func=cmd_industry_io)
+
+    istrat = ind_sub.add_parser(
+        "strategy", help="行业战略视图：钱为什么在这、AI 该站哪一段（粒度只到岗位/角色）")
+    istrat.add_argument("--partition", default="", help="看单个分区的价值链与利润池")
+    istrat.add_argument("--only", default="", choices=["", "covered", "pending", "evaluated"],
+                        help="只看某种状态的分区")
+    istrat.add_argument("--top", type=int, default=0, help="只看前 N 条（0=全部）")
+    istrat.add_argument("--data-dir", default="", help="自定义 data 目录")
+    istrat.set_defaults(func=cmd_industry_strategy)
+
+    igap = ind_sub.add_parser("strategy-gaps", help="战略视图缺口：哪一段空着、为什么空")
+    igap.add_argument("--data-dir", default="", help="自定义 data 目录")
+    igap.set_defaults(func=cmd_industry_strategy_gaps)
 
     icheck = ind_sub.add_parser("check", help="数据一致性自检(职业↔单元岗位双向对齐)")
     icheck.add_argument("--data-dir", default="", help="自定义 data 目录")

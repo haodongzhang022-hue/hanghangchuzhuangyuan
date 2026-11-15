@@ -37,6 +37,7 @@ from .occupation_axis import AXES as OCC_AXES, OccupationAxis
 from .occupation_catalog import OccupationCatalog
 from .registry import Registry
 from .scale_ledger import SCALE_METRICS, ScaleLedger
+from .strategy_view import StrategyView
 
 # 参与"应建设"分母的分区状态；evaluated 表示评估后明确不建单元
 _BUILDABLE = ("covered", "pending")
@@ -118,6 +119,10 @@ class IndustryDatabase:
         # high 置信度全部失去背书、生产法全部验不了，那会进 validate，不会静默通过。
         self.baseline: OfficialBaseline = OfficialBaseline(self.data_dir)
         self.input_output: InputOutputBook = InputOutputBook(self.data_dir)
+        # 行业战略视图（大局观与战略视角）。粒度只到岗位/角色：钱为什么在这、
+        # AI 该站哪一段；工序与话术由 AI 上岗后按职责补。缺失即降级为空 —— 但空账会
+        # 让每个分区都"只有数字没有判断"，那会进 validate，不会静默通过。
+        self.strategy: StrategyView = StrategyView(self.data_dir)
         self.version = "0.1"
         self.updated_at = ""
         # 分区文件顶层的年份声明（gdp_year_basis）。逐个分区回填这个字段会把
@@ -175,6 +180,7 @@ class IndustryDatabase:
         self.money.bind(self.partitions)
         self.baseline.bind(self.partitions, self.gdp_year_basis)
         self.input_output.bind(self.partitions)
+        self.strategy.bind(self.partitions, self.registry)
 
     def _reindex(self) -> None:
         """按当前列表重建 id 索引（显式保留首次出现，不依赖 dict 覆盖顺序）。
@@ -483,6 +489,9 @@ class IndustryDatabase:
                                   if r["partition"] == p.get("id", "")), None),
                 # 生产法结论：三端是否闭合、缺哪一端。切分可行性看它。
                 "input_output": self.input_output.identity(p.get("id", "")),
+                # 战略视图：价值链条 / 利润池 / 杠杆 / 驱动 / 风险 / AI 承接面 / 岗位落点。
+                # 与上面几本账的关系：那些回答"多少钱"，这份回答"钱为什么在这"。
+                "strategy": self.strategy.row(p.get("id", "")),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
 
@@ -585,6 +594,7 @@ class IndustryDatabase:
             "baseline": self.baseline.summary() if self.baseline else {},
             # 投入产出账：生产法验到什么程度、哪些行业池现在能切（有增加值锚点）。
             "input_output": self.input_output.summary() if self.input_output else {},
+            "strategy": self.strategy.summary() if self.strategy else {},
             "rows": rows,
         }
 
@@ -694,7 +704,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 25
+    VALIDATE_CHECK_COUNT = 26
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -782,6 +792,12 @@ class IndustryDatabase:
             缺的一端必须写清为什么；有产值的分区必须有生产法落点；三处不得重复计
             —— 中间投入构成合计 = 总额（声明 complete 时）、某分区作为投入方的合计
             不超过它自己的总产出、所有分区增加值合计不超过全国 GDP。
+        26. 行业战略视图（大局观与战略视角）：**每个分区都要有落点**、粒度不得越过
+            岗位/角色（出现 steps/tasks/sop/prompt/kpi/persona 即报）、不许重复存金额、
+            价值链 >= 3 段、利润池每一项要落在自己的链条里、AI 承接面强/弱/边界三档齐、
+            `role_focus` 必须落在本分区真实岗位（已建看 unit-index roles，待建看
+            planned_roles）、空段必须写 missing 原因。这一层只回答"钱为什么在这、
+            AI 该站哪一段"；再细的工序/话术由 AI 上岗认领职责后自己补 —— 我们分工了。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -1094,6 +1110,12 @@ class IndustryDatabase:
         self._bind_ledgers()
         problems.extend(self.baseline.validate())
         problems.extend(self.input_output.validate())
+
+        # 26. 行业战略视图：每个分区都要有"钱为什么在这、AI 该站哪一段"的判断。
+        # 缺这一层不会让任何数字变红——41 个分区照样有产值、有六口径、有生产法——但
+        # AI 上岗后会不知道这个行业的利润根本不在它被派去的那个环节。
+        self._bind_ledgers()
+        problems.extend(self.strategy.validate())
         return problems
 
     def _check_primary_keys(self) -> List[str]:

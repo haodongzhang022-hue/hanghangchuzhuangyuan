@@ -133,6 +133,9 @@ class RoleCard:
     sources: List[str] = field(default_factory=list)
     # M11.1 归一后的利益链条：链上只留行业类，具体公司靠 index 现查，不落库
     chain_refs: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    # 所属行业的战略视图（钱为什么在这、AI 该站哪一段）。粒度只到岗位/角色：
+    # 它给的是判断，不是工序——工序由 AI 上岗认领职责后自己补。
+    industry_view: Dict[str, Any] = field(default_factory=dict)
 
     # -------------------------------------------------- 查询便捷方法
     def capability(self) -> CapabilityProfile:
@@ -205,6 +208,25 @@ class RoleCard:
                 lines.append(f"- 下游承接: {'、'.join(_chain_values(self, 'downstream') or ch.downstream)}")
             if ch.blockers:
                 lines.append(f"- 常见阻碍: {'、'.join(ch.blockers)}")
+            # 行业大局：岗位卡说"这个岗位怎么干"，这一段说"这个行业的钱在哪"。
+            # 缺了它，AI 会认真把一个不赚钱的环节做到极致——不是能力问题，
+            # 是没人告诉它行业长什么样。
+            iv = self.industry_view or {}
+            if iv:
+                if iv.get("position"):
+                    lines.append(f"- 行业位置: {iv['position']}")
+                if iv.get("profit_pool"):
+                    pools = "；".join(f"{it.get('where')}（{it.get('why')}）"
+                                     for it in iv["profit_pool"])
+                    lines.append(f"- 利润池: {pools}")
+                if iv.get("risks"):
+                    lines.append(f"- 行业风险: {'、'.join(iv['risks'])}")
+                if iv.get("ai_boundary"):
+                    lines.append(f"- AI 边界: {iv['ai_boundary']}")
+                if iv.get("human_decides"):
+                    lines.append(f"- 必须人定: {'、'.join(iv['human_decides'])}")
+                if iv.get("ai_fills"):
+                    lines.append(f"- 可交给 AI 补: {'、'.join(iv['ai_fills'])}")
         steps = self.playbook(wf_id)
         if steps:
             lines.append("- 工作流:")

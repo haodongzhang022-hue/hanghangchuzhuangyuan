@@ -22,6 +22,7 @@
 | `data/industry-money-flows.yaml` | 27 flows | `MoneyFlowBook` | 16 KB | 资金流守恒账：部门 + 行业池 + 双边记账 + 对账口径 |
 | `data/industry-official-baseline.yaml` | 17 benchmarks | `OfficialBaseline` | 18 KB | 官方口径基准：逐年表值 + 分区↔基准对表关系 |
 | `data/industry-input-output.yaml` | 35 accounts | `InputOutputBook` | 26 KB | 投入产出账：生产法三端 + 中间投入构成 + 池切分锚点 |
+| `data/industry-strategy.yaml` | 41 partitions | `StrategyView` | 49 KB | 行业战略视图：价值链/利润池/杠杆/驱动/风险/AI 承接面/岗位落点（粒度只到岗位/角色，工序与话术由 AI 上岗后补） |
 | `data/industry-classes.yaml` | 不适用（契约/索引文件，非条目） | `ClassStore` | 4 KB | 行业类词表汇总入口（类目本体在 data/industry-classes/*.yaml），公司靠索引现查不落库 |
 | `data/unit-index.yaml` | 14 units | `Registry` | 31 KB | 行业单元索引：路由的注册表 |
 | `data/coverage-target.yaml` | 41 targets | `CoverageTracker` | 14 KB | 覆盖目标全集（分母）与各行业建议搜集渠道 |
@@ -31,8 +32,8 @@
 
 | 文件 | 行数 | 生成者 | 说明 |
 |---|---|---|---|
-| `data/db/industry/00-schema.sqlite.sql` | 210 | `scripts/export_industry_db.py` | SQLite DDL：买服务器直接建库用（SQLite 方言） |
-| `data/db/industry/00-schema.postgresql.sql` | 210 | `scripts/export_industry_db.py` | PostgreSQL DDL：买服务器直接建库用（PG 方言） |
+| `data/db/industry/00-schema.sqlite.sql` | 231 | `scripts/export_industry_db.py` | SQLite DDL：买服务器直接建库用（SQLite 方言） |
+| `data/db/industry/00-schema.postgresql.sql` | 231 | `scripts/export_industry_db.py` | PostgreSQL DDL：买服务器直接建库用（PG 方言） |
 | `data/db/00-schema.sqlite.sql` | 215 | `scripts/build_role_db.py` | 岗位画像库 DDL：另一套库：岗位画像/工序/就绪度 |
 | `data/db/00-schema.postgresql.sql` | 215 | `scripts/build_role_db.py` | 岗位画像库 DDL (PG)：同上，PG 方言 |
 | `data/db/00-class-tables.sql` | 60 | `scripts/export_class_db.py` | 行业类库 DDL：行业类词表建库结构 |
@@ -53,8 +54,10 @@ python3 src/hanghang/cli/main.py industry export --out out/industry-db
 | `out/industry-db/money-flows.csv` | 资金流明细（memo 列区分「摊开看」与真钱） |
 | `out/industry-db/baseline-check.csv` | 官方基准对表结论（一分区一行，带偏差） |
 | `out/industry-db/io-accounts.csv` | 生产法三端 + 增加值率 + 能否切分 |
+| `out/industry-db/io-input-plan.csv` | 中间投入构成还缺什么、卡住哪一步、谁在消费这个分区 |
+| `out/industry-db/strategy.csv` | 行业战略视图：价值链/利润池/AI 承接面/岗位落点 |
 | `out/industry-db/data-inventory.csv` | 本清单自身 |
-| `out/industry-db/industry.sqlite` | 单文件库（12 表） |
+| `out/industry-db/industry.sqlite` | 单文件库（13 表） |
 | `out/industry-db/00-schema.sqlite.sql` | 建库 DDL（SQLite） |
 | `out/industry-db/00-schema.postgresql.sql` | 建库 DDL（PostgreSQL） |
 | `out/industry-db/10-data.sql` | 与方言无关的数据 SQL（10-data.sql 是文件名，非表数） |
@@ -75,10 +78,11 @@ python3 src/hanghang/cli/main.py industry export --out out/industry-db
 | `baseline_link` | 41 |
 | `io_account` | 41 |
 | `money_gap` | 11 |
+| `strategy_view` | 41 |
 
-合计 2459 行 / 12 张表（`export_industry_db.py --check` 会真灌一份临时库再读回来比对）。
+合计 2500 行 / 13 张表（`export_industry_db.py --check` 会真灌一份临时库再读回来比对）。
 
-## 五、四本账各守什么
+## 五、五本账各守什么
 
 | 账 | 文件 | 守的一件事 | 抓得住什么 |
 |---|---|---|---|
@@ -86,6 +90,7 @@ python3 src/hanghang/cli/main.py industry export --out out/industry-db
 | 资金流守恒账 | `data/industry-money-flows.yaml` | 钱不会凭空生灭 | 节点与外部口径对账偏差超 10% 即报；`memo` 边区分「摊开看」与真钱 |
 | 官方口径基准 | `data/industry-official-baseline.yaml` | `high` 置信度必须可核对 | 同口径 + 同年份对表；口径不同（`incomparable`）不许相减 |
 | 投入产出账 | `data/industry-input-output.yaml` | 切分不重复计 | 生产法恒等式三端闭合；GMV/成本总额不许当增加值锚点 |
+| 行业战略视图 | `data/industry-strategy.yaml` | 钱为什么在这、AI 该站哪一段 | 粒度只到岗位/角色：工序与话术由 AI 上岗后补，写死在这里的那版一定过期 |
 
 ## 六、平台路径
 

@@ -371,16 +371,17 @@ main:
             set -e
             pip install -q -r requirements.txt
             python3 src/hanghang/cli/main.py industry export --out out/industry-db
-            # 12 份产物：9 份给 BI/知识库直接吃（六口径规模账、资金流守恒账、
-            # 官方基准对表、投入产出生产法各一份扁平表），3 份是「买服务器直接建库」
-            # 用的双方言 DDL + 与方言无关的数据 SQL。
+            # 14 份产物：11 份给 BI/知识库直接吃（六口径规模账、资金流守恒账、
+            # 官方基准对表、投入产出生产法、中间投入接进口、行业战略视图各一份扁平表），
+            # 3 份是「买服务器直接建库」用的双方言 DDL + 与方言无关的数据 SQL。
             for f in industry-db.json partitions.csv occupations.csv industry.sqlite \
                      scales.csv money-nodes.csv money-flows.csv \
-                     baseline-check.csv io-accounts.csv \
+                     baseline-check.csv io-accounts.csv io-input-plan.csv \
+                     strategy.csv \
                      00-schema.sqlite.sql 00-schema.postgresql.sql 10-data.sql; do
               test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
             done
-            echo "  ✅ 行业分区库 12 份导出产物齐全（六口径/资金流/官方对表/生产法 + 双方言 DDL）"
+            echo "  ✅ 行业分区库 14 份导出产物齐全（六口径/资金流/官方对表/生产法/战略视图 + 双方言 DDL）"
     - name: build-knowledge-base
       runner:
         cpus: 1   # 知识库更新是调 embedding 接口，算力不是瓶颈

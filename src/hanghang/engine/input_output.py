@@ -239,6 +239,65 @@ class InputOutputBook:
         }
 
     # ------------------------------------------------------------ validate
+    # ------------------------------------------------- 中间投入构成：接进口
+    def input_plan(self, db=None) -> List[dict]:
+        """中间投入构成还缺什么、缺到哪一步、下一步该接哪张表。
+
+        上一轮留下的第四个坑是「中间投入构成 0 个分区有」——建筑业那 23 万亿只知道
+        总额，不知道切成建材/机械/分包各多少。卡点不是数据源找不到，是**接了没有
+        落点**：知道"建材 8 万亿"之后放哪里？用来干什么？
+
+        所以这里不急着填数，先把接入口立起来：每一条缺失都写清
+          need    要找什么口径（不是"中间投入"，是"建筑业中间使用列"）
+          source  该去哪张表 / 哪个部门要
+          feeds   接进来之后能支撑什么判断（否则补进来也只是堆数）
+        """
+        schema = []
+        for pid, acc in self.accounts.items():
+            mid = self.term(acc, "intermediate")
+            inputs = acc.get("inputs") or []
+            if inputs:
+                continue
+            schema.append({
+                "partition": pid,
+                "intermediate": mid,
+                "declared_complete": bool(acc.get("complete")),
+                "need": self.missing_reason(pid, "inputs") or "",
+                "blocks": ("行业池切分" if mid else "生产法三端"),
+            })
+        schema.sort(key=lambda r: (-(r["intermediate"] or 0), r["partition"]))
+        return schema
+
+    def dedup_ledger(self) -> List[dict]:
+        """某分区被别人当作中间投入引用的合计，与它自己的总产出比。
+
+        这是"去重"的关门条件（validate 4-b 用的同一个算式），单独给一份是为了让
+        补构成的人**先看一眼再填**：一个分区的投入已经被别人引用掉 80% 时，
+        再往它头上加供给，只会让超产报错。
+        """
+        supplied: Dict[str, float] = {}
+        by_consumer: Dict[str, List[str]] = {}
+        for pid, acc in self.accounts.items():
+            for it in (acc.get("inputs") or []):
+                src = (it or {}).get("from") or ""
+                v = self._input_amount(it)
+                if not src or not v:
+                    continue
+                supplied[src] = supplied.get(src, 0.0) + v
+                by_consumer.setdefault(src, []).append(pid)
+        rows: List[dict] = []
+        for src, total in supplied.items():
+            own = self.term(self.accounts.get(src) or {}, "output")
+            rows.append({
+                "partition": src,
+                "supplied_cny": total,
+                "own_output_cny": own,
+                "ratio": (total / own) if own else None,
+                "consumers": sorted(by_consumer.get(src, [])),
+            })
+        rows.sort(key=lambda r: (-(r["supplied_cny"] or 0), r["partition"]))
+        return rows
+
     def validate(self) -> List[str]:
         """投入产出账自检：每一端都要能对上，每一处重复计都要被拦住。"""
         problems: List[str] = []

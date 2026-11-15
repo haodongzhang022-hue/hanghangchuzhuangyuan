@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple
 
 from .scale_ledger import SCALE_METRICS
 
-SCHEMA_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.4.0"
 
 # 列类型：text / int / bigint / real，两种方言各自映射到自己的类型名。
 #
@@ -264,6 +264,32 @@ TABLES: List[dict] = [
         "pk": ("node", "kind", "side"),
         "fk": [("node", "money_node", "id")],
     },
+    {
+        # 战略视图：一行一个分区 —— 钱为什么在这、AI 该站哪一段。
+        # 与 io_account 分开存而不是加列：那一张问"会不会重复计"，这张问"值不值得干"，
+        # 两件事的主键相同但生命周期完全不同（生产法每年随表修订，战略判断按市场变）。
+        # 利润池用 JSON 存 where/why 对：拆成两列会出现"有 where 没 why"的半条判断。
+        "name": "strategy_view",
+        "comment": "行业战略视图：价值链/利润池/杠杆/驱动/风险/AI 承接面/岗位落点",
+        "columns": [
+            ("partition", "text", True),
+            ("position", "text", False),           # 议价位置：在链条上靠什么换钱
+            ("value_chain", "text", False),        # | 分隔，顺序即上下游
+            ("profit_pool", "text", False),        # JSON [{where, why}]
+            ("leverage", "text", False),           # | 分隔：定价权来源
+            ("drivers", "text", False),            # | 分隔
+            ("risks", "text", False),              # | 分隔
+            ("ai_strong", "text", False),          # | 分隔：AI 现在站得住的环节
+            ("ai_weak", "text", False),            # | 分隔：站不住的环节
+            ("ai_boundary", "text", False),        # 一句话判据：AI 该停在哪
+            ("human_decides", "text", False),      # | 分隔：人管什么
+            ("ai_fills", "text", False),           # | 分隔：AI 补什么（只到角色）
+            ("role_focus", "text", False),         # | 分隔：承载战略结论的岗位
+            ("missing", "text", False),            # JSON {段: 为什么空}
+        ],
+        "pk": ("partition",),
+        "fk": [("partition", "partition", "id")],
+    },
 ]
 
 INDEXES = [
@@ -282,6 +308,7 @@ INDEXES = [
     ("idx_baseline_link_status", "baseline_link", ("status",)),
     ("idx_io_identity", "io_account", ("identity_status",)),
     ("idx_io_pool", "io_account", ("pool_status",)),
+    ("idx_strategy_focus", "strategy_view", ("role_focus",)),
 ]
 
 
@@ -529,6 +556,29 @@ def rows_of(db, snapshot: dict) -> Dict[str, List[tuple]]:
                 rule.get("anchor", "") or "",
                 rule.get("status", "") or "",
                 _json.dumps(miss, ensure_ascii=False) if miss else "",
+            ))
+
+    # ---- 行业战略视图：钱为什么在这、AI 该站哪一段 ----
+    strategy = getattr(db, "strategy", None)
+    if strategy is not None:
+        import json as _json
+        for p in db.partitions:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            r = strategy.row(pid)
+            e = strategy.entries.get(pid) or {}
+            rows["strategy_view"].append((
+                pid, r["position"], "|".join(r["value_chain"]),
+                _json.dumps(r["profit_pool"], ensure_ascii=False)
+                if r["profit_pool"] else "",
+                "|".join(r["leverage"]), "|".join(r["drivers"]),
+                "|".join(r["risks"]), "|".join(r["ai_strong"]),
+                "|".join(r["ai_weak"]), r["ai_boundary"],
+                "|".join(r["human_decides"]), "|".join(r["ai_fills"]),
+                "|".join(r["role_focus"]),
+                _json.dumps(e.get("missing") or {}, ensure_ascii=False)
+                if e.get("missing") else "",
             ))
     return rows
 
