@@ -1,0 +1,393 @@
+# ============================================================================
+# 资金流守恒账 · 钱的物质守恒（industry-money-flows）
+#
+# ## 为什么要有这份文件
+#
+# 只列「某个行业产了多少值」，一定会漏：钱从哪来、经谁的手、最后沉在哪里，
+# 一条链上任何一环没画，汇总出来的"总额"就是假的 —— 而且错得看不出来
+# （每个数都对，加起来不对）。所以这里做的是**双边记账的资金流量账**：
+# 每一笔钱都同时记在流出方与流入方，谁也别想凭空出现或消失。
+#
+# ## 三条不变式
+#
+#   1. **双边记账**：每条 flow 都是 from → to。因此「全局流入合计 = 全局流出合计」
+#      是恒等式，不是校验点。把它当校验点只会得到一句永远为真的绿灯。
+#   2. **节点与外部口径对账**：这才是能抓漏的一条。每个声明了 declared_in/out 的
+#      节点，图里画出来的边求和必须对得上外部权威总量（居民可支配收入、一般公共
+#      预算收入、固定资产投资…）。对不上说明**漏画了流向**，超过 10%（资金流量表
+#      与分项汇总的固有口径差）即报错。
+#   3. **没有对账口径，就必须登记未观测流向**：既说不出总量、又不说什么缺，
+#      等于保证会漏，而它会静默通过。unobserved 就是逼着把这句话写下来的字段。
+#
+# ## 为什么允许 amount_cny 为空
+#
+# 框架先立、数后补。路径已知但数额没查到时写 null，它仍然让整张图完整
+# （"这笔钱会走这条路"本身就是结论）；编一个数填上比留空坏得多 ——
+# 后面所有人都会拿它当真。这与 partition.gdp_cny 是同一条规矩。
+#
+# ## 单位：全部用**元**
+#
+# 不是万元/亿元。口径混用是这类账最常见的死法，而混用的信号就是数量级对不上；
+# amount_wan 之类字段一多，"这个数是万还是亿"就没人说得清了。
+#
+# ## 层与层的关系
+#
+#   部门层 sector-*  五个机构部门（居民/企业/政府/金融/境外）—— 大面必须闭合
+#   行业池 pool:*    分区作为钱的容器（本文件 pools 段登记，node id 自动派生 pool:<分区id>）
+#                   行业池只在"已经能指出钱走哪条路"时才单独成节点；其余行业
+#                   暂并入部门层总额，由 unobserved 整体说明缺的是哪一段。
+#
+# 数值免责：declared_* 与 amount_cny 均为**量级参考**（2023-2024），
+#           用于验证"钱有没有漏画"，不可对外发布。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-11-15"
+year_basis: 2023-2024
+unit: CNY
+
+# ---------------------------------------------------------------------------
+# 节点：五个机构部门 + （由 pools 段派生的）行业池
+#
+#   id                节点标识
+#   type              sector / industry
+#   sector            机构部门（household/enterprise/government/financial/overseas）
+#   name              中文名
+#   declared_in_cny   外部权威口径的**流入总量**（元）；缺省 = 没有可比总量
+#   declared_out_cny  外部权威口径的**流出总量**（元）
+#   source            对账口径来源
+# ---------------------------------------------------------------------------
+nodes:
+  - id: sector-household
+    type: sector
+    sector: household
+    name: 居民部门
+    declared_in_cny: 80800000000000
+    declared_out_cny: 80800000000000
+    source: 按资金流量表(实物交易)住户部门的口径结构做量级估算，非官方表值，不可对外引用
+  - id: sector-enterprise
+    type: sector
+    sector: enterprise
+    name: 非金融企业部门
+    declared_in_cny: 110500000000000
+    declared_out_cny: 110100000000000
+    source: 按资金流量表(实物交易)非金融企业部门的口径结构做量级估算，非官方表值
+  - id: sector-government
+    type: sector
+    sector: government
+    name: 政府部门
+    declared_in_cny: 25700000000000
+    declared_out_cny: 25700000000000
+    source: 按一般公共预算收入/支出 + 政府债券净融资的量级估算
+  - id: sector-financial
+    type: sector
+    sector: financial
+    name: 金融部门
+    declared_in_cny: 42200000000000
+    declared_out_cny: 43000000000000
+    source: 按资金流量表金融机构部门的口径结构做量级估算
+  - id: sector-overseas
+    type: sector
+    sector: overseas
+    name: 境外部门
+    declared_in_cny: 24200000000000
+    declared_out_cny: 23800000000000
+    source: 按国际收支平衡表货物与服务项做量级估算
+
+
+# ---------------------------------------------------------------------------
+# 行业池：分区作为钱的容器。
+# 只有"已经能指出钱走哪条路"的分区才在这里登记；未登记的分区并入部门层总额，
+# 由下面 unobserved 段整体说明缺的是哪一段 —— 漏掉谁都要说清楚。
+# ---------------------------------------------------------------------------
+pools:
+  - partition: manufacturing
+    note: 制造业 33 万亿增加值由约 40 万个规上企业分摊，切分到分区需逐行业中类拆分
+  - partition: construction-eng
+    note: 建筑业总产值 32 万亿含大量分包与关联交易，与资金流量表口径不一致
+  - partition: logistics-supply
+    note: 物流总费用 18 万亿本身是各行业的中间投入，直接并入会造成重复计算
+  - partition: e-commerce
+    note: 电商 15 万亿是 GMV（交易额），含平台两端重复计价，需先折算增加值
+  - partition: finance-invest
+    note: 金融业的资金往来在部门层已按金融部门归集，再切到分区会双计
+  - partition: dongjiagoushi
+    note: 软件业务收入 6 万亿与制造业数字化投入交叉，需先定重叠处理规则
+  - partition: healthcare
+    note: 卫生总费用 9 万亿中财政与医保支付占大头，已在政府部门支出里计过
+  - partition: education-training
+    note: 教育经费以财政拨款为主，市场口径只覆盖非学历培训一段
+
+# ---------------------------------------------------------------------------
+# 资金流：每条都是 from → to，同一笔钱两端各记一次。
+#   kind          资金类型（wage/consumption/procurement/transfer/tax/saving/
+#                 credit/interest/capex/export/import/intermediate/allocation/other）
+#   amount_cny    金额（元）；null = 路径已知、数额待补，**不是 0**
+#   memo          备忘边：这条不是新发生的钱，而是把已有总额**摊开看**。
+#                 `allocation` 一律 memo —— 制造业 33 万亿增加值本就含在企业部门
+#                 那 110.5 万亿里，再记一条流出，企业部门流出立刻变 143.5 万亿，
+#                 对账偏差 30% 爆红，而两条记录各自都是对的。同一个数记两遍，
+#                 总计就假了。memo 边不参与头寸与对账，只在"钱是哪一段"里出现。
+#   confidence    high / medium / low
+# ---------------------------------------------------------------------------
+flows:
+  - from: sector-enterprise
+    to: sector-household
+    kind: wage
+    amount_cny: 64000000000000
+    confidence: high
+    basis: 劳动报酬总额（资金流量表实物交易）
+
+  - from: sector-household
+    to: sector-enterprise
+    kind: consumption
+    amount_cny: 47000000000000
+    confidence: high
+    basis: 居民消费支出（最终消费支出居民部分）
+
+  - from: sector-household
+    to: sector-government
+    kind: tax
+    amount_cny: 2000000000000
+    confidence: medium
+    basis: 个人所得税 + 个人缴纳社保
+
+  - from: sector-government
+    to: sector-household
+    kind: transfer
+    amount_cny: 10000000000000
+    confidence: medium
+    basis: 社保待遇/转移支付/补贴到居民
+
+  - from: sector-household
+    to: sector-financial
+    kind: saving
+    amount_cny: 25000000000000
+    confidence: medium
+    basis: 居民净金融投资（存款+理财+保险）
+
+  - from: sector-household
+    to: sector-financial
+    kind: interest
+    amount_cny: 6800000000000
+    confidence: low
+    basis: 居民利息支出（房贷/消费贷）
+
+  - from: sector-financial
+    to: sector-household
+    kind: credit
+    amount_cny: 6800000000000
+    confidence: low
+    basis: 住户部门新增贷款
+
+  - from: sector-enterprise
+    to: sector-government
+    kind: tax
+    amount_cny: 19700000000000
+    confidence: high
+    basis: 企业缴纳的税收（增值税+企业所得税等）
+
+  - from: sector-government
+    to: sector-enterprise
+    kind: procurement
+    amount_cny: 3000000000000
+    confidence: medium
+    basis: 政府购买商品与服务
+
+  - from: sector-government
+    to: sector-enterprise
+    kind: capex
+    amount_cny: 10500000000000
+    confidence: medium
+    basis: 政府主导的资本形成（基建投资）
+
+  - from: sector-government
+    to: sector-financial
+    kind: interest
+    amount_cny: 2000000000000
+    confidence: medium
+    basis: 政府债务利息支出
+
+  - from: sector-financial
+    to: sector-government
+    kind: credit
+    amount_cny: 4000000000000
+    confidence: medium
+    basis: 政府债券净融资
+
+  - from: sector-financial
+    to: sector-enterprise
+    kind: credit
+    amount_cny: 26200000000000
+    confidence: medium
+    basis: 企业新增贷款与债券净融资
+
+  - from: sector-enterprise
+    to: sector-financial
+    kind: interest
+    amount_cny: 6000000000000
+    confidence: low
+    basis: 企业利息与分红支出
+
+  - from: sector-enterprise
+    to: sector-financial
+    kind: saving
+    amount_cny: 2400000000000
+    confidence: low
+    basis: 企业留存收益的净金融投资
+
+  - from: sector-overseas
+    to: sector-enterprise
+    kind: export
+    amount_cny: 23800000000000
+    confidence: high
+    basis: 货物与服务出口收入
+
+  - from: sector-enterprise
+    to: sector-overseas
+    kind: import
+    amount_cny: 18000000000000
+    confidence: high
+    basis: 货物与服务进口支付
+
+  - from: sector-financial
+    to: sector-overseas
+    kind: capex
+    amount_cny: 6000000000000
+    confidence: low
+    basis: 对外投资与外汇储备运用
+
+  - from: sector-government
+    to: sector-overseas
+    kind: other
+    amount_cny: 200000000000
+    confidence: low
+    basis: 政府对外净支付（援助/国际组织会费）
+
+# 行业池的流入：企业部门的收入最终分到各分区，切分规则未定，故数额留空。
+# 留空的边照样有意义：它把"这个行业的钱从哪来"钉死，补数时不用重新想路径。
+
+  - from: sector-enterprise
+    to: pool:manufacturing
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:construction-eng
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:logistics-supply
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:e-commerce
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:finance-invest
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:dongjiagoushi
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:healthcare
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+  - from: sector-enterprise
+    to: pool:education-training
+    kind: allocation
+    memo: true
+    amount_cny: null
+    confidence: low
+    basis: 企业部门收入向分区切分（规则待定：先定中间投入/重复计价处理）
+
+# ---------------------------------------------------------------------------
+# 未观测流向：说不出总量、又不说什么缺 = 保证会漏。所以每个"没对账口径"的
+# 节点都必须在这里留下一条：缺什么、为什么缺、怎么补。
+# ---------------------------------------------------------------------------
+unobserved:
+  - node: pool:manufacturing
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 制造业 33 万亿增加值由约 40 万个规上企业分摊，切分到分区需逐行业中类拆分
+
+  - node: pool:construction-eng
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 建筑业总产值 32 万亿含大量分包与关联交易，与资金流量表口径不一致
+
+  - node: pool:logistics-supply
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 物流总费用 18 万亿本身是各行业的中间投入，直接并入会造成重复计算
+
+  - node: pool:e-commerce
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 电商 15 万亿是 GMV（交易额），含平台两端重复计价，需先折算增加值
+
+  - node: pool:finance-invest
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 金融业的资金往来在部门层已按金融部门归集，再切到分区会双计
+
+  - node: pool:dongjiagoushi
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 软件业务收入 6 万亿与制造业数字化投入交叉，需先定重叠处理规则
+
+  - node: pool:healthcare
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 卫生总费用 9 万亿中财政与医保支付占大头，已在政府部门支出里计过
+
+  - node: pool:education-training
+    missing: 该行业池的流入总额（企业部门收入中的对应份额）
+    reason: 教育经费以财政拨款为主，市场口径只覆盖非学历培训一段
+
+  - node: sector-overseas
+    missing: 服务贸易分项与投资收益（初次收入）分项
+    reason: 本账只画了货物与服务的进出口总额，投资收益/经常转移未单列，
+            由国际收支平衡表的初次收入账户补齐后再拆到节点
+
+# ---------------------------------------------------------------------------
+# 已知差额：有差额可以，不解释不行。
+# 这些是"确定存在、但这张账里还没画"的钱 —— 写在这里，比悄悄漏掉强得多。
+# ---------------------------------------------------------------------------
+leaks:
+  - node: sector-government
+    side: in
+    amount_cny: 8600000000000
+    reason: >
+      政府性基金预算与国有土地使用权出让收入（约 8.6 万亿）未并入一般公共预算口径。
+      补的时候不要直接加进 tax 边：土地出让收入对应的是企业部门的资产性支出，
+      与 procurement/capex 会重复计价，需要单独开一条 kind=other 的边并同步修
+      企业部门的流出，否则两个部门会一起虚增。
+  - node: sector-financial
+    side: in
+    amount_cny: 3500000000000
+    reason: >
+      影子银行（信托/租赁/保理）与表外理财的部门间往来未纳入本账。这部分在
+      资金流量表里被单列，并入前要先确认不会与 credit 边重复。

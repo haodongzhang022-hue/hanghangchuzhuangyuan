@@ -365,7 +365,20 @@ class HanghangHandler(BaseHTTPRequestHandler):
             return
         # compute()/validate() 仍每次现算：它们是"当前数据的一致性快照"，
         # 缓存的是实例（含读盘后的 yaml），不是结论。
-        payload = db.compute()
+        #
+        # 但**现算也要包住**：构造期已经兜过一次（见 _init_engines），
+        # 而 compute() 会在读取时碰 `intermediate` / `ai_frontier` 这类嵌套段 ——
+        # 那里写歪时构造照样成功、compute 才炸。只兜构造期等于只兜了一半，
+        # 面板会 500 而不是 503，与 `_init_engines` 那段「旁路数据坏了
+        # 不能拖垮主面板」的口径不一致。
+        try:
+            payload = db.compute()
+        except Exception as exc:  # noqa: BLE001 - 旁路数据坏了不能拖垮主面板
+            _json_response(self, 503, {
+                "error": "M11 行业库不可用（数据形状读不出来）",
+                "problems": [f"{type(exc).__name__}: {exc}"],
+            })
+            return
         degrade_notes: List[str] = []   # 降级记录单独收集，最后与 validate() 合并
         occupations = []
         for o in db.occupations:

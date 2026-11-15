@@ -1,0 +1,1896 @@
+# ============================================================================
+# 行业战略视图 · 大局观与战略视角（industry-strategy）
+#
+# ## 一句话
+#
+# **粒度红线：细到岗位（position）和角色（role）就停，不往下拆。**
+# 再细的东西——具体工序、话术、提示词、逐条职责——不写在数据里，那是 AI 上到
+# 那个岗位、认清职责之后自己充当角色时补的。**我们是分工的**：
+#
+#     人（这份文件）      这一行行业的钱在哪、谁有定价权、什么在驱动、什么会杀死它
+#     岗位 / 角色（已有）  unit-index 的 roles + planned_roles，谁在哪个环节干活
+#     AI（上岗时补）      职责展开、工序、话术、判定标准、异常处理
+#
+# 所以这份账回答的不是"这个岗位怎么干"，而是**"这个行业凭什么赚钱、AI 该站哪一段"**。
+# 岗位是解耦的最小单位，行业是聚类结果（见 industry-partitions.yaml）；
+# 战略视图是聚类的**判断结论**，不是又一层更细的拆分。
+#
+# ## 为什么要有这一层
+#
+# 41 个分区现在都有产值口径、六口径落点、生产法解释、资金流位置 —— 全是"多少钱"，
+# 没有一句"这钱为什么在这、拿什么去挣"。缺这一层的直接后果：AI 被派到
+# 「建筑工程-造价员」岗位上，它知道要算量，但不知道这个行业的利润根本不在算量，
+# 而在增项与材料差；它会认认真真把一个不赚钱的环节做到极致。
+#
+# ## 几条硬规矩（validate 第 26 条逐条守）
+#
+# 1. **每个分区都要有落点**：漏一个 = 这个行业只有数字没有判断，而覆盖率不会变红。
+# 2. **粒度红线**：出现 steps / tasks / sop / prompt / kpi / persona 这类字段即报。
+#    写在这里就等于把 AI 该干的活提前写死，而写死的那一版永远比市场慢半年。
+# 3. **不抄数字**：战略层不重复存产值/就业/利润额（那是 partition + 六口径账的事）。
+#    同一件事存两份，迟早对不上，而且没人知道哪份对。
+# 4. **role_focus 必须落在本分区真实存在的岗位/角色上**：已建单元对 unit-index 的
+#    roles，待建分区对 planned_roles。战略落不到岗位，就等于一句没有人负责的口号。
+# 5. **空段要写 missing 原因**：说不出这一行业缺什么，等于保证它永远缺。
+#
+# 字段（只加不改）：
+#   value_chain    价值链分段（>=3 段，顺序即上下游）
+#   position       议价位置：这个行业整体在链条上靠什么换钱
+#   profit_pool    利润池 [{where, why}]：钱真正沉在哪几段、为什么
+#   leverage       杠杆/定价权来源（牌照、网络密度、IP、资质…）
+#   drivers        增长驱动（需求侧与技术侧各是什么）
+#   risks          能杀死这门生意的风险（不是"竞争激烈"这类废话）
+#   ai_frontier    {strong, weak, boundary}：AI 现在站得住 / 站不住 / 边界的判据
+#   division_of_labor {human_decides, ai_fills}：人管什么、AI 补什么（只到角色）
+#   role_focus     承载战略结论的岗位/角色（必须真实存在）
+#   missing        {段名: 为什么这一段落不了}
+# ============================================================================
+version: "0.1"
+updated_at: "2026-11-15"
+version: '0.1'
+updated_at: '2026-11-15'
+partitions:
+- partition: dongjiagoushi
+  value_chain:
+  - 需求与立项
+  - 架构与方案
+  - 编码实现
+  - 测试与交付
+  - 运维与迭代
+  position: 乙方研发能力供方，议价靠交付确定性而非人力单价
+  profit_pool:
+  - where: 架构与方案
+    why: 定价权在这里：方案决定后面多少人月，卖的是判断不是工时
+  - where: 运维与迭代
+    why: 续费与年框的来源，一次性项目没有复利
+  leverage:
+  - 领域know-how
+  - 交付确定性
+  - 复用资产
+  drivers:
+  - 企业数字化预算
+  - 国产化替代
+  - AI 编码压缩人力投入
+  risks:
+  - 按人月计价被 AI 压价
+  - 需求方自己用 AI 做
+  - 交付质量事故一次毁年框
+  ai_frontier:
+    strong:
+    - 方案编写与拆解
+    - 代码实现与评审
+    - 测试用例与回归
+    weak:
+    - 现场调研
+    - 架构签字与背锅
+    - 客户关系与验收
+    boundary: AI 产出实现与文档，方案取舍和对客户的承诺必须由人签字
+  division_of_labor:
+    human_decides:
+    - 接什么活、报什么价、谁敢拍方案
+    - 哪些承诺可以给客户
+    ai_fills:
+    - 把方案拆到工序与工具参数
+    - 按项目实际补校核清单
+  role_focus:
+  - architect
+  - developer
+- partition: game-dev-unit
+  value_chain:
+  - 立项与题材
+  - 玩法与关卡
+  - 美术与表现
+  - 工程实现
+  - 发行与长线运营
+  position: 内容产品自研方，收入靠少数爆款摊平全部成本
+  profit_pool:
+  - where: 发行与长线运营
+    why: 长线流水的池子，买量与活动决定生命周期收入
+  - where: 玩法与关卡
+    why: 留存的决定权，一次做对就不用靠买量
+  leverage:
+  - 题材判断
+  - 留存数据
+  - 渠道与版号
+  drivers:
+  - 版号节奏
+  - 小游戏与出海
+  - AI 生成美术降本
+  risks:
+  - 爆款依赖，九成项目收不回成本
+  - 版号与合规
+  - 买量成本抬升
+  ai_frontier:
+    strong:
+    - 关卡与数值草案
+    - 美术素材生成
+    - 本地化与文案
+    weak:
+    - 核心玩法拍板
+    - 付费设计取舍
+    - 版号与合规责任
+    boundary: AI 铺量做草案，玩法是否能让人上瘾只能由人试出来
+  division_of_labor:
+    human_decides:
+    - 做什么题材、给谁玩
+    - 付费深度与口碑的平衡
+    ai_fills:
+    - 素材批量生产与多语言版本
+    - 关卡参数与难度曲线调优
+  role_focus:
+  - game_planner
+  - game_dev
+- partition: legal-services
+  value_chain:
+  - 咨询与评估
+  - 方案与谈判
+  - 文书起草
+  - 诉讼与仲裁
+  - 执行与合规
+  position: 专业判断供方，按标的或计时收费，牌照是准入门槛
+  profit_pool:
+  - where: 诉讼与仲裁
+    why: 争议标的越大，费率越远离工时
+  - where: 执行与合规
+    why: 常年顾问的复购池
+  leverage:
+  - 牌照
+  - 判例经验
+  - 客户信任
+  drivers:
+  - 企业合规需求上升
+  - 纠纷量随经济周期上升
+  - 法律科技压缩检索工时
+  risks:
+  - 执业责任风险
+  - 低价竞争（法务外包）
+  - AI 文书质量争议
+  ai_frontier:
+    strong:
+    - 法条与判例检索
+    - 合同条款比对
+    - 文书初稿与格式化
+    weak:
+    - 出庭
+    - 谈判与让步底线
+    - 执业责任承担
+    boundary: AI 做检索与初稿，出庭和风险判断必须由执业人承担
+  division_of_labor:
+    human_decides:
+    - 接不接、和解还是打
+    - 风险敞口怎么划
+    ai_fills:
+    - 文书初稿与条款差异比对
+    - 按案卷补证据清单
+  role_focus:
+  - legal_counsel
+  - contract_advisor
+- partition: content-creation
+  value_chain:
+  - 选题与策划
+  - 脚本与素材
+  - 制作与成片
+  - 分发与投放
+  - 数据复盘
+  position: 注意力供给方，收入靠平台分成与品牌预算，单价由流量议
+  profit_pool:
+  - where: 分发与投放
+    why: 平台规则就是定价权，同样的内容不同分发差十倍
+  - where: 选题与策划
+    why: 选题决定天花板，制作只决定下限
+  leverage:
+  - 选题敏感度
+  - 账号资产
+  - 平台关系
+  drivers:
+  - 短视频与直播渗透
+  - 品牌预算向内容迁移
+  - AI 生成拉低制作门槛
+  risks:
+  - 平台规则变动
+  - 同质化与限流
+  - 内容合规
+  ai_frontier:
+    strong:
+    - 口播稿与脚本
+    - 剪辑与字幕
+    - 标题与封面 A/B
+    weak:
+    - 出镜与人格
+    - 品牌调性判断
+    - 合规与不碰红线
+    boundary: AI 做批量变体，人格与调性不能外包——那是唯一不可复制的资产
+  division_of_labor:
+    human_decides:
+    - 做给谁看、说什么立场
+    - 哪些选题不碰
+    ai_fills:
+    - 多平台改写与批量变体
+    - 按账号历史补选题库
+  role_focus:
+  - copywriter
+  - media_operator
+- partition: data-analytics
+  value_chain:
+  - 业务问题定义
+  - 数据准备
+  - 建模与分析
+  - 可视化与洞察
+  - 落地与回收
+  position: 把数据变成决策依据的中间层，价值靠决策改变来证明
+  profit_pool:
+  - where: 业务问题定义
+    why: 问对问题决定全部价值，算错题的分析一文不值
+  - where: 落地与回收
+    why: 能被业务采纳才有复购
+  leverage:
+  - 指标体系
+  - 数据资产
+  - 业务理解
+  drivers:
+  - 数据合规与治理
+  - AI 分析工具普及
+  - 实时决策需求
+  risks:
+  - 结论无法归因
+  - 数据质量差
+  - 被自助 BI 替代
+  ai_frontier:
+    strong:
+    - 数据清洗与探查
+    - SQL 与建模
+    - 图表与报告初稿
+    weak:
+    - 指标口径拍板
+    - 结论是否成立
+    - 向业务承诺改进
+    boundary: AI 出图出数，口径与结论责任必须有人认领
+  division_of_labor:
+    human_decides:
+    - 这个指标到底怎么定义
+    - 结论敢不敢拿去汇报
+    ai_fills:
+    - 按库表补清洗规则
+    - 按问题补分析模板
+  role_focus:
+  - data_analyst
+  - data_scientist
+- partition: e-commerce
+  value_chain:
+  - 选品与招商
+  - 店铺与内容
+  - 流量与投放
+  - 履约与售后
+  - 复购与私域
+  position: 交易撮合与零售运营方，GMV 大但净利薄，钱在流量与履约之间
+  profit_pool:
+  - where: 流量与投放
+    why: 投放效率决定生死，ROI 差 0.2 就是亏
+  - where: 复购与私域
+    why: 唯一不受平台涨价的池子
+  leverage:
+  - 供应链
+  - 投放能力
+  - 复购用户
+  drivers:
+  - 线上零售渗透
+  - 平台规则与流量分配
+  - 跨境与内容电商
+  risks:
+  - 平台佣金与流量成本上涨
+  - 退货率与售后成本
+  - GMV 口径虚高误导经营
+  ai_frontier:
+    strong:
+    - 详情页与短视频素材
+    - 客服话术与应答
+    - 选品数据与竞品监控
+    weak:
+    - 选品与压货
+    - 定价与促销节奏
+    - 供应商谈判
+    boundary: AI 接住素材与客服的量，压货和定价是人拿钱赌的判断
+  division_of_labor:
+    human_decides:
+    - 选什么货、压多少库存
+    - 促销到底让多少利
+    ai_fills:
+    - 素材批量与多语言详情页
+    - 按店铺数据补选品看板
+  role_focus:
+  - store_manager
+  - ecom_marketer
+- partition: finance-accounting
+  value_chain:
+  - 票据与凭证
+  - 记账与核算
+  - 税务申报
+  - 报表与分析
+  - 审计与合规
+  position: 合规刚需供方，价格被标准化与代账 SaaS 压低，价值往咨询走
+  profit_pool:
+  - where: 税务申报
+    why: 有牌照与责任的环节，量最大
+  - where: 报表与分析
+    why: 从记账升级成经营参谋才有溢价
+  leverage:
+  - 资质
+  - 客户账套数据
+  - 政策解读速度
+  drivers:
+  - 金税四期与电子发票
+  - 代账 SaaS 渗透
+  - 小微企业合规要求上升
+  risks:
+  - 价格战
+  - 政策变动导致返工
+  - 代账责任风险
+  ai_frontier:
+    strong:
+    - 凭证识别与分录
+    - 申报表填写
+    - 报表编制与差异分析
+    weak:
+    - 签字与责任
+    - 税务筹划合法性判断
+    - 客户经营诊断
+    boundary: AI 做核算流水线，签章与筹划结论必须由持证的人担
+  division_of_labor:
+    human_decides:
+    - 账怎么做、税怎么报
+    - 筹划方案敢不敢建议
+    ai_fills:
+    - 按行业补科目与分录规则
+    - 按税种补申报表校验
+  role_focus:
+  - accountant
+  - tax_advisor
+- partition: marketing
+  value_chain:
+  - 市场洞察
+  - 策略与定位
+  - 内容与创意
+  - 投放与渠道
+  - 效果归因
+  position: 预算的使用方，收入按预算比例抽，价值靠归因证明
+  profit_pool:
+  - where: 投放与渠道
+    why: 预算体量最大的过手环节
+  - where: 效果归因
+    why: 归因能力决定下一轮预算归谁
+  leverage:
+  - 媒介资源
+  - 创意产能
+  - 数据归因
+  drivers:
+  - 预算从品牌向效果迁移
+  - 私域与内容化
+  - AI 生成创意降本
+  risks:
+  - 归因失真导致预算被砍
+  - 创意同质化
+  - 平台数据壁垒
+  ai_frontier:
+    strong:
+    - 洞察与竞品分析
+    - 创意概念与多版本
+    - 投放素材与文案
+    weak:
+    - 品牌定位拍板
+    - 预算分配
+    - 对外承诺与合规
+    boundary: AI 出创意与素材，定位和预算取舍是生意判断不是生成问题
+  division_of_labor:
+    human_decides:
+    - 品牌要站哪个位置
+    - 预算押哪个渠道
+    ai_fills:
+    - 按行业补创意变体
+    - 按渠道补素材规格矩阵
+  role_focus:
+  - brand_planner
+  - campaign_planner
+- partition: education-training
+  value_chain:
+  - 需求诊断
+  - 课程设计
+  - 教学交付
+  - 测评与反馈
+  - 续费与转介
+  position: 学习效果供方，预付制现金流好但退费风险集中
+  profit_pool:
+  - where: 续费与转介
+    why: 现金流真正的池子，获客成本靠它摊平
+  - where: 测评与反馈
+    why: 效果可见才敢涨价
+  leverage:
+  - 教研能力
+  - 师资
+  - 效果口碑
+  drivers:
+  - 职业教育与技能提升
+  - AI 个性化教学
+  - 监管收紧预付费
+  risks:
+  - 预付费监管
+  - 退费与合规
+  - 名师依赖
+  ai_frontier:
+    strong:
+    - 课程大纲与讲义
+    - 题目与解析生成
+    - 学情分析与反馈初稿
+    weak:
+    - 教学现场
+    - 效果承诺
+    - 课程体系取舍
+    boundary: AI 做教研与答疑的产能，教学效果和承诺必须由人对学员负责
+  division_of_labor:
+    human_decides:
+    - 教什么、教到什么程度
+    - 敢不敢承诺效果
+    ai_fills:
+    - 按学段补题库与解析
+    - 按班级学情补反馈话术
+  role_focus:
+  - curriculum_designer
+  - teacher
+- partition: healthcare
+  value_chain:
+  - 健康评估
+  - 方案与干预
+  - 服务交付
+  - 随访与依从
+  - 支付与结算
+  position: 健康结果供方，支付方是医保与自费混合，执业资质刚性
+  profit_pool:
+  - where: 支付与结算
+    why: 医保与商保决定能做多少服务
+  - where: 随访与依从
+    why: 依从性直接决定结果与复购
+  leverage:
+  - 执业资质
+  - 专业判断
+  - 机构资质
+  drivers:
+  - 老龄化与慢病管理
+  - 互联网医疗
+  - AI 辅助诊断
+  risks:
+  - 医疗责任
+  - 医保控费
+  - 数据合规
+  ai_frontier:
+    strong:
+    - 健康档案整理
+    - 科普与随访话术
+    - 指南检索与对照
+    weak:
+    - 诊断与处方
+    - 风险告知
+    - 医疗责任承担
+    boundary: AI 做随访与资料整理，诊断与处方不得由模型落笔
+  division_of_labor:
+    human_decides:
+    - 谁需要干预、干预到什么程度
+    - 风险怎么告知
+    ai_fills:
+    - 按病种补随访路径
+    - 按指南补知识库
+  role_focus:
+  - health_consultant
+  - medical_advisor
+- partition: home-design
+  value_chain:
+  - 量房与需求
+  - 方案与效果
+  - 报价与合同
+  - 施工与验收
+  - 软装与交付
+  position: 家装交付方，收入按合同分期，利润藏在增项与材料差
+  profit_pool:
+  - where: 施工与验收
+    why: 成本与利润的真实战场
+  - where: 报价与合同
+    why: 增项空间与纠纷源头都在这
+  leverage:
+  - 设计能力
+  - 施工队与供应链
+  - 口碑与转介
+  drivers:
+  - 存量房翻新
+  - 整装与工厂化
+  - AI 出图降低设计门槛
+  risks:
+  - 增项纠纷
+  - 工期与验收
+  - 现金流被垫资占住
+  ai_frontier:
+    strong:
+    - 平面方案与效果图
+    - 工程量清单
+    - 材料清单与比价
+    weak:
+    - 方案签字
+    - 报价与增项
+    - 验收责任
+    boundary: AI 出图出清单，落地可行性和验收责任只能由人到现场
+  division_of_labor:
+    human_decides:
+    - 这房子怎么改、预算怎么分
+    - 增项能不能报
+    ai_fills:
+    - 按户型补方案模板
+    - 按材料价格补清单
+  role_focus:
+  - interior_designer
+  - project_manager
+- partition: hr-services
+  value_chain:
+  - 需求与画像
+  - 寻访与筛选
+  - 面试与评估
+  - 入职与交付
+  - 留存与复购
+  position: 人力供给方，收入按成功付费或订阅，周期长且受经济周期放大
+  profit_pool:
+  - where: 寻访与筛选
+    why: 交付能力的核心，效率差就是利润差
+  - where: 留存与复购
+    why: 企业年框与订阅的池子
+  leverage:
+  - 人才库
+  - 评估准确率
+  - 客户关系
+  drivers:
+  - 灵活用工
+  - 招聘需求周期性波动
+  - AI 简历筛选
+  risks:
+  - 招聘冻结
+  - 候选人爽约
+  - 数据合规（简历）
+  ai_frontier:
+    strong:
+    - 简历筛选与匹配
+    - 面试提纲与评估表
+    - 雇主品牌内容
+    weak:
+    - 候选人判断
+    - 薪资谈判
+    - 录用承诺
+    boundary: AI 做漏斗，人做取舍——招错人的成本由企业承担，不由模型承担
+  division_of_labor:
+    human_decides:
+    - 这个人要不要推
+    - 薪资和职级怎么谈
+    ai_fills:
+    - 按岗位族补面试提纲
+    - 按客户补人才画像
+  role_focus:
+  - recruiter
+  - hr_advisor
+- partition: admin-office
+  value_chain:
+  - 事务受理
+  - 流程与合规
+  - 文档与档案
+  - 会议与协同
+  - 后勤与保障
+  position: 企业内部职能，不产生独立收入，价值等于省下的时间与避免的事故
+  profit_pool:
+  - where: 流程与合规
+    why: 隐性价值最大：挡住一次违规就是净收益
+  - where: 会议与协同
+    why: 组织效率的池子，但难以直接计量
+  leverage:
+  - 流程熟悉度
+  - 跨部门协调
+  - 制度执行
+  drivers:
+  - 企业降本增效
+  - 远程与混合办公
+  - OA 与 AI 助手
+  risks:
+  - 被当作可裁成本
+  - 无独立产值口径
+  - 背锅风险
+  ai_frontier:
+    strong:
+    - 会议纪要与任务分解
+    - 公文与制度草稿
+    - 档案著录与检索
+    weak:
+    - 跨部门协调
+    - 用印与授权
+    - 对外接待
+    boundary: AI 做记录与流转，用印、授权与对外承诺必须由人担
+  division_of_labor:
+    human_decides:
+    - 流程怎么定、谁能批
+    - 对外怎么代表公司
+    ai_fills:
+    - 按制度补公文模板
+    - 按部门补会议模板
+  role_focus:
+  - admin_specialist
+  - meeting_coordinator
+- partition: design-visual
+  value_chain:
+  - 需求与brief
+  - 概念与风格
+  - 延展与规范
+  - 交付与源文件
+  - 维护与迭代
+  position: 视觉产能供方，按稿或年框收费，同质化严重，价值靠风格资产
+  profit_pool:
+  - where: 概念与风格
+    why: 决定溢价，做的是识别不是画图
+  - where: 交付与源文件
+    why: 规范与可维护性决定复购
+  leverage:
+  - 风格资产
+  - 品牌理解
+  - 交付规范
+  drivers:
+  - 品牌更新与出海
+  - AI 出图压低单张价格
+  - 设计系统化
+  risks:
+  - 被 AI 替代单张交付
+  - 比稿白干
+  - 版权与合规
+  ai_frontier:
+    strong:
+    - 风格探索与草图
+    - 版式与延展
+    - 切图与规范文档
+    weak:
+    - 风格拍板
+    - 品牌一致性判断
+    - 版权责任
+    boundary: AI 出风格草图与延展，选哪一版、能不能代表品牌由人定
+  division_of_labor:
+    human_decides:
+    - 这品牌长什么样
+    - 交付到什么程度算完
+    ai_fills:
+    - 按brief补风格板
+    - 按品牌补延展规范
+  role_focus:
+  - graphic_designer
+  - brand_designer
+- partition: interpretation
+  value_chain:
+  - 需求与场次
+  - 术语与准备
+  - 现场同传
+  - 场后整理
+  - 资质与结算
+  position: 现场同步交付方，按场计费，AI 替代面远低于笔译
+  profit_pool:
+  - where: 现场同传
+    why: 不可回放的实时判断，费率由稀缺性定
+  - where: 术语与准备
+    why: 准备度决定现场成败，是可控的护城河
+  leverage:
+  - 语言对
+  - 领域术语
+  - 临场稳定
+  drivers:
+  - 国际会议与商务往来
+  - 线上会议普及
+  - 语音模型进步
+  risks:
+  - 替代焦虑被过度放大
+  - 场次波动
+  - 资质门槛高但认定分散
+  ai_frontier:
+    strong:
+    - 术语表与资料预整理
+    - 会议记录与摘要
+    - 笔译辅助
+    weak:
+    - 现场同传
+    - 语气与场合判断
+    - 临场救场
+    boundary: AI 做会前资料与会后整理，同传席位必须是人——那里没有第二次机会
+  division_of_labor:
+    human_decides:
+    - 这场活能不能接
+    - 现场怎么取舍与改写
+    ai_fills:
+    - 按领域补术语表
+    - 按会议类型补准备清单
+  role_focus:
+  - interpreter
+- partition: translation
+  value_chain:
+  - 接单与报价
+  - 术语与记忆库
+  - 翻译与自译
+  - 审校与质检
+  - 交付与本地化
+  position: 异步文本交付方，AI 替代率最高，价格已被压到按千字计
+  profit_pool:
+  - where: 审校与质检
+    why: 人唯一还站得住的环节：担责与语感
+  - where: 术语与记忆库
+    why: 复用资产，决定毛利
+  leverage:
+  - 语言对
+  - 记忆库
+  - 领域资质
+  drivers:
+  - 出海本地化需求
+  - 机器翻译质量提升
+  - 平台化外包压价
+  risks:
+  - 单价持续下探
+  - 质量事故与退款
+  - 客户自己用 AI
+  ai_frontier:
+    strong:
+    - 初译与批量翻译
+    - 术语抽取与一致性检查
+    - 格式与排版还原
+    weak:
+    - 审校签字
+    - 语感与品牌语气
+    - 质量责任
+    boundary: AI 做初译与一致性，署名交付的审校必须是人——错一个术语就是合同风险
+  division_of_labor:
+    human_decides:
+    - 翻到什么程度能交付
+    - 哪些内容不能机翻
+    ai_fills:
+    - 按客户补记忆库
+    - 按语对补术语表
+  role_focus:
+  - proofreader
+  - localizer
+- partition: video-media
+  value_chain:
+  - 选题与剧本
+  - 筹备与拍摄
+  - 后期与特效
+  - 审片与合规
+  - 发行与分账
+  position: 内容产品供方，收入靠分账与投资，成本前置、回收滞后
+  profit_pool:
+  - where: 后期与特效
+    why: 成本与质量的控制点，也是 AI 渗透最快的一段
+  - where: 发行与分账
+    why: 收入归属环节，渠道决定回收倍数
+  leverage:
+  - 剧本与IP
+  - 制作资源
+  - 渠道关系
+  drivers:
+  - 长短视频并存
+  - AI 生成视频
+  - 分账规则变化
+  risks:
+  - 投资回收不确定
+  - 审查与合规
+  - 产能过剩
+  ai_frontier:
+    strong:
+    - 剧本分场与大纲
+    - 剪辑粗剪与字幕
+    - 特效预演与素材生成
+    weak:
+    - 剧本终稿与导演判断
+    - 审片合规责任
+    - 投资决策
+    boundary: AI 做粗剪与素材，故事的取舍和合规送审必须由人扛
+  division_of_labor:
+    human_decides:
+    - 这个片子讲什么
+    - 钱投在哪个环节
+    ai_fills:
+    - 按类型补剧本结构
+    - 按平台补交付规格
+  role_focus:
+  - post_production
+  - scriptwriter
+- partition: finance-invest
+  value_chain:
+  - 客户与适当性
+  - 研究与配置
+  - 产品与交易
+  - 持仓与风控
+  - 结算与投后
+  position: 资金中介与受托方，收入靠管理费与佣金，牌照与适当性约束刚性
+  profit_pool:
+  - where: 研究与配置
+    why: 超额收益的来源，也是合规审查的重点
+  - where: 持仓与风控
+    why: 波动市场里唯一能守住客户的地方
+  leverage:
+  - 牌照
+  - 投研能力
+  - 客户信任
+  drivers:
+  - 居民财富配置转移
+  - 费率下行
+  - AI 投顾与量化
+  risks:
+  - 市场波动与回撤
+  - 适当性违规
+  - 刚兑预期
+  ai_frontier:
+    strong:
+    - 研报与数据整理
+    - 组合诊断与再平衡草案
+    - 客户沟通材料
+    weak:
+    - 投资建议与适当性
+    - 风险揭示
+    - 受托责任
+    boundary: AI 出研报与诊断，投资建议与适当性匹配不得由模型落笔
+  division_of_labor:
+    human_decides:
+    - 给谁配什么、能承受多少回撤
+    - 什么产品不卖
+    ai_fills:
+    - 按客户画像补沟通材料
+    - 按资产类别补研究模板
+  role_focus:
+  - investment_advisor
+  - securities_analyst
+- partition: real-estate
+  value_chain:
+  - 房源与客源
+  - 带看与匹配
+  - 交易与按揭
+  - 交付与过户
+  - 物业与持有
+  position: 交易撮合与持有服务方，收入靠佣金与物业费，强周期
+  profit_pool:
+  - where: 交易与按揭
+    why: 佣金集中落点，金融返佣是隐性池
+  - where: 物业与持有
+    why: 存量时代的稳定现金流
+  leverage:
+  - 房源与客源
+  - 带看效率
+  - 金融与政务流程
+  drivers:
+  - 存量房交易占比上升
+  - 佣金透明化
+  - 物业与租售一体化
+  risks:
+  - 成交量下行
+  - 佣金价格战
+  - 纠纷与合规
+  ai_frontier:
+    strong:
+    - 房源描述与视频
+    - 客源匹配初筛
+    - 按揭与过户材料清单
+    weak:
+    - 成交谈判
+    - 价格判断
+    - 合同与过户责任
+    boundary: AI 做房源内容与匹配，价格谈判和合同责任必须由持牌的人担
+  division_of_labor:
+    human_decides:
+    - 这房子值多少、怎么谈
+    - 客户资质能不能做
+    ai_fills:
+    - 按小区补房源档案
+    - 按流程补材料清单
+  role_focus:
+  - realtor
+  - property_manager
+- partition: tourism-hospitality
+  value_chain:
+  - 行程策划
+  - 资源采购
+  - 现场服务
+  - 体验增值
+  - 复购与口碑
+  position: 体验交付方，收入按人次与间夜，淡旺季差极大
+  profit_pool:
+  - where: 资源采购
+    why: 房餐车票的差价就是毛利
+  - where: 体验增值
+    why: 导览与在地内容决定溢价
+  leverage:
+  - 资源协议价
+  - 在地资源
+  - 渠道与私域
+  drivers:
+  - 国内游与入境游恢复
+  - 自由行替代跟团
+  - AI 行程规划
+  risks:
+  - 淡旺季与天气
+  - 退改与投诉
+  - 平台佣金
+  ai_frontier:
+    strong:
+    - 行程草案与比价
+    - 多语言导览文案
+    - 评价回复与舆情
+    weak:
+    - 现场服务与应急
+    - 行程取舍
+    - 退改承诺
+    boundary: AI 排行程出文案，现场出问题时只有人能救场
+  division_of_labor:
+    human_decides:
+    - 这条线路怎么排、卖给谁
+    - 出问题怎么赔
+    ai_fills:
+    - 按目的地补行程模板
+    - 按季节补资源价目
+  role_focus:
+  - travel_planner
+  - tour_guide
+- partition: food-beverage
+  value_chain:
+  - 选址与定位
+  - 菜单与采购
+  - 出餐与品控
+  - 堂食与外卖
+  - 复购与口碑
+  position: 现制食品交付方，收入按单量，净利由翻台率与人效决定
+  profit_pool:
+  - where: 选址与定位
+    why: 一次决策定生死，之后只能微调
+  - where: 菜单与采购
+    why: 毛利的结构性来源
+  leverage:
+  - 选址
+  - 供应链
+  - 门店运营
+  drivers:
+  - 连锁化与标准化
+  - 外卖占比上升
+  - 预制与中央厨房
+  risks:
+  - 食安事故
+  - 租金与人力上涨
+  - 同质化
+  ai_frontier:
+    strong:
+    - 菜单与定价草案
+    - 采购与损耗预估
+    - 评价与差评处理
+    weak:
+    - 选址拍板
+    - 菜品取舍
+    - 食安责任
+    boundary: AI 算菜单与损耗，选址和食安责任必须由人到场担
+  division_of_labor:
+    human_decides:
+    - 开在哪、卖什么
+    - 成本涨了怎么调价
+    ai_fills:
+    - 按商圈补菜单结构
+    - 按门店补损耗看板
+  role_focus:
+  - menu_planner
+  - restaurant_operator
+- partition: logistics-supply
+  value_chain:
+  - 订单与计划
+  - 仓储与分拣
+  - 干线运输
+  - 末端配送
+  - 履约与逆向
+  position: 实物流动的组织方，收入按运费与仓配服务费，规模效应极强
+  profit_pool:
+  - where: 干线运输
+    why: 成本大头，装载率决定盈亏
+  - where: 履约与逆向
+    why: 退货与时效是客户续约的关键
+  leverage:
+  - 网络密度
+  - 仓配资产
+  - 系统与数据
+  drivers:
+  - 电商履约时效要求
+  - 供应链本地化
+  - 无人化与自动化
+  risks:
+  - 油价与人力成本
+  - 时效罚款
+  - 旺季爆仓
+  ai_frontier:
+    strong:
+    - 路径与装载优化
+    - 仓内拣货策略
+    - 异常件与客服
+    weak:
+    - 网络怎么铺
+    - 承运商选择
+    - 时效承诺
+    boundary: AI 做调度与异常处理，时效承诺和赔付责任必须由人签
+  division_of_labor:
+    human_decides:
+    - 仓网怎么布、承诺几小时达
+    - 承运商和成本怎么换
+    ai_fills:
+    - 按线路补装载规则
+    - 按客户补异常处置话术
+  role_focus:
+  - supply_chain_manager
+  - logistics_operator
+- partition: manufacturing
+  value_chain:
+  - 研发与工艺
+  - 采购与来料
+  - 生产与质检
+  - 交付与售后
+  - 设备与产线维护
+  position: 实物产品供方，收入按订单，利润由良率、节拍与库存周转决定
+  profit_pool:
+  - where: 研发与工艺
+    why: 定价权的根，工艺决定成本结构
+  - where: 生产与质检
+    why: 良率每提升一点，都是纯利
+  leverage:
+  - 工艺
+  - 设备与产线
+  - 供应商与订单
+  drivers:
+  - 国产替代与产业升级
+  - 柔性小批量
+  - 工业 AI 与视觉质检
+  risks:
+  - 订单周期波动
+  - 原材料价格
+  - 安全事故与环保约束
+  ai_frontier:
+    strong:
+    - 工艺参数与SOP草案
+    - 质检记录与异常归因
+    - 排产与物料齐套分析
+    weak:
+    - 产线改造与工艺拍板
+    - 质量放行
+    - 安全责任
+    boundary: AI 做参数与质检记录，放行与安全责任必须落在现场人身上
+  division_of_labor:
+    human_decides:
+    - 做什么产品、上什么产线
+    - 质量能不能放行
+    ai_fills:
+    - 按工序补参数卡
+    - 按设备补点检表
+  role_focus:
+  - process_engineer
+  - quality_engineer
+- partition: construction-eng
+  value_chain:
+  - 规划设计
+  - 总包施工
+  - 专业分包
+  - 材料与设备
+  - 竣工运维与更新
+  position: 总包居中：对上游压价、对下游担责，产值大但增加值薄
+  profit_pool:
+  - where: 材料与设备
+    why: 中间投入的集中落点，规模最大但被账期吃掉
+  - where: 规划设计
+    why: 真正议价的一环，改一张图改的是全案成本
+  leverage:
+  - 资质
+  - 垫资能力
+  - 账期管理
+  drivers:
+  - 基建与城市更新
+  - 装配式与BIM
+  - 地方财政支付能力
+  risks:
+  - 应收账款与垫资
+  - 安全事故终身追责
+  - 低价中标
+  ai_frontier:
+    strong:
+    - 算量与清单编制
+    - 图纸审查与碰撞检查
+    - 投标文件与施工方案初稿
+    weak:
+    - 签字与验收
+    - 投标决策与报价
+    - 安全责任
+    boundary: AI 出量与方案初稿，签字盖章和终身追责必须由人到场担
+  division_of_labor:
+    human_decides:
+    - 接哪个标、报什么价
+    - 工期与质量底线
+    ai_fills:
+    - 按部位补清单规则
+    - 按工法补方案模板
+  role_focus:
+  - bidding_specialist
+  - cost_estimator
+- partition: energy-environment
+  value_chain:
+  - 诊断与核算
+  - 方案与设计
+  - 工程与改造
+  - 核查与认证
+  - 运维与交易
+  position: 合规与降本服务方，付费方是企业与政府，政策驱动强
+  profit_pool:
+  - where: 核查与认证
+    why: 资质与公信力形成的池子
+  - where: 方案与设计
+    why: 改造项目的价值起点
+  leverage:
+  - 资质与核查资格
+  - 政策解读
+  - 工程能力
+  drivers:
+  - 双碳目标与能耗双控
+  - 碳市场扩容
+  - 绿电与碳资产交易
+  risks:
+  - 政策变动
+  - 核查责任
+  - 数据造假风险
+  ai_frontier:
+    strong:
+    - 碳核算与报告初稿
+    - 能耗诊断与改造方案草案
+    - 环评文本与合规检索
+    weak:
+    - 核查结论与签字
+    - 改造方案取舍
+    - 合规责任
+    boundary: AI 做核算与文本，核查结论与签字必须由有资质的人承担
+  division_of_labor:
+    human_decides:
+    - 核算边界怎么划
+    - 改造投不投
+    ai_fills:
+    - 按行业补核算因子
+    - 按政策补合规清单
+  role_focus:
+  - carbon_manager
+  - energy_saving_planner
+- partition: auto-service
+  value_chain:
+  - 销售与线索
+  - 金融与保险
+  - 交付与上牌
+  - 维修与保养
+  - 置换与二手车
+  position: 车主全生命周期服务方，新车毛利薄，钱在后市场
+  profit_pool:
+  - where: 维修与保养
+    why: 复购稳定，毛利高于整车
+  - where: 金融与保险
+    why: 返佣是隐性利润池
+  leverage:
+  - 授权与渠道
+  - 客户基盘
+  - 技师与设备
+  drivers:
+  - 新能源渗透
+  - 直营渠道挤压
+  - 二手车流通政策
+  risks:
+  - 价格战
+  - 售后客流向独立店流失
+  - 三包与投诉
+  ai_frontier:
+    strong:
+    - 客户线索与话术
+    - 保养提醒与套餐设计
+    - 车况报告与估价初稿
+    weak:
+    - 定价与置换评估
+    - 维修方案与安全判断
+    - 客户承诺
+    boundary: AI 做提醒与报价，车况签字和安全判断必须由人到车旁
+  division_of_labor:
+    human_decides:
+    - 这车收不收、卖多少
+    - 哪些故障必须换件
+    ai_fills:
+    - 按车型补保养周期
+    - 按话术补客户触达
+  role_focus:
+  - repair_advisor
+  - after_sales
+- partition: personal-services
+  value_chain:
+  - 需求对接
+  - 上门与排班
+  - 服务交付
+  - 质量与投诉
+  - 续约与转介
+  position: 家庭场景服务方，收入按次或月，人力密集且信任成本高
+  profit_pool:
+  - where: 上门与排班
+    why: 人效与履约的核心
+  - where: 续约与转介
+    why: 家政与照护的复购池
+  leverage:
+  - 服务人员
+  - 信任与背景核验
+  - 平台派单
+  drivers:
+  - 老龄化与托育需求
+  - 长护险试点
+  - 平台化撮合
+  risks:
+  - 人员流动
+  - 服务事故与纠纷
+  - 非标导致质量不稳
+  ai_frontier:
+    strong:
+    - 需求匹配与排班
+    - 服务规范与话术
+    - 回访与投诉分级
+    weak:
+    - 上门服务
+    - 背景与资质确认
+    - 事故处置
+    boundary: AI 做匹配与回访，进家门的人和现场处置必须由人担
+  division_of_labor:
+    human_decides:
+    - 派谁上门、什么价
+    - 出事怎么赔
+    ai_fills:
+    - 按服务项补规范
+    - 按家庭情况补沟通话术
+  role_focus:
+  - housekeeping_advisor
+  - elder_care
+- partition: beauty-grooming
+  value_chain:
+  - 进店与咨询
+  - 设计与方案
+  - 操作与服务
+  - 会员与预付
+  - 复购与转介
+  position: 到店体验服务方，收入靠预付卡，现金流前置、履约后置
+  profit_pool:
+  - where: 会员与预付
+    why: 现金流池，同时是最大的风险点
+  - where: 设计与方案
+    why: 风格与信任决定客单
+  leverage:
+  - 手艺
+  - 会员基盘
+  - 门店位置
+  drivers:
+  - 颜值消费升级
+  - 单店连锁化
+  - 预付监管收紧
+  risks:
+  - 预付跑路与监管
+  - 同质化低价
+  - 手艺依赖个人
+  ai_frontier:
+    strong:
+    - 发型与配色方案初稿
+    - 会员触达与活动文案
+    - 评价与预约管理
+    weak:
+    - 剪染烫操作
+    - 皮肤与发质判断
+    - 预付条款承诺
+    boundary: AI 出方案与触达，动剪刀和皮肤判断必须由人上手
+  division_of_labor:
+    human_decides:
+    - 给客人做什么风格
+    - 卡怎么卖、怎么退
+    ai_fills:
+    - 按脸型发质补方案库
+    - 按项目补服务话术
+  role_focus:
+  - hairstylist
+  - beauty_advisor
+- partition: agriculture
+  value_chain:
+  - 品种与种植
+  - 田间管理
+  - 采收与初加工
+  - 流通与销售
+  - 品牌与溯源
+  position: 初级产品供方，收入受价格周期支配，规模小则完全被动
+  profit_pool:
+  - where: 流通与销售
+    why: 价格波动的落点，渠道决定卖价
+  - where: 品种与种植
+    why: 产量与品质的根
+  leverage:
+  - 土地与规模
+  - 品种
+  - 渠道
+  drivers:
+  - 粮食安全与补贴
+  - 设施农业
+  - 农产品电商与溯源
+  risks:
+  - 自然灾害
+  - 价格周期
+  - 劳动力老龄化
+  ai_frontier:
+    strong:
+    - 种植计划与茬口安排
+    - 病虫害识别与用药建议
+    - 行情与销售策略
+    weak:
+    - 种什么、什么时候播
+    - 用药与农残责任
+    - 卖不卖、什么价
+    boundary: AI 给建议，农时判断和用药责任必须由懂这块地的人定
+  division_of_labor:
+    human_decides:
+    - 这块地种什么
+    - 什么时候出手
+    ai_fills:
+    - 按作物补栽培规程
+    - 按产区补行情跟踪
+  role_focus:
+  - agronomist
+  - agri_ecommerce
+- partition: culture-art
+  value_chain:
+  - 内容与创作
+  - 制作与出版
+  - 版权与授权
+  - 发行与票务
+  - 衍生与运营
+  position: 文化内容供方，收入长尾化，版权是唯一可复用的资产
+  profit_pool:
+  - where: 版权与授权
+    why: 真正的资产池，一次创作多次收租
+  - where: 发行与票务
+    why: 现金流落点，决定项目能否回本
+  leverage:
+  - 创作者与IP
+  - 版权库
+  - 渠道与场馆
+  drivers:
+  - 文化消费与演出市场
+  - 数字藏品退潮后的版权回归
+  - AI 生成内容版权争议
+  risks:
+  - 版权侵权
+  - 项目制现金流不稳
+  - 审查与合规
+  ai_frontier:
+    strong:
+    - 选题与文案
+    - 剧本与脚本初稿
+    - 版权信息整理与授权比价
+    weak:
+    - 艺术判断与策划
+    - 授权条件
+    - 审查责任
+    boundary: AI 出初稿与整理，艺术判断和授权签字必须由人担
+  division_of_labor:
+    human_decides:
+    - 做什么、跟谁合作
+    - 版权怎么授
+    ai_fills:
+    - 按门类补创作规范
+    - 按渠道补发行流程
+  role_focus:
+  - talent_agent
+  - publisher_editor
+- partition: public-affairs
+  value_chain:
+  - 政策制定
+  - 窗口与受理
+  - 审批与监管
+  - 公共服务交付
+  - 绩效与评估
+  position: 财政供养的公共服务方，没有市场产值，价值是公共目标的达成
+  profit_pool:
+  - where: 审批与监管
+    why: 权力与责任集中处，也是效率瓶颈
+  - where: 公共服务交付
+    why: 公众感知最强的环节
+  leverage:
+  - 法定职责
+  - 数据与台账
+  - 财政预算
+  drivers:
+  - 数字政府与一网通办
+  - 绩效预算改革
+  - 基层减负
+  risks:
+  - 合规与问责
+  - 预算约束
+  - 舆情与信任
+  ai_frontier:
+    strong:
+    - 政策解读与问答
+    - 材料受理与预审
+    - 台账与统计初稿
+    weak:
+    - 审批与裁量
+    - 政策解释
+    - 问责承担
+    boundary: AI 做受理与问答，裁量权和政策解释必须由在编岗位行使
+  division_of_labor:
+    human_decides:
+    - 政策怎么定、边界在哪
+    - 哪些能办、哪些不能
+    ai_fills:
+    - 按事项补材料清单
+    - 按政策补问答口径
+  role_focus:
+  - policy_consultant
+  - gov_service_clerk
+- partition: live-streaming
+  value_chain:
+  - 人设与内容
+  - 选品与货盘
+  - 直播执行
+  - 流量与投放
+  - 结算与售后
+  position: 注意力即时变现方，收入靠打赏与坑位费，平台规则就是天花板
+  profit_pool:
+  - where: 选品与货盘
+    why: 坑位费与佣金的来源，选品错一场白播
+  - where: 流量与投放
+    why: 投流 ROI 决定盈亏，打赏是另一条线
+  leverage:
+  - 主播与人格
+  - 货盘
+  - 平台流量
+  drivers:
+  - 直播电商渗透
+  - 平台流量分配变化
+  - 数字人与AI主播
+  risks:
+  - 平台封禁与限流
+  - 货品与售后纠纷
+  - 主播流失
+  ai_frontier:
+    strong:
+    - 话术与脚本
+    - 选品数据与竞品监控
+    - 切片与二次分发
+    weak:
+    - 主播人格与临场
+    - 选品拍板
+    - 承诺与售后
+    boundary: AI 做脚本与切片，人格和货盘拍板不可外包
+  division_of_labor:
+    human_decides:
+    - 播什么、卖给谁
+    - 选谁的货、承诺什么价
+    ai_fills:
+    - 按品类补话术脚本
+    - 按场次补选品看板
+  role_focus:
+  - streamer
+  - live_host
+- partition: esports
+  value_chain:
+  - 青训与选手
+  - 战队与教练
+  - 赛事参与
+  - 内容与陪玩
+  - 转会与商业化
+  position: 竞技内容供方，收入靠奖金、工资与分成，人才窗口极短
+  profit_pool:
+  - where: 内容与陪玩
+    why: 战队曝光变现的池子
+  - where: 青训与选手
+    why: 资产端，选对人等于押中一个周期
+  leverage:
+  - 选手与教练
+  - 赛事席位
+  - 粉丝与内容
+  drivers:
+  - 电竞入亚与联赛化
+  - 直播与陪玩平台规范
+  - 俱乐部理性化
+  risks:
+  - 选手职业周期短
+  - 俱乐部亏损
+  - 赛事政策变动
+  ai_frontier:
+    strong:
+    - 战术与对局复盘
+    - 对手数据整理
+    - 内容与陪玩话术
+    weak:
+    - 阵容与战术拍板
+    - 选手合同
+    - 赛事合规
+    boundary: AI 做复盘与数据，阵容和合同必须由教练与管理层担
+  division_of_labor:
+    human_decides:
+    - 用谁、怎么打
+    - 赛事与商业怎么平衡
+    ai_fills:
+    - 按版本补战术库
+    - 按队伍补复盘模板
+  role_focus:
+  - esports_operator
+  - esports_player
+- partition: sport-fitness
+  value_chain:
+  - 获客与体验
+  - 体测与方案
+  - 课程与训练
+  - 会员与预付
+  - 复购与转介
+  position: 身体结果供方，预付制现金流好，履约依赖教练个人
+  profit_pool:
+  - where: 会员与预付
+    why: 现金流池，也是投诉高发区
+  - where: 课程与训练
+    why: 教练即产品，人走课散
+  leverage:
+  - 教练
+  - 门店密度
+  - 会员基盘
+  drivers:
+  - 全民健身与体医融合
+  - 小型工作室崛起
+  - AI 动作识别
+  risks:
+  - 预付监管
+  - 教练流失
+  - 同质化
+  ai_frontier:
+    strong:
+    - 体测与训练计划草案
+    - 动作纠正提示
+    - 会员触达与课程推荐
+    weak:
+    - 训练现场指导
+    - 伤病判断
+    - 承诺与退费
+    boundary: AI 出计划与提醒，动作纠正和伤病判断必须由人到场
+  division_of_labor:
+    human_decides:
+    - 给谁练什么、练多狠
+    - 受伤风险怎么担
+    ai_fills:
+    - 按人群补训练计划
+    - 按器械补动作库
+  role_focus:
+  - sports_coach
+  - rehab_trainer
+- partition: sport-games
+  value_chain:
+  - 赛事策划
+  - 招商与赞助
+  - 组织与执行
+  - 转播与内容
+  - 场馆与衍生
+  position: 赛事与场馆运营方，收入靠赞助与票务，重资产轻毛利
+  profit_pool:
+  - where: 招商与赞助
+    why: 赛事的真正收入来源
+  - where: 场馆与衍生
+    why: 重资产，靠利用率摊平
+  leverage:
+  - 赛事IP
+  - 场馆
+  - 政企关系
+  drivers:
+  - 体育消费与城市营销
+  - 赛事审批改革
+  - 转播数字化
+  risks:
+  - 上座率波动
+  - 安全与安保责任
+  - 场馆折旧
+  ai_frontier:
+    strong:
+    - 赛事方案与招商材料
+    - 赛程编排与报名管理
+    - 转播剪辑与内容分发
+    weak:
+    - 赛事IP与招商拍板
+    - 安全预案
+    - 现场指挥
+    boundary: AI 做编排与内容，安保预案和现场指挥必须由人担
+  division_of_labor:
+    human_decides:
+    - 办什么赛、卖多少钱
+    - 风险预案怎么定
+    ai_fills:
+    - 按项目补赛程模板
+    - 按场馆补运营清单
+  role_focus:
+  - event_operator
+  - sports_agent
+- partition: research-academic
+  value_chain:
+  - 选题与立项
+  - 申报与经费
+  - 实验与数据
+  - 论文与成果
+  - 转化与评价
+  position: 知识生产方，付费方是财政与企业研发，周期长、评价内卷
+  profit_pool:
+  - where: 申报与经费
+    why: 资源的入口，写法决定能不能干
+  - where: 转化与评价
+    why: 成果变现与职称晋升的落点
+  leverage:
+  - 学术积累
+  - 平台与设备
+  - 期刊与评审网络
+  drivers:
+  - 研发投入强度提升
+  - 有组织科研
+  - AI 辅助科研
+  risks:
+  - 经费竞争激烈
+  - 可复现性危机
+  - 评价体系压力
+  ai_frontier:
+    strong:
+    - 文献综述与查新
+    - 实验方案与统计草案
+    - 论文润色与格式校验
+    weak:
+    - 选题与假设
+    - 数据真实性
+    - 学术责任
+    boundary: AI 做检索与草稿，数据真实性和署名责任不可让渡
+  division_of_labor:
+    human_decides:
+    - 研究什么问题、值不值得做
+    - 数据能不能用
+    ai_fills:
+    - 按领域补文献库
+    - 按期刊补格式规范
+  role_focus:
+  - grant_writer
+  - research_analyst
+- partition: mining-resources
+  value_chain:
+  - 勘探与储量
+  - 开采与运输
+  - 选矿与加工
+  - 销售与期货
+  - 复垦与治理
+  position: 大宗资源供方，价格由市场定，成本由矿赋与运输定
+  profit_pool:
+  - where: 开采与运输
+    why: 成本控制的全部战场
+  - where: 销售与期货
+    why: 套保决定周期里能不能活
+  leverage:
+  - 矿权与储量
+  - 运输通道
+  - 成本曲线位置
+  drivers:
+  - 资源安全与增储上产
+  - 绿色矿山
+  - 智能化采掘
+  risks:
+  - 价格周期
+  - 安全与环保事故
+  - 矿权政策
+  ai_frontier:
+    strong:
+    - 地质资料整理
+    - 采掘计划与配矿
+    - 安全巡检记录
+    weak:
+    - 现场作业
+    - 安全与爆破责任
+    - 储量签字
+    boundary: AI 做资料与计划，井下作业与安全责任必须由人到现场
+  division_of_labor:
+    human_decides:
+    - 采哪里、怎么采
+    - 安全底线
+    ai_fills:
+    - 按矿种补采掘规程
+    - 按设备补巡检表
+  role_focus:
+  - mining_engineer
+  - mine_safety_inspector
+- partition: utilities
+  value_chain:
+  - 规划与投资
+  - 发电与输配
+  - 调度与运行
+  - 计量与收费
+  - 运维与检修
+  position: 公用事业供方，价格受管制，收益由准许收益率决定
+  profit_pool:
+  - where: 发电与输配
+    why: 资产规模决定准许收益
+  - where: 调度与运行
+    why: 效率与安全的平衡点
+  leverage:
+  - 特许经营
+  - 电网资产
+  - 调度权
+  drivers:
+  - 电力市场化改革
+  - 新能源并网
+  - 需求侧响应
+  risks:
+  - 保供与安全
+  - 价格管制
+  - 投资回收期长
+  ai_frontier:
+    strong:
+    - 负荷预测
+    - 运行方式与检修计划草案
+    - 账单解释与客服
+    weak:
+    - 调度操作
+    - 停送电与安全
+    - 价格执行
+    boundary: AI 做预测与客服，调度指令和停送电必须由持证人员下
+  division_of_labor:
+    human_decides:
+    - 投什么、怎么调
+    - 安全边界
+    ai_fills:
+    - 按区域补负荷曲线
+    - 按设备补检修规程
+  role_focus:
+  - power_grid_operator
+  - utility_billing_clerk
+- partition: public-safety
+  value_chain:
+  - 风险监测
+  - 预警与准备
+  - 响应与处置
+  - 恢复与重建
+  - 复盘与改进
+  position: 公共安全供给方，付费方是财政，价值是避免的损失
+  profit_pool:
+  - where: 响应与处置
+    why: 能力集中体现，平时看不见
+  - where: 风险监测
+    why: 花小钱省大钱的环节
+  leverage:
+  - 法定职责
+  - 队伍与装备
+  - 指挥体系
+  drivers:
+  - 城市安全与应急体系
+  - 基层应急能力建设
+  - 监测预警智能化
+  risks:
+  - 极端事件
+  - 问责压力
+  - 装备与人力不足
+  ai_frontier:
+    strong:
+    - 预案文本与演练脚本
+    - 风险台账与隐患分级
+    - 舆情与信息发布初稿
+    weak:
+    - 现场指挥与处置
+    - 决策与问责
+    - 生命攸关判断
+    boundary: AI 做预案与台账，现场指挥与处置不得由模型替代
+  division_of_labor:
+    human_decides:
+    - 风险怎么判、怎么救
+    - 什么时候升级响应
+    ai_fills:
+    - 按场景补预案
+    - 按装备补处置规程
+  role_focus:
+  - emergency_planner
+  - firefighter
+- partition: water-marine
+  value_chain:
+  - 规划与勘察
+  - 工程建设
+  - 运行与调度
+  - 监测与防灾
+  - 养护与修复
+  position: 公共基础设施与海洋产业供方，投资靠财政与专项债
+  profit_pool:
+  - where: 工程建设
+    why: 投资体量最大的落点
+  - where: 运行与调度
+    why: 防洪与供水的日常价值
+  leverage:
+  - 资质
+  - 流域与海域资源
+  - 财政投资
+  drivers:
+  - 水利投资与流域治理
+  - 海洋经济
+  - 数字孪生流域
+  risks:
+  - 工程质量与防洪风险
+  - 投资回收难
+  - 生态约束
+  ai_frontier:
+    strong:
+    - 勘察资料整理
+    - 调度方案与预报
+    - 监测数据分析
+    weak:
+    - 工程签字与验收
+    - 调度指令
+    - 防汛决策
+    boundary: AI 做预测与资料，调度令和防汛决策必须由人到现场担
+  division_of_labor:
+    human_decides:
+    - 工程怎么建、汛怎么防
+    - 调度底线
+    ai_fills:
+    - 按流域补预报模型
+    - 按工程补养护规程
+  role_focus:
+  - water_conservancy_engineer
+  - marine_surveyor
+- partition: international-org
+  value_chain:
+  - 议题与谈判
+  - 项目设计与立项
+  - 资金与合规
+  - 执行与协调
+  - 评估与报告
+  position: 跨国公共事务供给方，预算来自成员国，价值是很难量化的规则与协调
+  profit_pool:
+  - where: 资金与合规
+    why: 资源的闸门
+  - where: 议题与谈判
+    why: 规则制定的影响力来源
+  leverage:
+  - 席位与授权
+  - 语言与规则熟悉度
+  - 多边网络
+  drivers:
+  - 多边治理与全球议题
+  - 南南合作
+  - 数字与AI治理规则
+  risks:
+  - 预算与政治博弈
+  - 执行效率质疑
+  - 授权有限
+  ai_frontier:
+    strong:
+    - 议题背景与文件起草
+    - 多语言翻译与校对
+    - 项目报告与指标整理
+    weak:
+    - 谈判立场
+    - 授权与承诺
+    - 对外表态
+    boundary: AI 做文件与翻译，谈判立场和对外表态必须由授权代表说
+  division_of_labor:
+    human_decides:
+    - 谈什么、让什么
+    - 承诺什么
+    ai_fills:
+    - 按议题补文件模板
+    - 按机构补报告格式
+  role_focus:
+  - foreign_service_officer
+  - un_staff

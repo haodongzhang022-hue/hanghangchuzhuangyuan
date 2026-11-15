@@ -8,7 +8,11 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from hanghang.engine.industry_db import IndustryDatabase
+from hanghang.engine import industry_schema
+from hanghang.engine.industry_db import GDP_KINDS, IndustryDatabase
+from hanghang.engine.money_flow import FLOW_KINDS, RECONCILE_TOLERANCE
+from hanghang.engine.official_baseline import RELATIONS
+from hanghang.engine.scale_ledger import METRIC_LABELS, SCALE_METRICS
 
 
 def _db(args):
@@ -99,9 +103,19 @@ def cmd_industry_partition(args):
     print(f"  从业人员: {f'{emp} 万人' if emp is not None else '无就业口径'}"
           + (f"（{p['employment_source']}）" if p.get("employment_source") else ""))
     print(f"  视角: {'/'.join(db.axes_of(p))}")
-    print(f"  年产值: {f'{gdp / 1e8:,.0f} 亿元' if gdp else '无市场口径(刻意留空)'}")
+    # gdp 可能是字符串（脏数据）：只读命令不该因此 traceback。
+    # 类型错由 industry check 第 17-b 条报，这里按"无口径"展示。
+    gdp_num = gdp if isinstance(gdp, (int, float)) and not isinstance(gdp, bool) else None
+    print(f"  年产值: {f'{gdp_num / 1e8:,.0f} 亿元' if gdp_num else '无市场口径(刻意留空)'}")
+    # 口径类型必须跟着数一起露脸：只说"2.5 万亿"不说是什么口径，
+    # 下游拿去和增加值并列就会把 GMV 当成 GDP。
+    kind = p.get("gdp_kind") or "未标口径"
+    conf = p.get("gdp_confidence")
+    print(f"  产值口径类型: {kind}"
+          + (f"（{GDP_KINDS[kind]}）" if kind in GDP_KINDS else "")
+          + (f"  置信度={conf}" if conf else ""))
     if p.get("gdp_scope"):
-        print(f"  产值口径: {p['gdp_scope']}")
+        print(f"  产值口径说明: {p['gdp_scope']}")
     if p.get("gdp_source"):
         print(f"  来源: {p['gdp_source']}")
     print(f"  单元: {p.get('unit_id') or '未建'}")
@@ -169,7 +183,9 @@ def cmd_industry_axis(args):
         mark = {"covered": "已建", "pending": "待建",
                 "evaluated": "不建"}.get(r["status"], r["status"])
         if axis == "output":
-            gdp = f"{r['gdp_cny'] / 1e8:,.0f}亿" if r.get("gdp_cny") else "无口径"
+            _g = r.get("gdp_cny")
+            _g = _g if isinstance(_g, (int, float)) and not isinstance(_g, bool) else None
+            gdp = f"{_g / 1e8:,.0f}亿" if _g else "无口径"
             emp = f"{r['employment']}万人" if r.get("employment") is not None else "无就业口径"
             print(db._cell(mark, 5) + db._cell(r["name"], 22)
                   + db._cell(gdp, 12) + db._cell(emp, 12)
@@ -433,6 +449,614 @@ def cmd_industry_catalog(args):
     print(cat.render_coverage([o.get("id", "") for o in db.occupations]))
 
 
+def cmd_industry_scale(args):
+    """六口径规模账：盈利/资产/估值/从业/资源消耗/产值，谁有数谁说话。
+
+    这份账存在的唯一理由：**大行业不该因为产值没统计就整体隐身**。
+    产值是最难拿的一格，但利润、资产、市值、人数、能耗都在别处留着痕迹；
+    只要任一口径有数，这个行业就还在表里，能排序、能比较、能进分母。
+    """
+    db = _db(args)
+    sl = db.scales
+    part = getattr(args, "partition", "") or ""
+    if part:
+        if not db.partition(part):
+            print(f"未找到分区: {part}")
+            sys.exit(1)
+        vis = sl.visibility(part)
+        p = db.partition(part) or {}
+        print(f"■ {p.get('name')} ({part})  六口径 {vis['count']}/6"
+              f"  等级={vis['level']}")
+        print("-" * 78)
+        for m in SCALE_METRICS:
+            rec = sl.metric(part, m)
+            label = METRIC_LABELS[m]
+            if rec is None:
+                why = sl.missing_reason(part, m) or "未填原因"
+                print(f"  {label:<12} —        {why}")
+                continue
+            # 数值缺失时绝不能把 None 送进 f-string 的 ":,.0f" —— 那会 TypeError，
+            # 而这是只读命令：一份脏数据不该让看数据的人拿到 traceback。
+            # 缺值按"这一格是空的 + 原因"走，与 rec is None 同一条路。
+            amount = sl._amount(rec, m)
+            if amount is None:
+                why = sl.missing_reason(part, m) or "数值缺失（键写错或没填）"
+                print(f"  {label:<12} —        {why}")
+                continue
+            if m == "employment":
+                val = f"{amount:,.0f} 万人"
+            elif m == "resource":
+                val = sl.human_resource(amount, rec.get("unit", ""))
+            else:
+                val = f"{amount / 1e8:,.0f} 亿元"
+            extra = []
+            if rec.get("kind"):
+                extra.append(f"口径={rec['kind']}")
+            if rec.get("confidence"):
+                extra.append(f"置信={rec['confidence']}")
+            print(f"  {label:<12} {val:<16} {'  '.join(extra)}")
+            if rec.get("basis"):
+                print(f"  {'':<12} {rec['basis']}")
+            if rec.get("source"):
+                print(f"  {'':<12} 来源: {rec['source']}")
+        return
+
+    rows = sl.visibility_all()
+    only = getattr(args, "only", "") or ""
+    if getattr(args, "gaps", False):
+        only = "hidden"
+    if only:
+        rows = [r for r in rows if r["level"] == only]
+    top = getattr(args, "top", 0) or 0
+    if top:
+        rows = rows[:top]
+
+    counts = {lv: sum(1 for r in sl.visibility_all() if r["level"] == lv)
+              for lv in ("full", "partial", "hidden")}
+    print("=" * 92)
+    print(f"行业规模账 · 六口径可见度  v{sl.version}"
+          f"  口径年份 {sl.year_basis or '-'}  updated {sl.updated_at}")
+    print("-" * 92)
+    print(f"分区 {sum(counts.values())} 个：看清大半(full) {counts['full']}"
+          f" / 至少一面可见(partial) {counts['partial']}"
+          f" / 全空(hidden) {counts['hidden']}")
+    print("立场: 一个行业只要**任一**口径有数就没隐身；产值只是六格之一。"
+          "缺格逐条写着为什么缺。")
+    print("-" * 92)
+    head = (db._cell("分区", 22) + db._cell("口径", 7)
+            + db._cell("gdp", 6) + db._cell("就业", 6) + db._cell("利润", 6)
+            + db._cell("资产", 6) + db._cell("估值", 6) + db._cell("资源", 6))
+    print(head + "等级")
+    for r in rows:
+        p = db.partition(r["partition"]) or {}
+        cells = "".join(db._cell("●" if m in r["present"] else "·", 6)
+                        for m in ("gdp", "employment", "profit",
+                                  "asset", "valuation", "resource"))
+        print(db._cell(p.get("name", r["partition"]), 22)
+              + db._cell(f"{r['count']}/6", 7) + cells
+              + {"full": "full", "partial": "part",
+                 "hidden": "HIDDEN"}[r["level"]])
+    if only == "hidden" and rows:
+        print("-" * 92)
+        print("全空分区逐格原因（说不出总量又不说什么缺 = 保证会漏）：")
+        for r in rows:
+            for m, why in r["missing_detail"].items():
+                print(f"  {db._cell(r['partition'], 22)}{db._cell(m, 12)}{why}")
+    print("-" * 92)
+    print("● = 该口径有数，· = 该口径空（原因见 missing）；"
+          "`industry scale --partition <id>` 看单分区全貌，"
+          "`--gaps` 只看全空分区")
+    print("=" * 92)
+
+
+def cmd_industry_money(args):
+    """资金流守恒账：钱从哪来、经谁的手、沉在哪里。
+
+    双边记账让「全局流入 = 全局流出」变成恒等式（不是校验点）——真正能抓漏的是
+    **节点与外部口径对账**：图里画出来的边求和，与居民可支配收入/一般公共预算
+    收入这类权威总量对不上，就说明还有流向没画出来。
+    """
+    db = _db(args)
+    book = db.money
+    node = getattr(args, "node", "") or ""
+    if node:
+        n = book.node(node)
+        if not n:
+            print(f"未找到节点: {node}")
+            print("可用节点: " + ", ".join(book.node_ids()))
+            sys.exit(1)
+        pos = book.position(node)
+        print(f"■ {n.get('name')} ({node})  类型={n.get('type')}"
+              + (f"  部门={n['sector']}" if n.get("sector") else ""))
+        print(f"  流入 {pos['inflow'] / 1e8:,.0f} 亿  "
+              f"流出 {pos['outflow'] / 1e8:,.0f} 亿  "
+              f"净额 {pos['net'] / 1e8:,.0f} 亿"
+              f"  （其中 {pos['unknown_edges']} 条边数额待补）")
+        if n.get("source"):
+            print(f"  对账口径: {n['source']}")
+        # 判词只取 reconcile() 的 status：同一条数据只能有一种结论。
+        # 早先这里自己算 `ratio = abs(gap) / declared if declared else 0`，
+        # 于是 declared=0 打出 ✓（0.0% ≤ 容差）、declared 是字符串时直接
+        # TypeError、declared 为负时算出负偏差率也是 ✓ —— 三个分支各错一处，
+        # 而 engine 侧 reconcile() 早有 declared_zero / invalid_declared 两种判词。
+        # 两支各算一遍 = 人只会照着不崩、且是绿的那个看。
+        states = {(r["node"], r["side"]): r for r in book.reconcile()}
+        for side, label in (("in", "流入"), ("out", "流出")):
+            rec = states.get((node, side)) or {}
+            status = rec.get("status", "")
+            declared = rec.get("declared")
+            traced = pos["inflow"] if side == "in" else pos["outflow"]
+            if status == "no_declared":
+                print(f"  {label}对账: 未声明外部总量（缺口见 unobserved）")
+                continue
+            if status == "invalid_declared":
+                raw = n.get(f"declared_{side}_cny")
+                print(f"  {label}对账: declared_{side}_cny={raw!r} 不是正数值"
+                      f"  ❌ 数据写坏（对账无法进行；金额一律写正的字面数字）")
+                continue
+            if status == "declared_zero":
+                print(f"  {label}对账: 声明外部总量为 0，不参与对账"
+                      f"（图中画了 {traced / 1e8:,.0f} 亿）"
+                      f"—— 没有对账口径的节点须在 unobserved 登记缺什么")
+                continue
+            gap = rec.get("gap")
+            ratio = rec.get("gap_ratio")
+            print(f"  {label}对账: 图中 {traced / 1e8:,.0f} 亿 / 外部 "
+                  f"{declared / 1e8:,.0f} 亿  差额 {gap / 1e8:+,.0f} 亿"
+                  f"（{ratio:.1%}，容差 {RECONCILE_TOLERANCE:.0%}）"
+                  + ("  ✓" if status == "ok" else "  ❌ 漏画了流向"))
+        print("-" * 78)
+        print("  资金流明细（null = 路径已知、数额待补，不是 0）：")
+        for f in book.flows_of(node):
+            # 走 book._num()：带引号的 "64e12" 是字符串，裸除会 TypeError。
+            # 渲染路径和 validate 路径必须是同一套取值规则，否则"修好了金额"
+            # 只是修好了其中一条路。
+            amt = book._num(f.get("amount_cny"))
+            other = f.get("to") if f.get("from") == node else f.get("from")
+            arrow = "→" if f.get("from") == node else "←"
+            print(f"    {arrow} {db._cell(other or '', 24)}"
+                  f"{db._cell(f.get('kind', ''), 14)}"
+                  f"{(f'{amt / 1e8:,.0f} 亿' if amt is not None else '待补'):>14}"
+                  f"  {f.get('confidence', '-')}")
+        return
+
+    if getattr(args, "kinds", False):
+        print("资金流类型（类型是聚合的唯一维度，别自由命名）：")
+        for k, label in FLOW_KINDS.items():
+            n = sum(1 for f in book.flows if f.get("kind") == k)
+            print(f"  {db._cell(k, 16)}{db._cell(label, 40)}本账 {n} 条")
+        return
+
+    print(book.render_text())
+
+
+# ---- 官方口径基准：逐年对表 ----
+_BASELINE_STATUS = {
+    "ok": "✓ 对上",
+    "gap": "❌ 超容差",
+    "incomparable": "≈ 不可比",
+    "no_series": "— 无该年表值",
+    "no_value": "— 分区无数",
+    "unlinked": "· 无官方口径",
+    "unexplained": "❗ 未说明",
+}
+
+
+def _r(text, width: int) -> str:
+    """右对齐（数字列）：按显示宽度补，中文一字两列。
+
+    不用 f-string 的 `>14`：那按**字符数**补，中文列会整行错位 ——
+    这个坑在 money_flow 的表头踩过一次，别踩第二次。
+    """
+    from hanghang.engine.money_flow import _right
+    return _right(text, width)
+
+
+def _scales_amt(v):
+    """元 → 亿元。只用于显示，不参与计算。"""
+    return f"{v / 1e8:,.0f} 亿元" if isinstance(v, (int, float)) else "—"
+
+
+def cmd_industry_baseline(args):
+    """官方口径基准：逐年对表，把 gdp_confidence 从自我声明变成可核对。
+
+    单年对表只证明"这一年碰巧对上"。官方表值每年修订（初步核算 → 最终核实），
+    所以基准按年存，分区声明自己对齐哪一年；有两年以上才谈得上同比。
+    """
+    db = _db(args)
+    base = db.baseline
+    pid = getattr(args, "partition", "") or ""
+
+    if getattr(args, "benchmarks", False) or pid:
+        if pid:
+            lk = base.link_of(pid)
+            if not lk:
+                why = base.unlinked_reason(pid)
+                print(f"分区 {pid} 没有官方可比口径"
+                      + (f"：{why}" if why else "（且没写为什么 —— 校验第 24 条会报）"))
+                return
+            bid = lk.get("benchmark", "")
+            bench = base.benchmark(bid) or {}
+            p = db.partition(pid) or {}
+            year, src = base.part_year(p)
+            print(f"■ {p.get('name')} ({pid})  对表关系={lk.get('relation')}"
+                  f"  对齐年份={year or '-'}"
+                  + ("（显式声明 gdp_year）" if src == "declared" else "（由年份区间推出）"))
+            print(f"  分区产值 {_scales_amt(p.get('gdp_cny'))}  "
+                  f"口径={p.get('gdp_kind')}  标注置信度={p.get('gdp_confidence') or '-'}")
+            print(f"  官方基准 {bid}：{bench.get('name')}  口径={bench.get('kind')}")
+            for r in (bench.get("series") or []):
+                mark = "←" if r.get("year") == (year or (bench.get("series") or [{}])[-1].get("year")) else " "
+                print(f"    {mark} {r.get('year')}  "
+                      f"{(r.get('value_cny') or 0) / 1e8:>12,.0f} 亿元"
+                      f"  [{r.get('confidence') or '-'}]  {r.get('source')}")
+            yoy = base.yoy(bid)
+            if yoy is not None:
+                print(f"  官方同比: {yoy:+.1%}（{len(bench.get('series') or [])} 年 series）")
+            rows = [r for r in base.compare() if r["partition"] == pid]
+            for r in rows:
+                st = _BASELINE_STATUS.get(r["status"], r["status"])
+                dev = f"  偏差 {r['deviation']:+.1%}" if r["deviation"] is not None else ""
+                print(f"  结论: {st}{dev}  容差 {r['tolerance']:.0%}")
+                if r.get("reason"):
+                    print(f"  说明: {r['reason'].strip()}")
+            origin = bench.get("origin") or "未写"
+            print(f"  基准来历: {origin}"
+                  + {"published": "（逐表抄自公开统计表 → 可背书 high）",
+                     "recalled": "（量级回忆，未逐表核对 → 不可背书 high）",
+                     "backfilled": "（由分区估算反推 → 与分区同源，"
+                                   "比出来的 0% 偏差什么也没证明）"}.get(origin, ""))
+            print(f"  机器判定的置信度上限: {base.confidence_of(pid)}"
+                  f"（标注的是 {p.get('gdp_confidence') or '-'}；"
+                  f"high 只能由 published 基准 + 通过的对表背书）")
+            return
+
+        print("=" * 96)
+        print(f"官方口径基准  v{base.version}  年份 {base.years}  "
+              f"容差 {base.tolerance:.0%}  updated {base.updated_at}")
+        print("-" * 96)
+        print(f"{db._cell('基准', 24)}{db._cell('口径', 16)}"
+              f"{db._cell('2022(亿)', 14)}{db._cell('2023(亿)', 14)}"
+              f"{db._cell('同比', 10)}出处")
+        for b in base.benchmarks:
+            vals = {r.get("year"): r.get("value_cny")
+                    for r in (b.get("series") or [])}
+            cells = ""
+            for y in (base.years or sorted(vals)):
+                v = vals.get(y)
+                cells += db._cell(f"{v / 1e8:,.0f}" if v else "-", 14)
+            yoy = base.yoy(b.get("id", ""))
+            src = ((b.get("series") or [{}])[-1]).get("source", "")
+            print(db._cell(b.get("id", ""), 24) + db._cell(b.get("kind", ""), 16)
+                  + cells + db._cell(f"{yoy:+.1%}" if yoy is not None else "-", 10)
+                  + src[:40])
+        print("-" * 96)
+        print("只有同 kind 才允许 equal 比对：GMV 对营业收入、收入对增加值，"
+              "相减得到的差额没有任何经济含义。")
+        print("=" * 96)
+        return
+
+    rows = base.compare()
+    summ = base.summary()
+    counts = summ["status_counts"]
+    print("=" * 104)
+    print(f"逐年对表  v{base.version}  基准 {summ['benchmarks']} 个"
+          f"（其中 {summ['series_two_year']} 个有两年以上 series）"
+          f"  年份 {base.years}  容差 {base.tolerance:.0%}")
+    print("-" * 104)
+    linked = [r for r in rows if r["relation"]]
+    print(f"分区 {len(rows)} 个：接官方基准 {len(linked)}"
+          f" / 对上 {counts.get('ok', 0)} / 超容差 {counts.get('gap', 0)}"
+          f" / 不可比 {counts.get('incomparable', 0)}"
+          f" / 无该年表值 {counts.get('no_series', 0)}"
+          f" / 没接（已说明）{counts.get('unlinked', 0)}"
+          f" / **没接又没说明 {counts.get('unexplained', 0)}**")
+    print("立场: high 只能由「published 基准 + 同口径 + 同年份 + 偏差在容差内」"
+          "背书，不许自己写；反推来的「官方值」与分区同源，比出来的 0% 什么也没证明。")
+    print("-" * 104)
+    top = getattr(args, "top", 0) or 0
+    only = getattr(args, "only", "") or ""
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    if top:
+        rows = rows[:top]
+    print(db._cell("分区", 22) + db._cell("年份", 6) + db._cell("关系", 13)
+          + _r("分区值(亿)", 14) + _r("官方值(亿)", 14)
+          + _r("偏差", 9) + "  结论")
+    for r in rows:
+        p = db.partition(r["partition"]) or {}
+        pv = r["part_value"]
+        bv = r["bench_value"]
+        dev = r["deviation"]
+        print(db._cell(p.get("name", r["partition"]), 22)
+              + db._cell(r.get("year") or "-", 6)
+              + db._cell(r.get("relation") or "—", 13)
+              + _r(f"{pv / 1e8:,.0f}" if pv else "-", 14)
+              + _r(f"{bv / 1e8:,.0f}" if bv else "-", 14)
+              + _r(f"{dev:+.1%}" if dev is not None else "-", 9)
+              + "  " + _BASELINE_STATUS.get(r["status"], r["status"]))
+    print("-" * 104)
+    print("`industry baseline --partition <id>` 看单个分区的基准逐年值与出处，"
+          "`--benchmarks` 只看官方基准表")
+    print("=" * 104)
+
+
+def cmd_industry_io(args):
+    """投入产出账：生产法三端 + 中间投入去重 + 行业池能不能切。
+
+    这是上轮资金流账卡住那件事的直接答案：「8 个行业池份额切分数额全待补，卡点不是
+    拿不到数，是拿了会重复计」。生产法恒等式 总产出 = 增加值 + 中间投入 就是去重规则。
+    """
+    db = _db(args)
+    book = db.input_output
+    pid = getattr(args, "partition", "") or ""
+
+    if pid:
+        p = db.partition(pid) or {}
+        r = book.identity(pid)
+        print(f"■ {p.get('name')} ({pid})  生产法结论={r['status']}"
+              f"  {'（中间投入由相减得出）' if r['derived'] else ''}")
+        print("-" * 78)
+        for name, label in (("output", "总产出"), ("value_added", "增加值"),
+                            ("intermediate", "中间投入")):
+            v = r[name]
+            line = f"  {label:<8}" + (f"{v / 1e8:>12,.0f} 亿元" if v is not None
+                                      else "          —")
+            acc = book.accounts.get(pid) or {}
+            cell = acc.get(name) or {}
+            if cell.get("basis"):
+                line += f"   {cell['basis']}"
+            print(line)
+            if cell.get("source"):
+                print(f"  {'':<8}   来源: {cell['source']}")
+            if v is None:
+                why = book.missing_reason(pid, name) or "未填原因"
+                print(f"  {'':<8}   为什么空: {why}")
+        ratio = r["va_ratio"]
+        print(f"  增加值率 {ratio:.3f}" if ratio else "  增加值率 —（缺一端就算不出来）")
+        if r["status"] == "ok":
+            print(f"  恒等式 ✓ 总产出 = 增加值 + 中间投入（偏差 "
+                  f"{r['deviation']:+.1%}，容差 {r['tolerance']:.0%}）")
+        elif r["status"] == "gap":
+            print(f"  恒等式 ❌ 偏差 {r['deviation']:+.1%} 超容差 {r['tolerance']:.0%}"
+                  f"（三边不同源，必有一个是别的口径）")
+        elif r["status"] == "partial":
+            miss = [n for n in ("output", "value_added", "intermediate")
+                    if r[n] is None]
+            print(f"  恒等式 — 缺 {miss}，验不了（缺的一端要在 missing 里写原因）")
+        inputs = (book.accounts.get(pid) or {}).get("inputs") or []
+        if inputs:
+            print("-" * 78)
+            print("  中间投入构成:")
+            for it in inputs:
+                amt = book._input_amount(it)
+                print(f"    ← {db._cell(it.get('from', '?'), 24)}"
+                      f"{(f'{amt / 1e8:,.0f} 亿元' if amt else '按 share')}"
+                      f"  {it.get('basis', '')}")
+        else:
+            why = book.missing_reason(pid, "inputs")
+            if why:
+                print(f"  中间投入构成: 空 —— {why}")
+        rule = next((x for x in book.pool_feasibility()
+                     if x["partition"] == pid), None)
+        if rule:
+            mark = {"ready": "✓ 可切", "blocked": "✗ 不可切",
+                    "unruled": "· 未登记规则"}[rule["status"]]
+            print(f"  行业池切分: {mark}  锚点={rule['anchor'] or '-'}"
+                  + (f"  锚值 {rule['anchor_value'] / 1e8:,.0f} 亿元"
+                     if rule["anchor_value"] else ""))
+            if rule.get("note"):
+                print(f"    {rule['note']}")
+        return
+
+    if getattr(args, "inputs", False):
+        print("=" * 96)
+        print("中间投入构成：还缺什么、接进来能支撑什么判断")
+        print("-" * 96)
+        print("卡住的地方不是数据源，是**接了没有落点**。一轮只解决一件事：")
+        print("把「知道建材 8 万亿之后放哪、用来干什么」写清楚，再去要数据。")
+        print("-" * 96)
+        plan = book.input_plan()
+        print(db._cell("分区", 22) + _r("中间投入总额(亿)", 18)
+              + db._cell("卡住", 14) + "  要补的口径")
+        for r in plan[:getattr(args, "top", 0) or len(plan)]:
+            p = db.partition(r["partition"]) or {}
+            print(db._cell(p.get("name", r["partition"]), 22)
+                  + _r(f"{r['intermediate'] / 1e8:,.0f}"
+                       if r["intermediate"] else "-", 18)
+                  + db._cell(r["blocks"], 14) + "  "
+                  + r["need"].replace("\n", "")[:34])
+        print("-" * 96)
+        print(f"共 {len(plan)} 个分区还没有中间投入构成。构成合计必须等于总额"
+              f"（声明 complete 时才校验）——两套数并存必有一天对不上。")
+        ledger = book.dedup_ledger()
+        print("-" * 96)
+        if not ledger:
+            print("还没有任何分区被当作中间投入引用 —— 供给侧的边一条都没画，"
+                  "所以「供不出比自己产出更多的东西」这条关门条件暂时无事可守。")
+        else:
+            print("已被别人当作中间投入引用的分区（再往它头上加供给会撞超产）：")
+            for r in ledger:
+                own = (f"{r['own_output_cny'] / 1e8:,.0f} 亿"
+                       if r["own_output_cny"] else "无总产出口径")
+                ratio = f"{r['ratio']:.0%}" if r["ratio"] is not None else "-"
+                print(f"  {r['partition']}: 已供给 {r['supplied_cny'] / 1e8:,.0f} 亿"
+                      f" / 自身总产出 {own}（{ratio}）"
+                      f"  消费者: {r['consumers']}")
+        print("=" * 96)
+        return
+
+    if getattr(args, "pools", False):
+        print("=" * 92)
+        print("行业池切分可行性（部门层总额是增加值性质，所以锚点只能是增加值）")
+        print("-" * 92)
+        print(db._cell("分区", 24) + db._cell("状态", 10) + db._cell("锚点", 14)
+              + _r("锚值(亿)", 14) + "  说明")
+        for r in book.pool_feasibility():
+            if r["status"] == "unruled":
+                continue
+            p = db.partition(r["partition"]) or {}
+            mark = {"ready": "✓ 可切", "blocked": "✗ 不可切"}[r["status"]]
+            print(db._cell(p.get("name", r["partition"]), 24)
+                  + db._cell(mark, 10) + db._cell(r["anchor"] or "-", 14)
+                  + _r(f"{r['anchor_value'] / 1e8:,.0f}"
+                              if r["anchor_value"] else "-", 14)
+                  + "  " + r.get("note", "")[:46])
+        ready = [r for r in book.pool_feasibility() if r["status"] == "ready"]
+        blocked = [r for r in book.pool_feasibility() if r["status"] == "blocked"]
+        print("-" * 92)
+        print(f"可切 {len(ready)} 个 / 不可切 {len(blocked)} 个。"
+              f"不可切不是缺数据，是缺**同口径的增加值锚点**：拿 GMV、成本总额、"
+              f"营业收入去切部门总额，切出来的份额必然虚高且看不出来。")
+        print("=" * 92)
+        return
+
+    summ = book.summary()
+    counts = summ["identity_counts"]
+    print("=" * 96)
+    print(f"投入产出账  v{book.version}  年份 {book.year}  "
+          f"容差 {book.tolerance:.0%}  updated {book.updated_at}")
+    print("-" * 96)
+    print(f"账户 {summ['accounts']} 个：恒等式闭合 {counts.get('ok', 0)}"
+          f" / 只够一端 {counts.get('partial', 0)}"
+          f" / 还没有落点 {counts.get('missing', 0)}"
+          f" / 对不上 {counts.get('gap', 0)}")
+    print(f"行业池 {len(book.pool_rules)} 个：可切 {summ['pool_counts'].get('ready', 0)}"
+          f" / 不可切 {summ['pool_counts'].get('blocked', 0)}")
+    print("立场: 总产出 = 增加值 + 中间投入。三端不同源必有一个是别的口径；"
+          "缺一端就验不了，所以缺的一端必须写清为什么。")
+    print("-" * 96)
+    print(db._cell("分区", 22) + _r("总产出(亿)", 14)
+          + _r("增加值(亿)", 14) + _r("中间投入(亿)", 14)
+          + _r("增加值率", 10) + "  结论")
+    only = getattr(args, "only", "") or ""
+    top = getattr(args, "top", 0) or 0
+    rows = [book.identity(p.get("id", "")) for p in db.partitions]
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    rows.sort(key=lambda r: ({"ok": 0, "gap": 1, "partial": 2, "missing": 3}
+                             [r["status"]],
+                             -(r["value_added"] or 0)))
+    if top:
+        rows = rows[:top]
+    for r in rows:
+        p = db.partition(r["partition"]) or {}
+        ratio = r["va_ratio"]
+        print(db._cell(p.get("name", r["partition"]), 22)
+              + _r(f"{(r['output'] or 0) / 1e8:,.0f}" if r["output"] else "-", 14)
+              + _r(f"{(r['value_added'] or 0) / 1e8:,.0f}"
+                          if r["value_added"] else "-", 14)
+              + _r(f"{(r['intermediate'] or 0) / 1e8:,.0f}"
+                          if r["intermediate"] else "-", 14)
+              + _r(f"{ratio:.2f}" if ratio else "-", 10)
+              + "  " + {"ok": "✓ 闭合", "gap": "❌ 对不上",
+                        "partial": "— 缺一端", "missing": "· 无落点"}[r["status"]])
+    print("-" * 96)
+    print("`industry io --partition construction-eng` 看单户三端与中间投入构成，"
+          "`--pools` 只看行业池能不能切")
+    print("=" * 96)
+
+
+def cmd_industry_strategy(args):
+    """行业战略视图：钱为什么在这、AI 该站哪一段（粒度只到岗位/角色）。
+
+    这一层不回答"这个岗位怎么干"——那是 AI 上岗认领职责后自己补的。它回答的是
+    **派活之前必须先知道的事**：这个行业的钱沉在哪几段、靠什么换钱、什么会杀死它、
+    AI 现在站得住哪一段。不知道这些，AI 会认真把一个不赚钱的环节做到极致。
+    """
+    db = _db(args)
+    book = db.strategy
+    pid = getattr(args, "partition", "") or ""
+
+    if pid:
+        p = db.partition(pid)
+        if not p:
+            print(f"未找到分区: {pid}")
+            return
+        r = book.row(pid)
+        print(f"■ {p.get('name')} ({pid})  {p.get('status')}")
+        print("-" * 84)
+        if r["value_chain"]:
+            print("  价值链: " + " → ".join(r["value_chain"]))
+        print(f"  议价位置: {r['position'] or '—'}")
+        if r["profit_pool"]:
+            print("  利润池:")
+            for it in r["profit_pool"]:
+                print(f"    ● {it.get('where')}  —— {it.get('why')}")
+        print("  杠杆: " + ("、".join(r["leverage"]) or "—"))
+        print("  驱动: " + ("、".join(r["drivers"]) or "—"))
+        print("  风险: " + ("、".join(r["risks"]) or "—"))
+        print(f"  AI 站得住: " + ("、".join(r["ai_strong"]) or "—"))
+        print(f"  AI 站不住: " + ("、".join(r["ai_weak"]) or "—"))
+        print(f"  AI 边界: {r['ai_boundary'] or '—'}")
+        print("  人管: " + ("、".join(r["human_decides"]) or "—"))
+        print("  AI 补: " + ("、".join(r["ai_fills"]) or "—"))
+        focus = "、".join(r["role_focus_valid"]) or "—"
+        print(f"  岗位落点: {focus}")
+        if r["role_focus_dangling"]:
+            print(f"  ⚠️ 落点不存在: {r['role_focus_dangling']}")
+        if r["missing"]:
+            print("  缺段说明:")
+            for k, v in r["missing"].items():
+                print(f"    - {k}: {v}")
+        return
+
+    rows = book.cross_view(db)
+    print("=" * 100)
+    print(f"行业战略视图  v{book.version}  updated {book.updated_at}"
+          f"  粒度红线: 只到岗位/角色（工序与话术由 AI 上岗后按职责补）")
+    print("-" * 100)
+    s = book.summary()
+    print(f"分区 {s['partitions']} 个，有战略视图 {s['covered']} 个，"
+          f"岗位落点成立 {s['with_role_focus']} 个，悬空落点 {s['dangling_focus']} 个")
+    print(db._cell("分区", 20) + db._cell("链", 4) + db._cell("池", 4)
+          + db._cell("AI强", 6) + db._cell("AI弱", 6)
+          + db._cell("实测AI%", 10) + db._cell("落点", 6) + "  议价位置")
+    only = getattr(args, "only", "") or ""
+    top = getattr(args, "top", 0) or 0
+    if only:
+        rows = [r for r in rows if r["status"] == only]
+    rows.sort(key=lambda r: (r["status"], -(r["chain_len"] or 0), r["partition"]))
+    if top:
+        rows = rows[:top]
+    for r in rows:
+        e = book.entry(r["partition"]) or {}
+        print(db._cell((db.partition(r["partition"]) or {}).get("name", ""), 20)
+              + db._cell(str(r["chain_len"]), 4) + db._cell(str(r["pools"]), 4)
+              + db._cell(str(r["ai_strong"]), 6) + db._cell(str(r["ai_weak"]), 6)
+              + db._cell(f"{r['ai_share_measured']:.0f}" if r["ai_share_measured"]
+                         is not None else "-", 10)
+              + db._cell(str(r["role_focus"]), 6)
+              + "  " + (e.get("position", "") or "-")[:40])
+    print("-" * 100)
+    print("`industry strategy --partition construction-eng` 看单个行业的价值链与利润池；"
+          "`industry strategy-gaps` 只看缺段")
+    print("=" * 100)
+
+
+def cmd_industry_strategy_gaps(args):
+    """战略视图的缺口：哪个分区哪一段空着、为什么空。"""
+    db = _db(args)
+    book = db.strategy
+    gaps = [r for r in book.rows() if r["missing"] or r["role_focus_dangling"]
+            or len(r["value_chain"]) < 3 or not r["profit_pool"]]
+    if not gaps:
+        print(f"✅ 战略视图无缺口：{len(book.entries)} 个分区都有价值链、利润池与岗位落点")
+        return
+    print(f"战略视图缺口 {len(gaps)} 个分区：")
+    for r in gaps:
+        p = db.partition(r["partition"]) or {}
+        print(f"- {p.get('name', r['partition'])} ({r['partition']})")
+        if len(r["value_chain"]) < 3:
+            print(f"    价值链只有 {len(r['value_chain'])} 段")
+        if not r["profit_pool"]:
+            print("    没有利润池判断")
+        for name in r["role_focus_dangling"]:
+            print(f"    落点不存在: {name}")
+        for k, v in r["missing"].items():
+            print(f"    {k}: {v}")
+
+
 def cmd_industry_check(args):
     """数据一致性自检：职业↔单元岗位 双向对齐
 
@@ -491,10 +1115,49 @@ def cmd_industry_export(args):
                     row["gb_name"] = (db.catalog.entry(gb) or {}).get("name", "")
                     row["gb_path"] = db.catalog.path_of(gb)
             occs.append(row)
+        # 两本账也进 JSON：可见度与资金流是"这份数据能答什么"的一部分，
+        # 只导 partitions/occupations 的话，下游拿到的是一张没有缺口的漂亮表——
+        # 而缺口本身就是要交付的信息。
+        scales_json = []
+        for p in db.partitions:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            scales_json.append({
+                "partition": pid,
+                "visibility": db.scales.visibility(pid),
+                "metrics": {m: db.scales.metric(pid, m) for m in SCALE_METRICS},
+            })
         with open(path, "w", encoding="utf-8") as fh:
             json.dump({"meta": {k: v for k, v in snapshot.items() if k != "rows"},
                        "partitions": snapshot["rows"],
-                       "occupations": occs}, fh,
+                       "occupations": occs,
+                       "scales": scales_json,
+                       "money": {"summary": db.money.coverage_summary(),
+                                 "nodes": db.money.nodes,
+                                 "flows": db.money.flows,
+                                 "leaks": db.money.leaks,
+                                 "unobserved": db.money.unobserved},
+                       # 官方基准 + 投入产出：这两本账回答"这个数有没有出处"
+                       # 与"这个数会不会重复计"，是"可对外引用"的两个前提。
+                       "baseline": {"summary": db.baseline.summary(),
+                                    "benchmarks": db.baseline.benchmarks,
+                                    "links": db.baseline.links,
+                                    "compare": db.baseline.compare()},
+                       "input_output": {
+                           "summary": db.input_output.summary(),
+                           "accounts": list(db.input_output.accounts.values()),
+                           "pool_rules": db.input_output.pool_rules,
+                           "pools": db.input_output.pool_feasibility(),
+                           # 接进口：还缺哪几段构成、缺到哪一步。补构成的人靠它开工，
+                           # 不用重读 yaml。
+                           "input_plan": db.input_output.input_plan(),
+                           "dedup": db.input_output.dedup_ledger()},
+                       # 战略视图：钱为什么在这、AI 该站哪一段（粒度只到岗位/角色）。
+                       # 单独成段而不是塞进 partitions：两者的更新节奏完全不同——
+                       # 产值随统计年鉴变，战略判断随市场变。
+                       "strategy": {"summary": db.strategy.summary(),
+                                    "partitions": db.strategy.rows()}}, fh,
                       ensure_ascii=False, indent=2)
         written.append(path)
 
@@ -503,7 +1166,8 @@ def cmd_industry_export(args):
         with open(ppath, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["id", "name", "aliases", "status", "unit_id", "priority",
-                        "member_count", "gdp_cny", "gdp_scope", "provider_ai",
+                        "member_count", "gdp_cny", "gdp_kind", "gdp_confidence",
+                        "gdp_scope", "provider_ai",
                         "provider_hybrid", "provider_human", "provider_ai_declared",
                         "provider_hybrid_declared", "provider_human_declared",
                         "provider_ai_estimated", "provider_hybrid_estimated",
@@ -519,6 +1183,9 @@ def cmd_industry_export(args):
                 w.writerow([r["id"], r["name"], "|".join(r["aliases"]), r["status"],
                             r["unit_id"], r["priority"], r["member_count"],
                             r["gdp_cny"] if r["gdp_cny"] is not None else "",
+                            # 口径类型紧跟数字：只有 csv 里也带着，下游才不会把
+                            # GMV 和增加值丢进同一个 sum()
+                            r.get("gdp_kind", ""), r.get("gdp_confidence", ""),
                             r["gdp_scope"], mix.get("ai", ""), mix.get("hybrid", ""),
                             mix.get("human", ""),
                             dec.get("ai", ""), dec.get("hybrid", ""),
@@ -564,83 +1231,197 @@ def cmd_industry_export(args):
                     gb, (entry or {}).get("name", ""), o.get("note", "")])
         written.append(opath)
 
+        # 六口径规模账扁平表：一行一个（分区，口径），缺的口径也占一行。
+        # 摊成宽表（每个口径一列）就退回"六个 NULL 分不清没登记还是没数"的老毛病。
+        spath2 = os.path.join(out, "scales.csv")
+        with open(spath2, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "metric", "value", "unit", "kind",
+                        "basis", "source", "confidence", "missing_reason",
+                        "visibility_level"])
+            for p in db.partitions:
+                pid = p.get("id", "")
+                if not pid:
+                    continue
+                level = db.scales.visibility(pid)["level"]
+                for m in SCALE_METRICS:
+                    rec = db.scales.metric(pid, m)
+                    if rec is None:
+                        w.writerow([pid, m, "", "", "", "", "", "",
+                                    db.scales.missing_reason(pid, m) or "", level])
+                        continue
+                    if m == "employment":
+                        val, unit = rec.get("wan"), "wan"
+                    elif m == "resource":
+                        val, unit = rec.get("value"), rec.get("unit", "")
+                    else:
+                        val, unit = rec.get("cny"), "CNY"
+                    w.writerow([pid, m, val, unit or "", rec.get("kind", "") or "",
+                                rec.get("basis", "") or "", rec.get("source", "") or "",
+                                rec.get("confidence", "") or "", "", level])
+        written.append(spath2)
+
+        # 资金流守恒账：三条扁平表（节点/边/差额）。下游能直接用 SQL 查
+        # 「哪个节点的流入对不上」——这正是这套账存在的意义。
+        npath = os.path.join(out, "money-nodes.csv")
+        with open(npath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "type", "sector", "partition", "name",
+                        "declared_in_cny", "declared_out_cny", "inflow_cny",
+                        "outflow_cny", "net_cny", "unknown_edges", "in_gap_ratio",
+                        "out_gap_ratio", "source"])
+            recs = {(r["node"], r["side"]): r for r in db.money.reconcile()}
+            for n in db.money.nodes:
+                nid = n.get("id", "")
+                pos = db.money.position(nid)
+                w.writerow([nid, n.get("type", ""), n.get("sector", "") or "",
+                            n.get("partition", "") or "", n.get("name", ""),
+                            n.get("declared_in_cny", ""), n.get("declared_out_cny", ""),
+                            pos["inflow"], pos["outflow"], pos["net"],
+                            pos["unknown_edges"],
+                            (recs.get((nid, "in")) or {}).get("gap_ratio", ""),
+                            (recs.get((nid, "out")) or {}).get("gap_ratio", ""),
+                            n.get("source", "") or ""])
+        written.append(npath)
+
+        fpath = os.path.join(out, "money-flows.csv")
+        with open(fpath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["from", "to", "kind", "kind_label", "amount_cny",
+                        "confidence", "basis", "memo"])
+            for f in db.money.flows:
+                # memo 列必须在扁平表里：下游一句 SUM(amount_cny) WHERE memo=0
+                # 才算得对总资金量，否则份额摊开的 41 万亿会当成新增流出加进去。
+                w.writerow([f.get("from", ""), f.get("to", ""), f.get("kind", ""),
+                            FLOW_KINDS.get(f.get("kind", ""), ""),
+                            f.get("amount_cny") if f.get("amount_cny") is not None else "",
+                            f.get("confidence", "") or "", f.get("basis", "") or "",
+                            1 if f.get("memo") else 0])
+        written.append(fpath)
+
+        # 官方基准对表扁平表：一个分区一行，带结论与偏差。
+        # BI 一句 SQL 就能查「哪些分区的数没有出处」。
+        bpath = os.path.join(out, "baseline-check.csv")
+        with open(bpath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "benchmark", "relation", "year", "year_source",
+                        "part_value_cny", "bench_value_cny", "deviation",
+                        "tolerance", "status", "reason"])
+            for r in db.baseline.compare():
+                w.writerow([r["partition"], r.get("benchmark", ""),
+                            r.get("relation", ""), r.get("year") or "",
+                            r.get("year_source", ""),
+                            int(r["part_value"]) if r.get("part_value") is not None else "",
+                            int(r["bench_value"]) if r.get("bench_value") is not None else "",
+                            r.get("deviation") if r.get("deviation") is not None else "",
+                            r.get("tolerance", ""), r["status"],
+                            (r.get("reason") or "").strip()])
+        written.append(bpath)
+
+        # 生产法扁平表：三端 + 增加值率 + 能不能切。
+        ipath = os.path.join(out, "io-accounts.csv")
+        with open(ipath, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "year", "output_cny", "value_added_cny",
+                        "intermediate_cny", "intermediate_derived", "va_ratio",
+                        "identity_status", "deviation", "anchor", "pool_status"])
+            rules = {x["partition"]: x for x in db.input_output.pool_feasibility()}
+            for p in db.partitions:
+                pid = p.get("id", "")
+                if not pid:
+                    continue
+                r = db.input_output.identity(pid)
+                rule = rules.get(pid) or {}
+                has_acc = pid in db.input_output.accounts
+                w.writerow([pid, (db.input_output.year or "") if has_acc else "",
+                            int(r["output"]) if r["output"] is not None else "",
+                            int(r["value_added"]) if r["value_added"] is not None else "",
+                            int(r["intermediate"]) if r["intermediate"] is not None else "",
+                            1 if r["derived"] else 0,
+                            r["va_ratio"] if r["va_ratio"] is not None else "",
+                            r["status"],
+                            r["deviation"] if r["deviation"] is not None else "",
+                            rule.get("anchor", "") or "",
+                            rule.get("status", "") or ""])
+        written.append(ipath)
+
+        # 中间投入构成接进口：一行一个还缺构成的分区。给要数据的人一张清单，
+        # 而不是让下一个人重新读一遍 yaml 才知道缺在哪。
+        ipath2 = os.path.join(out, "io-input-plan.csv")
+        with open(ipath2, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "intermediate_cny", "declared_complete",
+                        "blocks", "need", "consumers_of_this_partition"])
+            dedup = {r["partition"]: r for r in db.input_output.dedup_ledger()}
+            for r in db.input_output.input_plan():
+                w.writerow([r["partition"],
+                            int(r["intermediate"]) if r["intermediate"] else "",
+                            1 if r["declared_complete"] else 0,
+                            r["blocks"], r["need"],
+                            "|".join((dedup.get(r["partition"]) or {})
+                                     .get("consumers", []))])
+        written.append(ipath2)
+
+        # 战略视图扁平表：一行一个分区。position/ai_boundary 是长句，单独给列。
+        spath3 = os.path.join(out, "strategy.csv")
+        with open(spath3, "w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["partition", "name", "status", "position",
+                        "value_chain", "profit_pool", "leverage", "drivers",
+                        "risks", "ai_strong", "ai_weak", "ai_boundary",
+                        "human_decides", "ai_fills", "role_focus",
+                        "role_focus_dangling", "ai_share_measured", "missing"])
+            for row in db.strategy.cross_view(db):
+                r = db.strategy.row(row["partition"])
+                e = db.strategy.entry(row["partition"]) or {}
+                w.writerow([
+                    row["partition"], row["name"], row["status"],
+                    r["position"], "|".join(r["value_chain"]),
+                    # 利润池的 where 与 why 必须成对出现，所以压成 "环节:原因" 再拼
+                    "|".join(f"{it.get('where')}:{it.get('why')}"
+                             for it in r["profit_pool"]),
+                    "|".join(r["leverage"]), "|".join(r["drivers"]),
+                    "|".join(r["risks"]), "|".join(r["ai_strong"]),
+                    "|".join(r["ai_weak"]), r["ai_boundary"],
+                    "|".join(r["human_decides"]), "|".join(r["ai_fills"]),
+                    "|".join(r["role_focus"]),
+                    "|".join(r["role_focus_dangling"]),
+                    (row["ai_share_measured"]
+                     if row["ai_share_measured"] is not None else ""),
+                    "|".join(f"{k}:{v}" for k, v in (e.get("missing") or {}).items()),
+                ])
+        written.append(spath3)
+
     if fmt in ("all", "sqlite"):
         import sqlite3
         spath = os.path.join(out, "industry.sqlite")
         if os.path.exists(spath):
             os.remove(spath)
         conn = sqlite3.connect(spath)
-        conn.execute("""CREATE TABLE partition(
-            id TEXT PRIMARY KEY, name TEXT, aliases TEXT, status TEXT,
-            unit_id TEXT, priority TEXT, gdp_cny INTEGER, gdp_scope TEXT,
-            gdp_source TEXT, provider_ai REAL, provider_hybrid REAL,
-            provider_human REAL, provider_ai_declared REAL,
-            provider_hybrid_declared REAL, provider_human_declared REAL,
-            provider_ai_estimated REAL, provider_hybrid_estimated REAL,
-            provider_human_estimated REAL,
-            access_paid_direct REAL, access_non_market REAL,
-            access_org_internal REAL, access_household REAL,
-            employment_wan REAL, axes TEXT, axis_edges TEXT,
-            demand_side TEXT, cluster_basis TEXT, channels TEXT, note TEXT)""")
-        conn.execute("""CREATE TABLE occupation(
-            code TEXT PRIMARY KEY, id TEXT UNIQUE, name TEXT,
-            deliverable TEXT, provider TEXT, billing TEXT, access TEXT,
-            baseline INTEGER, gb_code TEXT, gb_name TEXT, note TEXT)""")
-        # 边单独一张表：多视角是常态，塞进 occupation 行里就退化成单值归属
-        conn.execute("""CREATE TABLE membership(
-            occupation TEXT, partition TEXT, axis TEXT, weight REAL,
-            unit_role TEXT, PRIMARY KEY (occupation, partition, axis))""")
-        for r in snapshot["rows"]:
-            mix = r["provider_mix"] or {}
-            dec = r.get("provider_mix_declared") or {}
-            acc = r.get("access_mix") or {}
-            est = r.get("provider_mix_estimated") or {}
-            conn.execute(
-                f"INSERT INTO partition VALUES ({','.join('?' * 29)})",
-                (r["id"], r["name"], "|".join(r["aliases"]), r["status"],
-                 r["unit_id"], r["priority"], r["gdp_cny"], r["gdp_scope"],
-                 r["gdp_source"], mix.get("ai"), mix.get("hybrid"),
-                 mix.get("human"), dec.get("ai"), dec.get("hybrid"),
-                 dec.get("human"),
-                 est.get("ai"), est.get("hybrid"), est.get("human"),
-                 acc.get("paid_direct"), acc.get("non_market"),
-                 acc.get("org_internal"), acc.get("household"),
-                 r.get("employment"), "|".join(r.get("axes", [])),
-                 "|".join(f"{k}:{v}" for k, v in
-                          (r.get("axis_edges") or {}).items() if v),
-                 "|".join(r["demand_side"]),
-                 "|".join(r["cluster_basis"]), "|".join(r["channels"]),
-                 r["note"]))
-        for o in db.occupations:
-            gb = db.catalog.gb_code_of(o.get("id", "")) if db.catalog else ""
-            entry = db.catalog.entry(gb) if (db.catalog and gb) else None
-            conn.execute(
-                f"INSERT INTO occupation VALUES ({','.join('?' * 11)})",
-                (o.get("code", ""), o.get("id", ""), o.get("name", ""),
-                 o.get("deliverable", ""), o.get("provider", ""),
-                 o.get("billing", ""), db.access_of(o),
-                 1 if o.get("baseline_occupation") else 0,
-                 gb, (entry or {}).get("name", ""), o.get("note", "")))
-        for m in db.axis_view.memberships:
-            conn.execute("INSERT OR REPLACE INTO membership VALUES (?,?,?,?,?)",
-                         (m.get("occupation", ""), m.get("partition", ""),
-                          m.get("axis", ""), m.get("weight", 1.0),
-                          m.get("unit_role", "")))
-        # 大典参考表整表导出：补全缺口时不必再去找原始 PDF
-        if db.catalog is not None:
-            conn.execute("""CREATE TABLE gb_catalog(
-                code TEXT PRIMARY KEY, name TEXT, gbm TEXT, major TEXT,
-                middle TEXT, minor TEXT, marks TEXT, path TEXT, desc TEXT)""")
-            for e in db.catalog.occupations:
-                conn.execute("INSERT INTO gb_catalog VALUES (?,?,?,?,?,?,?,?,?)",
-                             (e.get("code", ""), e.get("name", ""), e.get("gbm", ""),
-                              e.get("major", ""), e.get("middle", ""),
-                              e.get("minor", ""), "|".join(e.get("marks") or []),
-                              db.catalog.path_of(e.get("code", "")),
-                              e.get("desc", "")))
+        # 建表语句从单源渲染，不再手写在 CLI 里：手写那版只有 SQLite 方言、
+        # 列顺序靠 tuple 位置对齐，加一列要同时改三处，漏一处就静默错位。
+        conn.executescript(industry_schema.ddl("sqlite"))
+        rows = industry_schema.rows_of(db, snapshot)
+        for table in industry_schema.TABLES:      # 按定义顺序插入，外键不悬空
+            cols = industry_schema.columns_of(table["name"])
+            sql = (f'INSERT INTO "{table["name"]}" ('
+                   + ", ".join(f'"{c}"' for c in cols) + ") VALUES ("
+                   + ", ".join("?" * len(cols)) + ")")
+            conn.executemany(sql, rows[table["name"]])
         conn.commit()
         conn.close()
         written.append(spath)
+
+        # 双方言 DDL + 与方言无关的数据 SQL：买服务器时把这三份丢进去就能建库，
+        # 不需要跑 Python，也不需要人工把 SQLite 语法改写成 PG。
+        for name, content in (
+                ("00-schema.sqlite.sql", industry_schema.ddl("sqlite")),
+                ("00-schema.postgresql.sql", industry_schema.ddl("postgresql")),
+                ("10-data.sql", industry_schema.data_sql(db, snapshot))):
+            path = os.path.join(out, name)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            written.append(path)
 
     print(f"已导出 {len(written)} 个文件到 {out}/ :")
     for p in written:

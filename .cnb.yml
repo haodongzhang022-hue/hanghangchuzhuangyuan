@@ -4,14 +4,14 @@
 #
 # 核心机制（同步自 dongjiagoushi / youxikaifaxilieagent 的自动评审闭环）：
 #   - pull_request 事件 → 测试信号灯 + NPC 代码审查
-#   - 评审发现需修改 → 评审NPC在评论中 @CodeBuddy → 自动触发修复
+#   - 评审发现需修改 → 评审NPC在评论中召唤（全限定名）→ 自动触发修复
 #   - CodeBuddy 修复提交 → 新 commit 触发下一轮 pull_request → 再次评审
 #   - 目标导向：评审无错即停，有错继续修，不强制轮数
 #   - pull_request.approved → 评审通过后用 PR 自己的配置重跑检查并合并
 #   - pull_request.changes_requested → 评审打回时自动修复（兜底）
 #   - pull_request.comment@npc → 人类/@NPC 手动兜底
 #   - main.push → 全量回归 + 知识库更新
-#   - issue.comment@npc → Issue 里 @CodeBuddy 直接应答
+#   - issue.comment@npc → Issue 里召唤 NPC 直接应答
 #   - issue.open/update **不配置**：原先只打一行 echo，白占预冻结配额
 #
 # pull_request.mergeable **刻意不配置**：该事件的配置与工作区都取自目标分支
@@ -19,6 +19,15 @@
 # 时，合并门禁跑的是 main 上的旧配置——想修 CI 却先在旧配置上再红一轮，改的人
 # 永远看不到自己的修复生效（PR #29 连红三轮即此）。评审通过后由
 # pull_request.approved 重跑同一份 stages 并合并：配置与代码都取自预合并。
+#
+# ⚠️ 提示词生效位置（这轮查出来的成本 bug，改这里之前先读）：
+#   官方 npc:go 文档「提示词配置」写明——`@NPC` 评论触发时，平台按 .cnb/settings.yml
+#   的角色定义注入提示词，本文件 options 里的 systemPrompt / userPrompt / role
+#   **即使配了也会被忽略**。也就是说：真人或评审 NPC 一召唤，跑的是 settings.yml 那段
+#   prompt，本文件里写的「全限定名召唤」「二选一」「配额红灯别改代码」全部不生效。
+#   护栏写在不生效的位置 = 没有护栏，而且 tests/ 里那两条断言还一直是绿的。
+#   所以纪律现在**两边都写**：settings.yml 是生效的那份（并对它加了断言），
+#   本文件这份仍然保留 —— pull_request 事件（非评论触发）走的就是这里。
 #
 # 角色定义见 .cnb/settings.yml
 # 评审闭环规则见 docs/评审修复闭环护栏.md
@@ -36,16 +45,27 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      # 配额：**不写 runner.cpus**，也不配置 allowFailure。
-      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格，
-      # 预冻结时额度不足就立即终止任务。所以核数只改变"每次冻结多少"，改变不了
-      # "额度已经见底"——2 核试过、1 核也试过，Prepare 报的仍是同一句话：
-      #   events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)
-      # 1.33 = 1 核 × 1/3 小时，正是默认 1 核节点规格下一次 5min 冻结的量，
-      # 与"申请几核"无关，只说明「云原生构建-CPU」额度已经见底（免费 160 核时/月）。
-      # 配置层没有替代品，只有根组织提升额度这一条路。
-      # 想"不标红"只有 Pipeline 级 allowFailure 一条路（语法手册：为 true 时流水线
-      # 失败状态不上报到 CNB），但它会把真实的测试失败一并吞掉，这里刻意不用。
+      # 配额：显式写 cpus: 1，**不写就是默认 8 核**，那才是 Prepare 红的原因。
+      # 管住这件事的是 tests/test_industry_completion.py 的
+      # test_every_pipeline_declares_its_own_runner_size：漏写或超过 1 核都会红。
+      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格；
+      # 额度不足立即终止任务。所以核数**直接决定**每次要冻多少：
+      #   8 核 × 5 min = 0.67 核时（平台文档口径）/ 1.33（报错口径，按 10min 冻结）
+      #   1 核 × 5 min = 0.08 核时
+      # 为什么敢只要 1 核：这条 job 是 `change-aware-test.sh` 串行跑测试 + 单条 CLI
+      # 冒烟，没有编译、没有 npm 并行，Python 单进程本来就只吃一个核。多给的核不被
+      # 使用，但按节点规格计入冻结量——纯烧额度。
+      # 额度见底时降核是唯一能立刻生效的一招；长期仍应向根组织提额度
+      # （免费 160 核时/月），实测本仓库 11 月已用 274.6 核时。
+      # 另外不配置 allowFailure：它会连真实测试失败一起吞掉，失败形态变成"全绿"。
+      runner:
+        cpus: 1
+      # 源分支一更新，这条构建就该让位（官方 breakIfModify：Job 执行前若源分支已更新，
+      # 则终止构建）。它测的那个 commit 已经被新 commit 取代，跑完的结论没人会看，
+      # 而两台机器已经按节点规格冻结过额度了。PR 迭代快时这是实打实的重复消耗：
+      # 本仓库 11 月有 8 条 pull_request 构建是 0.1 分钟就红在 Prepare 的，
+      # 也有 20 分钟往上跑完却没人在看的 —— 后者正是这条该终止的对象。
+      breakIfModify: true
       docker:
         image: python:3.11
         volumes:
@@ -94,6 +114,14 @@ $:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "  ⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            # 结构产物（data/db/industry/*.sql）是「买服务器怎么建库」的契约：
+            # 改了分区/职业字段却忘了重生成，或者 DDL 与数据灌不进库，这里拦下。
+            # --check 会真灌一份临时 SQLite 再读回行数，不只看文件非空。
+            python3 scripts/export_industry_db.py --check
+            # 数据盘存清单是「东西都在哪」的唯一答案：改了数据忘了重生成，
+            # 清单就会指向一份已不存在的文件 —— 而过期的清单比没有清单更坏，
+            # 它让人相信某份文件还在被用。
+            python3 scripts/gen_data_inventory.py --check
             # 合并判定放在这里，不另起一条 mergeable 流水线：那条读的是目标分支的
             # .cnb.yml（官方「代码版本选择」：mergeable → 合并前目标分支最新 Commit），
             # PR 改流水线时它跑旧配置，改的人永远看不到修复生效（见文件头）。
@@ -147,6 +175,15 @@ $:
             mergeType: squash
             removeSourceBranch: true
     - name: npc-code-review
+      # NPC 流水线的成本在等 AI 接口，不在算力：1 核足够，冻结量再减半
+      # （1 核 × 5min = 0.17 核时，2 核是 0.33）。它和 review-fix-loop 同时起跑，
+      # 两条都按 2 核申请时是把同一份余额一起抢——降到 1 核给测试那条留出余量。
+      runner:
+        cpus: 1
+      # 同 review-fix-loop：评审的是某个具体 commit，分支一更新它就成了过期意见。
+      # 而且 NPC 评审是全仓最慢的一条（实测单次 27~88 分钟，占着机器等模型），
+      # 让它对着已被取代的代码审完再贴结论，是最贵的一种白跑。
+      breakIfModify: true
       <<: *npc_default
       stages:
         - name: NPC 代码审查
@@ -171,9 +208,20 @@ $:
               5. 是否包含自动化测试且测试通过。
               给出结论：
               - **通过/approved**：若未发现需修复的缺陷，明确说明"无问题"，不召唤任何人；
-              - **需修改/needs_modification**：逐条列出问题与修改点，末尾必须 @CodeBuddy
-                召唤修复（格式: @dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)），
-                让 CodeBuddy 自动接管修复。
+              - **需修改/needs_modification**：逐条列出问题与修改点，末尾召唤修复。
+                **召唤与「请求修改」只能二选一**：你已经 @ 了修复，就不要再提交
+                changes_requested 评审结论；已经提交了打回，就不要再 @ 召唤。
+                两个都做会拉起两条并行的修复会话，在同一分支上改同一批代码，
+                同时在烧两份配额（实测 29 次打回里 22 次都是这种重复）。
+                **配额类红灯一律不许召唤**：失败 Stage 是 `Prepare`、报错含
+                `insufficient` / `pre-freezing` / `core-hours` 时，红灯不在代码里。
+                召唤一个代码修复 Agent 只会空转一小时、烧 8 核时，最后回一句
+                「跟代码无关」。这时只写一句「组织 CPU 额度见底，需提额」就结束。
+                召唤时**只准写全限定名** `@dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)`。
+                ⚠️ 别只写 `@` 加角色名而不带仓库路径：那种写法命中**平台系统 NPC**，
+                它不读本仓库 `.cnb.yml`，会跑在 8 核默认规格上（实测 144 次系统会话
+                268 核时，同样的事走全限定名 72 次只要 27 核时），也不受本仓库提示词里
+                「禁止 push」等边界约束。一次疏忽就把本仓库的护栏和配额一起绕过了。
               评审结论输出到 PR 评论。
 
   # ========================================================
@@ -186,6 +234,10 @@ $:
   # ========================================================
   pull_request.approved:
     - name: merge-on-approve
+      # 同 review-fix-loop：不写 cpus 就是 8 核，Prepare 预冻结直接超额；
+      # 它是同一份 stages 重跑，同样串行，1 核足够。
+      runner:
+        cpus: 1
       docker:
         image: python:3.11
         volumes:
@@ -195,10 +247,27 @@ $:
       stages: *pr_checks
 
   # ========================================================
-  # 评审打回(changes_requested) → 自动修复
+  # 评审打回(changes_requested) → 自动修复（兜底）
+  #
+  # ⚠️ 这是**兜底**通道，不是主通道。主通道是上面 NPC 代码审查在结论里召唤
+  # pull_request.comment@npc。两条通道同时开火就是两份并行的修复会话在同一个
+  # 分支上改同一批代码——实测 29 次打回里 22 次都与一条召唤会话同一时刻
+  # 起跑，11 月在这条上花了 80.1 核时，几乎全是重复。
+  # 所以 review 侧的提示词里写死了纪律：**要么召唤、要么打回，不许两个都做**
+  # （见 npc-code-review 的 userPrompt）。这里保留配置，只在召唤那一路没发生时兜住。
   # ========================================================
   pull_request.changes_requested:
     - name: auto-fix
+      runner:
+        cpus: 1   # 同 npc-code-review：等 AI 接口为主，1 核足够
+      # 与下面的 npc-manual-invoke **共用一把锁**：同一个 PR 同一时刻只允许一条修复会话。
+      # 提示词里写的「二选一」是自觉，lock 是机制 —— 自觉会忘，机制不会。
+      # 后到的那条取消先到的那条（cancel-in-progress），因为两条做的本就是同一件事：
+      # 都在同一分支改同一批评审点。不这么做时实测 29 次打回里 22 次与召唤会话
+      # 同一分钟起跑，11 月这条通道烧掉 80.1 核时，几乎全是重复。
+      lock:
+        key: npc-fix-$CNB_PULL_REQUEST_IID
+        cancel-in-progress: true
       <<: *npc_default
       stages:
         - name: CodeBuddy 自动修复
@@ -224,12 +293,18 @@ $:
               继续；若评审不再发现问题则自然结束，无需额外操作。
 
   # ========================================================
-  # PR 评论 @CodeBuddy（自动兜底：人类手动 @ 或评审 NPC 召唤修复）
+  # PR 评论召唤 NPC（自动兜底：人类手动召唤、或评审 NPC 召唤修复）
   # ========================================================
   pull_request.comment@npc:
     - name: npc-manual-invoke
       runner:
-        cpus: 2
+        cpus: 1   # 同 NPC 类流水线：等 AI 接口为主，1 核足够
+      # 同一个 PR 只跑一条修复会话。见 auto-fix 处的说明：这把锁是两个通道共用的。
+      # 另外它顺手挡住一种更贵的浪费：连着 @ 三次（人类手滑、或评审 NPC 重复召唤）
+      # 以前会起三条并行会话各改一遍，现在后到的把前一条取消掉。
+      lock:
+        key: npc-fix-$CNB_PULL_REQUEST_IID
+        cancel-in-progress: true
       <<: *npc_default
       stages:
         - name: CodeBuddy 按 @ 指令处理
@@ -246,7 +321,8 @@ $:
               - 修复完成后提交代码到 PR 源分支，并在评论中说明修复内容，
                 评审会在下次 commit 后自动复审——若无问题自然停止，无需额外召唤。
             userPrompt: |
-              PR 评论中 @CodeBuddy 发起了指令（可能来自人类手动召唤或评审 NPC 自动召唤）。
+              PR 评论中本仓库 NPC（全限定名 @dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)）
+              发起了指令（可能来自人类手动召唤或评审 NPC 自动召唤）。
               请根据评论内容执行：
               1. 若指令是要求修复代码问题（含评审 NPC 指出的 Bug/质量/架构问题）：
                  默认直接修复并提交到 PR 源分支；
@@ -265,7 +341,7 @@ $:
   issue.comment@npc:
     - name: issue-npc-reply
       runner:
-        cpus: 2
+        cpus: 1   # 同 NPC 类流水线：等 AI 接口为主，1 核足够
       <<: *npc_default
       stages:
         - name: CodeBuddy 回应
@@ -284,6 +360,10 @@ $:
 main:
   push:
     - name: full-regression
+      # 全量回归是本仓最重的一条，同样显式 1 核：它也是串行跑 37 个测试文件
+      # （`for f in sorted(...)` 逐个 subprocess），多核吃不上。
+      runner:
+        cpus: 1
       docker:
         image: python:3.11
       stages:
@@ -318,6 +398,8 @@ main:
             rc=0; python3 src/hanghang/cli/main.py industry check || rc=$?
             if [ "$rc" = "2" ]; then echo "⚠️ 已知未完成项（待建分区补职业），不阻断"; fi
             [ "$rc" = "0" ] || [ "$rc" = "2" ] || exit "$rc"
+            python3 scripts/export_industry_db.py --check
+            python3 scripts/gen_data_inventory.py --check
         - name: M11 导出扁平表
           # 只做"导得出来"的产物校验：仓库没有 generic 制品库，CNB 也没有通用的
           # 文件产物上传入口（git:release 不支持附件），所以这里不假装有发布通道。
@@ -326,11 +408,20 @@ main:
             set -e
             pip install -q -r requirements.txt
             python3 src/hanghang/cli/main.py industry export --out out/industry-db
-            for f in industry-db.json partitions.csv occupations.csv industry.sqlite; do
+            # 14 份产物：11 份给 BI/知识库直接吃（六口径规模账、资金流守恒账、
+            # 官方基准对表、投入产出生产法、中间投入接进口、行业战略视图各一份扁平表），
+            # 3 份是「买服务器直接建库」用的双方言 DDL + 与方言无关的数据 SQL。
+            for f in industry-db.json partitions.csv occupations.csv industry.sqlite \
+                     scales.csv money-nodes.csv money-flows.csv \
+                     baseline-check.csv io-accounts.csv io-input-plan.csv \
+                     strategy.csv \
+                     00-schema.sqlite.sql 00-schema.postgresql.sql 10-data.sql; do
               test -s "out/industry-db/$f" || { echo "  ❌ 导出缺失: $f"; exit 1; }
             done
-            echo "  ✅ 行业分区库 4 个扁平表导出正常"
+            echo "  ✅ 行业分区库 14 份导出产物齐全（六口径/资金流/官方对表/生产法/战略视图 + 双方言 DDL）"
     - name: build-knowledge-base
+      runner:
+        cpus: 1   # 知识库更新是调 embedding 接口，算力不是瓶颈
       stages:
         - name: knowledge update
           type: knowledge:update

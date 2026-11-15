@@ -55,10 +55,44 @@ class RoleCardStore:
         self.scorer = ReadinessScorer(self._schema_weights(), self._schema_bands(),
                                       self._schema_dimension_fields())
         self.profiles: Dict[str, Dict[str, RoleProfile]] = self._load_profiles()
+        self._partitions_cache = None
         # M11.1：行业类词表（链上只存类，公司靠索引现查）
         self.classes = IndustryClassIndex(
             self.data_dir, unit_roles_from_registry(self.registry))
+        # 行业战略视图：岗位卡说"这个岗位怎么干"，它说"这个行业的钱在哪"。
+        # 缺失即空表（不阻断渲染），但漏了整个岗位卡就只剩岗位视角。
+        # 延迟导入：engine/__init__ 会反向导入本包，顶层 import 会成环。
+        from ..engine.strategy_view import StrategyView
+        # 必须把 partitions / registry 一起传进去：`_roles_of()` 靠它们判断
+        # "这个岗位落点在本分区是否真实存在"。不传时它只能回落到
+        # `planned_roles`（已建分区多为空），于是**每张岗位卡都把合法落点报成悬空**
+        # ——`role_focus_valid` 恒空、`role_focus_dangling` 恒全量。
+        # 现在 `to_context_block()` 还没消费这两个字段，所以没露到下游；
+        # 但字段一旦被 UI / 导出读走就是错结论。
+        self.strategy = StrategyView(
+            self.data_dir,
+            partitions=self._industry_partitions(),
+            registry=registry)
+        self._strategy_bound = True
         self._cards: Dict[str, RoleCard] = {}
+
+    def _industry_partitions(self):
+        """分区表：复用行业库那一份，不在这里另读第二份。
+
+        两处各读一份时，注册表与分区表的 bind 时机迟早不同步 ——
+        而"哪个分区有哪些岗位"正是战略落点校验的唯一依据。
+        """
+        if self._partitions_cache is not None:
+            return self._partitions_cache
+        try:
+            from ..engine.industry_db import IndustryDatabase
+            self._partitions_cache = IndustryDatabase(self.data_dir).partitions
+        except Exception:
+            # 行业库读不出来时不影响岗位卡渲染：战略视图降级为空表。
+            # 这里不吞成"没有分区"就报错，是因为岗位卡是主路径，
+            # 行业库是附加判断；主路径不该因附加项拿不到而挂掉。
+            self._partitions_cache = []
+        return self._partitions_cache
 
     # ---------------------------------------------------------- 基础加载
     @staticmethod
@@ -202,9 +236,19 @@ class RoleCardStore:
             sources=[profile.source] if profile and profile.source else [],
         )
         card.chain_refs = self._normalize_chain(card, unit.unit_id)
+        # 行业战略视图：只取本岗位所在分区的判断（分区 id 与 unit_id 缺省同名）
+        card.industry_view = self.strategy.row(self._partition_of(unit.unit_id))
         card.activation = self._derive_activation(card, unit)
         self.scorer.score(card)
         return card
+
+    def _partition_of(self, unit_id: str) -> str:
+        """单元 → 行业分区 id。缺省同名（M11 的一致性对齐键），找不到就原样给。
+
+        不在这里做模糊匹配：单元名与分区名对不上时，宁可空着让人看见，
+        也不要猜一个"差不多的分区"，那样战略判断会静默套到别的行业上。
+        """
+        return unit_id
 
     def _normalize_chain(self, card: RoleCard, unit_id: str) -> Dict[str, List[dict]]:
         """把利益链条归一：行业类目带 ref/index，岗位带 unit，公司不落库。"""

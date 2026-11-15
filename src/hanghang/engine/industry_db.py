@@ -30,9 +30,14 @@ from typing import Dict, List, Optional
 import yaml
 
 from .global_framework import ClassificationSources, IscoCatalog
+from .input_output import InputOutputBook
+from .official_baseline import OfficialBaseline
+from .money_flow import MoneyFlowBook
 from .occupation_axis import AXES as OCC_AXES, OccupationAxis
 from .occupation_catalog import OccupationCatalog
 from .registry import Registry
+from .scale_ledger import SCALE_METRICS, ScaleLedger
+from .strategy_view import StrategyView
 
 # 参与"应建设"分母的分区状态；evaluated 表示评估后明确不建单元
 _BUILDABLE = ("covered", "pending")
@@ -51,6 +56,22 @@ DEFAULT_ACCESS = "paid_direct"
 
 # 四根轴（与 global_framework.AXES 对齐）。分区缺省即四轴都可看。
 AXES = ("occupation", "industry", "tax", "output")
+
+# 产值口径类型（gdp_kind）。**加总只允许同口径**：把 GMV 和增加值加在一起，
+# 数字越大越误导 —— 电商 15 万亿是交易额，制造业 33 万亿是增加值，两者不同义。
+GDP_KINDS = {
+    "value_added": "增加值（GDP 口径，可加总、可与统计年鉴对表）",
+    "gross_output": "总产值/总产出（含中间投入，加总会重复计算）",
+    "revenue": "营业收入/行业收入（企业口径，含中间投入）",
+    "market_size": "市场规模（第三方测算，范围常与统计口径不同）",
+    "cost_total": "成本总额（物流费用/R&D 经费，本身就是投入不是产出）",
+    "gmv": "交易额/流水（零售额、打赏流水，非增加值）",
+    "none": "无市场口径（刻意留空，gdp_cny 必为 null）",
+}
+# 口径置信度：低置信的数可以排序定权重，但不许对外引用
+GDP_CONFIDENCE = ("high", "medium", "low")
+# 没有市场口径时唯一合法的口径类型
+GDP_KIND_NONE = "none"
 
 
 class IndustryDatabase:
@@ -88,8 +109,25 @@ class IndustryDatabase:
         # 归属边（occupation × partition × axis）。缺失不报错：老数据仍能用
         # occupation.unit_id 单值推出等价的一条边，别让"没这个文件"变成不可用。
         self.member_path = os.path.join(self.data_dir, "occupation-memberships.yaml")
+        # 六口径规模账 + 资金流守恒账：两本都是"框架先立、数后补"的账本，
+        # 文件缺失即降级为空账（不阻断主库），但空账会让可见度全 hidden、
+        # 资金流全 no_declared —— 那会进 validate，不会静默通过。
+        self.scales: ScaleLedger = ScaleLedger(self.data_dir)
+        self.money: MoneyFlowBook = MoneyFlowBook(self.data_dir)
+        # 官方口径基准（逐年对表）+ 投入产出账（生产法三端与去重）。
+        # 两本都是"框架先立、数后补"的账，缺失即降级为空账 —— 但空账会让
+        # high 置信度全部失去背书、生产法全部验不了，那会进 validate，不会静默通过。
+        self.baseline: OfficialBaseline = OfficialBaseline(self.data_dir)
+        self.input_output: InputOutputBook = InputOutputBook(self.data_dir)
+        # 行业战略视图（大局观与战略视角）。粒度只到岗位/角色：钱为什么在这、
+        # AI 该站哪一段；工序与话术由 AI 上岗后按职责补。缺失即降级为空 —— 但空账会
+        # 让每个分区都"只有数字没有判断"，那会进 validate，不会静默通过。
+        self.strategy: StrategyView = StrategyView(self.data_dir)
         self.version = "0.1"
         self.updated_at = ""
+        # 分区文件顶层的年份声明（gdp_year_basis）。逐个分区回填这个字段会把
+        # 同一句话抄 41 遍，抄漏一处就静默变成"没有年份"，所以留在文件级。
+        self.gdp_year_basis = ""
         self.occupations: List[dict] = []
         self.partitions: List[dict] = []
         self._memberships_raw: List[dict] = []
@@ -121,6 +159,7 @@ class IndustryDatabase:
             with open(self.part_path, "r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
             self.partitions = data.get("partitions", []) or []
+            self.gdp_year_basis = str(data.get("gdp_year_basis", "") or "")
         else:
             logging.warning(f"缺少分区清单: {self.part_path}")
 
@@ -131,7 +170,17 @@ class IndustryDatabase:
             # 没有 memberships 段就当作"没写这张表"，交给 profile 派生
             self._memberships_raw = rows if isinstance(rows, list) else []
 
+        self._bind_ledgers()
         self._reindex()
+
+    def _bind_ledgers(self) -> None:
+        """把分区表交给两本账：gdp/employment 的单一来源是 partition，
+        两本账不复制这两个字段，所以每次数据变动都要重新绑定。"""
+        self.scales.bind(self.partitions)
+        self.money.bind(self.partitions)
+        self.baseline.bind(self.partitions, self.gdp_year_basis)
+        self.input_output.bind(self.partitions)
+        self.strategy.bind(self.partitions, self.registry)
 
     def _reindex(self) -> None:
         """按当前列表重建 id 索引（显式保留首次出现，不依赖 dict 覆盖顺序）。
@@ -174,6 +223,7 @@ class IndustryDatabase:
               sum(id(o) for o in self.occupations),
               sum(id(o) for o in self.partitions))
         if fp != self._fingerprint:
+            self._bind_ledgers()
             self._reindex()
 
     @staticmethod
@@ -322,11 +372,38 @@ class IndustryDatabase:
                     if m.get("partition") in known_parts}
         linked_baseline = [o for o in baseline_occs if o.get("id") in referred]
 
-        # 产值只统计"有市场口径"的分区；None 表示刻意留空，不当作 0 参与排序
-        gdp_known = [p for p in self.partitions if p.get("gdp_cny")]
-        gdp_total = sum(p.get("gdp_cny") or 0 for p in self.partitions)
-        gdp_covered = sum(p.get("gdp_cny") or 0 for p in self.partitions
+        # 产值只统计"有市场口径"的分区；None 表示刻意留空，不当作 0 参与排序。
+        # 非数值（字符串）一律按缺数处理：脏数据不该让 compute() 抛 TypeError ——
+        # 它被 render_text / Web / 导出共用，一处崩三处一起挂。
+        # 类型错由 validate() 第 17-b 条报。
+        def _gdp_of(row):
+            val = row.get("gdp_cny")
+            if isinstance(val, bool) or not isinstance(val, (int, float)):
+                return None
+            return val
+
+        gdp_known = [p for p in self.partitions if _gdp_of(p)]
+        gdp_total = sum(_gdp_of(p) or 0 for p in self.partitions)
+        gdp_covered = sum(_gdp_of(p) or 0 for p in self.partitions
                           if p.get("status") == "covered")
+        # 按口径分组：**只有同口径的数才能相加**。把 GMV 和增加值求和，
+        # 得到的"合计产值"越大越误导，所以汇总得按 gdp_kind 分开给。
+        gdp_by_kind: Dict[str, dict] = {}
+        for p in self.partitions:
+            kind = p.get("gdp_kind") or "unlabeled"
+            bucket = gdp_by_kind.setdefault(kind, {
+                "kind": kind, "label": GDP_KINDS.get(kind, "未标口径"),
+                "partitions": 0, "with_gdp": 0, "total_cny": 0,
+                "confidence": {k: 0 for k in GDP_CONFIDENCE},
+            })
+            bucket["partitions"] += 1
+            amt = _gdp_of(p)
+            if amt:
+                bucket["with_gdp"] += 1
+                bucket["total_cny"] += amt
+            conf = p.get("gdp_confidence")
+            if conf in bucket["confidence"]:
+                bucket["confidence"][conf] += 1
 
         # 供给结构：一律由成员职业的 provider 实测得出，与「不存第二份清单」一致。
         # 分区手写的 provider_mix 只作对账留档（provider_mix_declared），不参与展示。
@@ -338,8 +415,14 @@ class IndustryDatabase:
 
         # 产出轴的就业口径：有人没产值（军队/家庭无酬）也算就业，
         # "多少人吃饭"本身就是市场画像，不能因为没有 gdp 就一起丢掉。
-        emp_known = [p for p in self.partitions if p.get("employment") is not None]
-        employment_total = sum(p.get("employment") or 0 for p in self.partitions)
+        def _emp_of(row):
+            val = row.get("employment")
+            if isinstance(val, bool) or not isinstance(val, (int, float)):
+                return None
+            return val
+
+        emp_known = [p for p in self.partitions if _emp_of(p) is not None]
+        employment_total = sum(_emp_of(p) or 0 for p in self.partitions)
 
         # 软归属统计：边数 ≠ 职业数。一个职业挂三个视角，人还是一个。
         total_edges = len(self.axis_view.memberships)
@@ -347,6 +430,9 @@ class IndustryDatabase:
                       if len({m.get("partition") for m in
                               self.axis_view.of_occupation(o.get("id", ""))}) > 1]
         free_occs = self.axis_view.free_occupations()
+
+        self._bind_ledgers()
+        vis = self.scales.visibility_all()
 
         rows = []
         for p in self.partitions:
@@ -363,9 +449,12 @@ class IndustryDatabase:
                 "provider_mix_n": _measured["n"],
                 "provider_mix_declared": p.get("provider_mix", {}) or {},
                 "provider_mix_estimated": p.get("provider_mix_estimated", {}) or {},
-                "gdp_cny": p.get("gdp_cny"),
+                "gdp_cny": _gdp_of(p),
                 "gdp_scope": p.get("gdp_scope", ""),
                 "gdp_source": p.get("gdp_source", ""),
+                "gdp_kind": p.get("gdp_kind", "") or "",
+                "gdp_kind_label": GDP_KINDS.get(p.get("gdp_kind", ""), ""),
+                "gdp_confidence": p.get("gdp_confidence", "") or "",
                 "employment": p.get("employment"),
                 "employment_source": p.get("employment_source", ""),
                 "access_mix": self._round_mix(
@@ -389,6 +478,20 @@ class IndustryDatabase:
                 # 用来看"这个分区大致落在大典哪几块"，不是权威归属。
                 "gb_majors": self._gb_majors(members),
                 "note": p.get("note", ""),
+                # 六口径落点：这个行业在哪些口径上有数、缺的为什么缺。
+                # 缺的数字照样是结论（"没有独立资产口径"本身就是行业特征），
+                # 所以它跟有数的口径一样要给出来。
+                "visibility": self.scales.visibility(p.get("id", "")),
+                # 对表结论：（官方基准、关系、偏差、结论）。没有可比口径的
+                # 分区给 status=unlinked 并带原因 —— "没有出处"本身是结论，
+                # 但必须能被下游看见，不能只在数据文件里写着。
+                "baseline": next((r for r in self.baseline.compare()
+                                  if r["partition"] == p.get("id", "")), None),
+                # 生产法结论：三端是否闭合、缺哪一端。切分可行性看它。
+                "input_output": self.input_output.identity(p.get("id", "")),
+                # 战略视图：价值链条 / 利润池 / 杠杆 / 驱动 / 风险 / AI 承接面 / 岗位落点。
+                # 与上面几本账的关系：那些回答"多少钱"，这份回答"钱为什么在这"。
+                "strategy": self.strategy.row(p.get("id", "")),
             })
         rows.sort(key=lambda r: (-(r["gdp_cny"] or 0), r["name"]))
 
@@ -439,9 +542,14 @@ class IndustryDatabase:
                                   if buildable else 0.0,
             "evaluated_partitions": sum(
                 1 for p in self.partitions if p.get("status") == "evaluated"),
+            # 合计产值只是**量级参考**：跨口径相加没有经济学意义（GMV + 增加值 +
+            # 成本总额），所以真正的分组在 gdp_by_kind，这个总和只用于看体量级。
             "gdp_total_cny": gdp_total,
             "gdp_covered_cny": gdp_covered,
             "gdp_known_partitions": len(gdp_known),
+            "gdp_by_kind": [gdp_by_kind[k] for k in
+                            sorted(gdp_by_kind, key=lambda k: -gdp_by_kind[k]["total_cny"])],
+            "gdp_comparable_cny": (gdp_by_kind.get("value_added") or {}).get("total_cny", 0),
             "provider_mix": provider_mix,
             "provider_mix_n": mix_n["n"],
             "access_mix": access_mix,
@@ -468,6 +576,25 @@ class IndustryDatabase:
             "occupation_axes_present": list(OCC_AXES),
             "employment_known_partitions": len(emp_known),
             "catalog": catalog_stat,
+            # 六口径可见度：一个行业只要任一口径有数就没隐身，与"有没有产值"无关。
+            # 这里给汇总而不是逐分区明细——明细在 rows[*]["visibility"]。
+            "scale": {
+                "metrics": list(SCALE_METRICS),
+                "level_counts": {lv: sum(1 for v in vis if v["level"] == lv)
+                                 for lv in ("full", "partial", "hidden")},
+                "present_counts": {m: sum(1 for v in vis if m in v["present"])
+                                   for m in SCALE_METRICS},
+                "hidden": [v["partition"] for v in vis if v["level"] == "hidden"],
+            },
+            # 资金流守恒账：图完整度（有多少边已填数额）与对账情况。
+            # 恒等式「流入合计 = 流出合计」不在此列——它是恒等式，不是成果。
+            "money": self.money.coverage_summary() if self.money else {},
+            # 官方口径基准：high 置信度有没有对表背书、逐年覆盖到什么程度。
+            # "有出处的数"与"没人验过的数"在出口上必须分得开。
+            "baseline": self.baseline.summary() if self.baseline else {},
+            # 投入产出账：生产法验到什么程度、哪些行业池现在能切（有增加值锚点）。
+            "input_output": self.input_output.summary() if self.input_output else {},
+            "strategy": self.strategy.summary() if self.strategy else {},
             "rows": rows,
         }
 
@@ -520,9 +647,22 @@ class IndustryDatabase:
                          + self._cell(r["member_count"], 8)
                          + self._cell(gdp, 10) + self._cell(ai, 7) + demand)
         lines.append("-" * 72)
-        lines.append(f"有产值口径的分区 {s['gdp_known_partitions']}/{s['total_partitions']}，"
-                     f"合计产值 {s['gdp_total_cny'] / 1e12:.1f} 万亿元(量级参考，"
-                     f"非官方统计，含口径重叠)")
+        lines.append(f"有产值口径的分区 {s['gdp_known_partitions']}/{s['total_partitions']}"
+                     f"（量级参考，非官方统计）。**按口径分组，只有同口径才能相加**：")
+        # 只打口径键不打中文标签：中文按字符数定宽会把后面几列顶歪，
+        # 而口径解释本来就不该占表格（文档里有对照表）。
+        for b in s["gdp_by_kind"]:
+            head = "  " + self._cell(b["kind"], 14)
+            if b["kind"] == "none":
+                lines.append(head + f"{b['partitions']:>3} 个分区（刻意留空，不参与加总）")
+                continue
+            lines.append(head + f"{b['with_gdp']:>3} 个分区有数"
+                         f"  合计 {b['total_cny'] / 1e12:>7.1f} 万亿元"
+                         f"  置信度 高{b['confidence']['high']}"
+                         f"/中{b['confidence']['medium']}"
+                         f"/低{b['confidence']['low']}")
+        lines.append(f"  → 可对外引用的只有增加值口径：{s['gdp_comparable_cny'] / 1e12:.1f}"
+                     f" 万亿元；其余口径（GMV/成本总额/总产值）跨口径相加会让数字越大越错")
         lines.append("=" * 72)
         return "\n".join(lines)
 
@@ -564,7 +704,7 @@ class IndustryDatabase:
     DECLARED_MIX_TOLERANCE = 25.0
     # 校验条数的唯一来源。README / 文档标题 / CLI 回执都读它 —— 之前这条数被手抄
     # 三份，抄成了 15/17/18 三个数，评审两轮都在纠这个。
-    VALIDATE_CHECK_COUNT = 19
+    VALIDATE_CHECK_COUNT = 26
 
     @staticmethod
     def _as_float(value, default: float = 0.0) -> float:
@@ -621,6 +761,43 @@ class IndustryDatabase:
             认领，建单元那天会直接对不上）；反过来，成员填了 unit_role 而骨架没
             声明，由第 10 条报"缺骨架"。只认**本分区**的边：岗位名是分区内命名，
             拿别处的同名边背书等于允许凭空加一个别处在用的名字。
+        20. 产值口径标签 gdp_kind 必须合法，且与 gdp_cny 互斥一致：有产值必须指明
+            口径类型（增加值/总产值/营业收入/市场规模/成本总额/GMV），无产值必须是
+            ``none``。不标口径的数字加在一起就是误导 —— 把电商交易额和制造业增加值
+            求和，得到的数越大越错。gdp_confidence 若填必须是 high/medium/low。
+        21. 六口径账本自检 + **每个分区必须有落点**：profit/asset/valuation/resource
+            槽位语法与枚举合法，分区不得悬空；且 41 个分区每一个都要在
+            industry-scales.yaml 里出现一次。漏掉一个 = 这个行业在六口径视角里
+            没有任何落点（产值没有、利润没有、资产没有、人也数不出来），
+            它就整体隐身了——而覆盖率不会因此变红半格。
+        22. 六口径交叉验证：利润÷产值、产值÷人数、估值 PE/PS、资产÷利润 四组
+            互推，只抓数量级错（万元填成元、GMV 当营业收入、人数差 1e4）。
+            这类错每个数单看都对、加起来才不对，只能靠两个独立来源互推。
+            另外：六口径全空的分区必须在 missing 里写清每一个口径为什么空，
+            「说不出总量又不说什么缺」等于保证会漏。
+        23. 资金流守恒账自检：**账本是否读到**、节点、边、对账、未观测登记五关。
+            第一关先守"文件在不在、里面有没有东西"——0 个节点 0 条边时逐条校验
+            都会"通过"，而它其实一张空账，空账不可能守恒任何东西。
+            双边记账下
+            「全局流入 = 全局流出」是恒等式（不是校验点），真正能抓漏的是
+            **节点与外部口径对账**——图中画出的边求和与权威总量偏差超 10%
+            即报，说明还有流向没画出来；没有对账口径的节点必须在 unobserved
+            登记缺什么，否则"保证会漏"却静默通过。
+        24. 官方口径基准（逐年对表）：基准 id 唯一、series 年份在册且不重复、每个
+            基准都写出处；对表关系合法且 `incomparable` 必写 reason；**每个有产值的
+            分区都必须有对表、或没可比口径的说明**；`gap`（偏差超容差）逐条报；
+            标了 `gdp_confidence=high` 的分区必须有**通过**的对表背书 —— 否则
+            high 只是一句自我声明，谁都可以写，没人能证明。
+        25. 投入产出账（生产法）：`总产出 = 增加值 + 中间投入` 三端对不上即报；
+            缺的一端必须写清为什么；有产值的分区必须有生产法落点；三处不得重复计
+            —— 中间投入构成合计 = 总额（声明 complete 时）、某分区作为投入方的合计
+            不超过它自己的总产出、所有分区增加值合计不超过全国 GDP。
+        26. 行业战略视图（大局观与战略视角）：**每个分区都要有落点**、粒度不得越过
+            岗位/角色（出现 steps/tasks/sop/prompt/kpi/persona 即报）、不许重复存金额、
+            价值链 >= 3 段、利润池每一项要落在自己的链条里、AI 承接面强/弱/边界三档齐、
+            `role_focus` 必须落在本分区真实岗位（已建看 unit-index roles，待建看
+            planned_roles）、空段必须写 missing 原因。这一层只回答"钱为什么在这、
+            AI 该站哪一段"；再细的工序/话术由 AI 上岗认领职责后自己补 —— 我们分工了。
         """
         problems: List[str] = []
         self._ensure_fresh()
@@ -800,7 +977,7 @@ class IndustryDatabase:
                     f"职业 {o.get('id')} 的 access={raw!r} 不在合法通道 "
                     f"{list(ACCESS_SIDES)} 中（写错会被静默当成 {DEFAULT_ACCESS}）")
 
-        # 18. pending_partition：把 note 里的隐形契约变成可校验的数据
+        # 18-a. pending_partition：把 note 里的隐形契约变成可校验的数据
         part_ids_now = {x.get("id") for x in self.partitions if x.get("id")}
         edge_occs = {m.get("occupation") for m in self.axis_view.memberships}
         for o in self.occupations:
@@ -838,8 +1015,46 @@ class IndustryDatabase:
                     problems.append(
                         f"分区 {pid} 的 employment={emp!r} 不是非负数"
                         f"（没口径请留空，别填 0 冒充实测）")
+            # 17-b. gdp_cny 必须是数值。字符串（"33e12" / "不是数字"）会让两本账
+            # 的 metric() 读出垃圾参与口径比较，也会让导出侧按字符串落库。
+            # 数据问题在这里报，不在读取路径上炸。
+            gdp_raw = p.get("gdp_cny")
+            if gdp_raw is not None and (
+                    isinstance(gdp_raw, bool)
+                    or not isinstance(gdp_raw, (int, float))):
+                problems.append(
+                    f"分区 {pid} 的 gdp_cny={gdp_raw!r} 不是数值"
+                    f"（字符串会被两本账当成缺数，同时在交叉验证里抛错）")
+            # 20. 产值口径标签（gdp_kind）：不标口径的数字加在一起就是误导。
+            # 三件事一起守：枚举合法、有无产值与口径类型互斥一致、置信度合法。
+            kind = p.get("gdp_kind")
+            if kind is None:
+                problems.append(
+                    f"分区 {pid} 缺 gdp_kind（有产值须标增加值/总产值/营业收入/"
+                    f"市场规模/成本总额/GMV，无产值须标 none；不标口径的数不能加总）")
+            elif kind not in GDP_KINDS:
+                problems.append(
+                    f"分区 {pid} 的 gdp_kind={kind!r} 不在合法口径 "
+                    f"{list(GDP_KINDS)} 中（拼错会让口径分组漏掉这一行）")
+            elif p.get("gdp_cny") and kind == GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 填了 gdp_cny={p.get('gdp_cny')} 却标 "
+                    f"gdp_kind=none（口径与数字自相矛盾）")
+            elif not p.get("gdp_cny") and p.get("gdp_cny") is not None \
+                    and kind != GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 的 gdp_cny=0 且 gdp_kind={kind}（0 是实测值不是缺失，"
+                    f"没有口径请留空并标 none）")
+            elif p.get("gdp_cny") is None and kind != GDP_KIND_NONE:
+                problems.append(
+                    f"分区 {pid} 无 gdp_cny 却标 gdp_kind={kind}（无产值口径须标 none）")
+            conf = p.get("gdp_confidence")
+            if conf is not None and conf not in GDP_CONFIDENCE:
+                problems.append(
+                    f"分区 {pid} 的 gdp_confidence={conf!r} 不在 "
+                    f"{list(GDP_CONFIDENCE)} 中")
 
-        # 18. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
+        # 18-b. 全球分类框架（ISCO-08 参考表 + 四根轴索引）
         # 与第 14 条同口径：加载失败要报出来，不能因为"读不出来"就静默当没问题。
         if self.isco is None:
             problems.append(
@@ -859,6 +1074,48 @@ class IndustryDatabase:
             except Exception as exc:  # noqa: BLE001
                 problems.append(
                     f"分类来源表自检失败（{type(exc).__name__}），无法校验")
+
+        # 21. 六口径账本：槽位合法 + 每个分区都要有落点
+        # 漏一个分区，这个行业就在六口径视角里整体消失（产值没统计、利润没登记、
+        # 资产没取、人也数不出来），而覆盖率不会因此变红 —— 这类"隐身"必须报。
+        self._bind_ledgers()
+        problems.extend(self.scales.validate())
+        uncovered = [p.get("id") for p in self.partitions
+                     if p.get("id") and p.get("id") not in self.scales.entries]
+        for pid in uncovered:
+            problems.append(
+                f"分区 {pid} 未出现在 industry-scales.yaml"
+                f"（六口径视角里没有任何落点 = 该行业整体隐身；"
+                f"没有数的口径也要写 missing 原因）")
+
+        # 22. 口径互推 + 全空分区必须逐格解释
+        problems.extend(self.scales.cross_check())
+        for row in self.scales.visibility_all():
+            if row["level"] != "hidden":
+                continue
+            unexplained = [m for m, why in row["missing_detail"].items()
+                           if why in ("", "未填原因")]
+            if unexplained:
+                problems.append(
+                    f"分区 {row['partition']} 六口径全空，且 {unexplained} "
+                    f"没有说明为什么空（说不出总量又不说什么缺 = 保证会漏）")
+
+        # 23. 资金流守恒账：先守"账本真的读到了"（空账会逐条静默通过），
+        #     再守双边记账与节点对账
+        problems.extend(self.money.validate())
+
+        # 24-25. 官方口径基准（逐年对表）+ 投入产出账（生产法三端）。
+        # 这两本账回答的是同一个问题的两半：**这个数有没有出处**（对表）、
+        # **这个数会不会重复计**（生产法）。缺任一半，"可对外引用"就是空话。
+        self._bind_ledgers()
+        problems.extend(self.baseline.validate())
+        problems.extend(self.input_output.validate())
+
+        # 26. 行业战略视图：每个分区都要有"钱为什么在这、AI 该站哪一段"的判断。
+        # 缺这一层不会让任何数字变红——41 个分区照样有产值、有六口径、有生产法——但
+        # AI 上岗后会不知道这个行业的利润根本不在它被派去的那个环节。
+        self._bind_ledgers()
+        problems.extend(self.strategy.validate())
         return problems
 
     def _check_primary_keys(self) -> List[str]:

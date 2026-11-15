@@ -1,0 +1,518 @@
+# ============================================================================
+# 投入产出账 · 中间投入与去重（industry-input-output）
+#
+# ## 一句话
+#
+# 上一轮的资金流账卡在同一句话上：「8 个行业池的份额切分数额全待补，卡点不是
+# 拿不到数，是拿了会重复计」。这份账就是那个卡点的答案 —— **生产法恒等式**：
+#
+#     总产出 = 增加值 + 中间投入
+#
+# 三个数来自三个独立来源：总产出看行业统计（总产值/营业收入），增加值看国民经济
+# 核算，中间投入由投入产出表或两者相减。两边对不上，说明其中一个是别的口径；
+# 三边都在，才谈得上"把这个行业的钱切出来而不重复计第二遍"。
+#
+# ## 为什么"营业收入不能直接当增加值切分"
+#
+# 电商 15 万亿是 GMV（交易额），软件研发 6 万亿是软件业务收入，建筑业 31.6 万亿是
+# 总产值 —— 三者都含中间投入，甚至含同一个中间投入两遍（平台两头计价、总包分包
+# 重复报量）。部门层的总额是**增加值性质**（收入法 GDP），拿收入去切部门总额，
+# 切出来的份额必然虚高，而且虚高得看不出来（每个数都抄对了）。
+#
+# 所以切分锚点只有两个合法形态：
+#   1. 分区本来就是 `value_added` 口径 → 直接可切
+#   2. 分区是 output/revenue/GMV → 必须先有 `va_ratio`（= 增加值 ÷ 总产出），
+#      折算成增加值再切。**没有 va_ratio 就不许切**，宁可留 null。
+#
+# ## 三处不得重复计（都在 validate 第 25 条里）
+#
+#   a. 中间投入构成合计 = 中间投入总额（声明 complete 时）。两套数并存必有一天对不上。
+#   b. 某个分区作为供给方出现在 inputs 里的合计 ≤ 它自己的总产出
+#      —— 供不出比自己产出更多的东西。这是"去重"的关门条件。
+#   c. 所有分区的增加值合计 ≤ 全国 GDP。超了必然是同一笔价值被两个分区各算了一遍。
+#
+# ## 数值立场
+#
+# 只有**能推出**的才填：建筑业总产出与增加值都在官方基准里，中间投入由恒等式得；
+# 其余分区宁可在 missing 里写清"缺总产出口径"，也不按比例切一份出来
+# —— 按比例切出来的数，后面所有人都会当实测用。
+# ============================================================================
+version: "0.1"
+updated_at: "2026-11-15"
+unit: CNY
+year: 2023
+# 生产法恒等式的容差：三项分别来自行业统计与国民经济核算，2-3% 的口径差是固有的。
+# 定太紧会把口径差当错误报，那正是"误报一次整条校验就被关掉"的开端。
+tolerance: 0.03
+
+# ---------------------------------------------------------------------------
+# accounts：一个分区一套生产法账
+#   partition      分区 id
+#   output         总产出 {cny, basis, source, confidence}   总产值/营业收入/GMV
+#   value_added    增加值 {cny, ...}
+#   intermediate   中间投入 {cny, derived, ...}  derived=true 表示由恒等式相减得出
+#   va_ratio       增加值率（= value_added / output），可省略=自动算
+#   inputs         中间投入的构成：[{from: 分区id, cny | share, basis}]（可空）
+#   complete       inputs 是否已完整覆盖 intermediate（true 才校验"合计相等"）
+#   missing        {output|value_added|intermediate|inputs: 为什么这一格空}
+#   note
+#
+# 每个有产值（partition.gdp_cny）的分区都要在这里有落点：
+# 有数就写数，没数就写 missing —— 与六口径账同一条规矩。
+# ---------------------------------------------------------------------------
+accounts:
+
+  - partition: construction-eng
+    output:
+      cny: 31600000000000
+      basis: 建筑业总产值（含分包与中间投入）
+      source: "国家统计局·建筑业总产值（与 industry-official-baseline: go-construction 同源）"
+      confidence: medium
+    value_added:
+      cny: 8600000000000
+      basis: 建筑业增加值
+      source: "国家统计局·分行业增加值（与 industry-official-baseline: va-construction 同源）"
+      confidence: medium
+    intermediate:
+      cny: 23000000000000
+      derived: true
+      basis: 生产法相减：总产出 31.6 万亿 - 增加值 8.6 万亿
+      confidence: medium
+    va_ratio: 0.272
+    missing:
+      inputs: >
+        中间投入构成（建材/机械租赁/专业分包/其他服务各占多少）需全国投入产出表
+        的「建筑业中间使用」列，本轮未接。总额已由恒等式得出，构成留空不编。
+    note: >
+      这一行是整套框架的样板：三个数全部有官方出处，恒等式 31.6 = 8.6 + 23.0 闭合。
+      va_ratio 0.272 意味着「建筑业每 100 元产值里只有 27 元是新增价值」——
+      拿 31.6 万亿去和增加值口径的分区并列排序，会把它高估 3.7 倍。
+
+  - partition: manufacturing
+    value_added:
+      cny: 33000000000000
+      basis: 制造业增加值
+      source: "国家统计局·分行业增加值（与 industry-official-baseline: va-manufacturing 同源）"
+      confidence: medium
+    missing:
+      output: >
+        制造业总产出没有独立的官方口径：规上工业营业收入是**工业**门类（含采矿、
+        电力热力燃气水），直接当制造业总产出会把两个门类混成一个。
+      intermediate: 无总产出即无中间投入，不按比例倒推。
+      inputs: 需全国投入产出表的「制造业中间使用」列，本轮未接。
+    note: >
+      增加值有、总产出没有，所以 va_ratio 无法得出 —— 这就是「制造业 33 万亿
+      怎么切到 40 万个规上企业」卡住的原因，不是数据源没找到，是缺总产出这一端。
+
+  - partition: agriculture
+    value_added:
+      cny: 8975500000000
+      basis: 第一产业增加值
+      source: "国家统计局·分行业增加值（与 industry-official-baseline: va-primary 同源）"
+      confidence: high
+    missing:
+      output: >
+        农林牧渔业总产值是另一张表（农业统计年报），与国民经济核算的第一产业
+        增加值并非同源同期，本轮未接。
+      intermediate: 无总产出即无中间投入，不按比例倒推。
+      inputs: 需投入产出表「农林牧渔产品和服务」中间使用列。
+
+  - partition: e-commerce
+    output:
+      cny: 15430000000000
+      basis: 全国网上零售额（GMV，交易额口径）
+      source: "国家统计局·网上零售额（与 industry-official-baseline: revenue-online-retail 同源）"
+      confidence: high
+    missing:
+      value_added: >
+        网上零售额是交易额，平台两端各计价一次，不能相减出增加值。增加值需按
+        电商平台服务费/佣金/广告收入口径单独核算，本轮未接。
+      intermediate: 无增加值即无中间投入（相减会得到负数，那说明口径错了）。
+      inputs: 同上。
+    note: >
+      这一行是反面样板：总产出有、增加值没有。**GMV 绝不能拿去切分部门总额**
+      —— 15 万亿里可能只有 1 万多亿是新增价值，直接并进增加值口径的汇总，
+      等于凭空造出十几万亿 GDP。
+
+  - partition: food-beverage
+    output:
+      cny: 5290000000000
+      basis: 全国餐饮收入
+      source: "国家统计局·餐饮收入（与 industry-official-baseline: revenue-catering 同源）"
+      confidence: high
+    missing:
+      value_added: 餐饮业增加值未在年鉴中单列（并入住宿和餐饮业），本轮未接。
+      intermediate: 无增加值即无中间投入。
+      inputs: 需投入产出表「住宿和餐饮服务」中间使用列。
+
+  - partition: logistics-supply
+    output:
+      cny: 18200000000000
+      basis: 社会物流总费用（成本总额口径）
+      source: "中国物流与采购联合会（与 industry-official-baseline: logistics-cost 同源）"
+      confidence: medium
+    missing:
+      value_added: >
+        物流总费用是各行业的**中间投入**（运输/仓储/管理费用），它本身不是产出，
+        不能相减出增加值。物流业增加值应按交通运输仓储邮政业口径另接。
+      intermediate: 成本总额本身就是"中间投入"的镜像，再求一次中间投入没有意义。
+      inputs: 同上。
+
+  - partition: healthcare
+    output:
+      cny: 9060000000000
+      basis: 卫生总费用（含财政与医保支付）
+      source: "国家卫健委（与 industry-official-baseline: total-health-exp 同源）"
+      confidence: medium
+    missing:
+      value_added: >
+        卫生总费用含药品与器械等货物支出，属费用总额；卫生业增加值需按
+        「卫生和社会工作」门类口径另接。
+      intermediate: 无增加值即无中间投入。
+      inputs: 需投入产出表「卫生和社会工作」中间使用列。
+
+  - partition: dongjiagoushi
+    output:
+      cny: 6000000000000
+      basis: 软件业务收入（含中间投入与硬件）
+      source: 工信部软件业统计公报（partition.gdp_cny 同源）
+      confidence: medium
+    missing:
+      value_added: >
+        软件业务收入对信息传输软件和信息技术服务业增加值是**不可比**关系
+        （见 industry-official-baseline 的 incomparable 记录）：收入必大于增加值。
+        要切分必须先接「信息服务业营业收入」这个同口径总量。
+      intermediate: 无同口径增加值即无中间投入。
+      inputs: 需投入产出表「信息传输、软件和信息技术服务」中间使用列。
+
+  - partition: research-academic
+    output:
+      cny: 3330000000000
+      basis: 研究与试验发展经费（成本总额口径）
+      source: 国家统计局·R&D 经费投入统计公报
+      confidence: high
+    missing:
+      value_added: R&D 经费是投入（成本），不是产出，不能相减。
+      intermediate: 同上。
+      inputs: 同上。
+
+# ---------------------------------------------------------------------------
+# 以下 26 个分区是「有产值、但接不上生产法」的。
+#
+# 它们不是被忽略的：每一端缺的原因都写下来了。分组说明放在文件末的 unlinked_notes，
+# 逐条写在各自账户里 —— 因为校验要逐个分区查「缺的这端有没有解释」，
+# 分组说明机器读不到，等于没写。
+# ---------------------------------------------------------------------------
+
+  - partition: game-dev-unit
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: legal-services
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: content-creation
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: data-analytics
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: finance-accounting
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: marketing
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: education-training
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: home-design
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: hr-services
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: design-visual
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: translation
+    missing:
+      output: >
+        该分区的产值已是总产值口径，但官方对应门类的总产出未接入（年鉴分行业总产出表逐年修订），本轮未接。
+      value_added: >
+        对应行业增加值未单列，本轮未接。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: video-media
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: finance-invest
+    missing:
+      output: >
+        该分区只有增加值口径，总产出（总产值/营业收入）本轮未接；缺这一端就算不出增加值率。
+      intermediate: >
+        无总产出即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: real-estate
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: tourism-hospitality
+    missing:
+      output: >
+        该分区的产值已是总产值口径，但官方对应门类的总产出未接入（年鉴分行业总产出表逐年修订），本轮未接。
+      value_added: >
+        对应行业增加值未单列，本轮未接。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: energy-environment
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: auto-service
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: personal-services
+    missing:
+      output: >
+        该分区的产值是行业收入口径（企业端营业收入），官方没有与之同范围的「总产出」统计表，接不了；接不上就没有生产法三端的入口。
+      value_added: >
+        行业增加值未在年鉴中单列（并入更大的门类，如「租赁和商务服务业」），本轮未接。
+      intermediate: >
+        无增加值即无中间投入：中间投入 = 总产出 - 增加值，两端缺一不可，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: beauty-grooming
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: culture-art
+    missing:
+      output: >
+        该分区只有增加值口径，总产出（总产值/营业收入）本轮未接；缺这一端就算不出增加值率。
+      intermediate: >
+        无总产出即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: live-streaming
+    note: >
+      GMV 是反面样板：总产出端有数也不能进生产法，因为它是交易额不是产出。
+    missing:
+      output: >
+        该分区的产值是交易额（GMV），平台两头各计价一次，不能当总产出直接进生产法。
+      value_added: >
+        交易额不能相减出增加值，需按平台服务费/佣金/广告收入口径单独核算，本轮未接。
+      intermediate: >
+        无增加值即无中间投入（相减会得到负数，那说明口径错了）。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: sport-games
+    missing:
+      output: >
+        该分区的产值已是总产值口径，但官方对应门类的总产出未接入（年鉴分行业总产出表逐年修订），本轮未接。
+      value_added: >
+        对应行业增加值未单列，本轮未接。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: mining-resources
+    missing:
+      output: >
+        该分区只有增加值口径，总产出（总产值/营业收入）本轮未接；缺这一端就算不出增加值率。
+      intermediate: >
+        无总产出即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: utilities
+    missing:
+      output: >
+        该分区只有增加值口径，总产出（总产值/营业收入）本轮未接；缺这一端就算不出增加值率。
+      intermediate: >
+        无总产出即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: public-safety
+    missing:
+      output: >
+        该分区的产值是第三方测算的市场规模，官方没有同一范围的统计口径；市场规模本身不等于产出，不能直接当总产出用。
+      value_added: >
+        市场规模不等于增加值，无官方增加值口径可对；要推算须先定「规模里有多少是新创价值」这条规则。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+  - partition: water-marine
+    missing:
+      output: >
+        该分区的产值已是总产值口径，但官方对应门类的总产出未接入（年鉴分行业总产出表逐年修订），本轮未接。
+      value_added: >
+        对应行业增加值未单列，本轮未接。
+      intermediate: >
+        无增加值即无中间投入，不按比例倒推。
+      inputs: >
+        需全国投入产出表对应列的中间使用数据，本轮未接。
+
+# ---------------------------------------------------------------------------
+# 行业池切分：把"能不能切、按什么锚切"算出来，不填数
+#
+# 部门层总额是增加值性质，所以池的流入锚点只能是增加值（或经 va_ratio 折算后的
+# 增加值）。这份账负责回答「这个池现在能不能切」，切多少由 money 账在拿到锚点后填。
+# ---------------------------------------------------------------------------
+pool_rules:
+  - partition: manufacturing
+    anchor: value_added
+    benchmark: va-manufacturing
+    note: 增加值已在官方基准里，可直接作为切分锚点
+  - partition: construction-eng
+    anchor: va_ratio
+    note: 总产值 31.6 万亿 × va_ratio 0.272 = 8.6 万亿增加值，同基准互印
+  - partition: e-commerce
+    anchor: none
+    note: GMV 不可切，等增加值口径
+  - partition: logistics-supply
+    anchor: none
+    note: 成本总额不可切，等交通运输仓储邮政业增加值
+  - partition: healthcare
+    anchor: none
+    note: 费用总额不可切，等卫生和社会工作业增加值
+  - partition: education-training
+    anchor: none
+    note: 财政口径为主，需先定"财政支出算不算本池流入"
+  - partition: finance-invest
+    anchor: none
+    note: 部门层已按金融部门归集，切到分区会双计
+  - partition: dongjiagoushi
+    anchor: none
+    note: 软件业务收入口径不可比，等信息服务业营业收入
