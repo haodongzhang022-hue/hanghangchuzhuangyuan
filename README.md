@@ -689,7 +689,7 @@ PR 提交 → 测试信号灯 → NPC 代码审查 → 需修改？→ CodeBuddy
 | `pull_request` | 自动跑测试 + NPC 代码审查 + 修复闭环 |
 | `pull_request.mergeable` | 评审通过后自动合并 |
 | `pull_request.changes_requested` | CodeBuddy 自动修复 |
-| `pull_request.comment@npc` | 手动 @CodeBuddy 兜底 |
+| `pull_request.comment@npc` | 手动召唤兜底（只写全限定名 `@仓库路径(CodeBuddy)`） |
 | `main.push` | 全量回归 + 知识库更新 |
 
 ### 评审相关文件

@@ -682,6 +682,124 @@ def test_pipeline_prompts_never_summon_bare_codebuddy():
     )
 
 
+def test_npc_role_prompts_carry_the_same_discipline():
+    """真正生效的那份提示词必须带同样的纪律：`.cnb/settings.yml` 的 NPC 角色
+
+    这条是上一条的补丁。上一条断言（以及再上一条）查的都是 `.cnb.yml` 里
+    `npc:go.options` 的提示词 —— 而官方文档「提示词配置」写明：
+
+      `@NPC` 评论触发时，平台按 `.cnb/settings.yml` 的角色定义注入提示词，
+      `.cnb.yml` 里 options 的 systemPrompt / userPrompt / role **即使配了也会被忽略**。
+
+    也就是说，真人或评审 NPC 一召唤，跑的是 settings.yml 那段 prompt。
+    前几轮把「只准写全限定名」「召唤与打回二选一」写在了 `.cnb.yml` 里，
+    于是在真正触发的那条路上，一条都不生效 —— 而断言还一直是绿的。
+
+    **断言写在错的文件上，与没有断言是同一种下场**，只是多了个绿灯。
+
+    实测（本仓库 PR #34 的 comment@npc 会话，按召唤形式分组）：
+      裸名召唤        9 次 / 58.9 核时  ← 命中平台系统 NPC，8 核默认规格
+      全限定名召唤    1 次 /  2.4 核时
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb", "settings.yml"), encoding="utf-8"))
+    prompts = {r["name"]: r.get("prompt") or "" for r in data["npc"]["roles"]}
+    qualified = "@dongdongxiaozu/hanghangchuzhuangyuan(CodeBuddy)"
+
+    # ① 角色提示词里不许教人裸写（先剔全限定名，再找残留的裸名）
+    bare = []
+    for name, prompt in prompts.items():
+        rest = prompt.replace(qualified, "")
+        if re.search(r"(?<![\w/])@CodeBuddy\b", rest):
+            bare.append(name)
+    assert not bare, (
+        f"这些 NPC 角色提示词在教人裸写 @CodeBuddy：裸名命中平台系统 NPC，"
+        f"不读本仓库 .cnb.yml（8 核默认规格，实测同量级工作差 10~25 倍核时），"
+        f"也不受本文件任何边界约束。改成全限定名 {qualified}：{bare}"
+    )
+
+    # ② 审查员：二选一 + 配额类红灯不召唤 都必须在生效的提示词里
+    review = prompts.get("代码审查员") or ""
+    assert "二选一" in review, "审查员提示词必须写明「召唤」与「打回」二选一"
+    assert "changes_requested" in review, "审查员提示词要写出打回的事件名，否则无从判断"
+    assert "Prepare" in review and "insufficient" in review, (
+        "审查员提示词必须写明：失败 Stage 是 Prepare / 报错含 insufficient 时"
+        "属配额见底，不许召唤修复 —— 这类红灯不在代码里，召唤只会空转一小时再回一句"
+        "「跟代码无关」，实测每小时 8 核时"
+    )
+
+    # ③ 修复者：先判断红灯归谁，不空转
+    fixer = prompts.get("CodeBuddy") or ""
+    for token in ("Prepare", "core-hours", "不读代码"):
+        assert token in fixer, (
+            f"CodeBuddy 角色提示词缺少「先判断红灯归谁」的关键约束：{token}。"
+            "缺了它，配额见底时修复 Agent 会照常读代码、跑全量测试、"
+            "再回一句「跟代码无关」"
+        )
+    assert "全限定名" in fixer, "修复者提示词必须写明召唤只写全限定名"
+
+
+def test_npc_fix_channels_share_one_lock():
+    """两条修复通道共用一把锁：同一 PR 同一时刻只能有一条修复会话
+
+    `pull_request.changes_requested`（兜底）与 `pull_request.comment@npc`（主通道）
+    做的是同一件事。提示词里写的「二选一」是自觉，lock 是机制——
+    自觉会忘，机制不会。实测 29 次打回里 22 次与召唤会话同一分钟起跑，
+    11 月这条通道烧掉 80.1 核时，几乎全是重复。
+
+    锁的 key 必须带 PR 编号：不带就会跨 PR 串行，等于把并行评审也一起关掉。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+
+    def pipeline(event, name):
+        return next(j for j in data["$"][event] if j.get("name") == name)
+
+    auto_fix = pipeline("pull_request.changes_requested", "auto-fix")
+    invoke = pipeline("pull_request.comment@npc", "npc-manual-invoke")
+
+    keys = []
+    for job in (auto_fix, invoke):
+        lock = job.get("lock") or {}
+        assert lock.get("cancel-in-progress") is True, (
+            f"{job['name']} 没配 cancel-in-progress：后到的会话会排队等锁，"
+            "而不是取消前一条 —— 排队期间它照样占着预冻结额度"
+        )
+        keys.append(lock.get("key"))
+    assert keys[0] == keys[1], (
+        f"两条修复通道要共用一把锁，现在分别是 {keys[0]} / {keys[1]}："
+        "不共用的锁只挡自己，挡不住另一条通道"
+    )
+    assert "CNB_PULL_REQUEST_IID" in (keys[0] or ""), (
+        f"锁 key 必须带 PR 编号（现在 {keys[0]}）：不带就会跨 PR 串行，"
+        "把所有 PR 的评审排队成一条"
+    )
+
+
+def test_pr_review_pipelines_stop_when_the_branch_moves_on():
+    """源分支一更新，对着旧 commit 的测试与评审就该终止，而不是跑完再贴过期结论
+
+    官方 `breakIfModify`：Job 执行前若源分支已更新，则终止构建。
+
+    为什么这条值钱：`npc-code-review` 是本仓最慢的一条（实测单次 27~88 分钟，
+    时间全花在等模型上），`review-fix-loop` 跑全量测试要 8 分钟。这两条评的都是
+    **某个具体 commit**。分支一更新，那个 commit 就已被取代 —— 结论没人会看，
+    但机器早就按节点规格冻结过额度了。
+
+    `merge-on-approve` 刻意不在这条里：它跑在合并前的最后一刻，终止它等于让合并
+    永远等不到绿灯；它由本 PR 自己的 `stages` 保证只跑一次。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+
+    missing = [j["name"] for j in data["$"]["pull_request"]
+               if j.get("breakIfModify") is not True]
+    assert not missing, (
+        f"这些 pull_request 流水线没配 breakIfModify：源分支更新后它们仍在对着"
+        f"已被取代的 commit 跑，结论过期而额度照烧：{missing}"
+    )
+
+
 def test_review_prompt_forbids_double_dispatch():
     """评审员不许既召唤修复又打回：那是两条并行会话改同一批代码
 
