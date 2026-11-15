@@ -36,6 +36,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ._shape import add_all, dict_list, mapping
+
 # 节点类型：部门（资金流量表的机构部门）+ 行业池（分区作为钱的容器）
 NODE_TYPES = ("sector", "industry")
 SECTORS = ("household", "enterprise", "government", "financial", "overseas")
@@ -102,7 +104,11 @@ class MoneyFlowBook:
         # 只有注释（一个空账）时它照样返回 True，于是"每条校验都没有违规"，
         # 自检全绿。缺文件和空账要分开报，而且都是硬失败。
         self.loaded = False
-        # 先绑分区表再 _load：pools 段派生行业池节点时要用分区中文名
+        # 结构写歪（列表里混字符串、映射写成标量）记在这里，由 validate() 报。
+        # 不在消费点各兜一次：`(it or {})` 只兜得住 None，兜不住字符串，
+        # 于是 `industry check` 这个 CI 闸自己 traceback。
+        self.load_problems: List[str] = []
+        # 先绑分区表再 _load：pools 段派生行业池节点时要用中文名
         self._partitions = partitions or []
         self._load()
 
@@ -115,14 +121,33 @@ class MoneyFlowBook:
         self.version = str(data.get("version", self.version))
         self.updated_at = str(data.get("updated_at", ""))
         self.year_basis = str(data.get("year_basis", ""))
-        self.nodes = data.get("nodes", []) or []
-        self.flows = data.get("flows", []) or []
-        self.unobserved = data.get("unobserved", []) or []
-        self.leaks = data.get("leaks", []) or []
-        self.pools = data.get("pools", []) or []
+        where = os.path.basename(self.path)
+        self.nodes = dict_list(data.get("nodes"), "nodes", self.load_problems, where)
+        self.flows = self._load_flows(data.get("flows"), where, self.load_problems)
+        self.unobserved = dict_list(data.get("unobserved"), "unobserved",
+                                    self.load_problems, where)
+        self.leaks = dict_list(data.get("leaks"), "leaks", self.load_problems, where)
+        self.pools = dict_list(data.get("pools"), "pools", self.load_problems, where)
         # 有 flows 或有 nodes 才算真读到账；只写了 version 注释的文件不算。
         self.loaded = bool(self.flows or self.nodes or self.pools)
         self._derive_pool_nodes()
+
+    @staticmethod
+    def _load_flows(raw, where: str, problems: List[str]) -> List[dict]:
+        """flows 段：除了"列表里混字符串"，还要拦 from/to 缺失。
+
+        缺端点的那条边在图上无处可挂，`position()` 会把它算进
+        `unknown_edges` 而不报错 —— 一条钱既不在起点也不在终点的边，
+        静默通过正是这套账最想防的那件事。
+        """
+        out = dict_list(raw, "flows", problems, where)
+        for f in out:
+            if not f.get("from") or not f.get("to"):
+                problems.append(
+                    f"{where} 的 flows 里有一条缺 from/to：{f}"
+                    f"（一条钱既没有起点也没有终点的边，图上挂不住，"
+                    f"算总额时静默消失）")
+        return out
 
     def _derive_pool_nodes(self) -> None:
         """pools 段 → 行业池节点（id = ``pool:<分区id>``）。
@@ -277,9 +302,17 @@ class MoneyFlowBook:
                 elif declared is None:
                     row["gap"] = None
                     row["status"] = "no_declared"
-                elif not declared:
+                elif declared <= 0:
+                    # 外部总量不可能 ≤ 0。早先只判了 `not declared`（即 == 0），
+                    # 负数走的是下面的正常分支：`abs(gap)/declared` 在 declared<0
+                    # 时是负数，**永远 ≤ 容差** → status=ok、validate 一条不报。
+                    # 一个符号手滑就把"唯一能抓漏的那条对账"静默关掉了，
+                    # 比报错坏得多（负的差额率看着还挺像"略有偏差"）。
+                    # 这一档标记由 validate() 报硬错，不复用 declared_zero 的判词：
+                    # "声明了 0"（口径未统计）与"声明了负数"（写错了）是两件事。
                     row["gap"] = None
-                    row["status"] = "declared_zero"
+                    row["status"] = ("declared_zero" if declared == 0
+                                     else "invalid_declared")
                 else:
                     gap = pos[key] - declared
                     row["gap"] = gap
@@ -354,7 +387,7 @@ class MoneyFlowBook:
     # ------------------------------------------------------------ validate
     def validate(self) -> List[str]:
         """守恒账自检。每一条都对应一种"钱静默消失"的方式。"""
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
 
         # 0. 数据源可用：文件缺失时节点为空，逐条校验都会"通过"——
         # 那正是本仓库第 13 条在防的「0 分区 0 职业还自检通过」。

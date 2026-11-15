@@ -44,6 +44,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ._shape import add_all, dict_list
+
 # 三端。缺哪一端，决定了这一行"能不能切分"和"能不能验"。
 TERMS = ("output", "value_added", "intermediate")
 # 切分锚点：value_added 直接可切 / va_ratio 折一半 / none 不可切
@@ -67,6 +69,9 @@ class InputOutputBook:
         self.pool_rules: List[dict] = []
         # 文件在、内容是注释时 exists() 照样 True —— 缺文件与空账分开报，都是硬失败
         self.loaded = False
+        # 结构写歪记这里，由 validate() 报（不在每个消费点各兜一次：
+        # `(it or {})` 兜不住字符串，而列表里混字符串是最常见的写法之一）
+        self.load_problems: List[str] = []
         self._partitions = partitions or []
         self._load()
 
@@ -83,11 +88,18 @@ class InputOutputBook:
         tol = data.get("tolerance")
         if isinstance(tol, (int, float)) and not isinstance(tol, bool) and tol > 0:
             self.tolerance = float(tol)
-        for row in data.get("accounts", []) or []:
+        where = os.path.basename(self.path)
+        for row in dict_list(data.get("accounts"), "accounts",
+                             self.load_problems, where):
             pid = row.get("partition") or ""
             if pid:
                 self.accounts[pid] = dict(row)
-        self.pool_rules = data.get("pool_rules", []) or []
+            else:
+                self.load_problems.append(
+                    f"{where} 的 accounts 里有一项没有 partition"
+                    f"（这个生产法账户找不到归属行业）")
+        self.pool_rules = dict_list(data.get("pool_rules"), "pool_rules",
+                                    self.load_problems, where)
         self.loaded = bool(self.accounts)
 
     def bind(self, partitions: List[dict]) -> None:
@@ -255,7 +267,8 @@ class InputOutputBook:
         schema = []
         for pid, acc in self.accounts.items():
             mid = self.term(acc, "intermediate")
-            inputs = acc.get("inputs") or []
+            inputs = dict_list(acc.get("inputs"), f"分区 {pid} 的 inputs",
+                               self.load_problems, os.path.basename(self.path))
             if inputs:
                 continue
             schema.append({
@@ -280,7 +293,7 @@ class InputOutputBook:
         for pid, acc in self.accounts.items():
             for it in (acc.get("inputs") or []):
                 src = (it or {}).get("from") or ""
-                v = self._input_amount(it)
+                v = self._input_amount(it, pid)
                 if not src or not v:
                     continue
                 supplied[src] = supplied.get(src, 0.0) + v
@@ -300,7 +313,7 @@ class InputOutputBook:
 
     def validate(self) -> List[str]:
         """投入产出账自检：每一端都要能对上，每一处重复计都要被拦住。"""
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
         if not os.path.exists(self.path):
             problems.append(
                 f"未读到投入产出账: {self.path}（数据源缺失，自检不能视为通过）")
@@ -377,13 +390,14 @@ class InputOutputBook:
 
         # 4-a. 中间投入构成合计 = 中间投入总额（声明 complete 时）
         for pid, acc in self.accounts.items():
-            inputs = acc.get("inputs") or []
+            inputs = dict_list(acc.get("inputs"), f"分区 {pid} 的 inputs",
+                               self.load_problems, os.path.basename(self.path))
             mid = self.term(acc, "intermediate")
             if not inputs:
                 continue
             s = 0.0
             for it in inputs:
-                v = self._input_amount(it)
+                v = self._input_amount(it, pid)
                 if v is None:
                     problems.append(
                         f"分区 {pid} 的中间投入构成有一条取不到金额：{it}")
@@ -399,10 +413,10 @@ class InputOutputBook:
 
         # 4-b. 供给上界：某分区作为投入方出现的合计 ≤ 它自己的总产出
         supplied: Dict[str, float] = {}
-        for acc in self.accounts.values():
+        for pid, acc in self.accounts.items():
             for it in (acc.get("inputs") or []):
                 src = (it or {}).get("from") or ""
-                v = self._input_amount(it)
+                v = self._input_amount(it, pid)
                 if src and v:
                     supplied[src] = supplied.get(src, 0.0) + v
         for src, total in supplied.items():
@@ -442,19 +456,32 @@ class InputOutputBook:
                 problems.append(f"池 {pid} 有 {cnt} 条切分规则（互相矛盾，只许一条）")
         return problems
 
-    def _input_amount(self, item: dict) -> Optional[float]:
+    def _input_amount(self, item: dict, pid: str = "") -> Optional[float]:
         """中间投入构成一条的金额：给 cny 直接取；给 share 则乘中间投入总额。
 
         `share` 的存在是为了"只知道结构、不知道金额"的场景（投入产出表的直接
         消耗系数就长这样）。两条都给时以 cny 为准，share 忽略——同一件事存两套
         数必有一天打架。
+
+        `share` 分支早先写成 `return None if not isinstance(...) else None`，
+        两个分支都返回 None：**按文档写 `{from: x, share: 0.5}` 反而报
+        「取不到金额」，同时构成合计比中间投入总额少 100%**。
+        按文档写数据却报错，比不支持更坏——所以这里真的实现它。
         """
         v = (item or {}).get("cny")
         if isinstance(v, (int, float)) and not isinstance(v, bool):
             return float(v)
         share = (item or {}).get("share")
-        return None if not isinstance(share, (int, float)) or isinstance(share, bool) \
-            else None
+        if isinstance(share, bool) or not isinstance(share, (int, float)):
+            return None
+        acc = self.accounts.get(pid) or {}
+        mid = self.term(acc, "intermediate")
+        if mid is None:
+            # 没有中间投入总额就无从折算。这时返回 None 而由 validate 报
+            # 「缺 intermediate」比编一个数好：编出来的份额乘出来的金额，
+            # 每个数单看都合理，加起来才不对。
+            return None
+        return float(share) * mid
 
     def _national_gdp(self) -> Optional[float]:
         """全国 GDP：从官方基准借 gdp-total，不在这里抄第二份。

@@ -38,6 +38,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ._shape import add_all, dict_list
+
 # 三种对表关系。刻意只有三种：再多就把"不一样"说成了一堆同义词。
 RELATIONS = ("equal", "envelope", "incomparable")
 
@@ -71,6 +73,8 @@ class OfficialBaseline:
         # 文件在、内容只有注释时 `os.path.exists` 照样 True，而每条校验都"通过"。
         # 缺文件与空账要分开报，而且都是硬失败（与 money_flow 同一条规矩）。
         self.loaded = False
+        # 结构写歪记这里，由 validate() 报
+        self.load_problems: List[str] = []
         self._partitions = partitions or []
         # 文件级 gdp_year_basis（partition 上没写时回落到它）。由 IndustryDatabase
         # 从 industry-partitions.yaml 顶层读出来传进来，不让本模块去读第二个文件。
@@ -89,9 +93,12 @@ class OfficialBaseline:
         tol = data.get("tolerance")
         if isinstance(tol, (int, float)) and not isinstance(tol, bool) and tol > 0:
             self.tolerance = float(tol)
-        self.benchmarks = data.get("benchmarks", []) or []
-        self.links = data.get("links", []) or []
-        self.unlinked = data.get("unlinked", []) or []
+        where = os.path.basename(self.path)
+        self.benchmarks = dict_list(data.get("benchmarks"), "benchmarks",
+                                    self.load_problems, where)
+        self.links = dict_list(data.get("links"), "links", self.load_problems, where)
+        self.unlinked = dict_list(data.get("unlinked"), "unlinked",
+                                  self.load_problems, where)
         self.loaded = bool(self.benchmarks or self.links)
 
     def bind(self, partitions: List[dict],
@@ -277,7 +284,7 @@ class OfficialBaseline:
     # ------------------------------------------------------------ validate
     def validate(self) -> List[str]:
         """对表账自检。每一条都对应一种"数字看着有出处、其实没人验过"的形态。"""
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
         if not os.path.exists(self.path):
             problems.append(
                 f"未读到官方口径基准: {self.path}（数据源缺失，自检不能视为通过）")

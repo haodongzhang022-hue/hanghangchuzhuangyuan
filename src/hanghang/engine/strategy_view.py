@@ -32,6 +32,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ._shape import add_all, dict_list, mapping, str_list
+
 # 战略层的段。缺哪一段都要在 missing 里写原因 —— 说不出缺什么，等于保证它永远缺。
 SECTIONS = ("value_chain", "position", "profit_pool", "leverage",
             "drivers", "risks", "ai_frontier", "division_of_labor", "role_focus")
@@ -48,6 +50,20 @@ MIN_CHAIN = 3
 AI_FRONTIER_KEYS = ("strong", "weak", "boundary")
 
 
+def _strs(raw) -> List[str]:
+    """取字符串列表：单个字符串不拆成汉字，None 不变成 [None]。"""
+    if not isinstance(raw, list):
+        return []
+    return [x for x in raw if isinstance(x, str) and x.strip()]
+
+
+def _dicts(raw) -> List[dict]:
+    """取映射列表：过滤掉混进来的标量（缺陷由 validate 报，这里只保证不崩）。"""
+    if not isinstance(raw, list):
+        return []
+    return [x for x in raw if isinstance(x, dict)]
+
+
 class StrategyView:
     """行业战略视图：价值链 → 利润池 → 杠杆 → 驱动/风险 → AI 承接面 → 岗位落点。"""
 
@@ -62,6 +78,10 @@ class StrategyView:
         self.entries: Dict[str, dict] = {}
         # 文件在、内容是注释时 loaded 仍为 False —— 缺文件与空账分开报，都是硬失败
         self.loaded = False
+        # 结构写歪（列表里混字符串、映射写成标量）记在这里，由 validate() 报。
+        # `(it or {})` 只兜得住 None，兜不住字符串 —— 数据是手写的，
+        # 列表里混一个字符串是最常见的写法之一，而它会让 `industry check` 崩。
+        self.load_problems: List[str] = []
         self._partitions = partitions or []
         self._registry = registry
         self._load()
@@ -74,11 +94,55 @@ class StrategyView:
             data = yaml.safe_load(fh) or {}
         self.version = str(data.get("version", self.version))
         self.updated_at = str(data.get("updated_at", ""))
-        for row in data.get("partitions", []) or []:
-            pid = (row or {}).get("partition") or ""
+        where = os.path.basename(self.path)
+        for row in dict_list(data.get("partitions"), "partitions",
+                             self.load_problems, where):
+            pid = row.get("partition") or ""
             if pid:
+                self._check_sections(pid, row, where)
                 self.entries[pid] = dict(row)
+            else:
+                self.load_problems.append(
+                    f"{where} 的 partitions 里有一项没有 partition"
+                    f"（这一段判断找不到归属的行业）")
         self.loaded = bool(self.entries)
+
+    # 每一段该是什么形状：列表段里混进标量、映射段写成标量，都在入口记下来。
+    # 不在消费点各兜一次 —— `(it or {})` 兜不住字符串，想到之外的路照样炸。
+    _LIST_SECTIONS = ("value_chain", "profit_pool", "leverage", "drivers",
+                      "risks", "role_focus")
+    _MAP_SECTIONS = ("ai_frontier", "division_of_labor", "missing")
+
+    def _check_sections(self, pid: str, row: dict, where: str) -> None:
+        for name in self._LIST_SECTIONS:
+            raw = row.get(name)
+            if raw is None:
+                continue
+            if isinstance(raw, str):
+                self.load_problems.append(
+                    f"{where} 分区 {pid} 的 {name} 应写成列表，实际是一个字符串: "
+                    f"{raw!r}（当成列表会把它逐字拆开，得到一串看着非空、"
+                    f"其实没有意义的项）")
+            elif not isinstance(raw, list):
+                self.load_problems.append(
+                    f"{where} 分区 {pid} 的 {name} 应写成列表，实际是 "
+                    f"{type(raw).__name__}: {raw!r}")
+            else:
+                bad = [x for x in raw if name == "profit_pool"
+                       and not isinstance(x, dict)]
+                if bad:
+                    self.load_problems.append(
+                        f"{where} 分区 {pid} 的 {name} 里有 {len(bad)} 项不是映射"
+                        f"（写成了 {type(bad[0]).__name__}）"
+                        f"（当作不存在会让这一项静默消失，而它在报告里本该占一行）")
+        for name in self._MAP_SECTIONS:
+            raw = row.get(name)
+            if raw is not None and not isinstance(raw, dict):
+                self.load_problems.append(
+                    f"{where} 分区 {pid} 的 {name} 应写成映射，实际是 "
+                    f"{type(raw).__name__}: {raw!r}"
+                    f"（读不成映射会让整段内容消失，而「说不出」和「忘了写」"
+                    f"在报告里长得一样）")
 
     def bind(self, partitions: List[dict], registry=None) -> None:
         self._partitions = partitions
@@ -97,7 +161,11 @@ class StrategyView:
 
     def missing_reason(self, pid: str, section: str) -> str:
         row = self.entries.get(pid) or {}
-        miss = row.get("missing") or {}
+        miss = row.get("missing")
+        if not isinstance(miss, dict):
+            # 写歪了就当"没有原因"，但缺陷已由 validate() 报出——
+            # 这里再把它说成"未填原因"等于把缺陷说成数据边界。
+            return ""
         return str(miss.get(section, "") or "")
 
     def _roles_of(self, pid: str) -> List[str]:
@@ -122,22 +190,24 @@ class StrategyView:
         frontier = e.get("ai_frontier") or {}
         return {
             "partition": pid,
-            "value_chain": list(e.get("value_chain") or []),
+            "value_chain": _strs(e.get("value_chain")),
             "position": e.get("position", "") or "",
-            "profit_pool": list(e.get("profit_pool") or []),
-            "leverage": list(e.get("leverage") or []),
-            "drivers": list(e.get("drivers") or []),
-            "risks": list(e.get("risks") or []),
-            "ai_strong": list(frontier.get("strong") or []),
-            "ai_weak": list(frontier.get("weak") or []),
+            "profit_pool": _dicts(e.get("profit_pool")),
+            "leverage": _dicts(e.get("leverage")),
+            "drivers": _strs(e.get("drivers")),
+            "risks": _strs(e.get("risks")),
+            "ai_strong": _strs(frontier.get("strong")),
+            "ai_weak": _strs(frontier.get("weak")),
             "ai_boundary": frontier.get("boundary", "") or "",
-            "human_decides": list((e.get("division_of_labor") or {})
-                                  .get("human_decides") or []),
-            "ai_fills": list((e.get("division_of_labor") or {}).get("ai_fills") or []),
+            "human_decides": _strs((e.get("division_of_labor") or {})
+                                   .get("human_decides")),
+            "ai_fills": _strs((e.get("division_of_labor") or {}).get("ai_fills")),
             "role_focus": focus,
             "role_focus_valid": [r for r in focus if r in roles],
             "role_focus_dangling": [r for r in focus if r not in roles],
-            "missing": {k: v for k, v in (e.get("missing") or {}).items() if v},
+            "missing": {k: v for k, v in
+                        (e.get("missing") if isinstance(e.get("missing"), dict) else {})
+                        .items() if v},
             "sections": [s for s in SECTIONS if e.get(s)],
         }
 
@@ -192,7 +262,7 @@ class StrategyView:
     # ------------------------------------------------------------ validate
     def validate(self) -> List[str]:
         """战略视图自检。每条都对应一种"只有数字、没有判断"的失效方式。"""
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
         if not os.path.exists(self.path):
             problems.append(
                 f"未读到行业战略视图: {self.path}（数据源缺失，自检不能视为通过）")
@@ -230,7 +300,7 @@ class StrategyView:
                         f"（战略层只放判断，金额回 partition / 六口径账，别存第二份）")
 
             # 3. 价值链：少于 3 段谈不上链
-            chain = e.get("value_chain") or []
+            chain = _strs(e.get("value_chain"))
             if len(chain) < MIN_CHAIN:
                 if not self.missing_reason(pid, "value_chain"):
                     problems.append(
@@ -239,13 +309,15 @@ class StrategyView:
 
             # 4. 利润池：每项都要有 where + why，且 where 落在价值链里
             pools = e.get("profit_pool") or []
-            if not pools:
+            if not _dicts(pools):
                 if not self.missing_reason(pid, "profit_pool"):
                     problems.append(
                         f"分区 {pid} 没有利润池判断，也没写为什么"
                         f"（钱沉在哪几段是这层最要紧的一句）")
             stages = {str(x) for x in chain}
-            for it in pools:
+            # 混进字符串的项已在 _load 记了 problem，这里跳过它继续查其余项——
+            # 一条手滑不该让后面所有利润池判断都失去检查。
+            for it in _dicts(pools):
                 where = (it or {}).get("where") or ""
                 why = (it or {}).get("why") or ""
                 if not where or not why:
@@ -257,7 +329,7 @@ class StrategyView:
                         f"{sorted(stages)} 里（说钱沉在一个链条上不存在的环节）")
 
             # 5. AI 承接面：三档齐，缺一档就说不清边界
-            frontier = e.get("ai_frontier") or {}
+            frontier = e.get("ai_frontier") if isinstance(e.get("ai_frontier"), dict) else {}
             for key in AI_FRONTIER_KEYS:
                 if frontier and not frontier.get(key):
                     problems.append(
@@ -265,7 +337,8 @@ class StrategyView:
                         f"（强/弱/边界三档缺一档，就说不清 AI 该停在哪）")
 
             # 6. 分工：人管什么、AI 补什么，两边都要有
-            dol = e.get("division_of_labor") or {}
+            dol = e.get("division_of_labor") if isinstance(
+                e.get("division_of_labor"), dict) else {}
             for key in ("human_decides", "ai_fills"):
                 if dol and not dol.get(key):
                     problems.append(
@@ -273,7 +346,7 @@ class StrategyView:
                         f"（只写一边等于把另一边默认成谁都行）")
 
             # 7. 岗位落点：战略落不到真实岗位 = 一句没人负责的口号
-            focus = e.get("role_focus") or []
+            focus = _strs(e.get("role_focus"))
             if not focus:
                 if not self.missing_reason(pid, "role_focus"):
                     problems.append(

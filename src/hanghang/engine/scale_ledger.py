@@ -43,6 +43,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ._shape import add_all, dict_list, mapping
+
 # 六个口径。顺序即"从最好拿到最难拿"：可见度报告按这个顺序摊开。
 SCALE_METRICS = ("gdp", "employment", "profit", "asset", "valuation", "resource")
 # 存储在 industry-scales.yaml 里的四个（另两个在 partition 上，见模块 docstring）
@@ -107,6 +109,11 @@ class ScaleLedger:
         self.year_basis = ""
         # partition -> {"profit": {...}, ...}
         self.entries: Dict[str, dict] = {}
+        # 结构写歪（列表里混字符串、映射写成标量）记在这里，由 validate() 报。
+        # 不在消费点各兜一次：`(it or {})` 只兜得住 None，兜不住字符串，
+        # 于是 `industry check` 这个 CI 闸自己 traceback —— 红灯既不是"数据坏了"
+        # 也不是"绿"。想到之外的路只能靠入口收口。
+        self.load_problems: List[str] = []
         self._load()
         # 传进来的分区表若被后续改动，可见度要跟着变，所以不缓存快照
         self._partitions = partitions
@@ -120,18 +127,30 @@ class ScaleLedger:
         self.version = str(data.get("version", self.version))
         self.updated_at = str(data.get("updated_at", ""))
         self.year_basis = str(data.get("year_basis", ""))
-        for row in data.get("scales", []) or []:
+        where = os.path.basename(self.path)
+        for row in dict_list(data.get("scales"), "scales", self.load_problems, where):
             pid = row.get("partition") or ""
             if not pid:
+                self.load_problems.append(
+                    f"{where} 的 scales 里有一项没有 partition"
+                    f"（这一格六口径落点找不到主人）")
                 continue
             metrics = {}
             for name in LEDGER_METRICS:
                 cell = row.get(name)
                 if isinstance(cell, dict):
                     metrics[name] = dict(cell)
+                elif cell is not None:
+                    self.load_problems.append(
+                        f"分区 {pid} 的 {name} 应写成金额映射"
+                        f"（如 {{{self.AMOUNT_KEY.get(name, 'cny')!r}: 数值}}），"
+                        f"实际是 {type(cell).__name__}: {cell!r}"
+                        f"（当成「没填」会让写错的数据静默变空）")
             # 显式声明"这个口径确实没有"，与"忘了填"分开
-            if row.get("missing"):
-                metrics["_missing"] = dict(row["missing"])
+            if row.get("missing") is not None:
+                metrics["_missing"] = mapping(
+                    row.get("missing"), f"分区 {pid} 的 missing",
+                    self.load_problems, where)
             if row.get("note"):
                 metrics["_note"] = row["note"]
             self.entries[pid] = metrics
@@ -319,7 +338,7 @@ class ScaleLedger:
         每条都是"两个独立来源的数对不上"。**单看任何一个都正确**，
         所以这类错必须靠互推抓。
         """
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
         for p in self._partitions or []:
             pid = p.get("id", "")
             if not pid or pid not in self.entries:
@@ -387,7 +406,7 @@ class ScaleLedger:
 
     def validate(self) -> List[str]:
         """口径账本自检：槽位语法、枚举、可见度必须有解释。"""
-        problems: List[str] = []
+        problems: List[str] = add_all([], self.load_problems)
         # 数据源可用：文件缺失时 entries 为空，而"分区没落点"那条会逐分区报出来；
         # 但分区表也缺的话就无人可报，所以这里单独守一道。
         if not os.path.exists(self.path) and not self.entries:

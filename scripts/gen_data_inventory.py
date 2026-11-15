@@ -258,7 +258,11 @@ def main() -> int:
         # （过期的清单比没有清单更坏，但永远报过期的校验比两者都坏）。
         # CSV 是导出产物，谁需要谁生成；一致性由生成时同源计算天然保证。
         stale = []
-        have = open(DOC, encoding="utf-8").read() if os.path.exists(DOC) else ""
+        if os.path.exists(DOC):
+            with open(DOC, encoding="utf-8") as fh:
+                have = fh.read()
+        else:
+            have = ""
         if have != md:
             stale.append(DOC)
         if stale:

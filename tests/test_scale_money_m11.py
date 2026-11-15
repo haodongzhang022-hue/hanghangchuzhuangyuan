@@ -682,6 +682,218 @@ def test_cli_scale_and_money_run():
         assert needle in out.stdout, out.stdout
 
 
+# ------------------------------------- 评审六轮：结构写歪（不是"非数值"，是"形状错"）
+def _tmp_data(*overrides):
+    """复制一份 data/ 到临时目录，按 (文件名, 改法) 覆盖。
+
+    为什么必须落到临时目录而不是 patch 内存对象：这几条要验的是
+    "`_load()` 能不能把写歪的 yaml 变成一句人话"。绕过 yaml 直接改对象，
+    验的是我写的兜底代码，不是真实入口。
+    """
+    import shutil
+    import tempfile
+    import yaml
+
+    td = tempfile.mkdtemp()
+    for name in os.listdir(os.path.join(ROOT, "data")):
+        src = os.path.join(ROOT, "data", name)
+        dst = os.path.join(td, name)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+    for name, mutate in overrides:
+        path = os.path.join(td, name)
+        with open(path, encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+        mutate(data)
+        with open(path, "w", encoding="utf-8") as fh:
+            yaml.safe_dump(data, fh, allow_unicode=True)
+    return td
+
+
+def test_any_list_section_with_a_stray_string_is_reported_not_raised():
+    """结构写歪：列表里混一个字符串，五本账都不许崩，且都要报成人话
+
+    评审六轮第 1 条。`(it or {})` 只兜得住 None，兜不住字符串 ——
+    而数据是人或模型手写的，列表里混一个字符串是最常见的写法之一。
+    于是 `industry check` 这个 CI 闸自己 traceback：红灯既不是"数据坏了"，
+    也不是"绿"。
+
+    修法不是在每个消费点再兜一次（想到的路之外的路照样炸），而是
+    **在 `_load()` 入口统一归一段形状**，写歪的项记一条 problem 交给 validate。
+    """
+    from hanghang.engine.input_output import InputOutputBook
+    from hanghang.engine.official_baseline import OfficialBaseline
+    from hanghang.engine.strategy_view import StrategyView
+
+    cases = [
+        ("industry-strategy.yaml",
+         lambda d: d["partitions"][0]["profit_pool"].append("一个字符串"),
+         StrategyView, "利润池"),
+        ("industry-scales.yaml",
+         lambda d: d["scales"].append("坏行"),
+         None, "scales"),
+        ("industry-money-flows.yaml",
+         lambda d: d["pools"].append("坏"),
+         MoneyFlowBook, "pools"),
+        ("industry-input-output.yaml",
+         lambda d: d["accounts"].append("坏"),
+         InputOutputBook, "accounts"),
+        ("industry-official-baseline.yaml",
+         lambda d: d["benchmarks"].append("坏"),
+         OfficialBaseline, "benchmarks"),
+    ]
+    for name, mutate, cls, needle in cases:
+        td = _tmp_data((name, mutate))
+        if cls is None:
+            from hanghang.engine.scale_ledger import ScaleLedger
+            book = ScaleLedger(td)
+        else:
+            book = cls(td)
+        problems = book.validate()          # 不许抛
+        assert any(needle in p or "不是映射" in p for p in problems), (
+            f"{name} 里混了字符串却没报出来：{problems[:3]}")
+
+
+def test_scalar_where_a_mapping_belongs_does_not_kill_every_exit():
+    """`missing: "缺"` 曾让 `IndustryDatabase()` 构造函数直接崩
+
+    评审六轮第 2 条。崩在 `_load()` 意味着 `industry scale` / `strategy` /
+    `baseline` / `io` / `export` / `/api/industry-db` **全部一起挂** ——
+    一份只读旁证连坐整个 M11 出口，正是本仓库自己写过的那条反面。
+
+    而且"写歪"与"没填"必须分开：前者要改数据，后者要补数据。
+    混成一句"未填原因"，等于两件事都没说。
+    """
+    from hanghang.engine.scale_ledger import ScaleLedger
+    from hanghang.engine.strategy_view import StrategyView
+
+    td = _tmp_data(
+        ("industry-scales.yaml", lambda d: d["scales"][0].update({"missing": "缺"})),
+        ("industry-strategy.yaml",
+         lambda d: d["partitions"][0].update({"missing": "缺"})),
+    )
+    # 构造函数不许抛
+    ledger = ScaleLedger(td)
+    view = StrategyView(td)
+    assert any("映射" in p for p in ledger.validate()), ledger.validate()[:3]
+    assert any("映射" in p for p in view.validate()), view.validate()[:3]
+    # 写歪 ≠ 没填：不许冒充"说不出原因"
+    pid = next(iter(view.entries))
+    assert view.missing_reason(pid, "value_chain") == ""
+    # 整条出口链不许连坐
+    db = IndustryDatabase(data_dir=td)
+    db.compute()                       # 汇总口径走一遍
+    db.scales.visibility_all()         # 六口径可见度走一遍
+    db.money.position("sector-household")   # 资金流头寸走一遍
+    db.strategy.summary()              # 战略视图汇总走一遍
+
+
+def test_string_value_chain_is_not_split_into_characters():
+    """`value_chain: "规划设计→施工"` 曾被 `list()` 拆成一个个汉字
+
+    拆出来的是一串"看着非空、其实没有意义"的项 —— 比报错更难查：
+    价值链长度校验照样通过（汉字够 3 个），利润池的 where 却永远对不上。
+    """
+    from hanghang.engine.strategy_view import StrategyView
+
+    td = _tmp_data(("industry-strategy.yaml",
+                    lambda d: d["partitions"][0].update(
+                        {"value_chain": "规划设计→总包施工"})))
+    view = StrategyView(td)
+    row = view.row(view.entries and next(iter(view.entries)))
+    assert row["value_chain"] == [], row["value_chain"]
+    assert any("value_chain" in p and "字符串" in p for p in view.validate()), \
+        view.validate()[:3]
+
+
+def test_negative_declared_cannot_pass_reconciliation():
+    """`declared_in_cny` 为负数时对账恒过 —— 一个符号手滑关掉了唯一能抓漏的那条
+
+    评审六轮第 3 条。`abs(gap) / declared` 在 declared < 0 时是负数，
+    **永远 ≤ 容差**，于是 status=ok、validate 一条不报。负的偏差率看着
+    还挺像"略有偏差"，比报错坏得多。
+
+    刻意不复用 `declared_zero` 的判词："声明了 0"（口径未统计）与
+    "声明了负数"（写错了）是两件事。
+    """
+    td = _tmp_data(("industry-money-flows.yaml",
+                    lambda d: next(n for n in d["nodes"]
+                                   if n["id"] == "sector-household")
+                    .update({"declared_in_cny": -1e14})))
+    book = MoneyFlowBook(td)
+    status = {(r["node"], r["side"]): r["status"] for r in book.reconcile()}
+    assert status[("sector-household", "in")] == "invalid_declared", status
+    assert any("sector-household" in p for p in book.validate()), book.validate()[:3]
+
+
+def test_cli_reconciliation_never_prints_a_green_tick_for_zero_declared():
+    """`declared = 0` 时 CLI 曾打 ✓（`ratio = abs(gap)/declared if declared else 0`）
+
+    评审六轮第 4 条。engine 侧 `reconcile()` 早有 `declared_zero` 判词，
+    CLI 却自己另算一遍，把比值硬置 0 再打绿勾 —— **同一条数据两个结论，
+    人只会照着绿的那个看**。现在判词一律取 `reconcile().status`。
+    """
+    td = _tmp_data(("industry-money-flows.yaml",
+                    lambda d: next(n for n in d["nodes"]
+                                   if n["id"] == "sector-household")
+                    .update({"declared_in_cny": 0})))
+    out = subprocess.run(
+        [sys.executable, os.path.join(ROOT, "src/hanghang/cli/main.py"),
+         "industry", "money", "--node", "sector-household", "--data-dir", td],
+        capture_output=True, text=True, cwd=ROOT)
+    assert out.returncode == 0, out.stderr
+    assert "Traceback" not in out.stderr, out.stderr
+    line = next(ln for ln in out.stdout.splitlines() if "流入对账" in ln)
+    assert "不参与对账" in line, line
+    assert "✓" not in line, f"declared=0 不许打绿勾：{line}"
+
+
+def test_cli_reconciliation_survives_written_garbage():
+    """只读命令遇到写坏的 declared 不许 traceback，也不许假装成"未声明"
+
+    评审六轮第 5 条：同一文件里 flow 金额已经改用 `_num()`，声明口径那半边漏了。
+    「渲染路径与校验路径用同一套取值规则」只做了一半。
+    """
+    for bad in ("64e12", -1e14):
+        td = _tmp_data(("industry-money-flows.yaml",
+                        lambda d, b=bad: next(n for n in d["nodes"]
+                                              if n["id"] == "sector-household")
+                        .update({"declared_in_cny": b})))
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "src/hanghang/cli/main.py"),
+             "industry", "money", "--node", "sector-household", "--data-dir", td],
+            capture_output=True, text=True, cwd=ROOT)
+        assert out.returncode == 0, out.stderr
+        assert "Traceback" not in out.stderr, out.stderr
+        line = next(ln for ln in out.stdout.splitlines() if "流入对账" in ln)
+        assert "数据写坏" in line, line
+        assert "未声明" not in line, f"写坏 ≠ 未声明：{line}"
+
+
+def test_share_only_input_actually_multiplies_intermediate():
+    """`{from: x, share: 0.5}` 曾两个分支都返回 None —— 按文档写数据反而报错
+
+    评审六轮第 6 条。docstring 写着"给 share 则乘中间投入总额"，代码却是
+    `return None if not isinstance(...) else None`，两个分支都 None。
+    于是合法数据被报"取不到金额"，同时"构成合计 vs 中间投入总额"再误报一条
+    −100% 偏差。**按文档写数据却报错，比不支持更坏。**
+    """
+    from hanghang.engine.input_output import InputOutputBook
+
+    book = InputOutputBook()
+    # 找一个两端都有的账户做样板：中间投入 23 万亿，取一半
+    pid = next((k for k, a in book.accounts.items()
+                if book.term(a, "intermediate")), None)
+    assert pid, "找不到带 intermediate 的样板账户"
+    mid = book.term(book.accounts[pid], "intermediate")
+    got = book._input_amount({"from": "x", "share": 0.5}, pid)
+    assert got == mid * 0.5, (got, mid)
+    # 没有中间投入总额时不编数：返回 None 让 validate 报「缺 intermediate」
+    assert book._input_amount({"from": "x", "share": 0.5}, "不存在的分区") is None
+
+
 if __name__ == "__main__":
     for name, fn in sorted(list(globals().items())):
         if name.startswith("test_") and callable(fn):

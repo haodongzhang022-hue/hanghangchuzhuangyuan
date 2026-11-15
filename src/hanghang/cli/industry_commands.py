@@ -574,18 +574,37 @@ def cmd_industry_money(args):
               f"  （其中 {pos['unknown_edges']} 条边数额待补）")
         if n.get("source"):
             print(f"  对账口径: {n['source']}")
+        # 判词只取 reconcile() 的 status：同一条数据只能有一种结论。
+        # 早先这里自己算 `ratio = abs(gap) / declared if declared else 0`，
+        # 于是 declared=0 打出 ✓（0.0% ≤ 容差）、declared 是字符串时直接
+        # TypeError、declared 为负时算出负偏差率也是 ✓ —— 三个分支各错一处，
+        # 而 engine 侧 reconcile() 早有 declared_zero / invalid_declared 两种判词。
+        # 两支各算一遍 = 人只会照着不崩、且是绿的那个看。
+        states = {(r["node"], r["side"]): r for r in book.reconcile()}
         for side, label in (("in", "流入"), ("out", "流出")):
-            declared = n.get(f"declared_{side}_cny")
-            if declared is None:
+            rec = states.get((node, side)) or {}
+            status = rec.get("status", "")
+            declared = rec.get("declared")
+            traced = pos["inflow"] if side == "in" else pos["outflow"]
+            if status == "no_declared":
                 print(f"  {label}对账: 未声明外部总量（缺口见 unobserved）")
                 continue
-            traced = pos["inflow"] if side == "in" else pos["outflow"]
-            gap = traced - declared
-            ratio = abs(gap) / declared if declared else 0
+            if status == "invalid_declared":
+                raw = n.get(f"declared_{side}_cny")
+                print(f"  {label}对账: declared_{side}_cny={raw!r} 不是正数值"
+                      f"  ❌ 数据写坏（对账无法进行；金额一律写正的字面数字）")
+                continue
+            if status == "declared_zero":
+                print(f"  {label}对账: 声明外部总量为 0，不参与对账"
+                      f"（图中画了 {traced / 1e8:,.0f} 亿）"
+                      f"—— 没有对账口径的节点须在 unobserved 登记缺什么")
+                continue
+            gap = rec.get("gap")
+            ratio = rec.get("gap_ratio")
             print(f"  {label}对账: 图中 {traced / 1e8:,.0f} 亿 / 外部 "
                   f"{declared / 1e8:,.0f} 亿  差额 {gap / 1e8:+,.0f} 亿"
                   f"（{ratio:.1%}，容差 {RECONCILE_TOLERANCE:.0%}）"
-                  + ("  ✓" if ratio <= RECONCILE_TOLERANCE else "  ❌ 漏画了流向"))
+                  + ("  ✓" if status == "ok" else "  ❌ 漏画了流向"))
         print("-" * 78)
         print("  资金流明细（null = 路径已知、数额待补，不是 0）：")
         for f in book.flows_of(node):
@@ -1011,7 +1030,7 @@ def cmd_industry_strategy(args):
               + "  " + (e.get("position", "") or "-")[:40])
     print("-" * 100)
     print("`industry strategy --partition construction-eng` 看单个行业的价值链与利润池；"
-          "`--gaps` 只看缺段")
+          "`industry strategy-gaps` 只看缺段")
     print("=" * 100)
 
 
