@@ -537,6 +537,54 @@ def test_coverage_denominators_unchanged_by_completion():
         "非基线职业（不建单元的现场岗/无酬劳动）必须登记但不算单元覆盖分子"
 
 
+def test_every_pipeline_declares_its_own_runner_size():
+    """每条流水线都要显式写 runner.cpus：不写不是"用最小规格"，是 8 核。
+
+    这不是风格问题，是额度问题。PR #34 的 CI 连红在 Prepare，报的正是
+    `insufficient for pre-freezing(1.33 core-hours)` —— 1.33 = 8 核 × 10min，
+    也就是「没写 runner.cpus」时平台给的默认节点规格。原 .cnb.yml 注释把它读成
+    「1 核 × 1/3 小时」，据此断定「与申请几核无关，只能等根组织提额度」，
+    于是这一整块配置长期没人动，最贵的默认规格落在最该跑的那几条上。
+
+    实测（同一组织、同一时刻，api_trigger 单变量对照）：
+      8 核 → error 1.33 核时 / 4 核 → error / 3 核 → error
+      2 核 → success / 1 核 → success
+    冻结量随核数线性收缩，所以「配置层没有替代品」是错的。
+
+    这里守的是别退回去：删掉这行想"简化配置"，省下的一行会在下次额度见底时
+    变成 Prepare 报错，而那时没人会想到是它。上限 2 核同样是实测结果——
+    这些 job 是串行 python 测试与 AI 接口等待，吃不满多核，多给的核只烧额度。
+    """
+    root = os.path.join(os.path.dirname(__file__), "..")
+    data = yaml.safe_load(open(os.path.join(root, ".cnb.yml"), encoding="utf-8"))
+
+    def pipelines(node):
+        """递归取出所有 Pipeline（分支 → 事件 → 列表，值都是 dict）。"""
+        if isinstance(node, list):
+            for x in node:
+                yield from pipelines(x)
+        elif isinstance(node, dict):
+            if "stages" in node:
+                yield node
+            else:
+                for v in node.values():
+                    yield from pipelines(v)
+
+    missing, too_big = [], []
+    for pipe in pipelines(data):
+        cpus = (pipe.get("runner") or {}).get("cpus")
+        if not cpus:
+            missing.append(pipe.get("name"))
+        elif cpus > 2:
+            too_big.append(f"{pipe.get('name')}={cpus}")
+    assert not missing, (
+        "这些流水线没写 runner.cpus，会静默跑在 8 核默认节点上"
+        f"（每次预冻结 1.33 核时，额度一紧就 Prepare 红）：{missing}")
+    assert not too_big, (
+        f"这些流水线申请的核数超过 2 核：串行测试与 AI 接口等待吃不满多核，"
+        f"多出来的核只按核时烧额度：{too_big}")
+
+
 def test_no_pipeline_defines_a_roleless_ok_stage():
     """没职责的 stage 一个都不留：它可以被删掉而流水线行为完全不变，那就该删。
 

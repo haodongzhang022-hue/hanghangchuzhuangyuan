@@ -37,6 +37,8 @@ $:
   pull_request:
     - name: review-fix-loop
       # 配额：显式写 cpus: 2，**不写就是默认 8 核**，那才是 Prepare 红的原因。
+      # 管住这件事的是 tests/test_industry_completion.py 的
+      # test_every_pipeline_declares_its_own_runner_size：漏写或超过 2 核都会红。
       # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格；
       # 额度不足立即终止任务。所以核数**直接决定**每次要冻多少：
       #   8 核 × 1/6 小时 = 1.33 核时   ← 报错里那个 1.33 是这么来的
