@@ -894,6 +894,138 @@ def test_share_only_input_actually_multiplies_intermediate():
     assert book._input_amount({"from": "x", "share": 0.5}, "不存在的分区") is None
 
 
+# ------------------------------ 评审八轮：嵌套段的形状（顶层收口只收了一层）
+def _write_yaml(td, name, mutate):
+    """改临时 data 副本里的某个 yaml。用例必须落在文件上，不能 patch 内存对象。"""
+    import yaml
+
+    path = os.path.join(td, name)
+    with open(path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    mutate(data)
+    with open(path, "w", encoding="utf-8") as fh:
+        yaml.safe_dump(data, fh, allow_unicode=True)
+
+
+def test_nested_scalar_sections_never_crash_any_exit():
+    """嵌套段写成标量：`(acc.get("intermediate") or {}).get("derived")` 崩
+
+    评审八轮第 1 条。`or {}` 对**标量**不生效（int 是真值），于是 `.get` 直接
+    打在 int 上 —— 而同一文件的 `term()` 对这个字段有 isinstance 保护。
+    同一份数据两种结局：金额读成 None，derived 那行 traceback。
+
+    它同时打崩四条出口：`industry check` / `compute()` / `render_text()` /
+    `/api/industry-db`。所以修在入口（`_normalize_account`），
+    而不是在四个消费点各加一次 isinstance。
+    """
+    from hanghang.engine.input_output import InputOutputBook
+
+    cases = [
+        ("industry-input-output.yaml", "accounts", "intermediate"),
+        ("industry-input-output.yaml", "accounts", "output"),
+        ("industry-input-output.yaml", "accounts", "value_added"),
+        ("industry-strategy.yaml", "partitions", "ai_frontier"),
+        ("industry-strategy.yaml", "partitions", "division_of_labor"),
+        ("industry-strategy.yaml", "partitions", "missing"),
+    ]
+    for name, section, key in cases:
+        td = _tmp_data()
+        _write_yaml(td, name, lambda d, s=section, k=key:
+                    d[s][0].update({k: 1234567890}))
+        db = IndustryDatabase(data_dir=td)
+        problems = db.validate()                 # CI 闸：不许 traceback
+        assert any(key in p and "映射" in p for p in problems), (
+            f"{name}:{key} 写成标量却没报出来：{problems[:3]}")
+        db.compute()                             # /api/industry-db 与导出都走它
+        if name == "industry-input-output.yaml":
+            book = InputOutputBook(td)
+            book.dedup_ledger()
+            book.input_plan()
+
+
+def test_nested_list_sections_never_crash_and_are_reported():
+    """嵌套列表写成字符串/混字符串：`inputs: 建材` 被逐字迭代成「建」「材」
+
+    评审八轮第 2 条。`dict_list` 只加在顶层 `accounts` 上，
+    `for it in (acc.get("inputs") or [])` 完全绕过它 —— 同一文件里
+    4-a 走 dict_list、4-b 走裸列表，**同一次校验两个口径**。
+    """
+    from hanghang.engine.input_output import InputOutputBook
+    from hanghang.engine.official_baseline import OfficialBaseline
+
+    for value, needle in (("建材", "应写成列表"), (["建材"], "不是映射")):
+        td = _tmp_data()
+        _write_yaml(td, "industry-input-output.yaml",
+                    lambda d, v=value: d["accounts"][0].update({"inputs": v}))
+        book = InputOutputBook(td)
+        problems = book.validate()               # 不许崩
+        assert any(needle in p for p in problems), (value, problems[:3])
+        book.dedup_ledger()
+        book.input_plan()
+        IndustryDatabase(data_dir=td).compute()
+
+    # series 是嵌套在 benchmark 里的列表：顶层的 dict_list 管不到它
+    td = _tmp_data()
+    _write_yaml(td, "industry-official-baseline.yaml",
+                lambda d: d["benchmarks"][0]["series"].append("坏"))
+    base = OfficialBaseline(td)
+    assert any("series" in p and "不是映射" in p for p in base.validate()),         base.validate()[:3]
+    base.yoy(base.benchmarks[0]["id"])           # 消费点也不许崩
+
+
+def test_one_shape_defect_is_reported_once():
+    """同一条结构问题不许报两遍：两遍会让人去修一个不存在的第二处
+
+    评审八轮第 5 条。`ScaleLedger.validate()` 与 `cross_check()` 都接了
+    `load_problems`，而 `IndustryDatabase.validate()` 把两者拼进同一个列表 ——
+    `scales: [坏行]` 会打出两条一模一样的「有 1 项不是映射」。
+    其余四本账都只有一处出口，只有这一本有两条。
+    """
+    td = _tmp_data()
+    _write_yaml(td, "industry-scales.yaml",
+                lambda d: d["scales"].append("坏行"))
+    problems = IndustryDatabase(data_dir=td).validate()
+    hits = [p for p in problems if "不是映射" in p]
+    assert len(hits) == 1, f"同一条结构问题报了 {len(hits)} 遍：{hits}"
+
+
+def test_strategy_row_never_contradicts_its_own_validate():
+    """`validate()` 说"应写成映射"而 `row()` traceback —— 同一份数据两个结论
+
+    评审八轮第 4 条。`_load()` 里 `_check_sections` 确实记了 problem，
+    但 `row()` 自己又 `or {}` 兜了一次（对 str 不生效），于是
+    `industry check` 报错、`industry strategy` 却崩。
+    这正是 `_shape.py` 自己 docstring 里写的那句话，只是换了个位置发生。
+    """
+    from hanghang.engine.strategy_view import StrategyView
+
+    td = _tmp_data()
+    _write_yaml(td, "industry-strategy.yaml",
+                lambda d: d["partitions"][0].update({"ai_frontier": "强"}))
+    view = StrategyView(td)
+    pid = next(iter(view.entries))
+    row = view.row(pid)                          # 不许崩
+    assert row["ai_strong"] == []
+    assert any("ai_frontier" in p for p in view.validate())
+    view.rows()
+    view.summary()
+
+
+def test_web_panel_degrades_to_503_not_500_on_shape_defect():
+    """构造期兜住了、`compute()` 没兜 —— 面板会是 500 而不是 503
+
+    评审八轮「影响」段：`_init_engines` 只包住构造，而 `compute()` 才去碰
+    嵌套段。只兜一半的后果是：坏数据把整个只读面板打成 500，
+    与「旁路数据坏了不能拖垮主面板」的口径不一致。
+    """
+    source = open(os.path.join(ROOT, "src/hanghang/web/server.py"),
+                  encoding="utf-8").read()
+    body = source.split("def _api_industry_db")[1].split("def _do_route")[0]
+    assert "try:" in body and "db.compute()" in body, (
+        "compute() 必须包住：构造期兜住不等于出口兜住")
+    assert "503" in body, "形状读不出来要回 503（旁路降级），不是 500"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(list(globals().items())):
         if name.startswith("test_") and callable(fn):

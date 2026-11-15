@@ -18,6 +18,15 @@
 from typing import Iterable, List, Optional
 
 
+def _join(where: str, section: str) -> str:
+    """拼接报错前缀：`where` 为空时不出空串 + 「的」。
+
+    报错文案里出现" 的 分区 x 的 inputs"这种双前缀，读的人第一反应是拼错了，
+    然后就去找那个拼错的地方 —— 而不是去改数据。
+    """
+    return f"{where} 的 {section}" if where else section
+
+
 def dict_list(raw, section: str, problems: List[str], where: str = "") -> List[dict]:
     """取一个"对象列表"段落：过滤掉非 mapping 项，并逐条记下它们。
 
@@ -27,7 +36,8 @@ def dict_list(raw, section: str, problems: List[str], where: str = "") -> List[d
         return []
     if not isinstance(raw, list):
         problems.append(
-            f"{where} 的 {section} 应写成列表，实际是 {type(raw).__name__}: {raw!r}"
+            f"{_join(where, section)} 应写成列表，实际是 "
+            f"{type(raw).__name__}: {raw!r}"
             f"（整段读不出来，等于这一段全部判断/登记都消失了）")
         return []
     out: List[dict] = []
@@ -39,7 +49,7 @@ def dict_list(raw, section: str, problems: List[str], where: str = "") -> List[d
             bad += 1
     if bad:
         problems.append(
-            f"{where} 的 {section} 里有 {bad} 项不是映射（写成了 "
+            f"{_join(where, section)} 里有 {bad} 项不是映射（写成了 "
             f"{type(next(i for i in raw if not isinstance(i, dict))).__name__} 等）"
             f"（当作不存在会让这一项静默消失，而它在报告里本该占一行）")
     return out
@@ -50,13 +60,20 @@ def mapping(raw, section: str, problems: List[str], where: str = "") -> dict:
 
     `{}` 与"写歪了"在报告里必须能分开：前者是这一格确实没有，后者是这格写坏了。
     """
+    key, _, rest = section.partition(" 的 ")
+    return as_mapping(raw, rest or key, problems, where, label=section)
+
+
+def as_mapping(raw, key: str, problems: List[str], where: str = "",
+               label: str = "") -> dict:
+    """`mapping` 的本体：`key` 是字段名，`label` 是报错时想显示的全名。"""
     if raw is None:
         return {}
     if isinstance(raw, dict):
         return dict(raw)
+    name = label or _join(where, key)
     problems.append(
-        f"{where} 的 {section} 应写成 {{键: 值}} 映射，实际是 "
-        f"{type(raw).__name__}: {raw!r}"
+        f"{name} 应写成 {{键: 值}} 映射，实际是 {type(raw).__name__}: {raw!r}"
         f"（读不成映射会让整段内容消失，而「说不出」和「忘了写」在报告里长得一样）")
     return {}
 
@@ -71,12 +88,13 @@ def str_list(raw, section: str, problems: List[str], where: str = "") -> List[st
         return []
     if isinstance(raw, str):
         problems.append(
-            f"{where} 的 {section} 应写成列表，实际是一个字符串: {raw!r}"
+            f"{_join(where, section)} 应写成列表，实际是一个字符串: {raw!r}"
             f"（当成列表会把它逐字拆开，得到一串看着非空、其实没有意义的项）")
         return []
     if not isinstance(raw, list):
         problems.append(
-            f"{where} 的 {section} 应写成列表，实际是 {type(raw).__name__}: {raw!r}")
+            f"{_join(where, section)} 应写成列表，实际是 "
+            f"{type(raw).__name__}: {raw!r}")
         return []
     out: List[str] = []
     bad = 0
@@ -87,7 +105,7 @@ def str_list(raw, section: str, problems: List[str], where: str = "") -> List[st
             bad += 1
     if bad:
         problems.append(
-            f"{where} 的 {section} 里有 {bad} 项不是非空字符串（数字/嵌套写混了）")
+            f"{_join(where, section)} 里有 {bad} 项不是非空字符串（数字/嵌套写混了）")
     return out
 
 
@@ -98,3 +116,25 @@ def add_all(target: List[str], extra: Optional[Iterable[str]]) -> List[str]:
     全是基于残缺的数据算出来的，先读那几十条只会让人以为是数据填错了。
     """
     return list(extra or []) + list(target)
+
+
+def nested_list(parent: dict, key: str, section: str,
+                problems: List[str], where: str = "") -> List[dict]:
+    """取**嵌套**在一条记录里的对象列表（如 `benchmark.series`、`account.inputs`）。
+
+    顶层收口之后漏的就是这一层：`_shape.dict_list` 只作用在 `benchmarks` 上，
+    `for r in (b.get("series") or [])` 依然绕过它 —— 而 `series` 里混一个字符串
+    照样让 `industry check` traceback。**收口只收一层，等于没收。**
+    """
+    return dict_list((parent or {}).get(key), section, problems, where)
+
+
+def nested_mapping(parent: dict, key: str, section: str,
+                   problems: List[str], where: str = "") -> dict:
+    """取**嵌套**在一条记录里的映射（如 `account.intermediate`、`entry.ai_frontier`）。
+
+    `(acc.get("intermediate") or {}).get("derived")` 是这一层的典型写法：
+    `or {}` 对 `0` / `""` / 标量都不生效（标量是真值），于是 `.get` 打在 int 上。
+    `term()` 对同一字段有 isinstance 保护，唯独这一行没有 —— 同一份数据两种结局。
+    """
+    return mapping((parent or {}).get(key), f"{section}", problems, where)

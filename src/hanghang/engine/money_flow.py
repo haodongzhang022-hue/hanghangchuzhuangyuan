@@ -36,7 +36,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from ._shape import add_all, dict_list, mapping
+from ._shape import add_all, dict_list
 
 # 节点类型：部门（资金流量表的机构部门）+ 行业池（分区作为钱的容器）
 NODE_TYPES = ("sector", "industry")

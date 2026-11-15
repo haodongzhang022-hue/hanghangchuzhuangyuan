@@ -32,7 +32,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from ._shape import add_all, dict_list, mapping, str_list
+from ._shape import add_all, dict_list
 
 # 战略层的段。缺哪一段都要在 missing 里写原因 —— 说不出缺什么，等于保证它永远缺。
 SECTIONS = ("value_chain", "position", "profit_pool", "leverage",
@@ -82,6 +82,10 @@ class StrategyView:
         # `(it or {})` 只兜得住 None，兜不住字符串 —— 数据是手写的，
         # 列表里混一个字符串是最常见的写法之一，而它会让 `industry check` 崩。
         self.load_problems: List[str] = []
+        # 形状写歪的段：`{分区: {段名}}`。validate() 末尾那条"空段要解释"
+        # 要跳过它们 —— 已经报过"应写成映射"，再叠一条"缺这一段且没写原因"
+        # 是把一条手滑说成两条，读的人会去补 missing 而不是去改结构。
+        self._defect_sections: Dict[str, set] = {}
         self._partitions = partitions or []
         self._registry = registry
         self._load()
@@ -123,18 +127,23 @@ class StrategyView:
                     f"{where} 分区 {pid} 的 {name} 应写成列表，实际是一个字符串: "
                     f"{raw!r}（当成列表会把它逐字拆开，得到一串看着非空、"
                     f"其实没有意义的项）")
+                row[name] = []
+                self._defect_sections.setdefault(pid, set()).add(name)
             elif not isinstance(raw, list):
                 self.load_problems.append(
                     f"{where} 分区 {pid} 的 {name} 应写成列表，实际是 "
                     f"{type(raw).__name__}: {raw!r}")
+                row[name] = []
+                self._defect_sections.setdefault(pid, set()).add(name)
             else:
-                bad = [x for x in raw if name == "profit_pool"
-                       and not isinstance(x, dict)]
-                if bad:
+                bad = [x for x in raw if not isinstance(x, dict)]
+                if bad and name == "profit_pool":
                     self.load_problems.append(
                         f"{where} 分区 {pid} 的 {name} 里有 {len(bad)} 项不是映射"
                         f"（写成了 {type(bad[0]).__name__}）"
                         f"（当作不存在会让这一项静默消失，而它在报告里本该占一行）")
+                    row[name] = [x for x in raw if isinstance(x, dict)]
+                    self._defect_sections.setdefault(pid, set()).add(name)
         for name in self._MAP_SECTIONS:
             raw = row.get(name)
             if raw is not None and not isinstance(raw, dict):
@@ -143,6 +152,9 @@ class StrategyView:
                     f"{type(raw).__name__}: {raw!r}"
                     f"（读不成映射会让整段内容消失，而「说不出」和「忘了写」"
                     f"在报告里长得一样）")
+                # 归一：清成空映射，免得每个消费点各兜一次
+                row[name] = {}
+                self._defect_sections.setdefault(pid, set()).add(name)
 
     def bind(self, partitions: List[dict], registry=None) -> None:
         self._partitions = partitions
@@ -186,8 +198,11 @@ class StrategyView:
         """一个分区的战略视图（含缺段原因与岗位落点是否成立）。"""
         e = self.entries.get(pid) or {}
         roles = self._roles_of(pid)
-        focus = list(e.get("role_focus") or [])
-        frontier = e.get("ai_frontier") or {}
+        focus = _strs(e.get("role_focus"))
+        # `_load` 已把形状归一（写歪的段清成空映射并记下 problem），
+        # 这里不再 `or {}` 二次兜底 —— 兜两次的结果是同一份数据两种结论：
+        # validate 说「应写成映射」，row() 却 traceback。
+        frontier = e.get("ai_frontier") if isinstance(e.get("ai_frontier"), dict) else {}
         return {
             "partition": pid,
             "value_chain": _strs(e.get("value_chain")),
@@ -363,6 +378,10 @@ class StrategyView:
             # 8. 空段要解释：说不出缺什么，等于保证它永远缺
             for section in SECTIONS:
                 if e.get(section):
+                    continue
+                if section in self._defect_sections.get(pid, ()):
+                    # 形状写歪已单独报过，不再叠一条"缺段没写原因"：
+                    # 一条手滑报两条，读的人会去补 missing 而不是改结构。
                     continue
                 if not self.missing_reason(pid, section):
                     problems.append(

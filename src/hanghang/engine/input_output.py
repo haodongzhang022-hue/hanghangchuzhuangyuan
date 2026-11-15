@@ -44,7 +44,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from ._shape import add_all, dict_list
+from ._shape import add_all, as_mapping, dict_list, nested_list
 
 # 三端。缺哪一端，决定了这一行"能不能切分"和"能不能验"。
 TERMS = ("output", "value_added", "intermediate")
@@ -93,6 +93,7 @@ class InputOutputBook:
                              self.load_problems, where):
             pid = row.get("partition") or ""
             if pid:
+                self._normalize_account(pid, row, where)
                 self.accounts[pid] = dict(row)
             else:
                 self.load_problems.append(
@@ -104,6 +105,31 @@ class InputOutputBook:
 
     def bind(self, partitions: List[dict]) -> None:
         self._partitions = partitions
+
+    # 三端金额段：写歪了要报，而不是让每个消费点各兜一次
+    _TERM_SECTIONS = ("output", "value_added", "intermediate")
+
+    def _normalize_account(self, pid: str, row: dict, where: str) -> None:
+        """账户里嵌套段的形状归一：三段金额是映射，inputs 是对象列表。
+
+        收口只收顶层等于没收：`(acc.get("intermediate") or {}).get("derived")`
+        在 intermediate 写成标量时，`or {}` 短路不生效（标量是真值），
+        `.get` 直接打在 int 上 —— 而 `term()` 对同一字段有 isinstance 保护，
+        于是同一份数据两种结局：金额读成 None，derived 那行崩。
+        """
+        for name in self._TERM_SECTIONS:
+            raw = row.get(name)
+            if raw is None:
+                continue
+            if isinstance(raw, dict):
+                continue
+            # 写歪：清成 {} 以免下面每个消费点还要各兜一次。
+            # 缺陷**必须**记进 load_problems —— 静默清空等于把"写坏了"说成"没有这一项"，
+            # 而那正是这轮在拆的那种错。
+            row[name] = as_mapping(raw, name, self.load_problems, where,
+                                   label=f"分区 {pid} 的 {name}")
+        row["inputs"] = nested_list(row, "inputs", f"分区 {pid} 的 inputs",
+                                    self.load_problems, "")
 
     # ------------------------------------------------------------- lookups
     def partition(self, pid: str) -> Optional[dict]:
@@ -267,8 +293,9 @@ class InputOutputBook:
         schema = []
         for pid, acc in self.accounts.items():
             mid = self.term(acc, "intermediate")
-            inputs = dict_list(acc.get("inputs"), f"分区 {pid} 的 inputs",
-                               self.load_problems, os.path.basename(self.path))
+            # inputs 已在 `_normalize_account` 归一，这里不再二次 dict_list：
+            # 同一份数据两次归一 = 同一个 problem 报两遍。
+            inputs = acc.get("inputs") or []
             if inputs:
                 continue
             schema.append({
@@ -291,7 +318,9 @@ class InputOutputBook:
         supplied: Dict[str, float] = {}
         by_consumer: Dict[str, List[str]] = {}
         for pid, acc in self.accounts.items():
-            for it in (acc.get("inputs") or []):
+            # 走 `_load` 归一过的 inputs，不再裸迭代：裸 list 遇到
+            # `inputs: 建材` 会逐字迭代成「建」「材」，`(it or {}).get` 打在 str 上。
+            for it in acc.get("inputs") or []:
                 src = (it or {}).get("from") or ""
                 v = self._input_amount(it, pid)
                 if not src or not v:
@@ -390,8 +419,9 @@ class InputOutputBook:
 
         # 4-a. 中间投入构成合计 = 中间投入总额（声明 complete 时）
         for pid, acc in self.accounts.items():
-            inputs = dict_list(acc.get("inputs"), f"分区 {pid} 的 inputs",
-                               self.load_problems, os.path.basename(self.path))
+            # inputs 已在 `_normalize_account` 归一，这里不再二次 dict_list：
+            # 同一份数据两次归一 = 同一个 problem 报两遍。
+            inputs = acc.get("inputs") or []
             mid = self.term(acc, "intermediate")
             if not inputs:
                 continue
@@ -414,7 +444,7 @@ class InputOutputBook:
         # 4-b. 供给上界：某分区作为投入方出现的合计 ≤ 它自己的总产出
         supplied: Dict[str, float] = {}
         for pid, acc in self.accounts.items():
-            for it in (acc.get("inputs") or []):
+            for it in acc.get("inputs") or []:
                 src = (it or {}).get("from") or ""
                 v = self._input_amount(it, pid)
                 if src and v:

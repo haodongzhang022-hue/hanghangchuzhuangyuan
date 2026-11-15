@@ -338,7 +338,11 @@ class ScaleLedger:
         每条都是"两个独立来源的数对不上"。**单看任何一个都正确**，
         所以这类错必须靠互推抓。
         """
-        problems: List[str] = add_all([], self.load_problems)
+        # 结构问题**只在这里报一次**：load_problems 由 validate() 出口。
+        # cross_check() 也接一份的话，industry_db.validate() 两次调用拼进同一个
+        # 列表，同一条「scales 里有 1 项不是映射」会打两遍 —— 读的人会以为
+        # 两个地方坏了，而去修一个不存在的第二处。
+        problems: List[str] = []
         for p in self._partitions or []:
             pid = p.get("id", "")
             if not pid or pid not in self.entries:

@@ -38,7 +38,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from ._shape import add_all, dict_list
+from ._shape import add_all, dict_list, nested_list
 
 # 三种对表关系。刻意只有三种：再多就把"不一样"说成了一堆同义词。
 RELATIONS = ("equal", "envelope", "incomparable")
@@ -96,6 +96,13 @@ class OfficialBaseline:
         where = os.path.basename(self.path)
         self.benchmarks = dict_list(data.get("benchmarks"), "benchmarks",
                                     self.load_problems, where)
+        # 嵌套段也要收口：`_shape.dict_list` 只作用在 benchmarks 上，
+        # `for r in (b.get("series") or [])` 依然绕过它 —— 而 series 里混一个
+        # 字符串照样让 `industry check` traceback。**收口只收一层，等于没收。**
+        for bench in self.benchmarks:
+            bid = bench.get("id") or ""
+            bench["series"] = nested_list(
+                bench, "series", f"基准 {bid} 的 series", self.load_problems, "")
         self.links = dict_list(data.get("links"), "links", self.load_problems, where)
         self.unlinked = dict_list(data.get("unlinked"), "unlinked",
                                   self.load_problems, where)
@@ -121,7 +128,9 @@ class OfficialBaseline:
         不取"最新一条"以外的口径（如平均值/中位数）：对表比的是同一年同一笔钱，
         拿平均去比等于把两年的修订差算进偏差里。
         """
-        rows = [r for r in (bench.get("series") or []) if _is_int(r.get("year"))]
+        rows = [r for r in (bench.get("series") or [])
+                if isinstance(r, dict)
+                if isinstance(r, dict) and _is_int(r.get("year"))]
         if not rows:
             return None
         if year is None:
@@ -137,7 +146,8 @@ class OfficialBaseline:
         if not bench:
             return None
         rows = [r for r in (bench.get("series") or [])
-                if _is_int(r.get("year")) and _is_num(r.get("value_cny"))]
+                if isinstance(r, dict) and _is_int(r.get("year"))
+                and _is_num(r.get("value_cny"))]
         if len(rows) < 2:
             return None
         prev, last = rows[-2], rows[-1]
