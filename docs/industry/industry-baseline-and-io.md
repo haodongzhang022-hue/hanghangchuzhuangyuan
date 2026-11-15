@@ -35,13 +35,37 @@ part_year(part) -> (year, source)
 硬取 2024 会得到「官方没这一年的数」，看起来像对不上，其实只是基准还没录。
 `year_source` 一路带到对表结论里，推出来的年份不会被当成声明过的。
 
+### `origin`：来历比数值更重要
+
+每个基准必须写自己是**怎么来的**：
+
+| origin | 含义 | 能否背书 `high` |
+|---|---|---|
+| `published` | 逐表抄自公开统计表（年鉴/公报原值） | ✅ 唯一可以的一档 |
+| `recalled` | 凭公开量级回忆写的，未逐表核对 | ❌ 数值可能对，但没有可追溯的表页 |
+| `backfilled` | 由分区现有估算**反推**的"官方值" | ❌ 最危险 |
+
+`backfilled` 为什么最危险：它让对表变成循环论证 —— 自己和自己比，永远 0.00% 偏差，
+得出的"对上"什么也没证明，却看起来像证据。**两个独立来源对得上才叫交叉验证；
+把 A 抄成 B 再比一次，得到的是一致地错，不是一致地对。**
+
+这条规矩上线就抓出 4 个假 `high`：制造业、采矿业、电力热力燃气水、卫生总费用，
+它们的基准全是按占比反算的，于是 `industry check` 报
+「基准 origin='backfilled' 不是逐表抄来的公开值，比出来的一致什么也没证明」，
+4 个分区一起降为 `medium`。
+
+现在全仓只剩 4 个 `high`，都有逐表抄来的公报值背书：
+电子商务（网上零售额）、餐饮美食（餐饮收入）、建筑工程（建筑业总产值）、
+农林牧渔（第一产业增加值）。
+
 ### 置信度是算出来的
 
 ```
-status == ok           → high
-incomparable/no_series → medium
-unlinked               → low
-gap                    → low
+status == ok 且 origin == published  → high
+status == ok 但 origin != published  → medium   （一致什么也没证明）
+incomparable / no_series             → medium
+unlinked                             → low
+gap                                  → low
 ```
 
 `baseline.confidence_of(pid)` 给机器判定的上限，`partition.gdp_confidence` 是标注值。

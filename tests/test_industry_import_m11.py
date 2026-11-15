@@ -70,7 +70,9 @@ def test_unknown_gdp_kind_and_confidence_are_reported():
     p["gdp_kind"] = "value_added"
     p["gdp_confidence"] = "very-high"
     assert any("gdp_confidence" in x for x in db.validate())
-    p["gdp_confidence"] = "high"
+    # 恢复成枚举里的合法值即可（这里取 medium：制造业的官方基准是反推的，
+    # 标 high 会被第 24 条判"没有对表背书"，那是另一条校验的事）
+    p["gdp_confidence"] = "medium"
     assert not any("gdp_kind" in x or "gdp_confidence" in x for x in db.validate())
 
 
@@ -118,10 +120,15 @@ def test_rows_carry_kind_and_label():
     """导出/接口的行里必须带口径类型与中文说明，不能只有一串数字"""
     db = _db()
     s = db.compute()
-    row = next(r for r in s["rows"] if r["id"] == "manufacturing")
-    assert row["gdp_kind"] == "value_added"
-    assert row["gdp_kind_label"] == GDP_KINDS["value_added"]
+    row = next(r for r in s["rows"] if r["id"] == "construction-eng")
+    assert row["gdp_kind"] == "gross_output"
+    assert row["gdp_kind_label"] == GDP_KINDS["gross_output"]
+    # 置信度不是随手写的：建筑业的官方基准是**逐表抄来的**公报值
+    # （origin=published），且同口径同年份对上，high 才有背书。
+    # 制造业的基准是反推的（backfilled），与分区同源，所以它只能是 medium。
     assert row["gdp_confidence"] == "high"
+    man = next(r for r in s["rows"] if r["id"] == "manufacturing")
+    assert man["gdp_confidence"] == "medium"
 
 
 # ------------------------------------------------- 结构单源

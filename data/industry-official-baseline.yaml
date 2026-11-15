@@ -50,7 +50,21 @@ tolerance: 0.10
 #   name    官方口径全名（年鉴里的叫法）
 #   kind    口径类型，枚举同 GDP_KINDS —— 只有同 kind 才允许 equal 比对
 #   axis    归口：national_accounts（国民经济核算）/ industry_stat（行业统计）
+#   origin  这个数**是怎么来的**（关键，见下）
 #   series  [{year, value_cny, source, confidence}]
+#
+# ## origin：对表的独立性，比数值本身更重要
+#
+#   published   逐表抄自公开统计表（年鉴/公报原值）。
+#               **只有这一档能背书 high。**
+#   recalled    凭公开量级回忆写的，未逐表核对。数值可能对，但没有可追溯的表页。
+#   backfilled  由分区现有估算反推出来的"官方值"。
+#               ← 这一档最危险：它让对表变成循环论证（自己和自己比，永远 0% 偏差），
+#                 得出的"对上"什么也没证明，却看起来像证据。
+#
+# 为什么必须分开：两个**独立**来源对得上才叫交叉验证；把 A 抄成 B 再比一次，
+# 得到的是一致的错，不是一致的对。制造业 33 万亿就是这个形态 ——
+# 分区估 33 万亿，"官方基准"也是照着它写的，偏差 0.00% 毫无信息量。
 # ---------------------------------------------------------------------------
 benchmarks:
 
@@ -58,6 +72,7 @@ benchmarks:
     name: 国内生产总值
     kind: value_added
     axis: national_accounts
+    origin: published     # 2022/2023 年 GDP 为统计公报原值（121.02 / 126.06 万亿元）
     series:
       - {year: 2022, value_cny: 121020700000000, source: 国家统计局年度数据·国内生产总值, confidence: high}
       - {year: 2023, value_cny: 126058200000000, source: 国家统计局年度数据·国内生产总值, confidence: high}
@@ -67,6 +82,7 @@ benchmarks:
     name: 第一产业增加值（农林牧渔业）
     kind: value_added
     axis: national_accounts
+    origin: published     # 第一产业增加值 8.82 / 8.98 万亿元，公报原值
     series:
       - {year: 2022, value_cny: 8820700000000, source: 国家统计局·分行业增加值(第一产业), confidence: high}
       - {year: 2023, value_cny: 8975500000000, source: 国家统计局·分行业增加值(第一产业), confidence: high}
@@ -75,6 +91,7 @@ benchmarks:
     name: 制造业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 由「制造业占 GDP 26.1%/26.2%」反算，非年鉴表页原值 —— 与分区现有估算同源，不可作为对表证据
     series:
       - {year: 2022, value_cny: 31600000000000, source: 国家统计局·分行业增加值(制造业，占GDP 26.1%), confidence: medium}
       - {year: 2023, value_cny: 33000000000000, source: 国家统计局·分行业增加值(制造业，占GDP 26.2%), confidence: medium}
@@ -84,6 +101,7 @@ benchmarks:
     name: 建筑业总产值
     kind: gross_output
     axis: industry_stat
+    origin: published     # 建筑业总产值 31.2 / 31.6 万亿元，公报原值
     series:
       - {year: 2022, value_cny: 31200000000000, source: 国家统计局·建筑业总产值, confidence: medium}
       - {year: 2023, value_cny: 31600000000000, source: 国家统计局·建筑业总产值, confidence: medium}
@@ -93,6 +111,7 @@ benchmarks:
     name: 建筑业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 建筑业增加值按门类量级写，未逐表核对
     series:
       - {year: 2022, value_cny: 8300000000000, source: 国家统计局·分行业增加值(建筑业), confidence: medium}
       - {year: 2023, value_cny: 8600000000000, source: 国家统计局·分行业增加值(建筑业), confidence: medium}
@@ -102,6 +121,7 @@ benchmarks:
     name: 全国餐饮收入
     kind: revenue
     axis: industry_stat
+    origin: published     # 餐饮收入 4.40 / 5.29 万亿元，社零公报原值
     series:
       - {year: 2022, value_cny: 4400000000000, source: 国家统计局·社会消费品零售总额中餐饮收入, confidence: high}
       - {year: 2023, value_cny: 5290000000000, source: 国家统计局·社会消费品零售总额中餐饮收入, confidence: high}
@@ -110,6 +130,7 @@ benchmarks:
     name: 全国网上零售额
     kind: gmv
     axis: industry_stat
+    origin: published     # 网上零售额 13.79 / 15.43 万亿元，公报原值
     series:
       - {year: 2022, value_cny: 13790000000000, source: 国家统计局·网上零售额, confidence: high}
       - {year: 2023, value_cny: 15430000000000, source: 国家统计局·网上零售额, confidence: high}
@@ -119,6 +140,7 @@ benchmarks:
     name: 社会消费品零售总额
     kind: gmv
     axis: industry_stat
+    origin: published     # 社零总额 43.97 / 47.15 万亿元，公报原值
     series:
       - {year: 2022, value_cny: 43970000000000, source: 国家统计局·社会消费品零售总额, confidence: high}
       - {year: 2023, value_cny: 47150000000000, source: 国家统计局·社会消费品零售总额, confidence: high}
@@ -128,6 +150,7 @@ benchmarks:
     name: 卫生总费用
     kind: cost_total
     axis: industry_stat
+    origin: backfilled    # 卫生总费用按占 GDP 7.0%/7.2% 反算，未逐表核对
     series:
       - {year: 2022, value_cny: 8480000000000, source: 国家卫健委·卫生总费用(占GDP 7.0%), confidence: medium}
       - {year: 2023, value_cny: 9060000000000, source: 国家卫健委·卫生总费用(占GDP 7.2%), confidence: medium}
@@ -137,6 +160,7 @@ benchmarks:
     name: 研究与试验发展经费
     kind: cost_total
     axis: industry_stat
+    origin: published     # R&D 经费 3.09 / 3.33 万亿元，统计公报原值
     series:
       - {year: 2022, value_cny: 3090000000000, source: 国家统计局·R&D 经费投入统计公报, confidence: high}
       - {year: 2023, value_cny: 3330000000000, source: 国家统计局·R&D 经费投入统计公报, confidence: high}
@@ -145,6 +169,7 @@ benchmarks:
     name: 社会物流总费用
     kind: cost_total
     axis: industry_stat
+    origin: published     # 社会物流总费用 17.8 / 18.2 万亿元，中物联年度公报原值
     series:
       - {year: 2022, value_cny: 17800000000000, source: 中国物流与采购联合会·社会物流总费用(占GDP 14.7%), confidence: medium}
       - {year: 2023, value_cny: 18200000000000, source: 中国物流与采购联合会·社会物流总费用(占GDP 14.4%), confidence: medium}
@@ -154,6 +179,7 @@ benchmarks:
     name: 金融业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 金融业增加值按占 GDP 8% 反算，未逐表核对
     series:
       - {year: 2022, value_cny: 9700000000000, source: 国家统计局·分行业增加值(金融业，占GDP 8.0%), confidence: medium}
       - {year: 2023, value_cny: 10100000000000, source: 国家统计局·分行业增加值(金融业，占GDP 8.0%), confidence: medium}
@@ -162,6 +188,7 @@ benchmarks:
     name: 信息传输、软件和信息技术服务业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 信息传输软件业增加值按占 GDP 4.1%/4.4% 反算，未逐表核对
     series:
       - {year: 2022, value_cny: 5000000000000, source: 国家统计局·分行业增加值(信息传输软件和信息技术服务业，占GDP 4.1%), confidence: medium}
       - {year: 2023, value_cny: 5500000000000, source: 国家统计局·分行业增加值(信息传输软件和信息技术服务业，占GDP 4.4%), confidence: medium}
@@ -171,6 +198,7 @@ benchmarks:
     name: 文化及相关产业增加值
     kind: value_added
     axis: industry_stat
+    origin: backfilled    # 文化产业增加值 2022 为公报值、2023 为量级推算
     series:
       - {year: 2022, value_cny: 5300000000000, source: 国家统计局·文化及相关产业增加值, confidence: medium}
       - {year: 2023, value_cny: 5900000000000, source: 国家统计局·文化及相关产业增加值, confidence: low}
@@ -180,6 +208,7 @@ benchmarks:
     name: 采矿业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 按采矿业占 GDP 约 4.2% 反算，未逐表核对
     series:
       - {year: 2022, value_cny: 5200000000000, source: 国家统计局·分行业增加值(采矿业), confidence: medium}
       - {year: 2023, value_cny: 5300000000000, source: 国家统计局·分行业增加值(采矿业), confidence: medium}
@@ -189,6 +218,7 @@ benchmarks:
     name: 电力、热力、燃气及水生产和供应业增加值
     kind: value_added
     axis: national_accounts
+    origin: backfilled    # 按电力热力燃气水门类量级反算，未逐表核对
     series:
       - {year: 2022, value_cny: 4300000000000, source: 国家统计局·分行业增加值(电力热力燃气及水), confidence: medium}
       - {year: 2023, value_cny: 4600000000000, source: 国家统计局·分行业增加值(电力热力燃气及水), confidence: medium}
@@ -198,6 +228,7 @@ benchmarks:
     name: 全国体育产业总产出
     kind: gross_output
     axis: industry_stat
+    origin: backfilled    # 体育产业总产出为总局公报量级，未逐表核对
     series:
       - {year: 2022, value_cny: 3300000000000, source: 国家体育总局·全国体育产业总规模与增加值, confidence: medium}
     note: 只有 2022 一年（体育产业统计为隔年发布）。所以分区若声明 2023，就没有可比表值。

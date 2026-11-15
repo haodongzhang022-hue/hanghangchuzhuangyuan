@@ -40,6 +40,15 @@ import yaml
 
 # 三种对表关系。刻意只有三种：再多就把"不一样"说成了一堆同义词。
 RELATIONS = ("equal", "envelope", "incomparable")
+
+# 基准的来历，决定它能不能给 high 背书。**比数值本身更重要**：
+#   published   逐表抄自公开统计表 → 唯一能背书 high 的一档
+#   recalled    凭量级回忆，未逐表核对 → 数值可能对，但没有可追溯的表页
+#   backfilled  由分区现有估算反推 → 让对表变成循环论证（自己和自己比，永远 0%），
+#               得出的"对上"什么也没证明，却看起来像证据
+ORIGINS = ("published", "recalled", "backfilled")
+# 能背书 high 的来历
+ORIGIN_TRUSTED = ("published",)
 # 分区侧对齐年份缺省值：与 partition.gdp_year_basis 的写法一致（区间取末年）
 DEFAULT_TOLERANCE = 0.10
 
@@ -238,7 +247,11 @@ class OfficialBaseline:
             return "low"
         r = rows[0]
         if r["status"] == "ok":
-            return "high"
+            # 对上还不够：基准本身得是逐表抄来的公开值。反推出来的"官方值"
+            # 与分区同源，比出来永远 0% 偏差 —— 那是一致的错，不是一致的对。
+            bench = self.benchmark(r.get("benchmark", "")) or {}
+            origin = bench.get("origin")
+            return "high" if origin in ORIGIN_TRUSTED else "medium"
         if r["status"] in ("incomparable", "no_series", "no_value", "unlinked"):
             return "medium" if r["status"] != "unlinked" else "low"
         return "low" if r["status"] == "gap" else "low"
@@ -281,6 +294,11 @@ class OfficialBaseline:
                 problems.append("官方基准缺少 id（对表关系无法引用）")
                 continue
             seen[bid] = seen.get(bid, 0) + 1
+            origin = b.get("origin")
+            if origin not in ORIGINS:
+                problems.append(
+                    f"基准 {bid} 的 origin={origin!r} 不在 {list(ORIGINS)} 中"
+                    f"（来历不明就无法判断它能不能背书 high，写不清就不许当证据）")
             series = b.get("series") or []
             if not series:
                 problems.append(
@@ -375,6 +393,15 @@ class OfficialBaseline:
                 continue
             r = next((x for x in self.compare()
                       if x["partition"] == p.get("id")), None)
+            bench = self.benchmark((r or {}).get("benchmark", "")) or {}
+            origin = bench.get("origin")
+            if r and r["status"] == "ok" and origin not in ORIGIN_TRUSTED:
+                problems.append(
+                    f"分区 {p.get('id')} 标了 gdp_confidence=high，但它对表的基准 "
+                    f"{r['benchmark']} 的 origin={origin!r} 不是逐表抄来的公开值"
+                    f"（{list(ORIGIN_TRUSTED)} 才能背书 high；反推或回忆的基准"
+                    f"与分区同源，比出来的一致什么也没证明）")
+                continue
             if not r or r["status"] != "ok":
                 why = {"incomparable": "口径与官方不同（不可比）",
                        "no_series": "官方基准没有该年份的表值",

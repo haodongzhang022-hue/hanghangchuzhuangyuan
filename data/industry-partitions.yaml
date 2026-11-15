@@ -271,7 +271,7 @@ partitions:
     gdp_kind: cost_total
     gdp_scope: 卫生总费用(含公立医疗, 其中市场化服务仅一部分)
     gdp_source: 国家卫健委卫生统计公报(量级估算)
-    gdp_confidence: high
+    gdp_confidence: medium
     employment: 1400
     employment_source: 卫生技术人员数(含公立医疗)
     unit_id: healthcare
@@ -551,7 +551,7 @@ partitions:
     gdp_kind: value_added
     gdp_scope: 制造业增加值(整行业口径, 其中管理与技术岗是 AI 可承接部分)
     gdp_source: 国家统计局工业增加值
-    gdp_confidence: high
+    gdp_confidence: medium
     employment: 8000
     employment_source: 制造业从业人数(规上+规下估算)
     unit_id: ''
@@ -866,7 +866,7 @@ partitions:
     gdp_kind: value_added
     gdp_scope: 采矿业增加值
     gdp_source: 国家统计局采矿业增加值
-    gdp_confidence: high
+    gdp_confidence: medium
     employment: 400
     employment_source: 采矿业从业人数
     unit_id: ''
@@ -888,7 +888,7 @@ partitions:
     gdp_kind: value_added
     gdp_scope: 电力热力燃气及水生产供应业增加值
     gdp_source: 国家统计局·分行业增加值(电力热力燃气及水)
-    gdp_confidence: high
+    gdp_confidence: medium
     gdp_year: 2023
     gdp_year_basis: "2022-2023"
     employment: 300

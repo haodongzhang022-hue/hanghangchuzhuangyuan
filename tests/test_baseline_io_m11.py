@@ -138,7 +138,10 @@ def test_yoy_needs_two_years():
 def test_confidence_of_is_derived_not_declared():
     """机器判定的置信度：对上=high，不可比≤medium，没接=low"""
     db = _db()
-    assert db.baseline.confidence_of("manufacturing") == "high"
+    # 对上 + 基准逐表抄来 = high
+    assert db.baseline.confidence_of("construction-eng") == "high"
+    # 对上但基准是反推的 = 最多 medium（一致什么也没证明）
+    assert db.baseline.confidence_of("manufacturing") == "medium"
     assert db.baseline.confidence_of("dongjiagoushi") in ("medium", "low")
     assert db.baseline.confidence_of("game-dev-unit") == "low"
 
@@ -411,6 +414,55 @@ def test_inventory_lists_every_source():
     for word in ("知识库", "out/industry-db", "data/db/industry"):
         assert word in doc, word
     assert re.search(r"\| `scale_metric` \| \d+ \|", doc)
+
+
+# ------------------------------------------------- 7. origin：对表的独立性
+def test_only_published_baselines_can_back_high():
+    """backfilled / recalled 的基准不许背书 high：反推出来的"官方值"与分区同源，
+    比出来的一致什么也没证明，却看起来像证据"""
+    db = _db()
+    assert not [p for p in db.baseline.validate() if "origin" in p]
+    for p in db.partitions:
+        if p.get("gdp_confidence") != "high" or not p.get("gdp_cny"):
+            continue
+        r = next(x for x in db.baseline.compare() if x["partition"] == p["id"])
+        bench = db.baseline.benchmark(r["benchmark"]) or {}
+        assert bench.get("origin") == "published", (p["id"], bench.get("id"))
+
+
+def test_backfilled_baseline_cannot_back_high():
+    """把一个 backfilled 基准的对表结论改成 ok，再标 high → 必须报"""
+    db = _db()
+    p = db.partition("manufacturing")
+    p["gdp_confidence"] = "high"
+    problems = db.validate()
+    p["gdp_confidence"] = "medium"
+    assert any("backfilled" in x and "manufacturing" in x for x in problems), problems
+
+
+def test_confidence_of_respects_origin():
+    """机器判定的置信度也要看来历：对上但基准是反推的，最多 medium"""
+    db = _db()
+    assert db.baseline.confidence_of("manufacturing") == "medium"
+    assert db.baseline.confidence_of("construction-eng") == "high"
+    assert db.baseline.confidence_of("agriculture") == "high"
+
+
+def test_unknown_origin_is_reported():
+    """origin 写错/漏写 → 报错（来历不明就不许当证据）"""
+    db = _db()
+    bench = db.baseline.benchmark("revenue-catering")
+    saved = bench.pop("origin")
+    problems = db.baseline.validate()
+    bench["origin"] = saved
+    assert any("origin" in x for x in problems), problems
+
+
+def test_every_baseline_declares_origin():
+    """17 个基准每一个都要写来历：不写就等于「这几万字的数是天上掉的」"""
+    db = _db()
+    for b in db.baseline.benchmarks:
+        assert b.get("origin") in ("published", "recalled", "backfilled"), b.get("id")
 
 
 if __name__ == "__main__":

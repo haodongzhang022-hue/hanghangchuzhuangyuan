@@ -681,9 +681,15 @@ def cmd_industry_baseline(args):
                 print(f"  结论: {st}{dev}  容差 {r['tolerance']:.0%}")
                 if r.get("reason"):
                     print(f"  说明: {r['reason'].strip()}")
+            origin = bench.get("origin") or "未写"
+            print(f"  基准来历: {origin}"
+                  + {"published": "（逐表抄自公开统计表 → 可背书 high）",
+                     "recalled": "（量级回忆，未逐表核对 → 不可背书 high）",
+                     "backfilled": "（由分区估算反推 → 与分区同源，"
+                                   "比出来的 0% 偏差什么也没证明）"}.get(origin, ""))
             print(f"  机器判定的置信度上限: {base.confidence_of(pid)}"
                   f"（标注的是 {p.get('gdp_confidence') or '-'}；"
-                  f"high 只能由通过的对表背书）")
+                  f"high 只能由 published 基准 + 通过的对表背书）")
             return
 
         print("=" * 96)
@@ -726,8 +732,8 @@ def cmd_industry_baseline(args):
           f" / 无该年表值 {counts.get('no_series', 0)}"
           f" / 没接（已说明）{counts.get('unlinked', 0)}"
           f" / **没接又没说明 {counts.get('unexplained', 0)}**")
-    print("立场: high 置信度只能由「同口径 + 同年份 + 偏差在容差内」的对表背书，"
-          "不许自己写。")
+    print("立场: high 只能由「published 基准 + 同口径 + 同年份 + 偏差在容差内」"
+          "背书，不许自己写；反推来的「官方值」与分区同源，比出来的 0% 什么也没证明。")
     print("-" * 104)
     top = getattr(args, "top", 0) or 0
     only = getattr(args, "only", "") or ""
