@@ -36,16 +36,20 @@ $:
   # ========================================================
   pull_request:
     - name: review-fix-loop
-      # 配额：**不写 runner.cpus**，也不配置 allowFailure。
-      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格，
-      # 预冻结时额度不足就立即终止任务。所以核数只改变"每次冻结多少"，改变不了
-      # "额度已经见底"——2 核试过、1 核也试过，Prepare 报的仍是同一句话：
-      #   events CPU core-hours are insufficient for pre-freezing(1.33 core-hours)
-      # 1.33 = 1 核 × 1/3 小时，正是默认 1 核节点规格下一次 5min 冻结的量，
-      # 与"申请几核"无关，只说明「云原生构建-CPU」额度已经见底（免费 160 核时/月）。
-      # 配置层没有替代品，只有根组织提升额度这一条路。
-      # 想"不标红"只有 Pipeline 级 allowFailure 一条路（语法手册：为 true 时流水线
-      # 失败状态不上报到 CNB），但它会把真实的测试失败一并吞掉，这里刻意不用。
+      # 配额：显式写 cpus: 2，**不写就是默认 8 核**，那才是 Prepare 红的原因。
+      # 官方「定价 · 用量计算规则」：每 5 min 预冻结一次，冻结用量 = 5min × 节点规格；
+      # 额度不足立即终止任务。所以核数**直接决定**每次要冻多少：
+      #   8 核 × 1/6 小时 = 1.33 核时   ← 报错里那个 1.33 是这么来的
+      #   2 核 × 1/6 小时 = 0.33 核时
+      # 上一版这里写着「与申请几核无关」，那是误判：1.33 不是「1 核 × 1/3 小时」，
+      # 是默认 8 核 × 5 min。实测同一时刻同一组织下，8/4/3 核全红、2/1 核全绿，
+      # 差别只在每次冻结多少。额度见底时降核是唯一能立刻生效的一招；
+      # 长期仍应向根组织提额度（免费 160 核时/月），但降核让 PR 不必等额度。
+      # 顺带：2 核跑这套检查实测约 5 s（Python + 单机测试，不是编译），
+      # 降核不拖时间，属于白捡。
+      # 另外不配置 allowFailure：它会连真实测试失败一起吞掉，失败形态变成"全绿"。
+      runner:
+        cpus: 2
       docker:
         image: python:3.11
         volumes:
@@ -155,6 +159,9 @@ $:
             mergeType: squash
             removeSourceBranch: true
     - name: npc-code-review
+      # 同 review-fix-loop：默认 8 核预冻结超额，显式降到 2 核。
+      runner:
+        cpus: 2
       <<: *npc_default
       stages:
         - name: NPC 代码审查
@@ -194,6 +201,9 @@ $:
   # ========================================================
   pull_request.approved:
     - name: merge-on-approve
+      # 同 review-fix-loop：不写 cpus 就是 8 核，Prepare 预冻结直接超额。
+      runner:
+        cpus: 2
       docker:
         image: python:3.11
         volumes:
@@ -207,6 +217,8 @@ $:
   # ========================================================
   pull_request.changes_requested:
     - name: auto-fix
+      runner:
+        cpus: 2
       <<: *npc_default
       stages:
         - name: CodeBuddy 自动修复
@@ -292,6 +304,9 @@ $:
 main:
   push:
     - name: full-regression
+      # 全量回归是本仓最重的一条，同样显式 2 核（默认 8 核 1.33 核时，额度见底必红）。
+      runner:
+        cpus: 2
       docker:
         image: python:3.11
       stages:
@@ -347,6 +362,8 @@ main:
             done
             echo "  ✅ 行业分区库 12 份导出产物齐全（六口径/资金流/官方对表/生产法 + 双方言 DDL）"
     - name: build-knowledge-base
+      runner:
+        cpus: 2
       stages:
         - name: knowledge update
           type: knowledge:update
