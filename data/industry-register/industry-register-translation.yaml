@@ -1,0 +1,85 @@
+unit_id: translation
+industry: 翻译本地化
+industry_alias:
+- 翻译
+- 笔译
+- 字幕翻译
+- 字幕
+- 本地化
+- 语言服务
+- 译员
+- 翻译公司
+- 出海本地化
+- 文档翻译
+roles:
+- name: subtitle
+  prefix: '[字幕]'
+  handoff: relay
+  composite: true
+  description: 字幕翻译 字幕打轴 听译 时间轴 双语字幕
+  keywords:
+  - 字幕
+  - 字幕翻译
+  - 打轴
+  - 时间轴
+  - 听译
+  - 双语字幕
+  - 字幕组
+  - srt
+  - 视频字幕
+  - 台词翻译
+- name: localizer
+  prefix: '[本地化]'
+  handoff: relay
+  composite: true
+  description: 本地化 软件本地化 网页本地化 语言包 术语库 记忆库
+  keywords:
+  - 本地化
+  - 软件本地化
+  - 网页本地化
+  - 游戏本地化
+  - 语言包
+  - 术语库
+  - 记忆库
+  - 翻译记忆
+  - i18n
+  - 多语言
+  - 出海本地化
+  # 通用笔译动作：不写在 alias 里会输给「合同/协议」这类法律强词。
+  # 实测「帮我翻译这份合同」在只放 alias 时 legal 3.5 > translation 2.0，
+  # 因为「合同」同时是 legal 的 alias(2.0)+岗位词(1.5)，而「翻译」仅 alias(2.0)。
+  # 「翻译」是交付动作本身，归到笔译岗位的触发词才符合实际语义。
+  - 翻译
+  - 笔译
+  - 中译英
+  - 英译中
+  - 译文
+- name: proofreader
+  prefix: '[审校]'
+  handoff: relay
+  composite: true
+  description: 审校 校对 润色 质量检查 译文质检
+  keywords:
+  - 审校
+  - 校对
+  - 润色
+  - 译文润色
+  - 翻译质检
+  - 质量检查
+  - 三审三校
+  - 术语一致性
+entry_ref: ''
+capability_tags:
+- 字幕翻译
+- 本地化
+- 术语管理
+- 审校质控
+- 文档翻译
+- 多语言交付
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 translation 建单元。
+  只放**异步文本交付**（笔译/字幕/本地化）；口译在 interpretation 分区，
+  AI 承接面差一个量级，混在一起会把「AI 替代率最高」的结论套到同传头上。
+  触发词取自该分区 aliases / demand_side / 战略视图的 AI 承接面与价值链环节，
+  不凭想象补：words 都对应一个真实环节或真实诉求。

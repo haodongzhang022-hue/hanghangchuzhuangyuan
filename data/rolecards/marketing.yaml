@@ -222,7 +222,7 @@ roles:
     kind: skill
     path: data/role-profiles/marketing.yaml
   sources:
-  - /workspace/data/role-profiles/marketing.yaml
+  - role-profiles/marketing.yaml
   chain_refs:
     upstream:
     - raw: 产品与用户洞察
@@ -470,7 +470,7 @@ roles:
     kind: skill
     path: data/role-profiles/marketing.yaml
   sources:
-  - /workspace/data/role-profiles/marketing.yaml
+  - role-profiles/marketing.yaml
   chain_refs:
     upstream:
     - raw: 产品与用户洞察
@@ -748,7 +748,7 @@ roles:
     kind: skill
     path: data/role-profiles/marketing.yaml
   sources:
-  - /workspace/data/role-profiles/marketing.yaml
+  - role-profiles/marketing.yaml
   chain_refs:
     upstream:
     - raw: 产品与用户洞察
@@ -973,7 +973,7 @@ roles:
     kind: skill
     path: data/role-profiles/marketing.yaml
   sources:
-  - /workspace/data/role-profiles/marketing.yaml
+  - role-profiles/marketing.yaml
   chain_refs:
     upstream:
     - raw: 产品与用户洞察

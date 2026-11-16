@@ -108,10 +108,26 @@ def _lines(path: str) -> int:
 
 
 def _size(path: str) -> str:
+    """文件大小，按 **LF 归一后**的字节数算。
+
+    为什么不直接用 os.path.getsize：仓库里这些 yaml 大多是 CRLF 落盘（Windows
+    core.autocrlf=true），而 CI 在 Linux 检出成 LF —— 每行差 1 字节，
+    一个 1000 行的 yaml 就差近 1KB，跨过 .0f 的舍入边界后清单立刻判「过期」。
+    实测：industry-partitions.yaml 在 Windows 是 49KB、在 Linux 是 48KB；
+    industry-strategy.yaml 51KB vs 49KB。
+
+    结果就是：**在 Windows 生成、在 Linux CI 校验，永远对不上**，
+    而这条清单的用途只是「大概多大」，不值得让它成为平台相关的红灯。
+    按 LF 归一后两边一致，口径也唯一。
+    """
     p = os.path.join(ROOT, path)
     if not os.path.exists(p):
         return "—"
-    n = os.path.getsize(p)
+    try:
+        with open(p, "rb") as fh:
+            n = len(fh.read().replace(b"\r\n", b"\n"))
+    except OSError:
+        return "—"
     return f"{n / 1024:.0f} KB" if n >= 1024 else f"{n} B"
 
 

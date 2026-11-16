@@ -1,0 +1,340 @@
+# 岗位画像基线（人写·慢变）。改这个文件，再跑 scripts/gen_rolecards.py 渲染。
+#
+# 来源：由 industry-partitions 的 translation 分区建单元时补齐。
+# 三个岗位直接对应 occupation-memberships 的成员职业
+# （OCC-000060 subtitle-translator / OCC-000061 localizer / OCC-000062 proofreader），
+# 内容取自该分区的战略视图（价值链 / 利润池 / AI 承接面 / 风险），不凭想象补。
+# 利益链条只写**已登记**的行业类目（data/industry-classes/*.yaml），
+# 不新造同义词；`role chain --check` 会把未登记的类目拦下来。
+unit_id: translation
+industry: 翻译本地化
+updated_at: '2026-11-17'
+source_note: 随 translation 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: subtitle
+  analysis:
+    mission: 把对白转成可读可对轴的字幕，让观众忘记语言障碍
+    deliverables:
+    - 双语字幕文件（srt/ass）
+    - 术语对照表
+    - 听译稿
+    inputs:
+    - 片源与音轨
+    - 客户术语表
+    - 平台时长/字数限制
+    outputs:
+    - 字幕文件
+    - 术语与时间轴说明
+    kpis:
+    - 听译准确率
+    - 时间轴偏差
+    - 返修率
+  persona:
+    seniority: 翻译本地化 资深字幕
+    mindset: 先听懂再动笔；语气跟着人物走，不跟着原文走
+    tone: 简洁、贴合角色
+    decision_rights:
+    - 可决定断句与轴位置
+    - 不可改动原意或增删情节
+    constraints:
+    - 不臆造听不清的台词，标注存疑
+    - 术语以客户术语表为准
+  plugin:
+    bundle: subtitle
+    tools:
+    - 字幕编辑器
+    - 语音转写
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: subtitle-skill
+      kind: skill
+      path: data/role-profiles/translation.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 听译
+    - 断句与轴对齐
+    - 口吻还原
+    tools:
+    - 字幕软件
+    - ASR 校对
+    knowledge:
+    - 目标语表达习惯
+    - 影视/短视频语域
+    soft:
+    - 对细节较真
+    - 能接受多轮返修
+    scoring:
+      domain: 8
+      tooling: 8
+      judging: 7
+      execution: 9
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 字幕交付流
+      default: true
+      override:
+        steps:
+          translate:
+            name: 听译与初稿
+            playbook: 先完整听一遍再落笔；听不清处标注存疑，不用猜测填补
+            runtime: agent
+            outputs:
+            - 听译初稿
+            verify:
+            - 存疑处已标注且未被猜测填补
+          align:
+            name: 断句与时间轴
+            playbook: 按停顿与语义断句，轴位置对齐到音节起点
+            runtime: agent
+            outputs:
+            - 带轴字幕文件
+            verify:
+            - 轴位置对齐音节起点，单行不超平台字数
+          deliver:
+            name: 格式与交付
+            playbook: 按平台规范导出，术语表随件交付
+            runtime: agent
+            outputs:
+            - 字幕成品
+            - 术语表
+            verify:
+            - 格式符合平台规范且术语表随件
+  stakeholders:
+    upstream:
+    - 客户
+    - 产品
+    downstream:
+    - 各执行岗位
+    - 发布渠道
+    beneficiaries:
+    - 用户
+    blockers:
+    - 输入不全
+    - 预算与工期失真
+    incentives:
+    - 需求方
+    risk_notes:
+    - 合规风险
+- role: localizer
+  analysis:
+    mission: 让产品在异国语境下像本地产品，而不像翻译过来的产品
+    deliverables:
+    - 语言包与文案
+    - 术语库与记忆库
+    - 本地化适配说明
+    inputs:
+    - 源语言文案
+    - 术语表与风格指南
+    - 目标市场规范
+    outputs:
+    - 本地化文案
+    - 术语/记忆库更新
+    kpis:
+    - 术语一致性
+    - 记忆库复用率
+    - 上线返工率
+  persona:
+    seniority: 翻译本地化 资深本地化
+    mindset: 先问"当地人怎么说"，再问"原文是什么"
+    tone: 地道、克制
+    decision_rights:
+    - 可决定本地化表达方式
+    - 不可擅自改动产品功能或法务条款
+    constraints:
+    - 不臆造法规与文化禁忌，存疑即问
+    - 术语以记忆库为准，新增须登记
+  plugin:
+    bundle: localizer
+    tools:
+    - 术语库/记忆库
+    - 本地化平台
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: localizer-skill
+      kind: skill
+      path: data/role-profiles/translation.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 本地化改写
+    - 术语管理
+    - 文化适配
+    tools:
+    - CAT 工具
+    - i18n 框架
+    knowledge:
+    - 目标市场语言与规范
+    - 领域术语（游戏/软件/电商）
+    soft:
+    - 追问边界
+    - 长周期耐心
+    scoring:
+      domain: 8
+      tooling: 8
+      judging: 8
+      execution: 8
+      comms: 8
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 本地化交付流
+      default: true
+      override:
+        steps:
+          ingest:
+            name: 提取与预翻译
+            playbook: 先拉齐术语表与记忆库，再交给机翻打底
+            runtime: agent
+            outputs:
+            - 机翻底稿
+            - 术语/记忆库快照
+            verify:
+            - 术语表已加载且版本已记录
+          adapt:
+            name: 本地化改写
+            playbook: 按目标市场语感改写，不以原文为金标准
+            runtime: agent
+            outputs:
+            - 本地化文案
+            verify:
+            - 无直译腔且术语与库一致
+          term:
+            name: 术语库更新
+            playbook: 新增术语登记入库，供后续项目复用
+            runtime: agent
+            outputs:
+            - 术语库增量
+            verify:
+            - 所有新增术语已登记且可复用
+  stakeholders:
+    upstream:
+    - 客户
+    - 产品
+    downstream:
+    - 各执行岗位
+    - 运维
+    beneficiaries:
+    - 用户
+    blockers:
+    - 需求频繁变更
+    - 输入不全
+    incentives:
+    - 需求方
+    risk_notes:
+    - 合规风险
+- role: proofreader
+  analysis:
+    mission: 做译文最后一道人关：担责与语感
+    deliverables:
+    - 审校意见
+    - 定稿译文
+    - 质量检查报告
+    inputs:
+    - 初译稿
+    - 术语表
+    - 客户风格要求
+    outputs:
+    - 定稿
+    - 问题清单
+    kpis:
+    - 错漏率
+    - 一次通过率
+    - 审校吞吐
+  persona:
+    seniority: 翻译本地化 资深审校
+    mindset: 挑错不是挑刺，是替客户担责
+    tone: 客观、就事论事
+    decision_rights:
+    - 可决定定稿与否
+    - 不可替客户做业务判断
+    constraints:
+    - 不放过存疑处，必须标注
+    - 不因工期压缩放弃质检项
+  plugin:
+    bundle: proofreader
+    tools:
+    - 质检工具
+    - 术语一致性检查
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: proofreader-skill
+      kind: skill
+      path: data/role-profiles/translation.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 译文审校
+    - 术语一致性
+    - 质量判定
+    tools:
+    - 质检脚本
+    - 平行语料
+    knowledge:
+    - 领域术语
+    - 目标语规范
+    soft:
+    - 扛得住责任
+    - 说得清问题
+    scoring:
+      domain: 9
+      tooling: 7
+      judging: 9
+      execution: 8
+      comms: 8
+  workflow:
+    default_flow: review-gate
+    activation:
+      weight: 1.0
+    templates:
+    - template: review-gate
+      id: wf-main
+      name: 审校门禁流
+      default: true
+      override:
+        steps:
+          scan:
+            name: 通读与定位
+            playbook: 先通读一遍找结构性问题，再逐句挑错
+            runtime: agent
+            outputs:
+            - 问题清单
+            verify:
+            - 结构性问题已先于逐句问题列出
+          gate:
+            name: 定稿判定
+            playbook: 质检项不过不放行；存疑处标注而非放行
+            runtime: agent
+            outputs:
+            - 定稿结论
+            - 存疑标注
+            verify:
+            - 质检项全部通过或已显式标注存疑
+  stakeholders:
+    upstream:
+    - 各执行岗位
+    downstream:
+    - 客户
+    beneficiaries:
+    - 客户
+    - 用户
+    blockers:
+    - 预算与工期失真
+    - 输入不全
+    incentives:
+    - 需求方
+    risk_notes:
+    - 合规风险

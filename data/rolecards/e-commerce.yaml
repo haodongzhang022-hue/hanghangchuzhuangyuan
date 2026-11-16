@@ -236,7 +236,7 @@ roles:
     kind: skill
     path: data/role-profiles/e-commerce.yaml
   sources:
-  - /workspace/data/role-profiles/e-commerce.yaml
+  - role-profiles/e-commerce.yaml
   chain_refs:
     upstream:
     - raw: 商品与供应链
@@ -485,7 +485,7 @@ roles:
     kind: skill
     path: data/role-profiles/e-commerce.yaml
   sources:
-  - /workspace/data/role-profiles/e-commerce.yaml
+  - role-profiles/e-commerce.yaml
   chain_refs:
     upstream:
     - raw: 商品与供应链
@@ -702,7 +702,7 @@ roles:
     kind: skill
     path: data/role-profiles/e-commerce.yaml
   sources:
-  - /workspace/data/role-profiles/e-commerce.yaml
+  - role-profiles/e-commerce.yaml
   chain_refs:
     upstream:
     - raw: 商品与供应链

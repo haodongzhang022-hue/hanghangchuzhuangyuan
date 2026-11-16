@@ -251,7 +251,7 @@ roles:
     kind: skill
     path: data/role-profiles/content-creation.yaml
   sources:
-  - /workspace/data/role-profiles/content-creation.yaml
+  - role-profiles/content-creation.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -508,7 +508,7 @@ roles:
     kind: skill
     path: data/role-profiles/content-creation.yaml
   sources:
-  - /workspace/data/role-profiles/content-creation.yaml
+  - role-profiles/content-creation.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -748,7 +748,7 @@ roles:
     kind: skill
     path: data/role-profiles/content-creation.yaml
   sources:
-  - /workspace/data/role-profiles/content-creation.yaml
+  - role-profiles/content-creation.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -1021,7 +1021,7 @@ roles:
     kind: skill
     path: docs/industry/units/content-creation/README.md
   sources:
-  - /workspace/data/role-profiles/content-creation.yaml
+  - role-profiles/content-creation.yaml
   chain_refs:
     upstream:
     - raw: 品牌方

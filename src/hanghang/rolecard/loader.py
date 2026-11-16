@@ -154,6 +154,17 @@ class RoleCardStore:
                 continue
             unit_id = str(data.get("unit_id") or
                           os.path.splitext(os.path.basename(path))[0])
+            # source 进岗位卡产物，必须是**相对 data 目录**的稳定路径。
+            # 直接存 glob 返回的绝对路径会把跑生成器那台机器的路径写进仓库
+            # （本机跑出来是 /mnt/e/...，CI 跑出来是 /workspace/data/...），
+            # 于是同一份数据在不同机器生成的卡互相冲突，diff 里全是路径噪音，
+            # 真实的内容变化被淹没——既不可评审，也掩盖了真正的漂移。
+            try:
+                source_rel = os.path.relpath(
+                    os.path.abspath(path), os.path.abspath(self.data_dir)
+                ).replace(os.sep, "/")
+            except ValueError:      # Windows 跨盘符时 relpath 会抛错
+                source_rel = f"role-profiles/{os.path.basename(path)}"
             roles = {}
             for item in data.get("roles", []) or []:
                 if not isinstance(item, dict):
@@ -161,7 +172,7 @@ class RoleCardStore:
                 name = str(item.get("role") or item.get("name") or "")
                 if not name:
                     continue
-                roles[name] = self._parse_role_profile(name, item, path)
+                roles[name] = self._parse_role_profile(name, item, source_rel)
             if roles:
                 out[unit_id] = roles
         return out

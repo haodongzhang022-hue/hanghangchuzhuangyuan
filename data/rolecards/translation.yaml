@@ -1,0 +1,873 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: translation
+industry: 翻译本地化
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: subtitle
+  unit_id: translation
+  industry: 翻译本地化
+  prefix: '[字幕]'
+  description: 字幕翻译 字幕打轴 听译 时间轴 双语字幕
+  keywords:
+  - 字幕
+  - 字幕翻译
+  - 打轴
+  - 时间轴
+  - 听译
+  - 双语字幕
+  - 字幕组
+  - srt
+  - 视频字幕
+  - 台词翻译
+  readiness:
+    role_name: subtitle
+    unit_id: translation
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 字幕交付流
+    industry_alias:
+    - 翻译
+    - 笔译
+    - 字幕翻译
+    - 字幕
+    - 本地化
+    - 语言服务
+    - 译员
+    - 翻译公司
+    - 出海本地化
+    - 文档翻译
+    triggers:
+    - 字幕
+    - 字幕翻译
+    - 打轴
+    - 时间轴
+    - 听译
+    - 双语字幕
+    - 字幕组
+    - srt
+    - 视频字幕
+    - 台词翻译
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把对白转成可读可对轴的字幕，让观众忘记语言障碍
+      deliverables:
+      - 双语字幕文件（srt/ass）
+      - 术语对照表
+      - 听译稿
+      inputs:
+      - 片源与音轨
+      - 客户术语表
+      - 平台时长/字数限制
+      outputs:
+      - 字幕文件
+      - 术语与时间轴说明
+      kpis:
+      - 听译准确率
+      - 时间轴偏差
+      - 返修率
+    persona:
+      seniority: 翻译本地化 资深字幕
+      mindset: 先听懂再动笔；语气跟着人物走，不跟着原文走
+      tone: 简洁、贴合角色
+      decision_rights:
+      - 可决定断句与轴位置
+      - 不可改动原意或增删情节
+      constraints:
+      - 不臆造听不清的台词，标注存疑
+      - 术语以客户术语表为准
+    plugin:
+      bundle: subtitle
+      tools:
+      - 字幕编辑器
+      - 语音转写
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: subtitle-skill
+        kind: skill
+        path: data/role-profiles/translation.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 字幕交付流
+        default: true
+        override:
+          steps:
+            translate:
+              name: 听译与初稿
+              playbook: 先完整听一遍再落笔；听不清处标注存疑，不用猜测填补
+              runtime: agent
+              outputs: &id003
+              - 听译初稿
+              verify: &id004
+              - 存疑处已标注且未被猜测填补
+            align:
+              name: 断句与时间轴
+              playbook: 按停顿与语义断句，轴位置对齐到音节起点
+              runtime: agent
+              outputs: &id005
+              - 带轴字幕文件
+              verify: &id006
+              - 轴位置对齐音节起点，单行不超平台字数
+            deliver:
+              name: 格式与交付
+              playbook: 按平台规范导出，术语表随件交付
+              runtime: agent
+              outputs: &id001
+              - 字幕成品
+              - 术语表
+              verify: &id002
+              - 格式符合平台规范且术语表随件
+    stakeholders:
+      upstream:
+      - 客户
+      - 产品
+      downstream:
+      - 各执行岗位
+      - 发布渠道
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      - 预算与工期失真
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 听译
+      - 断句与轴对齐
+      - 口吻还原
+      tools:
+      - 字幕软件
+      - ASR 校对
+      knowledge:
+      - 目标语表达习惯
+      - 影视/短视频语域
+      soft:
+      - 对细节较真
+      - 能接受多轮返修
+      scoring:
+        domain: 8.0
+        tooling: 8.0
+        judging: 7.0
+        execution: 9.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 字幕交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: &id007
+      - 诉求备忘
+      - 验收口径
+      verify: &id008
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: subtitle
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: subtitle
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: subtitle
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: subtitle
+    - id: deliver
+      name: 格式与交付
+      playbook: 按平台规范导出，术语表随件交付
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: subtitle
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id017
+      - 交接卡
+      verify: &id018
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: subtitle
+    - id: translate
+      name: 听译与初稿
+      playbook: 先完整听一遍再落笔；听不清处标注存疑，不用猜测填补
+      runtime: agent
+      outputs: *id003
+      verify: *id004
+      agent_role: subtitle
+    - id: align
+      name: 断句与时间轴
+      playbook: 按停顿与语义断句，轴位置对齐到音节起点
+      runtime: agent
+      outputs: *id005
+      verify: *id006
+      agent_role: subtitle
+  plugin_artifacts:
+  - name: subtitle-skill
+    kind: skill
+    path: data/role-profiles/translation.yaml
+  sources:
+  - role-profiles/translation.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id025
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    - raw: 产品
+      value: 产品
+      kind: industry_class
+      ref: industry_class:产品
+      index: &id026
+        source: 组织架构
+        query:
+        - 产品团队
+      note: 岗位类
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    - raw: 发布渠道
+      value: 发布渠道
+      kind: interface
+      ref: industry_class:发布渠道
+      index:
+        source: 渠道台账
+        query:
+        - 发布渠道
+      note: 渠道
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id027
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+    - raw: 预算与工期失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+- role: localizer
+  unit_id: translation
+  industry: 翻译本地化
+  prefix: '[本地化]'
+  description: 本地化 软件本地化 网页本地化 语言包 术语库 记忆库
+  keywords:
+  - 本地化
+  - 软件本地化
+  - 网页本地化
+  - 游戏本地化
+  - 语言包
+  - 术语库
+  - 记忆库
+  - 翻译记忆
+  - i18n
+  - 多语言
+  - 出海本地化
+  - 翻译
+  - 笔译
+  - 中译英
+  - 英译中
+  - 译文
+  readiness:
+    role_name: localizer
+    unit_id: translation
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 本地化交付流
+    industry_alias:
+    - 翻译
+    - 笔译
+    - 字幕翻译
+    - 字幕
+    - 本地化
+    - 语言服务
+    - 译员
+    - 翻译公司
+    - 出海本地化
+    - 文档翻译
+    triggers:
+    - 本地化
+    - 软件本地化
+    - 网页本地化
+    - 游戏本地化
+    - 语言包
+    - 术语库
+    - 记忆库
+    - 翻译记忆
+    - i18n
+    - 多语言
+    - 出海本地化
+    - 翻译
+    - 笔译
+    - 中译英
+    - 英译中
+    - 译文
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 让产品在异国语境下像本地产品，而不像翻译过来的产品
+      deliverables:
+      - 语言包与文案
+      - 术语库与记忆库
+      - 本地化适配说明
+      inputs:
+      - 源语言文案
+      - 术语表与风格指南
+      - 目标市场规范
+      outputs:
+      - 本地化文案
+      - 术语/记忆库更新
+      kpis:
+      - 术语一致性
+      - 记忆库复用率
+      - 上线返工率
+    persona:
+      seniority: 翻译本地化 资深本地化
+      mindset: 先问"当地人怎么说"，再问"原文是什么"
+      tone: 地道、克制
+      decision_rights:
+      - 可决定本地化表达方式
+      - 不可擅自改动产品功能或法务条款
+      constraints:
+      - 不臆造法规与文化禁忌，存疑即问
+      - 术语以记忆库为准，新增须登记
+    plugin:
+      bundle: localizer
+      tools:
+      - 术语库/记忆库
+      - 本地化平台
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: localizer-skill
+        kind: skill
+        path: data/role-profiles/translation.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 本地化交付流
+        default: true
+        override:
+          steps:
+            ingest:
+              name: 提取与预翻译
+              playbook: 先拉齐术语表与记忆库，再交给机翻打底
+              runtime: agent
+              outputs: &id019
+              - 机翻底稿
+              - 术语/记忆库快照
+              verify: &id020
+              - 术语表已加载且版本已记录
+            adapt:
+              name: 本地化改写
+              playbook: 按目标市场语感改写，不以原文为金标准
+              runtime: agent
+              outputs: &id021
+              - 本地化文案
+              verify: &id022
+              - 无直译腔且术语与库一致
+            term:
+              name: 术语库更新
+              playbook: 新增术语登记入库，供后续项目复用
+              runtime: agent
+              outputs: &id023
+              - 术语库增量
+              verify: &id024
+              - 所有新增术语已登记且可复用
+    stakeholders:
+      upstream:
+      - 客户
+      - 产品
+      downstream:
+      - 各执行岗位
+      - 运维
+      beneficiaries:
+      - 用户
+      blockers:
+      - 需求频繁变更
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 本地化改写
+      - 术语管理
+      - 文化适配
+      tools:
+      - CAT 工具
+      - i18n 框架
+      knowledge:
+      - 目标市场语言与规范
+      - 领域术语（游戏/软件/电商）
+      soft:
+      - 追问边界
+      - 长周期耐心
+      scoring:
+        domain: 8.0
+        tooling: 8.0
+        judging: 8.0
+        execution: 8.0
+        comms: 8.0
+  workflows:
+  - id: wf-main
+    name: 本地化交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: localizer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: localizer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: localizer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: localizer
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs:
+      - 交付说明
+      verify:
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: localizer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: localizer
+    - id: ingest
+      name: 提取与预翻译
+      playbook: 先拉齐术语表与记忆库，再交给机翻打底
+      runtime: agent
+      outputs: *id019
+      verify: *id020
+      agent_role: localizer
+    - id: adapt
+      name: 本地化改写
+      playbook: 按目标市场语感改写，不以原文为金标准
+      runtime: agent
+      outputs: *id021
+      verify: *id022
+      agent_role: localizer
+    - id: term
+      name: 术语库更新
+      playbook: 新增术语登记入库，供后续项目复用
+      runtime: agent
+      outputs: *id023
+      verify: *id024
+      agent_role: localizer
+  plugin_artifacts:
+  - name: localizer-skill
+    kind: skill
+    path: data/role-profiles/translation.yaml
+  sources:
+  - role-profiles/translation.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id025
+      note: 需求方
+    - raw: 产品
+      value: 产品
+      kind: industry_class
+      ref: industry_class:产品
+      index: *id026
+      note: 岗位类
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    - raw: 运维
+      value: 运维
+      kind: interface
+      ref: industry_class:运维
+      note: 接口
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id027
+      note: 需求方
+    blockers:
+    - raw: 需求频繁变更
+      value: 需求频繁变更
+      kind: industry_class
+      ref: industry_class:需求频繁变更
+      note: 阻碍
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: proofreader
+  unit_id: translation
+  industry: 翻译本地化
+  prefix: '[审校]'
+  description: 审校 校对 润色 质量检查 译文质检
+  keywords:
+  - 审校
+  - 校对
+  - 润色
+  - 译文润色
+  - 翻译质检
+  - 质量检查
+  - 三审三校
+  - 术语一致性
+  readiness:
+    role_name: proofreader
+    unit_id: translation
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 审校门禁流
+    industry_alias:
+    - 翻译
+    - 笔译
+    - 字幕翻译
+    - 字幕
+    - 本地化
+    - 语言服务
+    - 译员
+    - 翻译公司
+    - 出海本地化
+    - 文档翻译
+    triggers:
+    - 审校
+    - 校对
+    - 润色
+    - 译文润色
+    - 翻译质检
+    - 质量检查
+    - 三审三校
+    - 术语一致性
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 做译文最后一道人关：担责与语感
+      deliverables:
+      - 审校意见
+      - 定稿译文
+      - 质量检查报告
+      inputs:
+      - 初译稿
+      - 术语表
+      - 客户风格要求
+      outputs:
+      - 定稿
+      - 问题清单
+      kpis:
+      - 错漏率
+      - 一次通过率
+      - 审校吞吐
+    persona:
+      seniority: 翻译本地化 资深审校
+      mindset: 挑错不是挑刺，是替客户担责
+      tone: 客观、就事论事
+      decision_rights:
+      - 可决定定稿与否
+      - 不可替客户做业务判断
+      constraints:
+      - 不放过存疑处，必须标注
+      - 不因工期压缩放弃质检项
+    plugin:
+      bundle: proofreader
+      tools:
+      - 质检工具
+      - 术语一致性检查
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: proofreader-skill
+        kind: skill
+        path: data/role-profiles/translation.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: review-gate
+      activation:
+        weight: 1.0
+      templates:
+      - template: review-gate
+        id: wf-main
+        name: 审校门禁流
+        default: true
+        override:
+          steps:
+            scan:
+              name: 通读与定位
+              playbook: 先通读一遍找结构性问题，再逐句挑错
+              runtime: agent
+              outputs: &id028
+              - 问题清单
+              verify: &id029
+              - 结构性问题已先于逐句问题列出
+            gate:
+              name: 定稿判定
+              playbook: 质检项不过不放行；存疑处标注而非放行
+              runtime: agent
+              outputs: &id030
+              - 定稿结论
+              - 存疑标注
+              verify: &id031
+              - 质检项全部通过或已显式标注存疑
+    stakeholders:
+      upstream:
+      - 各执行岗位
+      downstream:
+      - 客户
+      beneficiaries:
+      - 客户
+      - 用户
+      blockers:
+      - 预算与工期失真
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 译文审校
+      - 术语一致性
+      - 质量判定
+      tools:
+      - 质检脚本
+      - 平行语料
+      knowledge:
+      - 领域术语
+      - 目标语规范
+      soft:
+      - 扛得住责任
+      - 说得清问题
+      scoring:
+        domain: 9.0
+        tooling: 7.0
+        judging: 9.0
+        execution: 8.0
+        comms: 8.0
+  workflows:
+  - id: wf-main
+    name: 审校门禁流
+    default: true
+    template: review-gate
+    trigger: 收到待评审的产物
+    handoff_out: 评审结论回传产出方或出口复核
+    steps:
+    - id: fetch
+      name: 取件与范围界定
+      playbook: 明确评审对象、版本与评审口径（只对本次改动或本次交付负责）
+      outputs:
+      - 评审范围
+      verify:
+      - 范围与版本已锁定
+      runtime: agent
+      agent_role: proofreader
+    - id: inspect
+      name: 逐项判定
+      playbook: 按清单逐项检查，只对事实性错误提意见，风格偏好放行
+      outputs:
+      - 问题清单
+      verify:
+      - 每条问题可定位到具体位置与依据
+      runtime: agent
+      agent_role: proofreader
+    - id: verdict
+      name: 结论分级
+      playbook: 按阻断/应修/建议/放行四级给结论，不模糊表态
+      outputs:
+      - 评审结论
+      verify:
+      - 每条问题都有级别
+      runtime: agent
+      agent_role: proofreader
+    - id: feedback
+      name: 回传与闭环
+      playbook: 生成回传清单，明确返工点与复评条件
+      outputs:
+      - 回传清单
+      verify:
+      - 返工点可执行、复评条件明确
+      runtime: agent
+      agent_role: proofreader
+    - id: scan
+      name: 通读与定位
+      playbook: 先通读一遍找结构性问题，再逐句挑错
+      runtime: agent
+      outputs: *id028
+      verify: *id029
+      agent_role: proofreader
+    - id: gate
+      name: 定稿判定
+      playbook: 质检项不过不放行；存疑处标注而非放行
+      runtime: agent
+      outputs: *id030
+      verify: *id031
+      agent_role: proofreader
+  plugin_artifacts:
+  - name: proofreader-skill
+    kind: skill
+    path: data/role-profiles/translation.yaml
+  sources:
+  - role-profiles/translation.yaml
+  chain_refs:
+    upstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    downstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id025
+      note: 需求方
+    beneficiaries:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id025
+      note: 需求方
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id027
+      note: 需求方
+    blockers:
+    - raw: 预算与工期失真
+      value: 预算与工期失真
+      kind: industry_class
+      ref: industry_class:预算与工期失真
+      note: 阻碍
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

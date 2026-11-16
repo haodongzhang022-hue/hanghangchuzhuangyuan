@@ -220,7 +220,7 @@ roles:
     kind: skill
     path: data/role-profiles/legal-services.yaml
   sources:
-  - /workspace/data/role-profiles/legal-services.yaml
+  - role-profiles/legal-services.yaml
   chain_refs:
     upstream:
     - raw: 业务方
@@ -489,7 +489,7 @@ roles:
     kind: skill
     path: data/role-profiles/legal-services.yaml
   sources:
-  - /workspace/data/role-profiles/legal-services.yaml
+  - role-profiles/legal-services.yaml
   chain_refs:
     upstream:
     - raw: 业务方
@@ -752,7 +752,7 @@ roles:
     kind: skill
     path: data/role-profiles/legal-services.yaml
   sources:
-  - /workspace/data/role-profiles/legal-services.yaml
+  - role-profiles/legal-services.yaml
   chain_refs:
     upstream:
     - raw: 业务方

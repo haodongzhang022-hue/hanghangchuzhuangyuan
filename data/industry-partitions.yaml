@@ -401,10 +401,10 @@ partitions:
     gdp_confidence: medium
     employment: 50
     employment_source: 翻译协会口径从业人数(含兼职，含口译)
-    unit_id: ''
+    unit_id: translation
     priority: 高
     channels: [中国翻译协会行业报告, 语言服务平台岗位, 出海企业需求]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [subtitle, localizer, proofreader]
     note: >
