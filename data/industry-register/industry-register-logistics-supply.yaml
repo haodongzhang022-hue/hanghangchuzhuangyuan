@@ -1,0 +1,138 @@
+unit_id: logistics-supply
+industry: 物流供应链
+industry_alias:
+- 物流
+- 供应链
+- 仓储运输
+- 快递
+- 配送
+- 仓配
+- 货运
+- 履约
+- 报关
+# 刻意不放「采购」做行业别名：「采购」是跨行业的泛化词，
+# 放进 alias 会同时出现两次计分（alias 2.0 + 岗位词 1.5 = 3.5），
+# 实测把「帮我审一下这个软件采购合同的风险」从 legal-services 抢了过来。
+# 它是采购岗位的**动作词**，只留在 buyer 的 keywords 里即可。
+roles:
+- name: logistics_operator
+  prefix: '[物流运营]'
+  handoff: relay
+  composite: true
+  description: 物流运营 调度 运输 干线 装载率 时效
+  keywords:
+  - 物流运营
+  - 调度
+  - 运输
+  - 干线
+  - 装载率
+  - 时效
+  - 车货匹配
+  - 运单
+  - 承运商
+  - 路径优化
+- name: supply_chain_manager
+  prefix: '[供应链]'
+  handoff: relay
+  composite: true
+  description: 供应链 仓网 库存 计划 履约 逆向
+  keywords:
+  - 供应链
+  - 供应链管理
+  - 仓网
+  - 库存周转
+  - 需求计划
+  - 履约
+  - 逆向物流
+  - 安全库存
+  - 补货
+- name: warehouse_manager
+  prefix: '[仓储]'
+  handoff: relay
+  composite: true
+  description: 仓储 库内 拣货 分拣 盘点 库容
+  keywords:
+  - 仓储
+  - 仓库管理
+  - 拣货
+  - 分拣
+  - 盘点
+  - 库容
+  - 出入库
+  - 库位
+  - 库存准确率
+- name: buyer
+  prefix: '[采购]'
+  handoff: relay
+  composite: true
+  description: 采购 询价 到货 降本 寻源 采购合同
+  keywords:
+  - 采购
+  - 采购专员
+  - 询价
+  # 「供应商」是跨行业泛化词：实测把「供应商选品」从 e-commerce 抢了过来。
+  # 采购岗位真正独有的是「寻源/比价/到货」，用这些词足以识别，不要霸占共享词。
+  - 比价
+  - 到货
+  # 不写「采购合同」：它比「合同」长，会触发跨单元让位规则，把 legal-services
+  # 对「合同」的 alias 命中整段顶掉（实测该句 legal 直接掉到 0 分、判成歧义）。
+  # 采购侧用「询价/比价/到货/寻源」足以识别，不要用更长词去争同一段文本。
+  - 降本
+  - 寻源
+- name: customs_broker
+  prefix: '[报关]'
+  handoff: relay
+  composite: true
+  description: 报关 清关 关税 单证 商检 进出口
+  keywords:
+  - 报关
+  - 清关
+  - 关税
+  - 报关单
+  - 商检
+  - 进出口
+  - 提单
+  - 原产地证
+  - 保税
+- name: delivery_rider
+  prefix: '[配送]'
+  handoff: relay
+  composite: false
+  description: 配送 骑手 众包 即时配送 单量
+  keywords:
+  - 配送
+  - 骑手
+  - 外卖送
+  - 即时配送
+  - 众包
+  - 跑单
+  - 派单
+- name: courier
+  prefix: '[快递]'
+  handoff: relay
+  composite: false
+  description: 快递 收派 末端 驿站 揽件
+  keywords:
+  - 快递
+  - 收派
+  - 驿站
+  - 揽件
+  - 派件
+  - 快递员
+  - 快件
+entry_ref: ''
+capability_tags:
+- 运输调度
+- 供应链计划
+- 仓储管理
+- 采购寻源
+- 报关清关
+- 末端配送
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 logistics-supply 建单元（社会物流总费用 18 万亿）。
+  注意该分区口径是 **cost_total（成本总额）**，不是增加值——战略视图写得很清楚：
+  「规模效应极强」「成本大头在干线运输，装载率决定盈亏」。所以触发词重点覆盖
+  装载率/时效/仓网/逆向这些真实成本与履约环节。
+  该分区 7 个岗位全部是成员职业（buyer/courier/customs-broker/delivery-rider/
+  logistics-operator/supply-chain-manager/warehouse-manager），无虚构岗位。

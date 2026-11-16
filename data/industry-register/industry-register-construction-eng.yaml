@@ -1,0 +1,124 @@
+unit_id: construction-eng
+industry: 建筑工程
+industry_alias:
+- 建筑业
+- 工程建设
+- 施工
+- 建筑工程
+- 工地
+- 总包
+- 分包
+- 土建
+- 工程项目
+- 装修施工
+# 专业动作组合词：只放「工程侧」的复合说法。
+# 「监理旁站记录」实测与 dongjiagoushi 的「记录」打成 1.5:1.5 歧义 ——
+# 单字词撑不起行业信号，用复合词把语义坐实（真实歧义仍会回落人工，这里只消掉假歧义）。
+- 监理旁站
+- 旁站记录
+- 隐蔽验收
+- 施工日志
+roles:
+- name: cost_estimator
+  prefix: '[造价]'
+  handoff: relay
+  composite: true
+  description: 造价 算量 清单编制 结算 变更签证 成本测算
+  keywords:
+  - 造价
+  - 算量
+  - 工程量
+  - 清单编制
+  - 工程量清单
+  - 结算
+  - 变更签证
+  - 成本测算
+  - 造价员
+  - 预算书
+  - 套定额
+- name: supervision_engineer
+  prefix: '[监理]'
+  handoff: relay
+  composite: true
+  description: 监理 旁站 验收 质量安全 见证取样 监理日志
+  keywords:
+  - 监理
+  - 旁站
+  - 工程验收
+  - 见证取样
+  - 监理日志
+  - 隐蔽验收
+  - 质量控制点
+  - 安全交底
+- name: construction_manager
+  prefix: '[施工管理]'
+  handoff: relay
+  composite: true
+  description: 施工管理 进度 现场 施工组织 班组 工期
+  keywords:
+  - 施工管理
+  - 施工组织
+  - 工期
+  - 进度计划
+  - 现场管理
+  - 施工方案
+  - 班组
+  - 交底
+- name: bidding_specialist
+  prefix: '[招投标]'
+  handoff: relay
+  composite: true
+  description: 招投标 投标文件 开标 评标 资格预审 报价策略
+  keywords:
+  - 招投标
+  - 投标
+  - 投标文件
+  - 开标
+  - 评标
+  - 资格预审
+  - 招标文件
+  - 报价策略
+  - 中标
+- name: bim_engineer
+  prefix: '[BIM]'
+  handoff: relay
+  composite: true
+  description: BIM 建模 碰撞检查 图纸审查 三维 模型
+  keywords:
+  - BIM
+  - 建模
+  - 碰撞检查
+  - 图纸审查
+  - 三维模型
+  - 施工模拟
+  - 深化设计
+  - 管线综合
+- name: construction_worker
+  prefix: '[施工班组]'
+  handoff: relay
+  composite: false
+  description: 施工班组 砌筑 钢筋 混凝土 木工 吊装
+  keywords:
+  - 施工班组
+  - 砌筑
+  - 钢筋
+  - 混凝土
+  - 木工
+  - 吊装
+  - 抹灰
+  - 班组长
+entry_ref: ''
+capability_tags:
+- 造价算量
+- 工程监理
+- 施工管理
+- 招投标
+- BIM建模
+- 现场作业
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 construction-eng 建单元（建筑业总产值 32 万亿）。
+  该分区是全库唯一「生产法恒等式闭合」的账（总产值 31.6 万亿 = 增加值 8.6 万亿 +
+  中间投入 23.0 万亿，va_ratio 0.272），战略视图点名「利润不在算量，在增项与材料差」——
+  这条判断正是 AI 上岗最需要的，触发词据此覆盖增项/变更签证/材料差等环节。
+  触发词取自该分区 aliases / 价值链 / AI 承接面，不凭想象补。

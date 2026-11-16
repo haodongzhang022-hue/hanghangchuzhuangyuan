@@ -1,0 +1,120 @@
+unit_id: manufacturing
+industry: 智能制造
+industry_alias:
+- 制造业
+- 工业制造
+- 生产制造
+- 智能制造
+- 工厂
+- 车间
+- 产线
+- 工业
+- 制造企业
+- 加工制造
+roles:
+- name: production_planner
+  prefix: '[排产]'
+  handoff: relay
+  composite: true
+  description: 生产计划 排产 物料齐套 交期 产能负荷
+  keywords:
+  - 排产
+  - 生产计划
+  - 计划员
+  - 物料齐套
+  - 交期
+  - 产能负荷
+  - 工单
+  - 生产排程
+  - 插单
+  - 在制品
+- name: quality_engineer
+  prefix: '[质量]'
+  handoff: relay
+  composite: true
+  description: 质量管理 质检 良率 不良分析 首件 客诉
+  keywords:
+  - 质量管理
+  - 质检
+  - 良率
+  - 不良率
+  - 不良分析
+  - 首件检验
+  - 客诉
+  - 质量工程师
+  - 8D
+  - 抽检
+  - 过程能力
+- name: process_engineer
+  prefix: '[工艺]'
+  handoff: relay
+  composite: true
+  description: 工艺 工艺参数 SOP 制程 工装夹具 产线节拍
+  keywords:
+  - 工艺
+  - 工艺参数
+  - 工艺工程师
+  - SOP
+  - 作业指导书
+  - 制程
+  - 工装夹具
+  - 产线节拍
+  - 工时定额
+  - 工艺改进
+- name: equipment_manager
+  prefix: '[设备]'
+  handoff: relay
+  composite: true
+  description: 设备管理 点检 维保 故障停机 OEE 备件
+  keywords:
+  - 设备管理
+  - 设备维护
+  - 点检
+  - 维保
+  - 设备故障
+  - 停机
+  - OEE
+  - 备件
+  - 设备台账
+- name: industrial_designer
+  prefix: '[工业设计]'
+  handoff: relay
+  composite: true
+  description: 工业设计 产品外观 结构设计 样机 人机
+  keywords:
+  - 工业设计
+  - 产品外观
+  - 结构设计
+  - 样机
+  - 人机工程
+  - 造型设计
+  - 产品设计
+- name: factory_operator
+  prefix: '[产线]'
+  handoff: relay
+  composite: false
+  description: 产线操作 上料 装配 操作工 班组 换型
+  keywords:
+  - 操作工
+  - 产线操作
+  - 装配
+  - 上料
+  - 换型
+  - 班组
+  - 车间
+entry_ref: ''
+capability_tags:
+- 生产排程
+- 质量控制
+- 工艺设计
+- 设备维护
+- 工业设计
+- 产线操作
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 manufacturing 建单元（制造业增加值 33 万亿，
+  全库最大）。分区数据（战略视图/6 岗位/成员职业/官方基准）本来齐备，缺的只是
+  注册声明与岗位画像。
+  触发词取自该分区 aliases / demand_side / 价值链环节 / AI 承接面，不凭想象补。
+  注意：分区 note 写着「内需再按子行业(电子/机械/化工)二级聚类，目前只做一级」，
+  本单元按一级建，二级聚类是后续工作，别在这里假装已经细分。
