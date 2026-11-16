@@ -277,7 +277,7 @@ roles:
     kind: skill
     path: data/role-profiles/home-design.yaml
   sources:
-  - /workspace/data/role-profiles/home-design.yaml
+  - role-profiles/home-design.yaml
   chain_refs:
     upstream:
     - raw: 业主需求
@@ -558,7 +558,7 @@ roles:
     kind: skill
     path: data/role-profiles/home-design.yaml
   sources:
-  - /workspace/data/role-profiles/home-design.yaml
+  - role-profiles/home-design.yaml
   chain_refs:
     upstream:
     - raw: 业主需求
@@ -820,7 +820,7 @@ roles:
     kind: skill
     path: data/role-profiles/home-design.yaml
   sources:
-  - /workspace/data/role-profiles/home-design.yaml
+  - role-profiles/home-design.yaml
   chain_refs:
     upstream:
     - raw: 业主需求

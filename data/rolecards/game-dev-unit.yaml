@@ -212,7 +212,7 @@ roles:
     kind: skill
     path: data/role-profiles/game-dev-unit.yaml
   sources:
-  - /workspace/data/role-profiles/game-dev-unit.yaml
+  - role-profiles/game-dev-unit.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -459,7 +459,7 @@ roles:
     kind: skill
     path: data/role-profiles/game-dev-unit.yaml
   sources:
-  - /workspace/data/role-profiles/game-dev-unit.yaml
+  - role-profiles/game-dev-unit.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -700,7 +700,7 @@ roles:
     kind: skill
     path: data/role-profiles/game-dev-unit.yaml
   sources:
-  - /workspace/data/role-profiles/game-dev-unit.yaml
+  - role-profiles/game-dev-unit.yaml
   chain_refs:
     upstream:
     - raw: 用户

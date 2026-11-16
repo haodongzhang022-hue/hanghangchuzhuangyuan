@@ -233,7 +233,7 @@ roles:
     kind: skill
     path: docs/industry/units/dongjiagoushi/README.md
   sources:
-  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  - role-profiles/dongjiagoushi.yaml
   chain_refs:
     upstream:
     - raw: 用户
@@ -505,7 +505,7 @@ roles:
     kind: skill
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/system-design/SKILL.md
   sources:
-  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  - role-profiles/dongjiagoushi.yaml
   chain_refs:
     upstream:
     - raw: product
@@ -834,7 +834,7 @@ roles:
     kind: skill
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/debug/SKILL.md
   sources:
-  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  - role-profiles/dongjiagoushi.yaml
   chain_refs:
     upstream:
     - raw: architect
@@ -1070,7 +1070,7 @@ roles:
     kind: skill
     path: vendor/upstream/knowledge-work-plugins/engineering/skills/code-review/SKILL.md
   sources:
-  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  - role-profiles/dongjiagoushi.yaml
   chain_refs:
     upstream:
     - raw: developer
@@ -1317,7 +1317,7 @@ roles:
     kind: skill
     path: docs/industry/units/dongjiagoushi/README.md
   sources:
-  - /workspace/data/role-profiles/dongjiagoushi.yaml
+  - role-profiles/dongjiagoushi.yaml
   chain_refs:
     upstream:
     - raw: 用户

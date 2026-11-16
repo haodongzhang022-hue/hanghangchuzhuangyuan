@@ -30,12 +30,17 @@ class Registry:
         self._load_all()
 
     def _load_all(self):
-        """从搜索路径加载所有 industry-register*.yaml"""
+        """从搜索路径加载所有 industry-register*.yaml / unit-index*.yaml"""
         files = []
         for sp in self.search_paths:
             for pattern in ["industry-register*.yaml", "unit-index*.yaml"]:
                 files.extend(glob.glob(os.path.join(sp, pattern)))
-            files.extend(glob.glob(os.path.join(sp, "**", pattern), recursive=True))
+                # 递归必须写在 pattern 循环**里面**：写在外面时只会用到循环
+                # 结束后残留的最后一个模式（unit-index*），于是 data/industry-register/
+                # 这类子目录下的单元注册被静默忽略 —— 文件建了、加载器看不见，
+                # 而 `units` 照常报旧数量，看起来「切块没生效」而不是「根本没读」。
+                files.extend(glob.glob(os.path.join(sp, "**", pattern),
+                                       recursive=True))
 
         seen = set()
         for f in sorted(files):

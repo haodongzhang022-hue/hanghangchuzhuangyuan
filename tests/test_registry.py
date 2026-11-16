@@ -1,4 +1,5 @@
 """注册表与元数据测试"""
+import glob
 import os
 import sys
 
@@ -24,6 +25,73 @@ def test_registry_roles():
     assert "developer" in role_names
     assert "product" in role_names
     assert "reviewer" in role_names
+
+
+def test_subdirectory_registrations_are_loaded():
+    """data/ 子目录下的 industry-register*.yaml 必须被加载。
+
+    回归（2026-11-17 实测）：`_load_all` 的递归 glob 原先写在 pattern 循环**外面**，
+    只会用到循环结束后残留的最后一个模式（unit-index*）。于是
+    data/industry-register/ 下的单元注册被静默忽略 —— 文件建了、`units` 照常报
+    旧数量，读起来像是「切块没生效」，实际是「根本没读」。
+    """
+    import glob
+    import tempfile
+    import yaml
+
+    tmp = tempfile.mkdtemp()
+    data = os.path.join(tmp, "data")
+    os.makedirs(data, exist_ok=True)
+    sub = os.path.join(data, "industry-register")
+    os.makedirs(sub, exist_ok=True)
+
+    def _unit(uid, industry, kw):
+        return {
+            "unit_id": uid, "industry": industry,
+            "industry_alias": [industry],
+            "roles": [{"name": "worker", "description": industry,
+                       "keywords": [kw]}],
+            "capability_tags": [industry],
+        }
+
+    # 顶层一个 + 子目录一个：两者都必须被加载
+    with open(os.path.join(data, "industry-register-top.yaml"), "w",
+              encoding="utf-8") as fh:
+        yaml.safe_dump(_unit("unit-top", "顶层行业", "顶层词"), fh,
+                       allow_unicode=True)
+    with open(os.path.join(sub, "industry-register-nested.yaml"), "w",
+              encoding="utf-8") as fh:
+        yaml.safe_dump(_unit("unit-nested", "子目录行业", "子目录词"), fh,
+                       allow_unicode=True)
+
+    reg = Registry(search_paths=[data])
+    uids = [u.unit_id for u in reg.all_units()]
+    assert "unit-top" in uids, uids
+    assert "unit-nested" in uids, (
+        f"子目录里的注册文件没被加载：{uids}（递归 glob 又跑出 pattern 循环了？）")
+
+
+def test_real_repo_has_subdir_registrations():
+    """真实仓库：data/industry-register/ 下若有文件，必须体现在注册表里。
+
+    这条盯的是「新增行业单元只加文件、却被静默忽略」这种失效。
+    """
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sub = os.path.join(root, "data", "industry-register")
+    if not os.path.isdir(sub):
+        return
+    files = glob.glob(os.path.join(sub, "industry-register*.yaml"))
+    if not files:
+        return
+    import yaml
+    reg = Registry()
+    loaded = {u.unit_id for u in reg.all_units()}
+    for f in files:
+        d = yaml.safe_load(open(f, encoding="utf-8")) or {}
+        uid = d.get("unit_id")
+        if uid:
+            assert uid in loaded, (
+                f"{os.path.basename(f)} 定义的单元 {uid} 没有进注册表")
 
 
 def test_prefix_archive():
@@ -142,9 +210,12 @@ def test_prefix_archive_atomic_save():
 
 
 if __name__ == "__main__":
-    test_registry_loads_units()
-    test_registry_roles()
-    test_prefix_archive()
-    test_prefix_archive_drift_aware_save()
-    test_prefix_archive_atomic_save()
+    # 自动发现本模块所有 test_* 函数。
+    # 原先这里是手写列举：新增测试忘登记就**永远不执行**，而运行输出照样是
+    # 「✅ 通过」—— 一个不会失败的测试比没有测试更坏，因为它占着「已覆盖」的位置。
+    # （2026-11-17 实测：补了子目录加载的回归测试，因未登记而一直没跑。）
+    for _name, _fn in sorted(list(globals().items())):
+        if _name.startswith("test_") and callable(_fn):
+            _fn()
+            print(f"  ✅ {_name}")
     print("✅ 注册表测试通过")

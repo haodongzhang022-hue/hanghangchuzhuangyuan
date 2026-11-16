@@ -232,7 +232,7 @@ roles:
     kind: skill
     path: data/role-profiles/admin-office.yaml
   sources:
-  - /workspace/data/role-profiles/admin-office.yaml
+  - role-profiles/admin-office.yaml
   chain_refs:
     upstream:
     - raw: 各处室需求
@@ -474,7 +474,7 @@ roles:
     kind: skill
     path: data/role-profiles/admin-office.yaml
   sources:
-  - /workspace/data/role-profiles/admin-office.yaml
+  - role-profiles/admin-office.yaml
   chain_refs:
     upstream:
     - raw: 各处室需求
@@ -732,7 +732,7 @@ roles:
     kind: skill
     path: data/role-profiles/admin-office.yaml
   sources:
-  - /workspace/data/role-profiles/admin-office.yaml
+  - role-profiles/admin-office.yaml
   chain_refs:
     upstream:
     - raw: 各处室需求
@@ -1022,7 +1022,7 @@ roles:
     kind: skill
     path: data/role-profiles/admin-office.yaml
   sources:
-  - /workspace/data/role-profiles/admin-office.yaml
+  - role-profiles/admin-office.yaml
   chain_refs:
     upstream:
     - raw: 各处室需求

@@ -351,5 +351,27 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "translation": {
+    "unit_id": "translation",
+    "industry": "翻译本地化",
+    "role_prefixes": {
+      "subtitle": {
+        "prefix": "[字幕]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "localizer": {
+        "prefix": "[本地化]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "proofreader": {
+        "prefix": "[审校]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }

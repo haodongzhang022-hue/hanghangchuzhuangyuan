@@ -76,7 +76,11 @@ def test_coverage_ratio_consistent():
     db = IndustryDatabase()
     s = db.compute()
     assert 0 < s["partition_coverage"] < 1
-    assert s["covered_partitions"] == 14
+    # 分母不写死：每建一个行业单元这里都得改数字，等于用"忘记改"换"测试红"。
+    # 断言它等于数据里 status=covered 的分区数，才是这份账真正的不变式。
+    covered = sum(1 for p in db.partitions if p.get("status") == "covered")
+    assert s["covered_partitions"] == covered, (
+        f"覆盖率分子的口径与分区状态不一致：{s['covered_partitions']} vs {covered}")
     assert s["buildable_partitions"] == s["covered_partitions"] + len(db.gaps())
     # 职业基线职业全部挂到分区后覆盖率为 100%；不允许 >1 或负数
     assert 0 <= s["occupation_coverage"] <= 1

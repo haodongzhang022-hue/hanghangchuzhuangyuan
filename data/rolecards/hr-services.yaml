@@ -270,7 +270,7 @@ roles:
     kind: skill
     path: data/role-profiles/hr-services.yaml
   sources:
-  - /workspace/data/role-profiles/hr-services.yaml
+  - role-profiles/hr-services.yaml
   chain_refs:
     upstream:
     - raw: 用人部门
@@ -554,7 +554,7 @@ roles:
     kind: skill
     path: data/role-profiles/hr-services.yaml
   sources:
-  - /workspace/data/role-profiles/hr-services.yaml
+  - role-profiles/hr-services.yaml
   chain_refs:
     upstream:
     - raw: 用人部门
@@ -833,7 +833,7 @@ roles:
     kind: skill
     path: data/role-profiles/hr-services.yaml
   sources:
-  - /workspace/data/role-profiles/hr-services.yaml
+  - role-profiles/hr-services.yaml
   chain_refs:
     upstream:
     - raw: 用人部门
@@ -1134,7 +1134,7 @@ roles:
     kind: skill
     path: data/role-profiles/hr-services.yaml
   sources:
-  - /workspace/data/role-profiles/hr-services.yaml
+  - role-profiles/hr-services.yaml
   chain_refs:
     upstream:
     - raw: 用人部门

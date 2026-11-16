@@ -208,7 +208,7 @@ roles:
     kind: skill
     path: data/role-profiles/healthcare.yaml
   sources:
-  - /workspace/data/role-profiles/healthcare.yaml
+  - role-profiles/healthcare.yaml
   chain_refs:
     upstream:
     - raw: 咨询者自述
@@ -450,7 +450,7 @@ roles:
     kind: skill
     path: data/role-profiles/healthcare.yaml
   sources:
-  - /workspace/data/role-profiles/healthcare.yaml
+  - role-profiles/healthcare.yaml
   chain_refs:
     upstream:
     - raw: 咨询者自述
@@ -683,7 +683,7 @@ roles:
     kind: skill
     path: data/role-profiles/healthcare.yaml
   sources:
-  - /workspace/data/role-profiles/healthcare.yaml
+  - role-profiles/healthcare.yaml
   chain_refs:
     upstream:
     - raw: 咨询者自述
@@ -958,7 +958,7 @@ roles:
     kind: skill
     path: data/role-profiles/healthcare.yaml
   sources:
-  - /workspace/data/role-profiles/healthcare.yaml
+  - role-profiles/healthcare.yaml
   chain_refs:
     upstream:
     - raw: 咨询者自述

@@ -202,7 +202,7 @@ roles:
     kind: skill
     path: data/role-profiles/finance-accounting.yaml
   sources:
-  - /workspace/data/role-profiles/finance-accounting.yaml
+  - role-profiles/finance-accounting.yaml
   chain_refs:
     upstream:
     - raw: 业务单据
@@ -433,7 +433,7 @@ roles:
     kind: skill
     path: data/role-profiles/finance-accounting.yaml
   sources:
-  - /workspace/data/role-profiles/finance-accounting.yaml
+  - role-profiles/finance-accounting.yaml
   chain_refs:
     upstream:
     - raw: 业务单据
@@ -703,7 +703,7 @@ roles:
     kind: skill
     path: data/role-profiles/finance-accounting.yaml
   sources:
-  - /workspace/data/role-profiles/finance-accounting.yaml
+  - role-profiles/finance-accounting.yaml
   chain_refs:
     upstream:
     - raw: 业务单据
@@ -919,7 +919,7 @@ roles:
     kind: skill
     path: data/role-profiles/finance-accounting.yaml
   sources:
-  - /workspace/data/role-profiles/finance-accounting.yaml
+  - role-profiles/finance-accounting.yaml
   chain_refs:
     upstream:
     - raw: 业务单据

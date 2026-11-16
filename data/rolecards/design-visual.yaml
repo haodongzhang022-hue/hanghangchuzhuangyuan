@@ -271,7 +271,7 @@ roles:
     kind: skill
     path: data/role-profiles/design-visual.yaml
   sources:
-  - /workspace/data/role-profiles/design-visual.yaml
+  - role-profiles/design-visual.yaml
   chain_refs:
     upstream:
     - raw: 需求方与文案
@@ -559,7 +559,7 @@ roles:
     kind: skill
     path: data/role-profiles/design-visual.yaml
   sources:
-  - /workspace/data/role-profiles/design-visual.yaml
+  - role-profiles/design-visual.yaml
   chain_refs:
     upstream:
     - raw: 需求方与文案
@@ -833,7 +833,7 @@ roles:
     kind: skill
     path: data/role-profiles/design-visual.yaml
   sources:
-  - /workspace/data/role-profiles/design-visual.yaml
+  - role-profiles/design-visual.yaml
   chain_refs:
     upstream:
     - raw: 需求方与文案
@@ -1108,7 +1108,7 @@ roles:
     kind: skill
     path: data/role-profiles/design-visual.yaml
   sources:
-  - /workspace/data/role-profiles/design-visual.yaml
+  - role-profiles/design-visual.yaml
   chain_refs:
     upstream:
     - raw: 需求方与文案

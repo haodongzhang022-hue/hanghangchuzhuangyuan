@@ -252,7 +252,7 @@ roles:
     kind: skill
     path: data/role-profiles/education-training.yaml
   sources:
-  - /workspace/data/role-profiles/education-training.yaml
+  - role-profiles/education-training.yaml
   chain_refs:
     upstream:
     - raw: 学员
@@ -542,7 +542,7 @@ roles:
     kind: skill
     path: data/role-profiles/education-training.yaml
   sources:
-  - /workspace/data/role-profiles/education-training.yaml
+  - role-profiles/education-training.yaml
   chain_refs:
     upstream:
     - raw: 学员
@@ -863,7 +863,7 @@ roles:
     kind: skill
     path: data/role-profiles/education-training.yaml
   sources:
-  - /workspace/data/role-profiles/education-training.yaml
+  - role-profiles/education-training.yaml
   chain_refs:
     upstream:
     - raw: 学员

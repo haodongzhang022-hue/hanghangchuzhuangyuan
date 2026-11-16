@@ -221,7 +221,10 @@ def test_web_jobs_not_swallowed_by_software():
         ("帮我写网站推广策划方案", "marketing"),
         ("帮我做网站的SEO", "marketing"),
         # content（网页翻译/编辑属内容创作作业）
-        ("帮我翻译这个网页内容", "content-creation"),
+        # 注：建立翻译单元后，「翻译」这一动作有了更精确的承接方（translation），
+        # 该句改判到 translation 是正确的精度提升，不是回归 —— 本测试要守的是
+        # 「不被软件研发(dongjiagoushi)吞掉」，translation 满足这个约束。
+        ("帮我翻译这个网页内容", "translation"),
         ("帮我做网页内容编辑和排版", "content-creation"),
         # legal（网站版权/用户协议审查属法律作业）
         ("帮我审核这个网站版权风险", "legal-services"),
