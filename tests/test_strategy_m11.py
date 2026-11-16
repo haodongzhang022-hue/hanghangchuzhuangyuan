@@ -191,6 +191,54 @@ def test_one_sided_blank_section_must_explain_itself():
     assert any("esports" in x and "leverage" in x for x in problems), problems
 
 
+def test_leverage_is_read_back_not_silently_dropped():
+    """杠杆是字符串列表，消费方必须按字符串列表读。
+
+    回归：row() 曾用 _dicts() 读 leverage（数据写的是 `- 领域know-how`），
+    41 个分区的杠杆被整段过滤成空 —— `industry strategy` 打「杠杆: —」、
+    strategy.csv 的 leverage 列 41 行全空 —— 而第 8 条校验看的是原始值
+    （非空就跳过），于是一条问题都不报：数据静默消失、自检全绿。
+
+    这里断言的不只是"删除后会报错"，而是"读出来就是有内容"，因为上一版的
+    校验测不到"数据在、读出来是空"这种失效。
+    """
+    db = _db()
+    rows = db.strategy.rows()
+    assert rows, "没有任何分区行"
+    empty = [r["partition"] for r in rows if not r["leverage"]]
+    assert not empty, f"这些分区的 leverage 读出来是空的: {empty}"
+    # 具体形状也要对：是字符串列表，不是被包成 dict 的东西
+    for r in rows:
+        assert all(isinstance(x, str) for x in r["leverage"]), (
+            r["partition"], r["leverage"])
+    # 数据里确实有、报告里也确实读到了：两边数量必须一致
+    in_data = [p for p, e in db.strategy.entries.items() if e.get("leverage")]
+    assert len(in_data) == len(rows), (len(in_data), len(rows))
+    assert db.strategy.row("esports")["leverage"], "esports 的杠杆丢了"
+
+
+def test_nonempty_raw_value_that_reads_empty_is_reported():
+    """原始值非空、但消费方读出来是空 → 必须报。
+
+    这是上一条的"护栏的护栏"：如果只修 row() 而不修校验，同样的形状错位
+    （比如以后再有一个段被换成错误的归一函数）仍会静默消失。
+    """
+    db = _db()
+    saved = db.strategy.row
+
+    def broken_row(pid):
+        r = saved(pid)
+        r["leverage"] = []          # 模拟"数据在、读出来是空"
+        return r
+
+    db.strategy.row = broken_row
+    try:
+        problems = db.strategy.validate()
+    finally:
+        db.strategy.row = saved
+    assert any("leverage" in x and "读出来是空的" in x for x in problems), problems
+
+
 def test_empty_ledger_is_reported():
     """文件在、内容是注释 → 空账必须硬报，不能"每条校验都通过" """
     with tempfile.TemporaryDirectory() as td:

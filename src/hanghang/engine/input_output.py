@@ -174,11 +174,16 @@ class InputOutputBook:
     def identity(self, pid: str) -> dict:
         """生产法恒等式校验：总产出 = 增加值 + 中间投入。
 
-        结论只有四种，别用空字符串当"没问题"（那与"没验过"分不清）：
-          ok        两端都在且闭合（或中间投入由相减得出）
-          gap       两端都在但对不上（超容差）
-          partial   只够一端，验不了 —— 但缺的那端要写清为什么
-          missing   两端都没有（该分区在这张账里还没有落点）
+        结论只有六种，别用空字符串当"没问题"（那与"没验过"分不清）：
+          ok          两端都在且闭合（或中间投入由相减得出）
+          gap         两端都在但对不上（超容差）
+          zero_rhs    增加值+中间投入 = 0，而总产出非 0（数据错，不是口径差）
+          zero_output 总产出 = 0，而两端合计非 0（数据错，不是口径差）
+          partial     只够一端，验不了 —— 但缺的那端要写清为什么
+          missing     两端都没有（该分区在这张账里还没有落点）
+
+        两个 zero_* 单列而不并进 gap：gap 的语义是"两个都对但口径不同"，
+        除以 0 得到的偏差既不是 0 也不是超容差，混进去只会让下游拿 None 去格式化。
         """
         acc = self.accounts.get(pid) or {}
         out = self.term(acc, "output")
@@ -204,9 +209,19 @@ class InputOutputBook:
         # 但 derived 行仍要算一遍：它同时是"总产出与增加值同源同口径"的交叉验证。
         rhs = va + mid
         if not rhs:
-            row["status"] = "gap"
+            # 报了增加值/中间投入却说两端合计为 0，本身就是数据错（0 是实测值不是缺失，
+            # 所以能过 validate 第 1 条）。这里不能留下 deviation=None 走 gap 分支：
+            # 下游 `abs(dev)` 与 `f"{deviation:+.1%}"` 都会 TypeError，
+            # 结果校验器自己崩掉——红灯既不是"数据坏了"也不是绿。
+            row["status"] = "zero_rhs"
             return row
-        dev = (out - rhs) / out if out else None
+        if not out:
+            # 总产出 0 而两端合计非 0：同样是数据错。单列一档，
+            # 免得 (out - rhs) / out 除零得到 None 后再 abs(None)。
+            row["status"] = "zero_output"
+            row["deviation"] = None
+            return row
+        dev = (out - rhs) / out
         row["deviation"] = dev
         row["status"] = "ok" if abs(dev) <= self.tolerance else "gap"
         return row
@@ -392,11 +407,28 @@ class InputOutputBook:
         # 2. 生产法恒等式：对不上就报；缺一端必须写清为什么
         for pid in self.accounts:
             r = self.identity(pid)
-            if r["status"] == "gap":
+            if r["status"] == "zero_output":
+                problems.append(
+                    f"分区 {pid} 的总产出填了 0，但增加值 {_wan(r['value_added'])} + "
+                    f"中间投入 {_wan(r['intermediate'])} 不为 0"
+                    f"（报了增加值/中间投入却说总产出 0，这本身就是数据错——"
+                    f"0 是实测值不是缺失，缺的一端请整个省略并在 missing 里写原因）")
+            elif r["status"] == "zero_rhs":
+                problems.append(
+                    f"分区 {pid} 的增加值 {_wan(r['value_added'])} + 中间投入 "
+                    f"{_wan(r['intermediate'])} 合计为 0，而总产出是 "
+                    f"{_wan(r['output'])}"
+                    f"（生产法三端里有两端是 0，恒等式算不出偏差——"
+                    f"这两端要么该整个省略并写 missing 原因，要么取错了口径）")
+            elif r["status"] == "gap":
+                # deviation 理论上此时一定不是 None；仍按 None 兜一次：
+                # 校验器自己 traceback 是最坏的结果（既不是"数据坏了"也不是绿）。
+                dev = (f"{r['deviation']:+.1%}" if r["deviation"] is not None
+                       else "算不出（总产出为 0）")
                 problems.append(
                     f"分区 {pid} 的生产法对不上：总产出 {_wan(r['output'])} ≠ "
                     f"增加值 {_wan(r['value_added'])} + 中间投入 "
-                    f"{_wan(r['intermediate'])}，偏差 {r['deviation']:+.1%} > "
+                    f"{_wan(r['intermediate'])}，偏差 {dev} > "
                     f"{self.tolerance:.0%}（三边不同源，必有一个是别的口径）")
             elif r["status"] == "partial":
                 miss = [n for n in TERMS if self.term(self.accounts[pid], n) is None]
