@@ -402,7 +402,11 @@ class StrategyView:
             #    所以这里按消费方真正拿到的样子再验一次。
             view = self.row(pid)
             for section in self._CONSUMER_SECTIONS:
-                if not e.get(section):
+                # 门控必须按消费路径取原始值：ai_strong / human_decides 等在
+                # 数据里是嵌套的（ai_frontier.strong / division_of_labor.human_decides），
+                # 顶层没有这些键。用 e.get(section) 门控会让这四段恒被跳过 ——
+                # 护栏看起来在守，实际是死代码（评审 2026-11-16 指出）。
+                if not self._raw_for_consumer(e, section):
                     continue
                 if section in self._defect_sections.get(pid, ()):
                     continue
@@ -418,6 +422,29 @@ class StrategyView:
     _CONSUMER_SECTIONS = ("value_chain", "profit_pool", "leverage", "drivers",
                           "risks", "role_focus", "ai_strong", "ai_weak",
                           "human_decides", "ai_fills")
+    # 每个消费段在数据里的**取值路径**。纯顶层段直接取键；嵌套段必须按消费路径
+    # 取（ai_frontier.strong / division_of_labor.human_decides），
+    # 否则门控恒查不到值、恒跳过 —— 护栏就成了死代码。
+    # 这份映射与 row() 的同名条目一一对应，改动任一都要一起改。
+    _CONSUMER_PATHS = {
+        "ai_strong": ("ai_frontier", "strong"),
+        "ai_weak": ("ai_frontier", "weak"),
+        "human_decides": ("division_of_labor", "human_decides"),
+        "ai_fills": ("division_of_labor", "ai_fills"),
+    }
+
+    @classmethod
+    def _raw_for_consumer(cls, entry: dict, section: str):
+        """按消费路径取某段的原始值（不是归一后的行）。顶层段即 entry[section]。"""
+        path = cls._CONSUMER_PATHS.get(section)
+        if not path:
+            return entry.get(section)
+        node = entry
+        for key in path:
+            if not isinstance(node, dict):
+                return None
+            node = node.get(key)
+        return node
 
     @staticmethod
     def _walk_keys(obj, depth: int = 0) -> List[str]:
