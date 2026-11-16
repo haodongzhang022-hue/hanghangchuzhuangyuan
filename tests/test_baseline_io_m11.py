@@ -465,6 +465,137 @@ def test_every_baseline_declares_origin():
         assert b.get("origin") in ("published", "recalled", "backfilled"), b.get("id")
 
 
+# ------------------------------------------------- 8. 0 是实测值：校验器不许自己崩
+def _io_with(mutate, target="construction-eng"):
+    """拷一份真实账本，只改 target 的某一端，返回改后的 InputOutputBook。
+
+    直接改内存里的 accounts 而不是写临时目录：`_normalize_account` 已在加载时
+    跑过，这里要测的正是"数值为 0"这种合法输入走到下游会怎样。
+    """
+    db = _db()
+    book = db.input_output
+    acc = book.accounts[target]
+    mutate(acc)
+    book.bind(db.partitions)
+    return db, book
+
+
+def test_zero_output_does_not_crash_identity():
+    """总产出填 0、两端有数 → 必须是明确的数据错，不许 TypeError。
+
+    回归：`dev = (out - rhs) / out if out else None` 得到 None，下一行
+    `abs(dev)` 抛 TypeError —— 校验器自己挂掉，红灯既不是"数据坏了"也不是绿。
+    而 output: 0 能过第 1 条（只拦 v < 0，仓库立场是"0 是实测值不是缺失"）。
+    """
+    db, book = _io_with(lambda a: a.__setitem__("output", {"cny": 0}))
+    r = book.identity("construction-eng")          # 不许抛
+    assert r["status"] == "zero_output", r
+    problems = book.validate()                     # 不许抛
+    assert any("construction-eng" in x and "总产出填了 0" in x
+               for x in problems), problems
+
+
+def test_zero_rhs_does_not_crash_validate():
+    """增加值与中间投入都是 0、总产出非 0 → 报数据错，不许拿 None 去格式化。
+
+    回归：status 置 gap 但 deviation 留 None，第 2 条
+    `f"{r['deviation']:+.1%}"` 抛 TypeError: unsupported format string ...
+    """
+    def mutate(a):
+        a["output"] = {"cny": 1000.0}
+        a["value_added"] = {"cny": 0}
+        a["intermediate"] = {"cny": 0}
+    db, book = _io_with(mutate)
+    r = book.identity("construction-eng")
+    assert r["status"] == "zero_rhs", r
+    problems = book.validate()                     # 不许抛
+    assert any("construction-eng" in x and "合计为 0" in x
+               for x in problems), problems
+
+
+def test_zero_states_never_reach_gap_branch():
+    """两个 zero_* 都不许落进 gap：gap 的下游一律格式化为百分比"""
+    db, book = _io_with(lambda a: a.__setitem__("output", {"cny": 0}))
+    for pid in ("construction-eng",):
+        r = book.identity(pid)
+        assert r["status"] != "gap", r
+        # gap 分支的硬前提：deviation 一定是数
+        assert r["deviation"] is None or isinstance(r["deviation"], float), r
+
+
+def test_real_io_ledger_is_unaffected():
+    """真实账本仍然零问题：新分档不许把正常数据误报成错"""
+    db = _db()
+    problems = db.input_output.validate()
+    assert not [p for p in problems if "填了 0" in p or "合计为 0" in p], problems
+
+
+# ------------------------------------------------- 9. 基准表：表头与表体必须同源
+def test_baseline_header_tracks_years():
+    """年份列由数据生成，不写死 2022/2023。
+
+    回归：表头硬编码两列、表体按 base.years 迭代，years 变成三年后
+    三年数值压在两列表头下，2024 的读数被读成 2023，同比与出处右移一位。
+
+    CLI 每次都重新读文件，所以这里必须改**磁盘上的副本**再跑，
+    在内存里改 base.years 对子进程无效。
+    """
+    import re
+    import shutil
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    try:
+        shutil.copytree(os.path.join(ROOT, "data"), os.path.join(tmp, "data"))
+        path = os.path.join(tmp, "data", "industry-official-baseline.yaml")
+        text = open(path, encoding="utf-8").read()
+        base = _db().baseline
+        old = f"years: {base.years}".replace(" ", "")
+        # 源文件写法是 `years: [2022, 2023]`；按列表逐字替换，兼容空格差异
+        new_years = list(base.years or []) + [2024]
+        pattern = r"^years:.*$"
+        assert re.search(pattern, text, re.M)
+        text = re.sub(pattern, "years: " + str(new_years).replace('"', ''),
+                      text, count=1, flags=re.M)
+        open(path, "w", encoding="utf-8").write(text)
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "src/hanghang/cli/main.py"),
+             "industry", "baseline", "--benchmarks", "--data-dir",
+             os.path.join(tmp, "data")],
+            capture_output=True, text=True, cwd=ROOT)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    assert out.returncode == 0, out.stderr
+    header = next(l for l in out.stdout.splitlines() if "2022(亿)" in l)
+    for y in new_years:
+        assert f"{y}(亿)" in header, (y, header)
+    # 表体每一行的年份格数必须等于表头年份列数
+    ncols = len(re.findall(r"\d{4}\(亿\)", header))
+    named = [l for l in out.stdout.splitlines() if "统计局" in l or "总局" in l
+             or "卫健委" in l]
+    assert named, out.stdout[:500]
+    # 核心断言：表头公布的年份列数必须等于表体给出的年份格数。
+    # 上一版表头写死 2 列、表体出 3 格 —— 多出来的那格把同比挤到 2024 底下去。
+    # 做法：按 `_cell` 的固定宽度（年份 14）把中间区切块，数非空块。
+    ncols = len(re.findall(r"\d{4}\(亿\)", header))
+    named = [l for l in out.stdout.splitlines() if "统计局" in l or "总局" in l
+             or "卫健委" in l]
+    assert named, out.stdout[:500]
+    import unicodedata
+
+    def dwidth(s):
+        """显示宽度：中文按 2 算，否则按 1（表是终端宽度对齐的）"""
+        return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+    for line in named:
+        # 基准名(24) + 口径(16) 之后是年份区，每格 14 显示宽
+        pad = len(line) - dwidth(line)          # 双宽字符多出来的列数
+        start = 24 + 16 + pad
+        chunk = line[start:start + 14 * ncols]
+        got = [chunk[i:i + 14].strip() for i in range(0, 14 * ncols, 14)]
+        assert len(got) == ncols, (ncols, got, line)
+        assert any(got), (ncols, got, line)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(list(globals().items())):
         if name.startswith("test_") and callable(fn):

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from hanghang.engine import industry_schema
 from hanghang.engine.industry_db import GDP_KINDS, IndustryDatabase
+from hanghang.engine.input_output import _wan
 from hanghang.engine.money_flow import FLOW_KINDS, RECONCILE_TOLERANCE
 from hanghang.engine.official_baseline import RELATIONS
 from hanghang.engine.scale_ledger import METRIC_LABELS, SCALE_METRICS
@@ -715,14 +716,28 @@ def cmd_industry_baseline(args):
         print(f"官方口径基准  v{base.version}  年份 {base.years}  "
               f"容差 {base.tolerance:.0%}  updated {base.updated_at}")
         print("-" * 96)
+        # 表头必须与表体同源：年份列由数据算出来，不再写死。
+        # 曾经这里把 2022(亿)/2023(亿) 写死在表头，而表体按 base.years 迭代 ——
+        # 基准年份一变，多出来的数值就压在旧表头下，2024 的读数被读成 2023，
+        # 同比与出处整体右移一位（每行都错，而合计看着还是对的）。
+        #
+        # 年份列 = base.years ∪ 各基准 series 里实际出现的年份：
+        # 只认 base.years 会把这个文件自己的读数藏起来，只认 series 则每行长度不一、
+        # 列与列之间对不齐。取并集，表头与表体用的是同一份列表，永远等长。
+        years_seen = set(base.years or [])
+        for b in base.benchmarks:
+            for r in (b.get("series") or []):
+                if r.get("year") is not None:
+                    years_seen.add(r.get("year"))
+        header_years = sorted(years_seen)
         print(f"{db._cell('基准', 24)}{db._cell('口径', 16)}"
-              f"{db._cell('2022(亿)', 14)}{db._cell('2023(亿)', 14)}"
-              f"{db._cell('同比', 10)}出处")
+              + "".join(db._cell(f"{y}(亿)", 14) for y in header_years)
+              + f"{db._cell('同比', 10)}出处")
         for b in base.benchmarks:
             vals = {r.get("year"): r.get("value_cny")
                     for r in (b.get("series") or [])}
             cells = ""
-            for y in (base.years or sorted(vals)):
+            for y in header_years:
                 v = vals.get(y)
                 cells += db._cell(f"{v / 1e8:,.0f}" if v else "-", 14)
             yoy = base.yoy(b.get("id", ""))
@@ -820,6 +835,14 @@ def cmd_industry_io(args):
         elif r["status"] == "gap":
             print(f"  恒等式 ❌ 偏差 {r['deviation']:+.1%} 超容差 {r['tolerance']:.0%}"
                   f"（三边不同源，必有一个是别的口径）")
+        elif r["status"] == "zero_output":
+            print(f"  恒等式 ❌ 总产出填了 0，但增加值 {_wan(r['value_added'])} + "
+                  f"中间投入 {_wan(r['intermediate'])} 不为 0"
+                  f"（0 是实测值不是缺失；缺的一端请整个省略并在 missing 写原因）")
+        elif r["status"] == "zero_rhs":
+            print(f"  恒等式 ❌ 增加值 {_wan(r['value_added'])} + 中间投入 "
+                  f"{_wan(r['intermediate'])} 合计为 0，而总产出是 "
+                  f"{_wan(r['output'])}（恒等式算不出偏差，这两端取口径要复查）")
         elif r["status"] == "partial":
             miss = [n for n in ("output", "value_added", "intermediate")
                     if r[n] is None]

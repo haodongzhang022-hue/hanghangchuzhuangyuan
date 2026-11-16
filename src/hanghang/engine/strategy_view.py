@@ -208,7 +208,11 @@ class StrategyView:
             "value_chain": _strs(e.get("value_chain")),
             "position": e.get("position", "") or "",
             "profit_pool": _dicts(e.get("profit_pool")),
-            "leverage": _dicts(e.get("leverage")),
+            # leverage 与相邻的 drivers/risks 是同一档字符串列表（数据里写的是
+            # `- 领域know-how`），不是 profit_pool 那种 {where, why} 映射。
+            # 这里若用 _dicts，41 个分区的杠杆会被整段过滤成空，而 validate()
+            # 第 8 条走的是原始值（非空就跳过），于是数据静默消失、自检全绿。
+            "leverage": _strs(e.get("leverage")),
             "drivers": _strs(e.get("drivers")),
             "risks": _strs(e.get("risks")),
             "ai_strong": _strs(frontier.get("strong")),
@@ -367,14 +371,17 @@ class StrategyView:
                     problems.append(
                         f"分区 {pid} 没有 role_focus，也没写为什么"
                         f"（战略结论不落到岗位，等于一句口号）")
-                continue
-            roles = self._roles_of(pid)
-            if roles:
-                for name in focus:
-                    if name not in roles:
-                        problems.append(
-                            f"分区 {pid} 的 role_focus 指向不存在的岗位 {name!r}"
-                            f"（本分区岗位: {roles}）")
+            else:
+                roles = self._roles_of(pid)
+                if roles:
+                    for name in focus:
+                        if name not in roles:
+                            problems.append(
+                                f"分区 {pid} 的 role_focus 指向不存在的岗位 {name!r}"
+                                f"（本分区岗位: {roles}）")
+            # 注意：第 7 条没有 role_focus 时**不再 continue** ——
+            # 那样会连第 8/9 条一起跳过，使「没写岗位落点」的分区反而享受
+            # 「空段不报」的豁免，恰好把最需要检查的分区放过去。
             # 8. 空段要解释：说不出缺什么，等于保证它永远缺
             for section in SECTIONS:
                 if e.get(section):
@@ -387,7 +394,57 @@ class StrategyView:
                     problems.append(
                         f"分区 {pid} 缺 {section} 段且没写 missing 原因"
                         f"（说不出这一行为什么空，等于保证它一直是空的）")
+
+            # 9. 读得出来才算有：上面每条都在看「原始值是否非空」，
+            #    而消费方（row() / strategy.csv / strategy_view 表）读的是归一后的形状。
+            #    leverage 用 _dicts 读一份字符串列表时，原始值非空 → 第 8 条跳过，
+            #    归一名单里却是空的 → 41 个分区的杠杆整段消失、自检一条不报。
+            #    所以这里按消费方真正拿到的样子再验一次。
+            view = self.row(pid)
+            for section in self._CONSUMER_SECTIONS:
+                # 门控必须按消费路径取原始值：ai_strong / human_decides 等在
+                # 数据里是嵌套的（ai_frontier.strong / division_of_labor.human_decides），
+                # 顶层没有这些键。用 e.get(section) 门控会让这四段恒被跳过 ——
+                # 护栏看起来在守，实际是死代码（评审 2026-11-16 指出）。
+                if not self._raw_for_consumer(e, section):
+                    continue
+                if section in self._defect_sections.get(pid, ()):
+                    continue
+                if not view.get(section):
+                    problems.append(
+                        f"分区 {pid} 的 {section} 段有内容，但读出来是空的"
+                        f"（原始值与消费形状不一致：这份数据在报告、导出表、库里"
+                        f"都会静默消失，而 self-check 一条不报）")
         return problems
+
+    # 消费方真正会读出来的段：这些段在 row() 里都有归一函数，形状写歪就会被滤成空。
+    # 不在 row() 里出现的段（missing 等）不在此列。
+    _CONSUMER_SECTIONS = ("value_chain", "profit_pool", "leverage", "drivers",
+                          "risks", "role_focus", "ai_strong", "ai_weak",
+                          "human_decides", "ai_fills")
+    # 每个消费段在数据里的**取值路径**。纯顶层段直接取键；嵌套段必须按消费路径
+    # 取（ai_frontier.strong / division_of_labor.human_decides），
+    # 否则门控恒查不到值、恒跳过 —— 护栏就成了死代码。
+    # 这份映射与 row() 的同名条目一一对应，改动任一都要一起改。
+    _CONSUMER_PATHS = {
+        "ai_strong": ("ai_frontier", "strong"),
+        "ai_weak": ("ai_frontier", "weak"),
+        "human_decides": ("division_of_labor", "human_decides"),
+        "ai_fills": ("division_of_labor", "ai_fills"),
+    }
+
+    @classmethod
+    def _raw_for_consumer(cls, entry: dict, section: str):
+        """按消费路径取某段的原始值（不是归一后的行）。顶层段即 entry[section]。"""
+        path = cls._CONSUMER_PATHS.get(section)
+        if not path:
+            return entry.get(section)
+        node = entry
+        for key in path:
+            if not isinstance(node, dict):
+                return None
+            node = node.get(key)
+        return node
 
     @staticmethod
     def _walk_keys(obj, depth: int = 0) -> List[str]:

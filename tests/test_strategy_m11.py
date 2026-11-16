@@ -191,6 +191,119 @@ def test_one_sided_blank_section_must_explain_itself():
     assert any("esports" in x and "leverage" in x for x in problems), problems
 
 
+def test_leverage_is_read_back_not_silently_dropped():
+    """杠杆是字符串列表，消费方必须按字符串列表读。
+
+    回归：row() 曾用 _dicts() 读 leverage（数据写的是 `- 领域know-how`），
+    41 个分区的杠杆被整段过滤成空 —— `industry strategy` 打「杠杆: —」、
+    strategy.csv 的 leverage 列 41 行全空 —— 而第 8 条校验看的是原始值
+    （非空就跳过），于是一条问题都不报：数据静默消失、自检全绿。
+
+    这里断言的不只是"删除后会报错"，而是"读出来就是有内容"，因为上一版的
+    校验测不到"数据在、读出来是空"这种失效。
+    """
+    db = _db()
+    rows = db.strategy.rows()
+    assert rows, "没有任何分区行"
+    empty = [r["partition"] for r in rows if not r["leverage"]]
+    assert not empty, f"这些分区的 leverage 读出来是空的: {empty}"
+    # 具体形状也要对：是字符串列表，不是被包成 dict 的东西
+    for r in rows:
+        assert all(isinstance(x, str) for x in r["leverage"]), (
+            r["partition"], r["leverage"])
+    # 数据里确实有、报告里也确实读到了：两边数量必须一致
+    in_data = [p for p, e in db.strategy.entries.items() if e.get("leverage")]
+    assert len(in_data) == len(rows), (len(in_data), len(rows))
+    assert db.strategy.row("esports")["leverage"], "esports 的杠杆丢了"
+
+
+def test_nonempty_raw_value_that_reads_empty_is_reported():
+    """原始值非空、但消费方读出来是空 → 必须报。
+
+    这是上一条的"护栏的护栏"：如果只修 row() 而不修校验，同样的形状错位
+    （比如以后再有一个段被换成错误的归一函数）仍会静默消失。
+    """
+    db = _db()
+    saved = db.strategy.row
+
+    def broken_row(pid):
+        r = saved(pid)
+        r["leverage"] = []          # 模拟"数据在、读出来是空"
+        return r
+
+    db.strategy.row = broken_row
+    try:
+        problems = db.strategy.validate()
+    finally:
+        db.strategy.row = saved
+    assert any("leverage" in x and "读出来是空的" in x for x in problems), problems
+
+
+# 嵌套在映射里的四段：数据在 ai_frontier.strong / division_of_labor.human_decides
+# 下，顶层没有同名键。第 9 条护栏如果用 e.get(section) 门控，这四段恒被跳过，
+# 护栏看起来在守、实际是死代码（评审 2026-11-16 指出）。
+NESTED_CONSUMER_PATHS = {
+    "ai_strong": ("ai_frontier", "strong"),
+    "ai_weak": ("ai_frontier", "weak"),
+    "human_decides": ("division_of_labor", "human_decides"),
+    "ai_fills": ("division_of_labor", "ai_fills"),
+}
+
+
+def test_nested_consumer_sections_are_guarded_too():
+    """四个嵌套段逐一写歪 → 第 9 条必须报「读出来是空的」，不许静默消失。
+
+    写歪的形态用**字符串**（而非空列表）：空列表会被第 5 条「缺 strong」直接抓到，
+    走不到第 9 条；而字符串能过"非空"这一关，正是第 9 条要拦的那种失效。
+    """
+    db = _db()
+    pid = "construction-eng"
+    e = db.strategy.entries[pid]
+    for section, path in NESTED_CONSUMER_PATHS.items():
+        node = e
+        for key in path[:-1]:
+            node = node[key]
+        saved = node[path[-1]]
+        node[path[-1]] = "一整段字符串"          # 形状写歪、但非空
+        try:
+            # 前提：数据被读成空（缺陷真实发生）
+            assert db.strategy.row(pid)[section] == [], (section, "未复现")
+            problems = db.strategy.validate()
+        finally:
+            node[path[-1]] = saved
+        assert any(pid in x and section in x and "读出来是空的" in x
+                   for x in problems), (section, problems)
+    # 恢复后真实数据必须重回干净
+    assert db.strategy.validate() == []
+
+
+def test_consumer_gate_shares_row_source():
+    """第 9 条的门控必须按消费路径取原始值，不许退回 e.get(section)。
+
+    这条直接钉两件事：
+      1. _CONSUMER_PATHS 与 row() 的取值路径一致（四段是嵌套的，不是顶层的）；
+      2. validate 源码里门控真的调用了 _raw_for_consumer —— 否则以后有人
+         把它改回 e.get(section)，行为对真实数据毫无变化（数据都是对的），
+         只有形状写歪时才会暴露，那又是一次"自检全绿、数据消失"。
+    """
+    import inspect
+    for section, path in NESTED_CONSUMER_PATHS.items():
+        assert StrategyView._CONSUMER_PATHS[section] == path, section
+    src = inspect.getsource(StrategyView.validate)
+    assert "_raw_for_consumer" in src, (
+        "第 9 条门控没有走 _raw_for_consumer —— 嵌套四段会恒被跳过")
+    # 门控是「if not <取值>(...section...): continue」这一对（可能跨行），
+    # 不许再出现 e.get(section) 的旧写法。
+    import re as _re
+    gate = _re.findall(r"if not [^\n]*(?:\n\s+)?[^\n]*:\s*\n\s+continue", src)
+    assert gate, ("没找到第 9 条的门控（源码变了，请同步本测试）\n" + src)
+    section_gates = [g for g in gate if "section" in g]
+    assert section_gates, ("门控没有按 section 遍历\n" + src)
+    for g in section_gates:
+        assert "_raw_for_consumer" in g, ("门控回到了 e.get(section) 一类写法\n" + g)
+        assert "e.get(section)" not in g, ("门控回到了 e.get(section)\n" + g)
+
+
 def test_empty_ledger_is_reported():
     """文件在、内容是注释 → 空账必须硬报，不能"每条校验都通过" """
     with tempfile.TemporaryDirectory() as td:
