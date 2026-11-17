@@ -1,0 +1,93 @@
+unit_id: auto-service
+industry: 汽车服务
+industry_alias:
+- 汽车后市场
+- 汽车销售
+- 汽修
+- 4S店
+- 二手车
+- 车行
+- 保养
+roles:
+- name: auto_sales
+  prefix: '[销售]'
+  handoff: relay
+  composite: true
+  description: 汽车销售 线索 试驾 成交 整车
+  keywords:
+  - 汽车销售
+  - 卖车
+  - 试驾
+  - 购车
+  - 整车销售
+  - 销售线索
+  - 4S店
+  - 交车
+- name: repair_advisor
+  prefix: '[维修]'
+  handoff: relay
+  composite: true
+  description: 汽修顾问 保养 故障 维修方案 工时
+  keywords:
+  - 汽修
+  - 保养
+  - 汽车维修
+  - 故障诊断
+  - 维修方案
+  - 工时费
+  - 换件
+  - 三包
+  - 车辆年检
+- name: used_car_appraiser
+  prefix: '[二手车]'
+  handoff: relay
+  composite: true
+  description: 二手车评估 车况 估值 收车 置换
+  keywords:
+  - 二手车
+  - 车况
+  - 车辆估值
+  - 收车
+  - 置换
+  - 车商
+  - 二手车评估
+  - 事故车
+- name: auto_finance
+  prefix: '[汽车金融]'
+  handoff: relay
+  composite: true
+  description: 汽车金融 分期 车贷 保险 返佣
+  keywords:
+  - 车贷
+  - 汽车分期
+  - 购车贷款
+  - 车险
+  - 汽车金融
+  - 首付
+  - 金融返佣
+- name: after_sales
+  prefix: '[售后]'
+  handoff: relay
+  composite: true
+  description: 售后服务 客户回访 保养提醒 投诉
+  keywords:
+  - 售后服务
+  - 保养提醒
+  - 客户回访
+  - 售后投诉
+  - 维修接待
+  - 服务顾问
+entry_ref: ''
+capability_tags:
+- 车辆销售
+- 维修保养
+- 二手车评估
+- 汽车金融
+- 售后回访
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 auto-service 建单元（汽车后市场规模 5 万亿，
+  market_size 口径 —— 第三方测算，范围常与统计口径不同，不要与增加值混用）。
+  战略判断：「车主全生命周期服务方，新车毛利薄，钱在后市场」；
+  「AI 做提醒与报价，车况签字和安全判断必须由人到车旁」——
+  触发词覆盖销售/维修/二手车/金融/售后五个环节。

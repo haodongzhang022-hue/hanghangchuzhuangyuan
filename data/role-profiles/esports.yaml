@@ -1,0 +1,293 @@
+unit_id: esports
+industry: 电竞竞技
+updated_at: '2026-11-17'
+source_note: 随 esports 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: esports_player
+  analysis:
+    mission: 以电子竞技员身份，把服务按标准交付
+    deliverables:
+    - 电子竞技员交付物
+    inputs:
+    - 客户需求
+    - 电子竞技员所需资料
+    outputs:
+    - 电子竞技员产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 电竞竞技 电子竞技员
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定电子竞技员的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: esports_player
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: esports_player-skill
+      kind: skill
+      path: data/role-profiles/esports.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 电子竞技员
+    tools:
+    - 电竞选手
+    - 职业选手
+    - 训练赛
+    knowledge:
+    - 电竞竞技行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 电子竞技员交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: &id001
+    - 客户
+    downstream: &id002
+    - 各执行岗位
+    beneficiaries: &id003
+    - 用户
+    blockers: &id004
+    - 输入不全
+    incentives: &id005
+    - 需求方
+    risk_notes: &id006
+    - 合规风险
+- role: esports_operator
+  analysis:
+    mission: 以电子竞技运营师身份，把服务按标准交付
+    deliverables:
+    - 电子竞技运营师交付物
+    inputs:
+    - 客户需求
+    - 电子竞技运营师所需资料
+    outputs:
+    - 电子竞技运营师产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 电竞竞技 电子竞技运营师
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定电子竞技运营师的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: esports_operator
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: esports_operator-skill
+      kind: skill
+      path: data/role-profiles/esports.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 电子竞技运营师
+    tools:
+    - 电竞赛事
+    - 赛事席位
+    - 俱乐部运营
+    knowledge:
+    - 电竞竞技行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 电子竞技运营师交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: game_companion
+  analysis:
+    mission: 以游戏陪玩身份，把服务按标准交付
+    deliverables:
+    - 游戏陪玩交付物
+    inputs:
+    - 客户需求
+    - 游戏陪玩所需资料
+    outputs:
+    - 游戏陪玩产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 电竞竞技 游戏陪玩
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定游戏陪玩的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: game_companion
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: game_companion-skill
+      kind: skill
+      path: data/role-profiles/esports.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 游戏陪玩
+    tools:
+    - 陪玩
+    - 陪练
+    - 上分
+    knowledge:
+    - 电竞竞技行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 游戏陪玩交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006

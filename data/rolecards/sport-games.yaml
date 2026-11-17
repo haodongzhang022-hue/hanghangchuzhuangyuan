@@ -1,0 +1,741 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: sport-games
+industry: 赛事与场馆运营
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: event_operator
+  unit_id: sport-games
+  industry: 赛事与场馆运营
+  prefix: '[赛事运营]'
+  description: 赛事运营 赛事策划 报名 赛程 招商
+  keywords:
+  - 赛事运营
+  - 赛事策划
+  - 赛程编排
+  - 报名管理
+  - 马拉松
+  - 球赛
+  - 运动会
+  - 招商赞助
+  - 赛事执行
+  readiness:
+    role_name: event_operator
+    unit_id: sport-games
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 赛事运营交付流
+    industry_alias:
+    - 体育赛事
+    - 赛事运营
+    - 场馆运营
+    - 体育经纪
+    - 马拉松
+    - 球赛
+    - 运动会
+    - 体育经纪
+    triggers:
+    - 赛事运营
+    - 赛事策划
+    - 赛程编排
+    - 报名管理
+    - 马拉松
+    - 球赛
+    - 运动会
+    - 招商赞助
+    - 赛事执行
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以赛事运营身份，把服务按标准交付
+      deliverables:
+      - 赛事运营交付物
+      inputs:
+      - 客户需求
+      - 赛事运营所需资料
+      outputs:
+      - 赛事运营产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 赛事与场馆运营 赛事运营
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定赛事运营的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: event_operator
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: event_operator-skill
+        kind: skill
+        path: data/role-profiles/sport-games.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 赛事运营交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 赛事运营
+      tools:
+      - 赛事运营
+      - 赛事策划
+      - 赛程编排
+      knowledge:
+      - 赛事与场馆运营行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 赛事运营交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: event_operator
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: event_operator
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: event_operator
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: event_operator
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: event_operator
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: event_operator
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: event_operator
+  plugin_artifacts:
+  - name: event_operator-skill
+    kind: skill
+    path: data/role-profiles/sport-games.yaml
+  sources:
+  - role-profiles/sport-games.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: venue_manager
+  unit_id: sport-games
+  industry: 赛事与场馆运营
+  prefix: '[场馆]'
+  description: 场馆运营 场地 利用率 场馆 安保
+  keywords:
+  - 场馆运营
+  - 场馆
+  - 场地
+  - 利用率
+  - 体育馆
+  - 场馆租赁
+  - 安保预案
+  readiness:
+    role_name: venue_manager
+    unit_id: sport-games
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 场馆运营交付流
+    industry_alias:
+    - 体育赛事
+    - 赛事运营
+    - 场馆运营
+    - 体育经纪
+    - 马拉松
+    - 球赛
+    - 运动会
+    - 体育经纪
+    triggers:
+    - 场馆运营
+    - 场馆
+    - 场地
+    - 利用率
+    - 体育馆
+    - 场馆租赁
+    - 安保预案
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以场馆运营身份，把服务按标准交付
+      deliverables:
+      - 场馆运营交付物
+      inputs:
+      - 客户需求
+      - 场馆运营所需资料
+      outputs:
+      - 场馆运营产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 赛事与场馆运营 场馆运营
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定场馆运营的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: venue_manager
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: venue_manager-skill
+        kind: skill
+        path: data/role-profiles/sport-games.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 场馆运营交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 场馆运营
+      tools:
+      - 场馆运营
+      - 场馆
+      - 场地
+      knowledge:
+      - 赛事与场馆运营行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 场馆运营交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: venue_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: venue_manager
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: venue_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: venue_manager
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: venue_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: venue_manager
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: venue_manager
+  plugin_artifacts:
+  - name: venue_manager-skill
+    kind: skill
+    path: data/role-profiles/sport-games.yaml
+  sources:
+  - role-profiles/sport-games.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: sports_agent
+  unit_id: sport-games
+  industry: 赛事与场馆运营
+  prefix: '[体育经纪]'
+  description: 体育经纪 运动员 转会 代言 经纪
+  keywords:
+  - 体育经纪
+  - 运动员
+  - 转会
+  - 代言
+  - 选手合同
+  - 经纪费
+  readiness:
+    role_name: sports_agent
+    unit_id: sport-games
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 体育经纪交付流
+    industry_alias:
+    - 体育赛事
+    - 赛事运营
+    - 场馆运营
+    - 体育经纪
+    - 马拉松
+    - 球赛
+    - 运动会
+    - 体育经纪
+    triggers:
+    - 体育经纪
+    - 运动员
+    - 转会
+    - 代言
+    - 选手合同
+    - 经纪费
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以体育经纪身份，把服务按标准交付
+      deliverables:
+      - 体育经纪交付物
+      inputs:
+      - 客户需求
+      - 体育经纪所需资料
+      outputs:
+      - 体育经纪产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 赛事与场馆运营 体育经纪
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定体育经纪的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: sports_agent
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: sports_agent-skill
+        kind: skill
+        path: data/role-profiles/sport-games.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 体育经纪交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 体育经纪
+      tools:
+      - 体育经纪
+      - 运动员
+      - 转会
+      knowledge:
+      - 赛事与场馆运营行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 体育经纪交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: sports_agent
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: sports_agent
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: sports_agent
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: sports_agent
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: sports_agent
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: sports_agent
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: sports_agent
+  plugin_artifacts:
+  - name: sports_agent-skill
+    kind: skill
+    path: data/role-profiles/sport-games.yaml
+  sources:
+  - role-profiles/sport-games.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

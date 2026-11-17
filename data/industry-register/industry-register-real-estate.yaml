@@ -1,0 +1,90 @@
+unit_id: real-estate
+industry: 房产置业
+industry_alias:
+- 房地产服务
+- 中介
+- 物业服务
+- 房产
+- 二手房
+- 租房
+- 小区物业
+roles:
+- name: realtor
+  prefix: '[房产经纪]'
+  handoff: relay
+  composite: true
+  description: 房产经纪 房源 带看 成交 佣金
+  keywords:
+  - 房产经纪
+  - 房源
+  - 带看
+  - 二手房
+  - 卖房
+  - 买房
+  - 佣金
+  - 看房
+- name: property_consultant
+  prefix: '[置业顾问]'
+  handoff: relay
+  composite: true
+  description: 置业顾问 楼盘 认购 按揭 新政
+  keywords:
+  - 置业顾问
+  - 楼盘
+  - 认购
+  - 首付
+  - 按揭
+  - 购房资格
+  - 新房
+  - 学区房
+- name: appraiser
+  prefix: '[评估]'
+  handoff: relay
+  composite: true
+  description: 房产评估 估值 评估报告 抵押
+  keywords:
+  - 房产评估
+  - 房产估值
+  - 评估报告
+  - 抵押物
+  - 计税价格
+  - 评估师
+- name: leasing_operator
+  prefix: '[招商]'
+  handoff: relay
+  composite: true
+  description: 招商运营 商办 出租率 租赁
+  keywords:
+  - 招商运营
+  - 商办
+  - 出租率
+  - 商铺租赁
+  - 租金
+  - 甲级写字楼
+  - 招商
+- name: property_manager
+  prefix: '[物业]'
+  handoff: relay
+  composite: true
+  description: 物业管理 小区 维修基金 业委会 收缴
+  keywords:
+  - 物业管理
+  - 小区物业
+  - 业委会
+  - 维修基金
+  - 物业费
+  - 报修
+  - 停车管理
+entry_ref: ''
+capability_tags:
+- 房产经纪
+- 置业咨询
+- 房产评估
+- 招商租赁
+- 物业管理
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 real-estate 建单元（1.5 万亿，revenue 口径）。
+  分区 baseline 状态是 unlinked，原因写着「年鉴有门类口径但分区范围与之不对应
+  （房地产含开发/物业/中介，分区只取一段）」，等口径能一对一映射再接 —— 如实继承。
+  触发词覆盖经纪/置业/评估/招商/物业五段，不含泛化的「房产」二字以外的共享词。

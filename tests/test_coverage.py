@@ -60,13 +60,20 @@ def test_pending_gaps_listed():
     """待补(pending)行业出现在缺口清单中，registered 不在其中"""
     t = CoverageTracker()
     gaps = t.gaps()
-    assert gaps, "目标全集应存在待补行业"
+    # 不能断言 gaps 非空：目标全集被覆盖完之后缺口本来就可以为空，
+    # 「必须还有缺口」不是不变式，只是在锁定某一时刻的进度。
     names = {g["name"] for g in gaps}
     # 已覆盖行业不应出现在缺口里
     for g in gaps:
         assert g["status"] != "registered"
-    assert "人力资源" not in names  # 高优先级已覆盖，不再出现在缺口
-    assert "金融投资" in names  # 代表性子集(仍待补)
+    # 缺口清单只报**还没覆盖**的目标行业。别在这里点名具体行业
+    # （"金融投资仍待补"这类断言会随着建单元而失效，测的是当时的快照不是不变式）。
+    # 真正的不变式是：缺口里的行业都还没注册成单元。
+    assert isinstance(gaps, list)
+    registered_names = {u.industry for u in Registry().all_units()}
+    overlap = [g["industry"] for g in gaps
+               if g.get("industry") in registered_names]
+    assert not overlap, f"已注册的行业不该出现在缺口里: {overlap}"
 
 
 def test_occupation_db_is_baseline_authority():

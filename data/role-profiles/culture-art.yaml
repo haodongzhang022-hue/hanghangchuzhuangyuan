@@ -1,0 +1,578 @@
+unit_id: culture-art
+industry: 文化艺术
+updated_at: '2026-11-17'
+source_note: 随 culture-art 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: curator
+  analysis:
+    mission: 以策展人身份，把方案按标准交付
+    deliverables:
+    - 策展人交付物
+    inputs:
+    - 客户需求
+    - 策展人所需资料
+    outputs:
+    - 策展人产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 文化艺术 策展人
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定策展人的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: curator
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: curator-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 策展人
+    tools:
+    - 策展
+    - 展览
+    - 展陈
+    knowledge:
+    - 文化艺术行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 策展人交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: &id001
+    - 客户
+    downstream: &id002
+    - 各执行岗位
+    beneficiaries: &id003
+    - 用户
+    blockers: &id004
+    - 输入不全
+    incentives: &id005
+    - 需求方
+    risk_notes: &id006
+    - 合规风险
+- role: talent_agent
+  analysis:
+    mission: 以经纪人身份，把服务按标准交付
+    deliverables:
+    - 经纪人交付物
+    inputs:
+    - 客户需求
+    - 经纪人所需资料
+    outputs:
+    - 经纪人产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 文化艺术 经纪人
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定经纪人的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: talent_agent
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: talent_agent-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 经纪人
+    tools:
+    - 经纪人
+    - 艺人
+    - 通告
+    knowledge:
+    - 文化艺术行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 经纪人交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: publisher_editor
+  analysis:
+    mission: 以出版编辑身份，把文本按标准交付
+    deliverables:
+    - 出版编辑交付物
+    inputs:
+    - 客户需求
+    - 出版编辑所需资料
+    outputs:
+    - 出版编辑产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 文化艺术 出版编辑
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定出版编辑的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: publisher_editor
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: publisher_editor-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 出版编辑
+    tools:
+    - 出版编辑
+    - 书稿
+    - 选题会
+    knowledge:
+    - 文化艺术行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 出版编辑交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: playwright
+  analysis:
+    mission: 以编剧身份，把文本按标准交付
+    deliverables:
+    - 编剧交付物
+    inputs:
+    - 客户需求
+    - 编剧所需资料
+    outputs:
+    - 编剧产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 文化艺术 编剧
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定编剧的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: playwright
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: playwright-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 编剧
+    tools:
+    - 话剧剧本
+    - 舞台剧
+    - 剧本创作
+    knowledge:
+    - 文化艺术行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 编剧交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: music_producer
+  analysis:
+    mission: 以音乐制作身份，把物料按标准交付
+    deliverables:
+    - 音乐制作交付物
+    inputs:
+    - 客户需求
+    - 音乐制作所需资料
+    outputs:
+    - 音乐制作产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 文化艺术 音乐制作
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定音乐制作的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: music_producer
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: music_producer-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 音乐制作
+    tools:
+    - 音乐制作
+    - 编曲
+    - 混音
+    knowledge:
+    - 文化艺术行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 音乐制作交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: content_editor
+  analysis:
+    mission: 把书稿改到能出版，且作者的意思是作者的意思
+    deliverables:
+    - 编辑意见
+    - 校样
+    - 书稿定稿
+    inputs:
+    - 作者书稿
+    - 选题与定位
+    outputs:
+    - 定稿
+    - 三审记录
+    kpis:
+    - 差错率
+    - 出版周期
+    - 作者满意度
+  persona:
+    seniority: 文化艺术 出版审校
+    mindset: 改的是文字，不是作者的观点
+    tone: 客气、就事论事
+    decision_rights:
+    - 可决定编校意见
+    - 不可改动作者观点
+    constraints:
+    - 重大改动须作者确认
+    - 三审三校不得省
+  plugin:
+    bundle: content_editor
+    tools:
+    - 编校工具
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: content-editor-skill
+      kind: skill
+      path: data/role-profiles/culture-art.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 编校
+    - 润色
+    - 校对
+    tools:
+    - 编校软件
+    knowledge:
+    - 出版规范
+    - 中文语法
+    soft:
+    - 耐心
+    - 尊重作者
+    scoring:
+      domain: 8
+      tooling: 7
+      judging: 8
+      execution: 9
+      comms: 8
+  workflow:
+    default_flow: review-gate
+    activation:
+      weight: 1.0
+    templates:
+    - template: review-gate
+      id: wf-main
+      name: 出版审校门禁流
+      default: true
+      override:
+        steps:
+          edit:
+            name: 编辑与校对
+            playbook: 先看结构与逻辑，再抠字句
+            outputs:
+            - 编辑意见
+            verify:
+            - 结构与文字问题均已列出
+            runtime: agent
+          gate:
+            name: 三审三校
+            playbook: 三审不得合并，每审留记录
+            outputs:
+            - 三审记录
+            verify:
+            - 三审均有签署记录
+            runtime: agent
+  stakeholders:
+    upstream:
+    - 各执行岗位
+    downstream:
+    - 客户
+    beneficiaries:
+    - 用户
+    blockers:
+    - 输入不全
+    incentives:
+    - 需求方
+    risk_notes:
+    - 合规风险

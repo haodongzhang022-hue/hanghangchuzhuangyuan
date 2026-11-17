@@ -1,0 +1,680 @@
+unit_id: tourism-hospitality
+industry: 旅游出行
+updated_at: '2026-11-17'
+source_note: 随 tourism-hospitality 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: travel_planner
+  analysis:
+    mission: 以旅游规划师身份，把方案按标准交付
+    deliverables:
+    - 旅游规划师交付物
+    inputs:
+    - 客户需求
+    - 旅游规划师所需资料
+    outputs:
+    - 旅游规划师产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 旅游规划师
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定旅游规划师的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: travel_planner
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: travel_planner-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 旅游规划师
+    tools:
+    - 行程
+    - 行程规划
+    - 旅游攻略
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 旅游规划师交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: &id001
+    - 客户
+    downstream: &id002
+    - 各执行岗位
+    beneficiaries: &id003
+    - 用户
+    blockers: &id004
+    - 输入不全
+    incentives: &id005
+    - 需求方
+    risk_notes: &id006
+    - 合规风险
+- role: hotel_manager
+  analysis:
+    mission: 以酒店管理身份，把服务按标准交付
+    deliverables:
+    - 酒店管理交付物
+    inputs:
+    - 客户需求
+    - 酒店管理所需资料
+    outputs:
+    - 酒店管理产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 酒店管理
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定酒店管理的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: hotel_manager
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: hotel_manager-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 酒店管理
+    tools:
+    - 酒店管理
+    - 入住率
+    - 间夜
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 酒店管理交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: homestay_operator
+  analysis:
+    mission: 以民宿运营身份，把服务按标准交付
+    deliverables:
+    - 民宿运营交付物
+    inputs:
+    - 客户需求
+    - 民宿运营所需资料
+    outputs:
+    - 民宿运营产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 民宿运营
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定民宿运营的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: homestay_operator
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: homestay_operator-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 民宿运营
+    tools:
+    - 民宿
+    - 房源
+    - 房客
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 民宿运营交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: tour_guide
+  analysis:
+    mission: 以导游身份，把服务按标准交付
+    deliverables:
+    - 导游交付物
+    inputs:
+    - 客户需求
+    - 导游所需资料
+    outputs:
+    - 导游产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 导游
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定导游的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: tour_guide
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: tour_guide-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 导游
+    tools:
+    - 导游
+    - 讲解词
+    - 导览
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 导游交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: booking_agent
+  analysis:
+    mission: 以票务预订身份，把服务按标准交付
+    deliverables:
+    - 票务预订交付物
+    inputs:
+    - 客户需求
+    - 票务预订所需资料
+    outputs:
+    - 票务预订产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 票务预订
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定票务预订的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: booking_agent
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: booking_agent-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 票务预订
+    tools:
+    - 票务
+    - 预订
+    - 改签
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 票务预订交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: ride_hailing_driver
+  analysis:
+    mission: 以网约车司机身份，把服务按标准交付
+    deliverables:
+    - 网约车司机交付物
+    inputs:
+    - 客户需求
+    - 网约车司机所需资料
+    outputs:
+    - 网约车司机产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 旅游出行 网约车司机
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定网约车司机的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: ride_hailing_driver
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: ride_hailing_driver-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 网约车司机
+    tools:
+    - 网约车
+    - 接送机
+    - 专车
+    knowledge:
+    - 旅游出行行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 网约车司机交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: customer_service
+  analysis:
+    mission: 在客户还没变成投诉之前，把问题解决掉
+    deliverables:
+    - 工单处理结果
+    - 退改方案
+    - 投诉结案
+    inputs:
+    - 订单信息
+    - 客户诉求
+    outputs:
+    - 处理结论
+    - 客户沟通记录
+    kpis:
+    - 首次解决率
+    - 投诉升级率
+    - 响应时长
+  persona:
+    seniority: 旅游出行 酒店/航司客服
+    mindset: 先接住情绪，再解决问题
+    tone: 耐心、给确定性
+    decision_rights:
+    - 可在授权内给出补偿
+    - 不可越权承诺赔付
+    constraints:
+    - 不得口头承诺超出政策
+    - 涉及安全立即升级
+  plugin:
+    bundle: customer_service
+    tools:
+    - 工单系统
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: customer-service-skill
+      kind: skill
+      path: data/role-profiles/tourism-hospitality.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 客诉处理
+    - 退改政策
+    - 沟通安抚
+    tools:
+    - 工单系统
+    knowledge:
+    - 退改规则
+    - 航司酒店政策
+    soft:
+    - 情绪稳定
+    - 有耐心
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 9
+  workflow:
+    default_flow: fast-answer
+    activation:
+      weight: 1.0
+    templates:
+    - template: fast-answer
+      id: wf-main
+      name: 客诉快答流
+      default: true
+      override:
+        steps:
+          understand:
+            name: 理解诉求
+            playbook: 先分清是政策问题还是服务问题
+            outputs:
+            - 诉求归类
+            verify:
+            - 已判定问题类别
+            runtime: agent
+          answer:
+            name: 给出方案
+            playbook: 方案要可执行且写明条件
+            outputs:
+            - 处理方案
+            verify:
+            - 方案在授权范围内
+            runtime: agent
+          boundary:
+            name: 升级与留痕
+            playbook: 超权限必须升级，不得口头承诺
+            outputs:
+            - 升级记录
+            verify:
+            - 超权限项已升级
+            runtime: agent
+  stakeholders:
+    upstream:
+    - 客户
+    downstream:
+    - 各执行岗位
+    beneficiaries:
+    - 用户
+    blockers:
+    - 事实不清
+    incentives:
+    - 需求方
+    risk_notes:
+    - 合规风险

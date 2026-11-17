@@ -1,0 +1,105 @@
+unit_id: research-academic
+industry: 科研学术
+industry_alias:
+- 科研服务
+- 学术出版
+- 研发外包
+- 课题
+- 论文
+- 文献
+- 学术
+roles:
+- name: literature_reviewer
+  prefix: '[文献]'
+  handoff: relay
+  composite: true
+  description: 文献综述 查新 文献检索 综述撰写
+  keywords:
+  - 文献综述
+  - 文献检索
+  - 查新
+  - 综述
+  - 参考文献
+  - 引文
+  - 研究现状
+- name: grant_writer
+  prefix: '[申报]'
+  handoff: relay
+  composite: true
+  description: 课题申报 基金本子 立项 预算
+  keywords:
+  - 课题申报
+  - 基金本子
+  - 项目申报书
+  - 立项
+  - 研究计划书
+  - 经费预算
+  - 国自然
+  - 标书撰写
+- name: experiment_designer
+  prefix: '[实验]'
+  handoff: relay
+  composite: true
+  description: 实验设计 对照 样本量 变量控制
+  keywords:
+  - 实验设计
+  - 对照组
+  - 样本量
+  - 变量控制
+  - 实验方案
+  - 重复实验
+  - 显著性
+- name: research_analyst
+  prefix: '[科研分析]'
+  handoff: relay
+  composite: true
+  description: 科研数据分析 统计 建模 复现
+  keywords:
+  - 科研数据
+  - 统计分析
+  - 数据处理
+  - 复现
+  - 回归模型
+  - 数据清洗
+- name: academic_editor
+  prefix: '[学术编辑]'
+  handoff: relay
+  composite: true
+  description: 学术编辑 论文润色 格式 投稿 审稿意见
+  keywords:
+  - 论文润色
+  - 投稿
+  - 审稿意见
+  - 论文格式
+  - 期刊
+  - 查重
+  - 返修
+  - 学术编辑
+# 兼做岗位（weight=0.30）：专利代理人在本分区只承接「科研成果转化」这一小段。
+# 不填就命中不了，所以补一条；composite=false 表示不参与跨岗交接链。
+- name: patent_agent
+  prefix: '[专利]'
+  handoff: relay
+  composite: false
+  description: 专利代理人 专利撰写 答复审查 专利检索
+  keywords:
+  - 专利
+  - 专利撰写
+  - 专利检索
+  - 审查意见
+  - 权利要求
+  - 知识产权申请
+entry_ref: ''
+capability_tags:
+- 文献综述
+- 课题申报
+- 实验设计
+- 数据分析
+- 学术编辑
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 research-academic 建单元（R&D 经费中外部
+  服务部分 2.5 万亿，cost_total 口径 —— 成本总额不是增加值）。
+  分区 note：「与数据分析/软件研发高度复合，学界伦理边界需单列」。
+  战略边界：「AI 做检索与草稿，数据真实性和署名责任不可让渡」——
+  触发词覆盖文献/申报/实验/分析/编辑五段，不含泛化的「科研」二字。

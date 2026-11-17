@@ -1,0 +1,1484 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: research-academic
+industry: 科研学术
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: literature_reviewer
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[文献]'
+  description: 文献综述 查新 文献检索 综述撰写
+  keywords:
+  - 文献综述
+  - 文献检索
+  - 查新
+  - 综述
+  - 参考文献
+  - 引文
+  - 研究现状
+  readiness:
+    role_name: literature_reviewer
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 文献综述员交付流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 文献综述
+    - 文献检索
+    - 查新
+    - 综述
+    - 参考文献
+    - 引文
+    - 研究现状
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以文献综述员身份，把文本按标准交付
+      deliverables:
+      - 文献综述员交付物
+      inputs:
+      - 客户需求
+      - 文献综述员所需资料
+      outputs:
+      - 文献综述员产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 科研学术 文献综述员
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定文献综述员的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: literature_reviewer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: literature_reviewer-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 文献综述员交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 文献综述员
+      tools:
+      - 文献综述
+      - 文献检索
+      - 查新
+      knowledge:
+      - 科研学术行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 文献综述员交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: literature_reviewer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: literature_reviewer
+  plugin_artifacts:
+  - name: literature_reviewer-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: grant_writer
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[申报]'
+  description: 课题申报 基金本子 立项 预算
+  keywords:
+  - 课题申报
+  - 基金本子
+  - 项目申报书
+  - 立项
+  - 研究计划书
+  - 经费预算
+  - 国自然
+  - 标书撰写
+  readiness:
+    role_name: grant_writer
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 课题申报交付流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 课题申报
+    - 基金本子
+    - 项目申报书
+    - 立项
+    - 研究计划书
+    - 经费预算
+    - 国自然
+    - 标书撰写
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以课题申报身份，把文本按标准交付
+      deliverables:
+      - 课题申报交付物
+      inputs:
+      - 客户需求
+      - 课题申报所需资料
+      outputs:
+      - 课题申报产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 科研学术 课题申报
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定课题申报的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: grant_writer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: grant_writer-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 课题申报交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 课题申报
+      tools:
+      - 课题申报
+      - 基金本子
+      - 项目申报书
+      knowledge:
+      - 科研学术行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 课题申报交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: grant_writer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: grant_writer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: grant_writer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: grant_writer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: grant_writer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: grant_writer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: grant_writer
+  plugin_artifacts:
+  - name: grant_writer-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: experiment_designer
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[实验]'
+  description: 实验设计 对照 样本量 变量控制
+  keywords:
+  - 实验设计
+  - 对照组
+  - 样本量
+  - 变量控制
+  - 实验方案
+  - 重复实验
+  - 显著性
+  readiness:
+    role_name: experiment_designer
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 实验设计交付流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 实验设计
+    - 对照组
+    - 样本量
+    - 变量控制
+    - 实验方案
+    - 重复实验
+    - 显著性
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以实验设计身份，把方案按标准交付
+      deliverables:
+      - 实验设计交付物
+      inputs:
+      - 客户需求
+      - 实验设计所需资料
+      outputs:
+      - 实验设计产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 科研学术 实验设计
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定实验设计的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: experiment_designer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: experiment_designer-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 实验设计交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 实验设计
+      tools:
+      - 实验设计
+      - 对照组
+      - 样本量
+      knowledge:
+      - 科研学术行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 实验设计交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: experiment_designer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: experiment_designer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: experiment_designer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: experiment_designer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: experiment_designer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: experiment_designer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: experiment_designer
+  plugin_artifacts:
+  - name: experiment_designer-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: research_analyst
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[科研分析]'
+  description: 科研数据分析 统计 建模 复现
+  keywords:
+  - 科研数据
+  - 统计分析
+  - 数据处理
+  - 复现
+  - 回归模型
+  - 数据清洗
+  readiness:
+    role_name: research_analyst
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 科研数据分析交付流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 科研数据
+    - 统计分析
+    - 数据处理
+    - 复现
+    - 回归模型
+    - 数据清洗
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以科研数据分析身份，把方案按标准交付
+      deliverables:
+      - 科研数据分析交付物
+      inputs:
+      - 客户需求
+      - 科研数据分析所需资料
+      outputs:
+      - 科研数据分析产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 科研学术 科研数据分析
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定科研数据分析的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: research_analyst
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: research_analyst-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 科研数据分析交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 科研数据分析
+      tools:
+      - 科研数据
+      - 统计分析
+      - 数据处理
+      knowledge:
+      - 科研学术行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 科研数据分析交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: research_analyst
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: research_analyst
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: research_analyst
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: research_analyst
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: research_analyst
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: research_analyst
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: research_analyst
+  plugin_artifacts:
+  - name: research_analyst-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: academic_editor
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[学术编辑]'
+  description: 学术编辑 论文润色 格式 投稿 审稿意见
+  keywords:
+  - 论文润色
+  - 投稿
+  - 审稿意见
+  - 论文格式
+  - 期刊
+  - 查重
+  - 返修
+  - 学术编辑
+  readiness:
+    role_name: academic_editor
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 学术编辑交付流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 论文润色
+    - 投稿
+    - 审稿意见
+    - 论文格式
+    - 期刊
+    - 查重
+    - 返修
+    - 学术编辑
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以学术编辑身份，把文本按标准交付
+      deliverables:
+      - 学术编辑交付物
+      inputs:
+      - 客户需求
+      - 学术编辑所需资料
+      outputs:
+      - 学术编辑产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 科研学术 学术编辑
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定学术编辑的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: academic_editor
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: academic_editor-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 学术编辑交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与确认产出
+              verify: &id038
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id041
+              - 执行与产出产出
+              verify: &id042
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 学术编辑
+      tools:
+      - 论文润色
+      - 投稿
+      - 审稿意见
+      knowledge:
+      - 科研学术行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 学术编辑交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: academic_editor
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: academic_editor
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: academic_editor
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: academic_editor
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: academic_editor
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: academic_editor
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id041
+      verify: *id042
+      runtime: agent
+      agent_role: academic_editor
+  plugin_artifacts:
+  - name: academic_editor-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: patent_agent
+  unit_id: research-academic
+  industry: 科研学术
+  prefix: '[专利]'
+  description: 专利代理人 专利撰写 答复审查 专利检索
+  keywords:
+  - 专利
+  - 专利撰写
+  - 专利检索
+  - 审查意见
+  - 权利要求
+  - 知识产权申请
+  readiness:
+    role_name: patent_agent
+    unit_id: research-academic
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 专利撰写流
+    industry_alias:
+    - 科研服务
+    - 学术出版
+    - 研发外包
+    - 课题
+    - 论文
+    - 文献
+    - 学术
+    triggers:
+    - 专利
+    - 专利撰写
+    - 专利检索
+    - 审查意见
+    - 权利要求
+    - 知识产权申请
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 把技术方案变成能授权的权利要求，让科研成果可主张
+      deliverables:
+      - 专利申请文件
+      - 审查意见答复
+      - 专利检索报告
+      inputs:
+      - 技术交底书
+      - 现有技术检索
+      outputs:
+      - 权利要求书
+      - 答复意见
+      kpis:
+      - 授权率
+      - 答复周期
+      - 权利要求稳定性
+    persona:
+      seniority: 科研学术 专利代理人
+      mindset: 权利要求的每一句话都是日后维权的边界
+      tone: 严谨、法条化
+      decision_rights:
+      - 可决定权利要求布局
+      - 不可替客户决定是否放弃
+      constraints:
+      - 不扩大可专利性边界
+      - 检索须留痕
+    plugin:
+      bundle: patent_agent
+      tools:
+      - 专利检索库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: patent-agent-skill
+        kind: skill
+        path: data/role-profiles/research-academic.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 专利撰写流
+        default: true
+        override:
+          steps:
+            search:
+              name: 检索与布局
+              playbook: 先检索现有技术再定权利要求
+              outputs: &id043
+              - 检索报告
+              verify: &id044
+              - 检索范围覆盖关键对比文件
+              runtime: agent
+            draft:
+              name: 撰写申请文件
+              playbook: 权利要求逐条对应技术特征
+              outputs: &id045
+              - 申请文件
+              verify: &id046
+              - 每项权利要求有说明书支持
+              runtime: agent
+            reply:
+              name: 答复审查意见
+              playbook: 不扩大范围，逐条回应审查员质疑
+              outputs: &id047
+              - 答复意见
+              verify: &id048
+              - 答复未超出原始范围
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      - 产品
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 客户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 专利撰写
+      - 检索
+      - 答复审查
+      tools:
+      - 专利数据库
+      knowledge:
+      - 专利法
+      - 审查指南
+      soft:
+      - 细致
+      - 抗压
+      scoring:
+        domain: 9.0
+        tooling: 8.0
+        judging: 9.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 专利撰写流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界确认
+      playbook: 复述诉求、确认真实目标与验收口径，列出不做什么（避免过度交付）
+      outputs:
+      - 诉求备忘
+      - 验收口径
+      verify:
+      - 目标与验收口径已复述确认
+      runtime: agent
+      agent_role: patent_agent
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: patent_agent
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: patent_agent
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: patent_agent
+    - id: deliver
+      name: 交付与说明
+      playbook: 按岗位画像的语气与结构输出，附依据与后续建议
+      outputs:
+      - 交付说明
+      verify:
+      - 结论可回溯到依据
+      runtime: agent
+      agent_role: patent_agent
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: patent_agent
+    - id: search
+      name: 检索与布局
+      playbook: 先检索现有技术再定权利要求
+      outputs: *id043
+      verify: *id044
+      runtime: agent
+      agent_role: patent_agent
+    - id: draft
+      name: 撰写申请文件
+      playbook: 权利要求逐条对应技术特征
+      outputs: *id045
+      verify: *id046
+      runtime: agent
+      agent_role: patent_agent
+    - id: reply
+      name: 答复审查意见
+      playbook: 不扩大范围，逐条回应审查员质疑
+      outputs: *id047
+      verify: *id048
+      runtime: agent
+      agent_role: patent_agent
+  plugin_artifacts:
+  - name: patent-agent-skill
+    kind: skill
+    path: data/role-profiles/research-academic.yaml
+  sources:
+  - role-profiles/research-academic.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    - raw: 产品
+      value: 产品
+      kind: industry_class
+      ref: industry_class:产品
+      index:
+        source: 组织架构
+        query:
+        - 产品团队
+      note: 岗位类
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

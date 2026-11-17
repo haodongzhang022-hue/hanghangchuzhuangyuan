@@ -206,10 +206,15 @@ def test_existing_industries_stable_after_expansion():
 
 
 def test_manual_fallback_unaffected():
-    """无关意图(外卖)仍回落人工，不被新行业误吞"""
+    """无关意图仍回落人工，不被新行业误吞。
+
+    用例不能再用「帮我点个外卖」：建了 food-beverage 单元之后它已被正确识别，
+    这条断言测的就不再是「无关意图回落」，而是「餐饮行业还没建」这个当时的快照。
+    回落要测的是信号不足的句子。
+    """
     reg = Registry()
     router = IntentRouter(reg)
-    r = router.route("帮我点个外卖")
+    r = router.route("随便聊聊")
     assert r.needs_manual is True
 
 

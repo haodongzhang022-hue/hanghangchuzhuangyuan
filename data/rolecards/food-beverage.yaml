@@ -1,0 +1,1225 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: food-beverage
+industry: 餐饮美食
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: menu_planner
+  unit_id: food-beverage
+  industry: 餐饮美食
+  prefix: '[菜品]'
+  description: 菜品策划 菜单 定价 上新 毛利
+  keywords:
+  - 菜品
+  - 菜单
+  - 上新
+  - 菜品定价
+  - 毛利
+  - 出菜率
+  - 招牌菜
+  - 套餐设计
+  readiness:
+    role_name: menu_planner
+    unit_id: food-beverage
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 菜品策划交付流
+    industry_alias:
+    - 餐饮
+    - 餐饮服务
+    - 食品服务
+    - 外卖
+    - 门店
+    - 菜品
+    - 出餐
+    - 堂食
+    triggers:
+    - 菜品
+    - 菜单
+    - 上新
+    - 菜品定价
+    - 毛利
+    - 出菜率
+    - 招牌菜
+    - 套餐设计
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以菜品策划身份，把方案按标准交付
+      deliverables:
+      - 菜品策划交付物
+      inputs:
+      - 客户需求
+      - 菜品策划所需资料
+      outputs:
+      - 菜品策划产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 餐饮美食 菜品策划
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定菜品策划的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: menu_planner
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: menu_planner-skill
+        kind: skill
+        path: data/role-profiles/food-beverage.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 菜品策划交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 菜品策划
+      tools:
+      - 菜品
+      - 菜单
+      - 上新
+      knowledge:
+      - 餐饮美食行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 菜品策划交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: menu_planner
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: menu_planner
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: menu_planner
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: menu_planner
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: menu_planner
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: menu_planner
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: menu_planner
+  plugin_artifacts:
+  - name: menu_planner-skill
+    kind: skill
+    path: data/role-profiles/food-beverage.yaml
+  sources:
+  - role-profiles/food-beverage.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: restaurant_operator
+  unit_id: food-beverage
+  industry: 餐饮美食
+  prefix: '[门店]'
+  description: 门店运营 翻台 人效 坪效 排班
+  keywords:
+  - 门店运营
+  - 翻台
+  - 人效
+  - 坪效
+  - 排班
+  - 出餐速度
+  - 堂食
+  - 损耗
+  readiness:
+    role_name: restaurant_operator
+    unit_id: food-beverage
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 门店运营交付流
+    industry_alias:
+    - 餐饮
+    - 餐饮服务
+    - 食品服务
+    - 外卖
+    - 门店
+    - 菜品
+    - 出餐
+    - 堂食
+    triggers:
+    - 门店运营
+    - 翻台
+    - 人效
+    - 坪效
+    - 排班
+    - 出餐速度
+    - 堂食
+    - 损耗
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以门店运营身份，把服务按标准交付
+      deliverables:
+      - 门店运营交付物
+      inputs:
+      - 客户需求
+      - 门店运营所需资料
+      outputs:
+      - 门店运营产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 餐饮美食 门店运营
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定门店运营的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: restaurant_operator
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: restaurant_operator-skill
+        kind: skill
+        path: data/role-profiles/food-beverage.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 门店运营交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 门店运营
+      tools:
+      - 门店运营
+      - 翻台
+      - 人效
+      knowledge:
+      - 餐饮美食行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 门店运营交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: restaurant_operator
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: restaurant_operator
+  plugin_artifacts:
+  - name: restaurant_operator-skill
+    kind: skill
+    path: data/role-profiles/food-beverage.yaml
+  sources:
+  - role-profiles/food-beverage.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: delivery_operator
+  unit_id: food-beverage
+  industry: 餐饮美食
+  prefix: '[外卖]'
+  description: 外卖运营 平台 曝光 满减 出餐
+  keywords:
+  - 外卖运营
+  - 外卖平台
+  - 满减
+  - 曝光
+  - 出餐
+  - 配送时效
+  - 差评
+  - 店铺评分
+  readiness:
+    role_name: delivery_operator
+    unit_id: food-beverage
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 外卖运营交付流
+    industry_alias:
+    - 餐饮
+    - 餐饮服务
+    - 食品服务
+    - 外卖
+    - 门店
+    - 菜品
+    - 出餐
+    - 堂食
+    triggers:
+    - 外卖运营
+    - 外卖平台
+    - 满减
+    - 曝光
+    - 出餐
+    - 配送时效
+    - 差评
+    - 店铺评分
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以外卖运营身份，把服务按标准交付
+      deliverables:
+      - 外卖运营交付物
+      inputs:
+      - 客户需求
+      - 外卖运营所需资料
+      outputs:
+      - 外卖运营产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 餐饮美食 外卖运营
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定外卖运营的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: delivery_operator
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: delivery_operator-skill
+        kind: skill
+        path: data/role-profiles/food-beverage.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 外卖运营交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 外卖运营
+      tools:
+      - 外卖运营
+      - 外卖平台
+      - 满减
+      knowledge:
+      - 餐饮美食行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 外卖运营交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: delivery_operator
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: delivery_operator
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: delivery_operator
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: delivery_operator
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: delivery_operator
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: delivery_operator
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: delivery_operator
+  plugin_artifacts:
+  - name: delivery_operator-skill
+    kind: skill
+    path: data/role-profiles/food-beverage.yaml
+  sources:
+  - role-profiles/food-beverage.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: food_safety_officer
+  unit_id: food-beverage
+  industry: 餐饮美食
+  prefix: '[食安]'
+  description: 食品安全 留样 索证 后厨 卫生
+  keywords:
+  - 食品安全
+  - 留样
+  - 索证索票
+  - 后厨
+  - 卫生检查
+  - 食安
+  - 进货查验
+  - 明厨亮灶
+  readiness:
+    role_name: food_safety_officer
+    unit_id: food-beverage
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 食品安全员交付流
+    industry_alias:
+    - 餐饮
+    - 餐饮服务
+    - 食品服务
+    - 外卖
+    - 门店
+    - 菜品
+    - 出餐
+    - 堂食
+    triggers:
+    - 食品安全
+    - 留样
+    - 索证索票
+    - 后厨
+    - 卫生检查
+    - 食安
+    - 进货查验
+    - 明厨亮灶
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以食品安全员身份，把方案按标准交付
+      deliverables:
+      - 食品安全员交付物
+      inputs:
+      - 客户需求
+      - 食品安全员所需资料
+      outputs:
+      - 食品安全员产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 餐饮美食 食品安全员
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定食品安全员的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: food_safety_officer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: food_safety_officer-skill
+        kind: skill
+        path: data/role-profiles/food-beverage.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 食品安全员交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 食品安全员
+      tools:
+      - 食品安全
+      - 留样
+      - 索证索票
+      knowledge:
+      - 餐饮美食行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 食品安全员交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: food_safety_officer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: food_safety_officer
+  plugin_artifacts:
+  - name: food_safety_officer-skill
+    kind: skill
+    path: data/role-profiles/food-beverage.yaml
+  sources:
+  - role-profiles/food-beverage.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: fb_manager
+  unit_id: food-beverage
+  industry: 餐饮美食
+  prefix: '[店长]'
+  description: 店长 选址 成本 人员 营业额
+  keywords:
+  - 店长
+  - 选址
+  - 门店成本
+  - 营业额
+  - 门店人员
+  - 开分店
+  - 巡店
+  readiness:
+    role_name: fb_manager
+    unit_id: food-beverage
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 餐饮店长交付流
+    industry_alias:
+    - 餐饮
+    - 餐饮服务
+    - 食品服务
+    - 外卖
+    - 门店
+    - 菜品
+    - 出餐
+    - 堂食
+    triggers:
+    - 店长
+    - 选址
+    - 门店成本
+    - 营业额
+    - 门店人员
+    - 开分店
+    - 巡店
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以餐饮店长身份，把服务按标准交付
+      deliverables:
+      - 餐饮店长交付物
+      inputs:
+      - 客户需求
+      - 餐饮店长所需资料
+      outputs:
+      - 餐饮店长产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 餐饮美食 餐饮店长
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定餐饮店长的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: fb_manager
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: fb_manager-skill
+        kind: skill
+        path: data/role-profiles/food-beverage.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 餐饮店长交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与确认产出
+              verify: &id038
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id041
+              - 执行与产出产出
+              verify: &id042
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 餐饮店长
+      tools:
+      - 店长
+      - 选址
+      - 门店成本
+      knowledge:
+      - 餐饮美食行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 餐饮店长交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: fb_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: fb_manager
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: fb_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: fb_manager
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: fb_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: fb_manager
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id041
+      verify: *id042
+      runtime: agent
+      agent_role: fb_manager
+  plugin_artifacts:
+  - name: fb_manager-skill
+    kind: skill
+    path: data/role-profiles/food-beverage.yaml
+  sources:
+  - role-profiles/food-beverage.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

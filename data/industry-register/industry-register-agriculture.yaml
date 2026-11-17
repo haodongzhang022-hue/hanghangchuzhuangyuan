@@ -1,0 +1,101 @@
+unit_id: agriculture
+industry: 农林牧渔
+industry_alias:
+- 农业
+- 现代农业
+- 农产品
+- 种植
+- 养殖
+- 农场
+- 农技
+- 牧场
+- 田间
+- 农时
+roles:
+- name: agronomist
+  prefix: '[农技]'
+  handoff: relay
+  composite: true
+  description: 农技 病虫害 用药 施肥 田间诊断
+  keywords:
+  - 病虫害
+  - 打药
+  - 施肥
+  - 农技
+  - 农艺
+  - 土壤
+  - 长势
+  - 田间诊断
+  - 病害
+  - 虫害
+  - 叶面肥
+- name: planting_planner
+  prefix: '[种养规划]'
+  handoff: relay
+  composite: true
+  description: 种养规划 茬口 品种选择 播种 产量预估
+  keywords:
+  - 茬口
+  - 品种选择
+  - 播种
+  - 种植计划
+  - 农时
+  - 产量预估
+  - 种养规划
+  - 复种
+  - 轮作
+- name: agri_consultant
+  prefix: '[农业咨询]'
+  handoff: relay
+  composite: true
+  description: 农业咨询 政策补贴 土地流转 合作社 农业保险
+  keywords:
+  - 农业补贴
+  - 土地流转
+  - 合作社
+  - 农业保险
+  - 惠农政策
+  - 家庭农场
+  - 农业项目申报
+- name: agri_ecommerce
+  prefix: '[农产品电商]'
+  handoff: relay
+  composite: true
+  description: 农产品电商 产地直发 溯源 生鲜 滞销
+  keywords:
+  - 农产品电商
+  - 产地直发
+  - 农产品溯源
+  - 生鲜
+  - 滞销
+  - 助农
+  - 果园直销
+  - 农货上行
+- name: ranch_operator
+  prefix: '[牧场]'
+  handoff: relay
+  composite: true
+  description: 牧场经营 养殖 饲喂 疫病 出栏
+  keywords:
+  - 牧场
+  - 养殖
+  - 饲喂
+  - 存栏
+  - 出栏
+  - 疫病
+  - 猪场
+  - 牛场
+  - 粪污处理
+entry_ref: ''
+capability_tags:
+- 农技诊断
+- 种养规划
+- 农业政策
+- 农产品销售
+- 牧场经营
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 agriculture 建单元（农林牧渔业增加值 9 万亿，
+  value_added 口径）。分区 note 无特殊约束，但战略视图点明：
+  「AI 给建议，农时判断和用药责任必须由懂这块地的人定」——
+  所以触发词覆盖病虫害/茬口/饲喂等现场动作，而非泛化的「农业」二字。

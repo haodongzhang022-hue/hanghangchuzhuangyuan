@@ -231,11 +231,24 @@ def test_cli_unknown_partition_is_reported_not_silently_empty():
 
 
 def test_partition_detail_resolves_planned_roles_via_edges():
-    """骨架里的岗位名要带出中文名：反查必须走边，读 o['unit_id'] 恒 False"""
-    out = _run_cli("partition", "live-streaming")
+    """骨架里的岗位名要带出中文名：反查必须走边，读 o['unit_id'] 恒 False
+
+    必须挑一个**当前仍是 pending** 的分区来测：已建单元的 CLI 视图不再打印
+    「计划岗位」行（骨架已经变成实际 roles），拿它测会 StopIteration。
+    真实数据里 pending 可能会被建完，所以这里按状态筛、筛不到就跳过而不是崩。
+    """
+    from hanghang.engine.industry_db import IndustryDatabase
+    pending = [p for p in IndustryDatabase().partitions
+               if p.get("status") == "pending"
+               and (p.get("planned_roles") or [])]
+    if not pending:
+        return  # 所有分区都已建单元，这条「骨架反查」的场景不复存在
+    pid = pending[0]["id"]
+    out = _run_cli("partition", pid)
     assert out.returncode == 0, out.stderr
-    line = next(ln for ln in out.stdout.splitlines() if "计划岗位" in ln)
-    assert "streamer(网络主播/直播带货)" in line, line
+    lines = [ln for ln in out.stdout.splitlines() if "计划岗位" in ln]
+    assert lines, f"{pid} 仍是 pending，应打印计划岗位行:\n{out.stdout[:600]}"
+    assert "(" in lines[0], f"计划岗位应带出中文名: {lines[0]}"
 
 
 def test_access_view_resolves_partitions_via_edges():

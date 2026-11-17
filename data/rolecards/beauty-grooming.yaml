@@ -1,0 +1,1210 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: beauty-grooming
+industry: 美业美发
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: makeup_advisor
+  unit_id: beauty-grooming
+  industry: 美业美发
+  prefix: '[化妆]'
+  description: 化妆顾问 妆容 试妆 新娘妆 造型
+  keywords:
+  - 化妆
+  - 妆容
+  - 试妆
+  - 新娘妆
+  - 化妆师
+  - 造型设计
+  - 盘发
+  readiness:
+    role_name: makeup_advisor
+    unit_id: beauty-grooming
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 美妆顾问交付流
+    industry_alias:
+    - 美容美发
+    - 美业
+    - 形象设计
+    - 理发
+    - 美甲
+    - 化妆
+    - 造型
+    triggers:
+    - 化妆
+    - 妆容
+    - 试妆
+    - 新娘妆
+    - 化妆师
+    - 造型设计
+    - 盘发
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以美妆顾问身份，把服务按标准交付
+      deliverables:
+      - 美妆顾问交付物
+      inputs:
+      - 客户需求
+      - 美妆顾问所需资料
+      outputs:
+      - 美妆顾问产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 美业美发 美妆顾问
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定美妆顾问的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: makeup_advisor
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: makeup_advisor-skill
+        kind: skill
+        path: data/role-profiles/beauty-grooming.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 美妆顾问交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 美妆顾问
+      tools:
+      - 化妆
+      - 妆容
+      - 试妆
+      knowledge:
+      - 美业美发行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 美妆顾问交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: makeup_advisor
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: makeup_advisor
+  plugin_artifacts:
+  - name: makeup_advisor-skill
+    kind: skill
+    path: data/role-profiles/beauty-grooming.yaml
+  sources:
+  - role-profiles/beauty-grooming.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: hairstylist
+  unit_id: beauty-grooming
+  industry: 美业美发
+  prefix: '[美发]'
+  description: 发型师 剪发 烫染 造型 发质
+  keywords:
+  - 发型师
+  - 剪发
+  - 烫发
+  - 染发
+  - 发质
+  - 发型设计
+  - 理发
+  - 头皮护理
+  readiness:
+    role_name: hairstylist
+    unit_id: beauty-grooming
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 美发师交付流
+    industry_alias:
+    - 美容美发
+    - 美业
+    - 形象设计
+    - 理发
+    - 美甲
+    - 化妆
+    - 造型
+    triggers:
+    - 发型师
+    - 剪发
+    - 烫发
+    - 染发
+    - 发质
+    - 发型设计
+    - 理发
+    - 头皮护理
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以美发师身份，把服务按标准交付
+      deliverables:
+      - 美发师交付物
+      inputs:
+      - 客户需求
+      - 美发师所需资料
+      outputs:
+      - 美发师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 美业美发 美发师
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定美发师的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: hairstylist
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: hairstylist-skill
+        kind: skill
+        path: data/role-profiles/beauty-grooming.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 美发师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 美发师
+      tools:
+      - 发型师
+      - 剪发
+      - 烫发
+      knowledge:
+      - 美业美发行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 美发师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: hairstylist
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: hairstylist
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: hairstylist
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: hairstylist
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: hairstylist
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: hairstylist
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: hairstylist
+  plugin_artifacts:
+  - name: hairstylist-skill
+    kind: skill
+    path: data/role-profiles/beauty-grooming.yaml
+  sources:
+  - role-profiles/beauty-grooming.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: manicurist
+  unit_id: beauty-grooming
+  industry: 美业美发
+  prefix: '[美甲]'
+  description: 美甲师 美甲 甲油 手部护理
+  keywords:
+  - 美甲
+  - 美甲师
+  - 甲油
+  - 甲片
+  - 手部护理
+  - 修甲
+  readiness:
+    role_name: manicurist
+    unit_id: beauty-grooming
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 美甲师交付流
+    industry_alias:
+    - 美容美发
+    - 美业
+    - 形象设计
+    - 理发
+    - 美甲
+    - 化妆
+    - 造型
+    triggers:
+    - 美甲
+    - 美甲师
+    - 甲油
+    - 甲片
+    - 手部护理
+    - 修甲
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以美甲师身份，把服务按标准交付
+      deliverables:
+      - 美甲师交付物
+      inputs:
+      - 客户需求
+      - 美甲师所需资料
+      outputs:
+      - 美甲师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 美业美发 美甲师
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定美甲师的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: manicurist
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: manicurist-skill
+        kind: skill
+        path: data/role-profiles/beauty-grooming.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 美甲师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 美甲师
+      tools:
+      - 美甲
+      - 美甲师
+      - 甲油
+      knowledge:
+      - 美业美发行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 美甲师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: manicurist
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: manicurist
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: manicurist
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: manicurist
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: manicurist
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: manicurist
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: manicurist
+  plugin_artifacts:
+  - name: manicurist-skill
+    kind: skill
+    path: data/role-profiles/beauty-grooming.yaml
+  sources:
+  - role-profiles/beauty-grooming.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: beauty_advisor
+  unit_id: beauty-grooming
+  industry: 美业美发
+  prefix: '[皮肤管理]'
+  description: 皮肤管理 护肤 祛痘 抗衰 院线
+  keywords:
+  - 皮肤管理
+  - 护肤
+  - 祛痘
+  - 抗衰
+  - 院线护理
+  - 面部护理
+  - 美容院
+  readiness:
+    role_name: beauty_advisor
+    unit_id: beauty-grooming
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 美容顾问交付流
+    industry_alias:
+    - 美容美发
+    - 美业
+    - 形象设计
+    - 理发
+    - 美甲
+    - 化妆
+    - 造型
+    triggers:
+    - 皮肤管理
+    - 护肤
+    - 祛痘
+    - 抗衰
+    - 院线护理
+    - 面部护理
+    - 美容院
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以美容顾问身份，把服务按标准交付
+      deliverables:
+      - 美容顾问交付物
+      inputs:
+      - 客户需求
+      - 美容顾问所需资料
+      outputs:
+      - 美容顾问产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 美业美发 美容顾问
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定美容顾问的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: beauty_advisor
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: beauty_advisor-skill
+        kind: skill
+        path: data/role-profiles/beauty-grooming.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 美容顾问交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 美容顾问
+      tools:
+      - 皮肤管理
+      - 护肤
+      - 祛痘
+      knowledge:
+      - 美业美发行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 美容顾问交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: beauty_advisor
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: beauty_advisor
+  plugin_artifacts:
+  - name: beauty_advisor-skill
+    kind: skill
+    path: data/role-profiles/beauty-grooming.yaml
+  sources:
+  - role-profiles/beauty-grooming.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: image_consultant
+  unit_id: beauty-grooming
+  industry: 美业美发
+  prefix: '[形象]'
+  description: 形象顾问 穿搭 色彩 形体 礼仪
+  keywords:
+  - 形象顾问
+  - 穿搭
+  - 色彩诊断
+  - 形体
+  - 礼仪培训
+  - 个人形象
+  readiness:
+    role_name: image_consultant
+    unit_id: beauty-grooming
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 形象设计交付流
+    industry_alias:
+    - 美容美发
+    - 美业
+    - 形象设计
+    - 理发
+    - 美甲
+    - 化妆
+    - 造型
+    triggers:
+    - 形象顾问
+    - 穿搭
+    - 色彩诊断
+    - 形体
+    - 礼仪培训
+    - 个人形象
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以形象设计身份，把方案按标准交付
+      deliverables:
+      - 形象设计交付物
+      inputs:
+      - 客户需求
+      - 形象设计所需资料
+      outputs:
+      - 形象设计产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 美业美发 形象设计
+      mindset: 先问清目标与约束，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定形象设计的专业判断
+      - 不可越权替客户做业务决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: image_consultant
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: image_consultant-skill
+        kind: skill
+        path: data/role-profiles/beauty-grooming.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 形象设计交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与确认产出
+              verify: &id038
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id041
+              - 执行与产出产出
+              verify: &id042
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 形象设计
+      tools:
+      - 形象顾问
+      - 穿搭
+      - 色彩诊断
+      knowledge:
+      - 美业美发行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 形象设计交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: image_consultant
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: image_consultant
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: image_consultant
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: image_consultant
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: image_consultant
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: image_consultant
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id041
+      verify: *id042
+      runtime: agent
+      agent_role: image_consultant
+  plugin_artifacts:
+  - name: image_consultant-skill
+    kind: skill
+    path: data/role-profiles/beauty-grooming.yaml
+  sources:
+  - role-profiles/beauty-grooming.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

@@ -1,0 +1,94 @@
+unit_id: food-beverage
+industry: 餐饮美食
+industry_alias:
+- 餐饮
+- 餐饮服务
+- 食品服务
+- 外卖
+- 门店
+- 菜品
+- 出餐
+- 堂食
+roles:
+- name: menu_planner
+  prefix: '[菜品]'
+  handoff: relay
+  composite: true
+  description: 菜品策划 菜单 定价 上新 毛利
+  keywords:
+  - 菜品
+  - 菜单
+  - 上新
+  - 菜品定价
+  - 毛利
+  - 出菜率
+  - 招牌菜
+  - 套餐设计
+- name: restaurant_operator
+  prefix: '[门店]'
+  handoff: relay
+  composite: true
+  description: 门店运营 翻台 人效 坪效 排班
+  keywords:
+  - 门店运营
+  - 翻台
+  - 人效
+  - 坪效
+  - 排班
+  - 出餐速度
+  - 堂食
+  - 损耗
+- name: delivery_operator
+  prefix: '[外卖]'
+  handoff: relay
+  composite: true
+  description: 外卖运营 平台 曝光 满减 出餐
+  keywords:
+  - 外卖运营
+  - 外卖平台
+  - 满减
+  - 曝光
+  - 出餐
+  - 配送时效
+  - 差评
+  - 店铺评分
+- name: food_safety_officer
+  prefix: '[食安]'
+  handoff: relay
+  composite: true
+  description: 食品安全 留样 索证 后厨 卫生
+  keywords:
+  - 食品安全
+  - 留样
+  - 索证索票
+  - 后厨
+  - 卫生检查
+  - 食安
+  - 进货查验
+  - 明厨亮灶
+- name: fb_manager
+  prefix: '[店长]'
+  handoff: relay
+  composite: true
+  description: 店长 选址 成本 人员 营业额
+  keywords:
+  - 店长
+  - 选址
+  - 门店成本
+  - 营业额
+  - 门店人员
+  - 开分店
+  - 巡店
+entry_ref: ''
+capability_tags:
+- 菜单与定价
+- 门店运营
+- 外卖运营
+- 食品安全
+- 门店选址
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 food-beverage 建单元（全国餐饮收入 5 万亿，
+  revenue 口径，confidence=high）。分区 note：「线下交付为主，AI 只能覆盖运营/策划侧」——
+  这是关键边界，触发词只覆盖菜单/门店/外卖/食安/店长这些可被 AI 辅助的环节，
+  不假装能替代后厨劳动。

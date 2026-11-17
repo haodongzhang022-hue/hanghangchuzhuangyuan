@@ -1,0 +1,65 @@
+unit_id: sport-games
+industry: 赛事与场馆运营
+industry_alias:
+- 体育赛事
+- 赛事运营
+- 场馆运营
+- 体育经纪
+- 马拉松
+- 球赛
+- 运动会
+- 体育经纪
+roles:
+- name: event_operator
+  prefix: '[赛事运营]'
+  handoff: relay
+  composite: true
+  description: 赛事运营 赛事策划 报名 赛程 招商
+  keywords:
+  - 赛事运营
+  - 赛事策划
+  - 赛程编排
+  - 报名管理
+  - 马拉松
+  - 球赛
+  - 运动会
+  - 招商赞助
+  - 赛事执行
+- name: venue_manager
+  prefix: '[场馆]'
+  handoff: relay
+  composite: true
+  description: 场馆运营 场地 利用率 场馆 安保
+  keywords:
+  - 场馆运营
+  - 场馆
+  - 场地
+  - 利用率
+  - 体育馆
+  - 场馆租赁
+  - 安保预案
+- name: sports_agent
+  prefix: '[体育经纪]'
+  handoff: relay
+  composite: true
+  description: 体育经纪 运动员 转会 代言 经纪
+  keywords:
+  - 体育经纪
+  - 运动员
+  - 转会
+  - 代言
+  - 选手合同
+  - 经纪费
+entry_ref: ''
+capability_tags:
+- 赛事策划
+- 赛事执行
+- 场馆运营
+- 体育经纪
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 sport-games 建单元（体育产业总产出 3 万亿，
+  gross_output 口径）。分区 note 明确：「产值 3 万亿是**体育产业整体**口径，
+  保留在这里只是为了让产出轴有个锚点，不代表本分区独占」——
+  这条要如实继承，别在本单元里声称独占 3 万亿。
+  与 esports 分区的区别：赛事是票务/赞助/场馆，电竞是竞技内容与俱乐部。

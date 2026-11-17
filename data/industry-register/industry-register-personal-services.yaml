@@ -1,0 +1,107 @@
+unit_id: personal-services
+industry: 生活服务
+industry_alias:
+- 家政
+- 居民服务
+- 到家服务
+- 养老照护
+- 月嫂
+- 育儿嫂
+- 保洁
+roles:
+- name: housekeeping_advisor
+  prefix: '[家政顾问]'
+  handoff: relay
+  composite: true
+  description: 家政顾问 需求匹配 背景核验 签约
+  keywords:
+  - 家政顾问
+  - 找保姆
+  - 家政服务
+  - 背景核验
+  - 家政签约
+  - 阿姨
+- name: cleaning_steward
+  prefix: '[保洁]'
+  handoff: relay
+  composite: true
+  description: 保洁管家 深度保洁 开荒 家电清洗
+  keywords:
+  - 保洁
+  - 深度保洁
+  - 开荒保洁
+  - 家电清洗
+  - 钟点工
+  - 打扫卫生
+  - 擦玻璃
+- name: nanny
+  prefix: '[育儿嫂]'
+  handoff: relay
+  composite: true
+  description: 育儿嫂 婴幼儿 辅食 早教 看护
+  keywords:
+  - 育儿嫂
+  - 婴幼儿看护
+  - 辅食
+  - 早教陪伴
+  - 婴儿护理
+  - 带娃
+- name: maternity_matron
+  prefix: '[月嫂]'
+  handoff: relay
+  composite: true
+  description: 月嫂 产后 月子 新生儿 催乳
+  keywords:
+  - 月嫂
+  - 月子
+  - 产后护理
+  - 新生儿护理
+  - 催乳
+  - 坐月子
+- name: elder_care
+  prefix: '[养老照护]'
+  handoff: relay
+  composite: true
+  description: 养老照护 失能 陪护 护理 长护险
+  keywords:
+  - 养老照护
+  - 失能老人
+  - 陪护
+  - 老年护理
+  - 长护险
+  - 居家养老
+  - 护工
+- name: homemaker
+  prefix: '[持家]'
+  handoff: relay
+  composite: false
+  description: 家务持家 家庭预算 收纳 家庭事务
+  keywords:
+  - 持家
+  - 家务
+  - 收纳整理
+  - 家庭预算
+  - 家庭事务
+- name: family_caregiver
+  prefix: '[家庭照护]'
+  handoff: relay
+  composite: false
+  description: 家庭照护者 长期照护 家庭护理
+  keywords:
+  - 家庭照护
+  - 长期照护
+  - 家庭护理
+  - 照护者
+entry_ref: ''
+capability_tags:
+- 家政匹配
+- 保洁服务
+- 育儿照护
+- 月子护理
+- 居家养老
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 personal-services 建单元（1 万亿，revenue 口径）。
+  注意本分区包含 access=household（家庭无酬）的岗位：homemaker / family_caregiver。
+  项目立场是「不直接付费 ≠ 不值得分析」——家务与家庭照护照样登记、照样统计，
+  只是路由时 composite=false（不参与跨岗交接）。

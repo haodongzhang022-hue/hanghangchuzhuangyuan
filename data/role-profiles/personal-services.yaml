@@ -1,0 +1,669 @@
+unit_id: personal-services
+industry: 生活服务
+updated_at: '2026-11-17'
+source_note: 随 personal-services 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: housekeeping_advisor
+  analysis:
+    mission: 以家政顾问身份，把服务按标准交付
+    deliverables:
+    - 家政顾问交付物
+    inputs:
+    - 客户需求
+    - 家政顾问所需资料
+    outputs:
+    - 家政顾问产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 家政顾问
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定家政顾问的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: housekeeping_advisor
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: housekeeping_advisor-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 家政顾问
+    tools:
+    - 家政顾问
+    - 找保姆
+    - 家政服务
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 家政顾问交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: &id001
+    - 客户
+    downstream: &id002
+    - 各执行岗位
+    beneficiaries: &id003
+    - 用户
+    blockers: &id004
+    - 输入不全
+    incentives: &id005
+    - 需求方
+    risk_notes: &id006
+    - 合规风险
+- role: cleaning_steward
+  analysis:
+    mission: 以保洁管家身份，把服务按标准交付
+    deliverables:
+    - 保洁管家交付物
+    inputs:
+    - 客户需求
+    - 保洁管家所需资料
+    outputs:
+    - 保洁管家产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 保洁管家
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定保洁管家的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: cleaning_steward
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: cleaning_steward-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 保洁管家
+    tools:
+    - 保洁
+    - 深度保洁
+    - 开荒保洁
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 保洁管家交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: nanny
+  analysis:
+    mission: 以育儿嫂身份，把服务按标准交付
+    deliverables:
+    - 育儿嫂交付物
+    inputs:
+    - 客户需求
+    - 育儿嫂所需资料
+    outputs:
+    - 育儿嫂产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 育儿嫂
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定育儿嫂的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: nanny
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: nanny-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 育儿嫂
+    tools:
+    - 育儿嫂
+    - 婴幼儿看护
+    - 辅食
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 育儿嫂交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: maternity_matron
+  analysis:
+    mission: 以月嫂身份，把服务按标准交付
+    deliverables:
+    - 月嫂交付物
+    inputs:
+    - 客户需求
+    - 月嫂所需资料
+    outputs:
+    - 月嫂产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 月嫂
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定月嫂的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: maternity_matron
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: maternity_matron-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 月嫂
+    tools:
+    - 月嫂
+    - 月子
+    - 产后护理
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 月嫂交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: elder_care
+  analysis:
+    mission: 以养老照护身份，把服务按标准交付
+    deliverables:
+    - 养老照护交付物
+    inputs:
+    - 客户需求
+    - 养老照护所需资料
+    outputs:
+    - 养老照护产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 养老照护
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定养老照护的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: elder_care
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: elder_care-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 养老照护
+    tools:
+    - 养老照护
+    - 失能老人
+    - 陪护
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 养老照护交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: homemaker
+  analysis:
+    mission: 以家务/持家者身份，把服务按标准交付
+    deliverables:
+    - 家务/持家者交付物
+    inputs:
+    - 客户需求
+    - 家务/持家者所需资料
+    outputs:
+    - 家务/持家者产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 家务/持家者
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定家务/持家者的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: homemaker
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: homemaker-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 家务/持家者
+    tools:
+    - 持家
+    - 家务
+    - 收纳整理
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 家务/持家者交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: family_caregiver
+  analysis:
+    mission: 以家庭照护者身份，把服务按标准交付
+    deliverables:
+    - 家庭照护者交付物
+    inputs:
+    - 客户需求
+    - 家庭照护者所需资料
+    outputs:
+    - 家庭照护者产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 生活服务 家庭照护者
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定家庭照护者的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: family_caregiver
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: family_caregiver-skill
+      kind: skill
+      path: data/role-profiles/personal-services.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 家庭照护者
+    tools:
+    - 家庭照护
+    - 长期照护
+    - 家庭护理
+    knowledge:
+    - 生活服务行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 家庭照护者交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006

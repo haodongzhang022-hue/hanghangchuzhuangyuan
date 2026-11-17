@@ -50,11 +50,17 @@ def test_composite_route():
 
 
 def test_manual_fallback():
-    """低置信回落 L2 人工"""
+    """低置信回落 L2 人工。
+
+    用例不能用「帮我点个外卖」：建了 food-beverage 单元之后它已能被正确识别，
+    这条断言测的就不再是回落机制，而是「餐饮行业还没建」这个当时的快照。
+    回落要测的是**信号不足的句子**，换成一个任何行业都不该认领的句子。
+    """
     reg = setup_registry()
     router = IntentRouter(reg)
-    r = router.route("帮我点个外卖")
-    assert r.needs_manual is True
+    r = router.route("随便聊聊")
+    assert r.needs_manual is True, (
+        f"信号不足的句子应回落人工，实际 unit={r.unit_id}")
 
 
 def test_game_unit_routing():

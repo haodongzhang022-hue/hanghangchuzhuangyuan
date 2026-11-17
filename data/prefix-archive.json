@@ -373,5 +373,660 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+<<<<<<< Updated upstream
+=======
+  },
+  "manufacturing": {
+    "unit_id": "manufacturing",
+    "industry": "智能制造",
+    "role_prefixes": {
+      "production_planner": {
+        "prefix": "[排产]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "quality_engineer": {
+        "prefix": "[质量]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "process_engineer": {
+        "prefix": "[工艺]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "equipment_manager": {
+        "prefix": "[设备]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "industrial_designer": {
+        "prefix": "[工业设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "factory_operator": {
+        "prefix": "[产线]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "construction-eng": {
+    "unit_id": "construction-eng",
+    "industry": "建筑工程",
+    "role_prefixes": {
+      "cost_estimator": {
+        "prefix": "[造价]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "supervision_engineer": {
+        "prefix": "[监理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "construction_manager": {
+        "prefix": "[施工管理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bidding_specialist": {
+        "prefix": "[招投标]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bim_engineer": {
+        "prefix": "[BIM]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "construction_worker": {
+        "prefix": "[施工班组]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "logistics-supply": {
+    "unit_id": "logistics-supply",
+    "industry": "物流供应链",
+    "role_prefixes": {
+      "logistics_operator": {
+        "prefix": "[物流运营]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "supply_chain_manager": {
+        "prefix": "[供应链]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "warehouse_manager": {
+        "prefix": "[仓储]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "buyer": {
+        "prefix": "[采购]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "customs_broker": {
+        "prefix": "[报关]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "delivery_rider": {
+        "prefix": "[配送]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "courier": {
+        "prefix": "[快递]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "agriculture": {
+    "unit_id": "agriculture",
+    "industry": "农林牧渔",
+    "role_prefixes": {
+      "agronomist": {
+        "prefix": "[农技]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "planting_planner": {
+        "prefix": "[种养规划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "agri_consultant": {
+        "prefix": "[农业咨询]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "agri_ecommerce": {
+        "prefix": "[农产品电商]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "ranch_operator": {
+        "prefix": "[牧场]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "auto-service": {
+    "unit_id": "auto-service",
+    "industry": "汽车服务",
+    "role_prefixes": {
+      "auto_sales": {
+        "prefix": "[销售]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "repair_advisor": {
+        "prefix": "[维修]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "used_car_appraiser": {
+        "prefix": "[二手车]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "auto_finance": {
+        "prefix": "[汽车金融]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "after_sales": {
+        "prefix": "[售后]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "beauty-grooming": {
+    "unit_id": "beauty-grooming",
+    "industry": "美业美发",
+    "role_prefixes": {
+      "makeup_advisor": {
+        "prefix": "[化妆]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "hairstylist": {
+        "prefix": "[美发]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "manicurist": {
+        "prefix": "[美甲]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "beauty_advisor": {
+        "prefix": "[皮肤管理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "image_consultant": {
+        "prefix": "[形象]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "culture-art": {
+    "unit_id": "culture-art",
+    "industry": "文化艺术",
+    "role_prefixes": {
+      "curator": {
+        "prefix": "[策展]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "talent_agent": {
+        "prefix": "[经纪]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "publisher_editor": {
+        "prefix": "[出版]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "playwright": {
+        "prefix": "[剧本]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "music_producer": {
+        "prefix": "[音乐制作]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "content_editor": {
+        "prefix": "[审校]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "energy-environment": {
+    "unit_id": "energy-environment",
+    "industry": "能源环保",
+    "role_prefixes": {
+      "carbon_manager": {
+        "prefix": "[碳管理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "energy_manager": {
+        "prefix": "[能源管理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "environmental_consultant": {
+        "prefix": "[环保咨询]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "energy_saving_planner": {
+        "prefix": "[节能方案]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "eia_writer": {
+        "prefix": "[环评]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "esports": {
+    "unit_id": "esports",
+    "industry": "电竞竞技",
+    "role_prefixes": {
+      "esports_player": {
+        "prefix": "[电竞选手]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "esports_operator": {
+        "prefix": "[赛事运营]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "game_companion": {
+        "prefix": "[陪玩]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "finance-invest": {
+    "unit_id": "finance-invest",
+    "industry": "金融投资",
+    "role_prefixes": {
+      "financial_advisor": {
+        "prefix": "[理财]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "insurance_advisor": {
+        "prefix": "[保险]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "securities_analyst": {
+        "prefix": "[证券分析]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "investment_advisor": {
+        "prefix": "[投顾]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "loan_officer": {
+        "prefix": "[信贷]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "food-beverage": {
+    "unit_id": "food-beverage",
+    "industry": "餐饮美食",
+    "role_prefixes": {
+      "menu_planner": {
+        "prefix": "[菜品]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "restaurant_operator": {
+        "prefix": "[门店]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "delivery_operator": {
+        "prefix": "[外卖]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "food_safety_officer": {
+        "prefix": "[食安]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "fb_manager": {
+        "prefix": "[店长]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "interpretation": {
+    "unit_id": "interpretation",
+    "industry": "口译服务",
+    "role_prefixes": {
+      "interpreter": {
+        "prefix": "[口译]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "live-streaming": {
+    "unit_id": "live-streaming",
+    "industry": "直播与网络表演",
+    "role_prefixes": {
+      "streamer": {
+        "prefix": "[主播]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "live_host": {
+        "prefix": "[表演]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "personal-services": {
+    "unit_id": "personal-services",
+    "industry": "生活服务",
+    "role_prefixes": {
+      "housekeeping_advisor": {
+        "prefix": "[家政顾问]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "cleaning_steward": {
+        "prefix": "[保洁]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "nanny": {
+        "prefix": "[育儿嫂]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "maternity_matron": {
+        "prefix": "[月嫂]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "elder_care": {
+        "prefix": "[养老照护]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "homemaker": {
+        "prefix": "[持家]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "family_caregiver": {
+        "prefix": "[家庭照护]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "public-affairs": {
+    "unit_id": "public-affairs",
+    "industry": "政务公共",
+    "role_prefixes": {
+      "policy_consultant": {
+        "prefix": "[政策]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "community_worker": {
+        "prefix": "[社区]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "gov_service_clerk": {
+        "prefix": "[窗口]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "records_manager": {
+        "prefix": "[档案]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "civic_agent": {
+        "prefix": "[公共事务]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "real-estate": {
+    "unit_id": "real-estate",
+    "industry": "房产置业",
+    "role_prefixes": {
+      "realtor": {
+        "prefix": "[房产经纪]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "property_consultant": {
+        "prefix": "[置业顾问]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "appraiser": {
+        "prefix": "[评估]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "leasing_operator": {
+        "prefix": "[招商]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "property_manager": {
+        "prefix": "[物业]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "research-academic": {
+    "unit_id": "research-academic",
+    "industry": "科研学术",
+    "role_prefixes": {
+      "literature_reviewer": {
+        "prefix": "[文献]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "grant_writer": {
+        "prefix": "[申报]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "experiment_designer": {
+        "prefix": "[实验]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "research_analyst": {
+        "prefix": "[科研分析]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "academic_editor": {
+        "prefix": "[学术编辑]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "patent_agent": {
+        "prefix": "[专利]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "sport-fitness": {
+    "unit_id": "sport-fitness",
+    "industry": "体育健身",
+    "role_prefixes": {
+      "sports_coach": {
+        "prefix": "[健身教练]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "rehab_trainer": {
+        "prefix": "[运动康复]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "sport-games": {
+    "unit_id": "sport-games",
+    "industry": "赛事与场馆运营",
+    "role_prefixes": {
+      "event_operator": {
+        "prefix": "[赛事运营]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "venue_manager": {
+        "prefix": "[场馆]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "sports_agent": {
+        "prefix": "[体育经纪]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "tourism-hospitality": {
+    "unit_id": "tourism-hospitality",
+    "industry": "旅游出行",
+    "role_prefixes": {
+      "travel_planner": {
+        "prefix": "[行程]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "hotel_manager": {
+        "prefix": "[酒店]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "homestay_operator": {
+        "prefix": "[民宿]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "tour_guide": {
+        "prefix": "[导游]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "booking_agent": {
+        "prefix": "[票务]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "ride_hailing_driver": {
+        "prefix": "[网约车]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "customer_service": {
+        "prefix": "[客服]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "video-media": {
+    "unit_id": "video-media",
+    "industry": "视频影视",
+    "role_prefixes": {
+      "video_editor": {
+        "prefix": "[剪辑]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "cinematographer": {
+        "prefix": "[摄影]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "post_production": {
+        "prefix": "[后期]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "director_assistant": {
+        "prefix": "[导演组]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "scriptwriter": {
+        "prefix": "[编剧]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+>>>>>>> Stashed changes
   }
 }

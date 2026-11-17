@@ -375,10 +375,10 @@ partitions:
     gdp_source: 不适用，刻意留空；口径见 翻译本地化(translation)
     employment: null
     employment_source: 并入翻译协会口径，本分区无独立就业数
-    unit_id: ''
+    unit_id: interpretation
     priority: 中
     channels: [中国翻译协会行业报告(口译分项), 会议服务公司名录, 译员平台]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [interpreter]
     note: >
@@ -426,10 +426,10 @@ partitions:
     gdp_confidence: medium
     employment: 300
     employment_source: 广电视听从业人数
-    unit_id: ''
+    unit_id: video-media
     priority: 高
     channels: [广电总局统计, 网络视听平台创作者生态, 影视制作公司目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [video_editor, cinematographer, post_production, director_assistant, scriptwriter]
 
@@ -447,10 +447,10 @@ partitions:
     gdp_confidence: medium
     employment: 800
     employment_source: 金融业从业人数(含银行/保险/证券代理)
-    unit_id: ''
+    unit_id: finance-invest
     priority: 中
     channels: [证券/基金/保险业协会统计, 金融机构岗位目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [financial_advisor, insurance_advisor, securities_analyst, investment_advisor, loan_officer]
     note: 强牌照约束，AI 只做投顾辅助与合规内工作
@@ -469,10 +469,10 @@ partitions:
     gdp_confidence: medium
     employment: 500
     employment_source: 房地产中介与物业从业人数
-    unit_id: ''
+    unit_id: real-estate
     priority: 中
     channels: [住建部统计, 中介协会, 物业服务平台]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [realtor, property_consultant, appraiser, leasing_operator, property_manager]
 
@@ -490,10 +490,10 @@ partitions:
     gdp_confidence: medium
     employment: 900
     employment_source: 旅游直接从业人数
-    unit_id: ''
+    unit_id: tourism-hospitality
     priority: 中
     channels: [文旅部统计公报, OTA平台岗位, 酒店集团目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [travel_planner, hotel_manager, tour_guide, booking_agent, homestay_operator, ride_hailing_driver]
 
@@ -511,10 +511,10 @@ partitions:
     gdp_confidence: high
     employment: 2000
     employment_source: 餐饮业从业人数
-    unit_id: ''
+    unit_id: food-beverage
     priority: 低
     channels: [国家统计局餐饮收入, 餐饮连锁企业名录, 外卖平台商家]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [menu_planner, restaurant_operator, delivery_operator, food_safety_officer, fb_manager]
     note: 线下交付为主，AI 只能覆盖运营/策划侧
@@ -597,10 +597,10 @@ partitions:
     gdp_confidence: medium
     employment: 300
     employment_source: 环保产业从业人数
-    unit_id: ''
+    unit_id: energy-environment
     priority: 低
     channels: [生态环境部统计, 环保产业协会, 碳市场披露]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [carbon_manager, energy_manager, environmental_consultant, energy_saving_planner, eia_writer]
 
@@ -618,10 +618,10 @@ partitions:
     gdp_confidence: medium
     employment: 400
     employment_source: 汽车后市场从业人数
-    unit_id: ''
+    unit_id: auto-service
     priority: 低
     channels: [汽车流通协会统计, 经销商集团目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [auto_sales, after_sales, used_car_appraiser, auto_finance, repair_advisor]
 
@@ -639,10 +639,10 @@ partitions:
     gdp_confidence: low
     employment: 3000
     employment_source: 家政/照护从业人数(不含家庭无酬劳动)
-    unit_id: ''
+    unit_id: personal-services
     priority: 中
     channels: [商务部服务贸易/家政统计, 到家服务平台目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [housekeeping_advisor, cleaning_steward, nanny, maternity_matron, elder_care, homemaker, family_caregiver]
 
@@ -660,10 +660,10 @@ partitions:
     gdp_confidence: low
     employment: 800
     employment_source: 美容美发从业人数
-    unit_id: ''
+    unit_id: beauty-grooming
     priority: 低
     channels: [美业协会报告, 美业SaaS平台商家数据]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [makeup_advisor, hairstylist, manicurist, beauty_advisor, image_consultant]
 
@@ -681,10 +681,10 @@ partitions:
     gdp_confidence: high
     employment: 17000
     employment_source: 农林牧渔业就业人数
-    unit_id: ''
+    unit_id: agriculture
     priority: 低
     channels: [国家统计局农业统计, 农业农村部服务平台, 农科院目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [agri_consultant, planting_planner, agri_ecommerce, agronomist, ranch_operator]
 
@@ -702,10 +702,10 @@ partitions:
     gdp_confidence: medium
     employment: 300
     employment_source: 文化内容生产从业人数(窄口径)
-    unit_id: ''
+    unit_id: culture-art
     priority: 中
     channels: [国家统计局文化及相关产业统计, 演出/出版机构目录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [curator, talent_agent, publisher_editor, playwright, music_producer]
 
@@ -722,10 +722,10 @@ partitions:
     gdp_source: 不适用，刻意留空
     employment: 2000
     employment_source: 公共管理与社区服务人员(财政供养一部分)
-    unit_id: ''
+    unit_id: public-affairs
     priority: 中
     channels: [政务公开办事目录, 社工职业目录, 政府购买服务清单]
-    status: pending
+    status: covered
     axes: [occupation, output]   # 财政供养，无市场税目口径
     planned_roles: [policy_consultant, community_worker, gov_service_clerk, records_manager, civic_agent]
     note: 无市场付费，产值口径留空；AI 承接以内部效率提升为主
@@ -745,10 +745,10 @@ partitions:
     gdp_confidence: low
     employment: null
     employment_source: 网络表演从业人数与其他直播形态混统，故留空；口径见 note
-    unit_id: ''
+    unit_id: live-streaming
     priority: 高
     channels: [网络表演(直播)行业年度报告, MCN机构名录, 直播平台公开数据]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [streamer, live_host]
     note: >
@@ -773,10 +773,10 @@ partitions:
     gdp_source: 不适用，刻意留空；年度口径见音数协电竞报告(低置信)
     employment: null
     employment_source: 无独立就业统计口径（电竞选手/陪玩多为兼职与平台众包）
-    unit_id: ''
+    unit_id: esports
     priority: 中
     channels: [电竞工委产业报告, 赛事主办方与俱乐部名录, 陪玩平台公开数据]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [esports_player, esports_operator, game_companion]
     note: >
@@ -797,10 +797,10 @@ partitions:
     gdp_source: 不适用，刻意留空；体育产业总产出口径见 sport-games
     employment: null
     employment_source: 无独立就业统计，故留空；口径见 note
-    unit_id: ''
+    unit_id: sport-fitness
     priority: 低
     channels: [体育总局产业统计(健身分项), 健身连锁名录, 体育培训平台]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [sports_coach, rehab_trainer]
     note: >
@@ -823,10 +823,10 @@ partitions:
     gdp_confidence: medium
     employment: 500
     employment_source: 体育产业从业人数(宽口径，含用品制造与健身，量级估算)
-    unit_id: ''
+    unit_id: sport-games
     priority: 低
     channels: [体育总局产业统计, 赛事主办方与场馆运营方名录, 体育经纪机构]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [sports_agent, event_operator, venue_manager]
     note: >
@@ -847,10 +847,10 @@ partitions:
     gdp_confidence: medium
     employment: 600
     employment_source: R&D人员中外部服务相关部分(窄口径)
-    unit_id: ''
+    unit_id: research-academic
     priority: 中
     channels: [国家统计局R&D统计, 科研院所岗位, 学术出版平台]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [literature_reviewer, grant_writer, experiment_designer, research_analyst, academic_editor]
     note: 与数据分析/软件研发高度复合，学界伦理边界需单列
