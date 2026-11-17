@@ -201,26 +201,11 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'compliance_advisor', 'blockers', '事实不清', '事实不清', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'contract_advisor', 'blockers', '事实不清', '事实不清', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'legal_counsel', 'blockers', '事实不清', '事实不清', 'industry_class', NULL);
-<<<<<<< Updated upstream
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'game_dev', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'game_planner', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'level_designer', 'upstream', '产品', '产品', 'industry_class', NULL);
-=======
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'blockers', '事实不清', '事实不清', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'customer_service', 'blockers', '事实不清', '事实不清', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bim_engineer', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'game_dev', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'game_planner', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('game-dev-unit', 'level_designer', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'buyer', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'logistics_operator', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'supply_chain_manager', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'industrial_designer', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'process_engineer', 'upstream', '产品', '产品', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'production_planner', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('research-academic', 'patent_agent', 'upstream', '产品', '产品', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'localizer', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'subtitle', 'upstream', '产品', '产品', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'brand_planner', 'upstream', '产品与用户洞察', '产品与用户洞察', 'industry_class', NULL);
@@ -246,9 +231,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'document_archivist', 'upstream', '各处室需求', '各处室需求', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'meeting_coordinator', 'upstream', '各处室需求', '各处室需求', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'receptionist', 'upstream', '各处室需求', '各处室需求', 'industry_class', NULL);
-<<<<<<< Updated upstream
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('dongjiagoushi', 'secretary', 'beneficiaries', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_consultant', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_ecommerce', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agronomist', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
@@ -264,15 +246,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'image_consultant', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'makeup_advisor', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'manicurist', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bidding_specialist', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bidding_specialist', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bim_engineer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_manager', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_manager', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_worker', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_worker', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'supervision_engineer', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'content_editor', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'curator', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'music_producer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
@@ -301,22 +274,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('interpretation', 'interpreter', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'live_host', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'streamer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'buyer', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'buyer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'logistics_operator', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'supply_chain_manager', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'warehouse_manager', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'warehouse_manager', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'equipment_manager', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'equipment_manager', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'factory_operator', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'factory_operator', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'industrial_designer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'process_engineer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'production_planner', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'cleaning_steward', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'elder_care', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'family_caregiver', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
@@ -352,7 +309,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'ride_hailing_driver', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'tour_guide', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'travel_planner', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'localizer', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'proofreader', 'upstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'subtitle', 'downstream', '各执行岗位', '各执行岗位', 'industry_class', NULL);
@@ -389,11 +345,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('education-training', 'curriculum_designer', 'upstream', '学员', '学员', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('education-training', 'learning_advisor', 'upstream', '学员', '学员', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('education-training', 'teacher', 'upstream', '学员', '学员', 'industry_class', NULL);
-<<<<<<< Updated upstream
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'compliance_advisor', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'contract_advisor', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'legal_counsel', 'upstream', '客户', '客户', 'industry_class', NULL);
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_consultant', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_ecommerce', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agronomist', 'upstream', '客户', '客户', 'industry_class', NULL);
@@ -409,16 +360,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'image_consultant', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'makeup_advisor', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'manicurist', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bidding_specialist', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bidding_specialist', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bim_engineer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bim_engineer', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_manager', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_manager', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'supervision_engineer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'supervision_engineer', 'downstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'content_editor', 'downstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'curator', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'music_producer', 'upstream', '客户', '客户', 'industry_class', NULL);
@@ -449,23 +390,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'legal_counsel', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'live_host', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'streamer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'courier', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'delivery_rider', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'logistics_operator', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'logistics_operator', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'supply_chain_manager', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'supply_chain_manager', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'warehouse_manager', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'industrial_designer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'process_engineer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'process_engineer', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'production_planner', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'production_planner', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'upstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'downstream', '客户', '客户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'cleaning_steward', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'elder_care', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'family_caregiver', 'upstream', '客户', '客户', 'industry_class', NULL);
@@ -502,7 +426,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'ride_hailing_driver', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'tour_guide', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('tourism-hospitality', 'travel_planner', 'upstream', '客户', '客户', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'localizer', 'upstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'proofreader', 'downstream', '客户', '客户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'proofreader', 'beneficiaries', '客户', '客户', 'industry_class', NULL);
@@ -548,8 +471,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'document_archivist', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'meeting_coordinator', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('admin-office', 'receptionist', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-<<<<<<< Updated upstream
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_consultant', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_ecommerce', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agronomist', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
@@ -565,8 +486,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'image_consultant', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'makeup_advisor', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'manicurist', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'supervision_engineer', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'content_editor', 'upstream', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'content_editor', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('content-creation', 'copywriter', 'upstream', '用户', '用户', 'industry_class', NULL);
@@ -642,17 +561,8 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'compliance_advisor', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'contract_advisor', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('legal-services', 'legal_counsel', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-<<<<<<< Updated upstream
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'live_host', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'streamer', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'courier', 'downstream', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'courier', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'delivery_rider', 'downstream', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'delivery_rider', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'industrial_designer', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'brand_planner', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'campaign_planner', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'market_researcher', 'beneficiaries', '用户', '用户', 'industry_class', NULL);
@@ -758,8 +668,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'campaign_planner', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'market_researcher', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('marketing', 'pr_manager', 'blockers', '跨岗口径不一致', '跨岗口径不一致', 'industry_class', NULL);
-<<<<<<< Updated upstream
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_consultant', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agri_ecommerce', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('agriculture', 'agronomist', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
@@ -775,18 +683,12 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'image_consultant', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'makeup_advisor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('beauty-grooming', 'manicurist', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bidding_specialist', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'bim_engineer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_worker', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'supervision_engineer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'content_editor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'curator', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'music_producer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'playwright', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'publisher_editor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('culture-art', 'talent_agent', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('data-analytics', 'bi_engineer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('data-analytics', 'data_analyst', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('data-analytics', 'data_scientist', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
@@ -806,11 +708,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-accounting', 'finance_analyst', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-accounting', 'payroll_processor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-accounting', 'tax_advisor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-<<<<<<< Updated upstream
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'localizer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'proofreader', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('translation', 'subtitle', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-=======
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-invest', 'financial_advisor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-invest', 'insurance_advisor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('finance-invest', 'investment_advisor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
@@ -824,19 +721,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('interpretation', 'interpreter', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'live_host', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('live-streaming', 'streamer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'buyer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'courier', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'customs_broker', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'delivery_rider', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'logistics_operator', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'supply_chain_manager', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('logistics-supply', 'warehouse_manager', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'equipment_manager', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'factory_operator', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'industrial_designer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'process_engineer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'production_planner', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('manufacturing', 'quality_engineer', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'cleaning_steward', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'elder_care', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('personal-services', 'family_caregiver', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
@@ -879,9 +763,6 @@ INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, re
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('video-media', 'post_production', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('video-media', 'scriptwriter', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('video-media', 'video_editor', 'blockers', '输入不全', '输入不全', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'construction_manager', 'downstream', '运维', '运维', 'industry_class', NULL);
-INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('construction-eng', 'cost_estimator', 'downstream', '运维', '运维', 'industry_class', NULL);
->>>>>>> Stashed changes
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('dongjiagoushi', 'architect', 'beneficiaries', '运维', '运维', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('dongjiagoushi', 'developer', 'downstream', '运维', '运维', 'industry_class', NULL);
 INSERT INTO role_chain_ref (unit_id, role_name, field, raw_value, class_name, ref_kind, ref_unit) VALUES ('dongjiagoushi', 'reviewer', 'downstream', '运维', '运维', 'industry_class', NULL);
