@@ -925,10 +925,15 @@ class IndustryDatabase:
             planned = p.get("planned_roles") or []
             if not planned:
                 continue
-            # 只对**打算建单元**的 pending 分区报：已建单元的分区由第 9 条守着
-            # （成员缺 unit_role 必报）；evaluated 是评估后明确不建，骨架在那儿
-            # 是留档，没人认领属预期。
-            if p.get("status") != "pending":
+            # pending 与 covered 都要查：
+            #   pending  —— 声明要建的岗位没人负责，建单元后岗位与职业对不上；
+            #   covered  —— **更要查**：单元已经建了，骨架里却有个岗位没有任何职业边
+            #               认领，等于"声明有岗、实际没人做"。原先这里只查 pending，
+            #               于是一个分区从 pending 变成 covered 之后，这条检查就
+            #               对它永久失效了（实测：往 covered 分区的 planned_roles
+            #               凭空加一个岗位，validate() 返回 []）。
+            # evaluated 是评估后明确不建，骨架在那儿是留档，没人认领属预期，跳过。
+            if p.get("status") == "evaluated":
                 continue
             claimed_roles = {m.get("unit_role")
                              for m in self.axis_view.of_partition(pid)
