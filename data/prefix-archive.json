@@ -373,5 +373,121 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "manufacturing": {
+    "unit_id": "manufacturing",
+    "industry": "智能制造",
+    "role_prefixes": {
+      "production_planner": {
+        "prefix": "[排产]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "quality_engineer": {
+        "prefix": "[质量]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "process_engineer": {
+        "prefix": "[工艺]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "equipment_manager": {
+        "prefix": "[设备]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "industrial_designer": {
+        "prefix": "[工业设计]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "factory_operator": {
+        "prefix": "[产线]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "construction-eng": {
+    "unit_id": "construction-eng",
+    "industry": "建筑工程",
+    "role_prefixes": {
+      "cost_estimator": {
+        "prefix": "[造价]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "supervision_engineer": {
+        "prefix": "[监理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "construction_manager": {
+        "prefix": "[施工管理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bidding_specialist": {
+        "prefix": "[招投标]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bim_engineer": {
+        "prefix": "[BIM]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "construction_worker": {
+        "prefix": "[施工班组]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "logistics-supply": {
+    "unit_id": "logistics-supply",
+    "industry": "物流供应链",
+    "role_prefixes": {
+      "logistics_operator": {
+        "prefix": "[物流运营]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "supply_chain_manager": {
+        "prefix": "[供应链]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "warehouse_manager": {
+        "prefix": "[仓储]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "buyer": {
+        "prefix": "[采购]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "customs_broker": {
+        "prefix": "[报关]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "delivery_rider": {
+        "prefix": "[配送]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "courier": {
+        "prefix": "[快递]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }
