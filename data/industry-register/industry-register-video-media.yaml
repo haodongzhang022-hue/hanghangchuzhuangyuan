@@ -1,0 +1,109 @@
+unit_id: video-media
+industry: 视频影视
+industry_alias:
+- 影视制作
+- 短视频制作
+- 传媒
+- 视频内容
+- 剪辑
+- 拍摄
+- 影视
+- 短视频
+- 后期
+roles:
+- name: video_editor
+  prefix: '[剪辑]'
+  handoff: relay
+  composite: true
+  description: 视频剪辑 粗剪 精剪 成片 卡点 素材管理
+  keywords:
+  - 剪辑
+  - 粗剪
+  - 精剪
+  - 成片
+  - 卡点
+  - 素材管理
+  - 视频剪辑
+  - 时间线
+  - 片段
+  # 口语说法：用户很少说「剪辑」，多数说「剪个视频」「剪片子」。
+  # 单字「剪」太泛（剪发/剪彩），用两字组合坐实语义。
+  - 剪个视频
+  - 剪视频
+  - 剪片子
+  - 剪个片子
+  - 剪素材
+- name: cinematographer
+  prefix: '[摄影]'
+  handoff: relay
+  composite: true
+  description: 摄影摄像 运镜 布光 机位 镜头语言
+  keywords:
+  - 摄影
+  - 摄像
+  - 运镜
+  - 布光
+  - 机位
+  - 镜头
+  - 画面
+  - 拍摄
+  - 构图
+- name: post_production
+  prefix: '[后期]'
+  handoff: relay
+  composite: true
+  description: 后期制作 调色 特效 混音 包装 字幕
+  keywords:
+  - 后期
+  - 调色
+  - 特效
+  - 混音
+  - 包装
+  - 后期制作
+  - 合成
+  - 渲染
+  - 片头
+- name: director_assistant
+  prefix: '[导演组]'
+  handoff: relay
+  composite: true
+  description: 导演助理 场记 通告 片场调度 分镜
+  keywords:
+  - 导演助理
+  - 场记
+  - 通告
+  - 片场
+  - 分镜
+  - 场次
+  - 演员
+  - 跟组
+- name: scriptwriter
+  prefix: '[编剧]'
+  handoff: relay
+  composite: true
+  description: 编剧 剧本 大纲 分场 台词 故事
+  keywords:
+  - 编剧
+  - 剧本
+  - 大纲
+  - 分场
+  - 台词
+  - 故事
+  - 编导
+  - 故事线
+  - 人物设定
+entry_ref: ''
+capability_tags:
+- 视频剪辑
+- 摄影摄像
+- 后期制作
+- 编剧
+- 场记调度
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 video-media 建单元（广播电视与网络视听
+  行业收入 2.5 万亿，revenue 口径，priority=高）。
+  分区 note 指出：官方无独立产业增加值口径（影视挂在「文化及相关产业」下不单列），
+  规模来自行业协会年报。这一点要如实继承，不要在本单元里假装有官方口径。
+  战略判断：成本前置、回收滞后；AI 渗透最快的是后期与特效，人守剧本终稿与审片合规。
+  触发词据此覆盖剪辑/摄影/后期/编剧/场记五个真实环节。

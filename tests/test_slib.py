@@ -128,8 +128,9 @@ def test_router_without_session_backward_compat():
     assert r["route_result"]["roles"] == ["architect"]
     assert r["mode"] in ("direct", "composite", "manual")
 
-    # 手动回落
-    r2 = router.route("帮我点个外卖")
+    # 手动回落（用信号不足的句子；「帮我点个外卖」在 food-beverage 建成后
+    # 已能正常识别，拿它测回落测的是行业缺口而不是回落机制）
+    r2 = router.route("随便聊聊")
     assert r2["route_result"]["needs_manual"] is True
 
 

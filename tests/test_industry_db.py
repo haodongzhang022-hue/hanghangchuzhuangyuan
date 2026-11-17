@@ -75,9 +75,10 @@ def test_every_membership_edge_points_to_known_partition():
 def test_coverage_ratio_consistent():
     db = IndustryDatabase()
     s = db.compute()
-    assert 0 < s["partition_coverage"] < 1
-    # 分母不写死：每建一个行业单元这里都得改数字，等于用"忘记改"换"测试红"。
-    # 断言它等于数据里 status=covered 的分区数，才是这份账真正的不变式。
+    # 覆盖率分母**不含 evaluated**（评估后不建的分区不计入「还欠多少」）。
+    # 所以 0 < x < 1 不是不变式：当所有非 evaluated 分区都建完时它就是 1.0。
+    # 真正的不变式是「分子 == status=covered 的分区数」，见下方断言。
+    assert 0 < s["partition_coverage"] <= 1
     covered = sum(1 for p in db.partitions if p.get("status") == "covered")
     assert s["covered_partitions"] == covered, (
         f"覆盖率分子的口径与分区状态不一致：{s['covered_partitions']} vs {covered}")
@@ -519,37 +520,67 @@ def test_validate_reports_evaluated_partition_with_unit():
 
 
 def test_pending_partition_unit_role_must_be_in_planned_roles():
-    """未建单元的成员 unit_role 可空；填了就必须在该分区 planned_roles 里"""
+    """未建单元的成员 unit_role 可空；填了就必须在该分区 planned_roles 里
+
+    不依赖「真实数据里一定还有 pending 分区」——所有分区都建完之后
+    `next(...)` 会抛 StopIteration，测的就不再是校验逻辑而是当时的进度。
+    这里显式把一个分区临时的 status 改成 pending 来构造场景。
+    """
     db = IndustryDatabase()
-    pending = next(p for p in db.partitions
-                   if p.get("status") == "pending"
-                   and not p.get("unit_id")
-                   and db.members_of(p["id"]))
-    pending["planned_roles"] = ["declared_role_only"]
-    # 岗位名现在挂在边上：改边，不改职业
-    edge = next(m for m in db.axis_view.memberships
-                if m["partition"] == pending["id"])
-    edge["unit_role"] = "随手编的角色"
-    member = db.members_of(pending["id"])[0]
-    problems = db.validate()
-    assert any(member["id"] in p and "planned_roles" in p
-               for p in problems), problems
+    candidates = [p for p in db.partitions if db.members_of(p["id"])]
+    assert candidates, "没有任何分区有成员职业，无法构造该场景"
+    pending = candidates[0]
+    saved_status = pending.get("status")
+    saved_unit = pending.get("unit_id")
+    saved_planned = list(pending.get("planned_roles") or [])
+    try:
+        pending["status"] = "pending"
+        pending["unit_id"] = ""
+        pending["planned_roles"] = ["declared_role_only"]
+        edge = next(m for m in db.axis_view.memberships
+                    if m["partition"] == pending["id"])
+        saved_role = edge.get("unit_role")
+        edge["unit_role"] = "随手编的角色"
+        member = db.members_of(pending["id"])[0]
+        problems = db.validate()
+        assert any(member["id"] in p and "planned_roles" in p
+                   for p in problems), problems
+    finally:
+        pending["status"] = saved_status
+        pending["unit_id"] = saved_unit
+        pending["planned_roles"] = saved_planned
 
 
 def test_missing_planned_roles_is_reported_not_silently_skipped():
-    """第10条曾被 planned_roles 为空短路掉：判据缺失不能等于没问题"""
+    """第10条曾被 planned_roles 为空短路掉：判据缺失不能等于没问题
+
+    不依赖「真实数据里一定还有 pending 分区」（全部建完后会 StopIteration），
+    显式构造 pending 场景。
+    """
     db = IndustryDatabase()
-    pending = next(p for p in db.partitions
-                   if p.get("status") == "pending" and not p.get("unit_id")
-                   and db.members_of(p["id"]))
-    pending["planned_roles"] = []          # 骨架缺失
+    candidates = [p for p in db.partitions if db.members_of(p["id"])]
+    assert candidates, "没有任何分区有成员职业，无法构造该场景"
+    pending = candidates[0]
+    saved_status = pending.get("status")
+    saved_unit = pending.get("unit_id")
+    saved_planned = list(pending.get("planned_roles") or [])
     edge = next(m for m in db.axis_view.memberships
                 if m["partition"] == pending["id"])
-    edge["unit_role"] = "随手编的角色"
-    problems = db.validate()
-    # 旧实现（role and planned and ...）在这里会返回 []
-    assert any(pending["id"] in p and "planned_roles" in p
-               for p in problems), problems
+    saved_role = edge.get("unit_role")
+    try:
+        pending["status"] = "pending"
+        pending["unit_id"] = ""
+        pending["planned_roles"] = []          # 骨架缺失
+        edge["unit_role"] = "随手编的角色"
+        problems = db.validate()
+        # 旧实现（role and planned and ...）在这里会返回 []
+        assert any(pending["id"] in p and "planned_roles" in p
+                   for p in problems), problems
+    finally:
+        pending["status"] = saved_status
+        pending["unit_id"] = saved_unit
+        pending["planned_roles"] = saved_planned
+        edge["unit_role"] = saved_role
 
 
 def test_pending_partition_field_must_point_to_real_partition():

@@ -245,7 +245,9 @@ class TestWebAPI:
         assert "developer" in rr["roles"]
 
     def test_route_api_manual_fallback(self):
-        code, data = self._get("/api/route?text=" + urllib.parse.quote("帮我点个外卖"))
+        # 用信号不足的句子测回落；「帮我点个外卖」在 food-beverage 建成后
+        # 已能正常识别，拿它测回落测的是行业缺口而不是回落机制。
+        code, data = self._get("/api/route?text=" + urllib.parse.quote("随便聊聊"))
         assert code == 200
         rr = data["route_result"]
         assert rr["needs_manual"] is True

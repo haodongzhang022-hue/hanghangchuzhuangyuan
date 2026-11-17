@@ -1,0 +1,60 @@
+unit_id: esports
+industry: 电竞竞技
+industry_alias:
+- 电竞
+- 电子竞技
+- 战队
+- 陪练
+- 陪玩
+- 赛事席位
+roles:
+- name: esports_player
+  prefix: '[电竞选手]'
+  handoff: relay
+  composite: true
+  description: 电竞选手 训练 战术 BP 复盘
+  keywords:
+  - 电竞选手
+  - 职业选手
+  - 训练赛
+  - BP
+  - 战术复盘
+  - 天梯
+  - 电竞训练
+- name: esports_operator
+  prefix: '[赛事运营]'
+  handoff: relay
+  composite: true
+  description: 赛事运营 席位 赛程 俱乐部 奖金
+  keywords:
+  - 电竞赛事
+  - 赛事席位
+  - 俱乐部运营
+  - 赛程
+  - 奖金
+  - 联赛
+  - 观赛
+- name: game_companion
+  prefix: '[陪玩]'
+  handoff: relay
+  composite: false
+  description: 游戏陪玩 陪练 上分 开黑
+  keywords:
+  - 陪玩
+  - 陪练
+  - 上分
+  - 开黑
+  - 带打
+  - 游戏陪玩
+entry_ref: ''
+capability_tags:
+- 电竞训练
+- 赛事运营
+- 陪玩陪练
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 esports 建单元（产值口径缺失，刻意留空）。
+  与 live-streaming 的拆分立场：电竞付费方是赛事奖金+俱乐部工资+票务赞助，
+  交付是竞技成绩与赛事产品；直播是观众打赏+品牌坑位。两者共用一份钱是把两种
+  商业模式捏成一个，所以电竞产值不并入直播的 2000 亿。
+  与 sport-games 的边界：体育赛事是线下票务赞助，电竞是竞技内容与俱乐部。

@@ -1,0 +1,49 @@
+unit_id: sport-fitness
+industry: 体育健身
+industry_alias:
+- 健身
+- 私教
+- 健身房
+- 运动康复
+- 体适能
+roles:
+- name: sports_coach
+  prefix: '[健身教练]'
+  handoff: relay
+  composite: true
+  description: 健身教练 训练计划 增肌 减脂 体测
+  keywords:
+  - 健身教练
+  - 私教
+  - 训练计划
+  - 增肌
+  - 减脂
+  - 体测
+  - 健身房
+  - 力量训练
+  - 团课
+- name: rehab_trainer
+  prefix: '[运动康复]'
+  handoff: relay
+  composite: true
+  description: 运动康复 康复训练 损伤 体态
+  keywords:
+  - 运动康复
+  - 康复训练
+  - 运动损伤
+  - 体态矫正
+  - 物理治疗
+  - 拉伸
+  - 关节活动度
+entry_ref: ''
+capability_tags:
+- 训练计划
+- 增肌减脂
+- 运动康复
+- 体态矫正
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 sport-fitness 建单元（产值留空）。
+  与 sport-games 的边界：健身是个人身体服务，赛事是组织化体育活动。
+  战略边界：训练计划 AI 可出，损伤判断与康复方案必须由持证康复师（
+  越过医疗边界会被 role chain --check 的 blocker 类目点名）。

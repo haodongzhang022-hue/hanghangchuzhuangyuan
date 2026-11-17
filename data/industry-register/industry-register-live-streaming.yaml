@@ -1,0 +1,60 @@
+unit_id: live-streaming
+industry: 直播与网络表演
+industry_alias:
+- 直播打赏
+- 网红经济
+- 主播经济
+- 网络表演
+- 直播带货
+- 带货
+- 主播
+- 直播间
+- 坑位
+roles:
+- name: streamer
+  prefix: '[主播]'
+  handoff: relay
+  composite: true
+  description: 直播带货 选品 货盘 控场 坑位 转化
+  keywords:
+  - 直播带货
+  - 选品
+  - 货盘
+  - 控场
+  - 坑位
+  - 转化
+  - 直播间
+  - 上架
+  - 促单
+  - 话术
+- name: live_host
+  prefix: '[表演]'
+  handoff: relay
+  composite: true
+  description: 网络表演 打赏 弹幕互动 人设 连麦
+  keywords:
+  - 网络表演
+  - 打赏
+  - 弹幕
+  - 人设
+  - 连麦
+  - 互动
+  - 粉丝团
+  - 开播
+  - 榜一
+entry_ref: ''
+capability_tags:
+- 直播带货
+- 选品货盘
+- 直播控场
+- 粉丝运营
+- 网络表演
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 live-streaming 建单元（2000 亿，gmv 口径，
+  priority=高）。
+  分区 note 是一条重要告诫：「这个行业 2020 年后规模已超过多数传统文化行业，但只看
+  企业名录/国民经济行业分类就会整个漏掉——它挂在互联网信息服务下面，不独立成行」。
+  所以别因为它在标准分类里没有独立编号就当它不重要。
+  拆分立场：直播付费方是观众打赏+品牌坑位，电竞是赛事奖金+俱乐部工资，两者共用
+  一份 2000 亿是把两种商业模式捏成一个；本单元只承接直播，电竞在 esports 分区。

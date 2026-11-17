@@ -104,7 +104,10 @@ $:
             echo ""
             echo "==== CLI 冒烟测试 ===="
             python3 src/hanghang/cli/main.py route "架构设计方案" | grep -q "architect" && echo "  ✅ 路由冒烟通过" || { echo "  ❌ 路由冒烟失败"; exit 1; }
-            python3 src/hanghang/cli/main.py route "帮我点个外卖" | grep -q "人工" && echo "  ✅ 回落冒烟通过" || { echo "  ❌ 回落冒烟失败"; exit 1; }
+            # 回落冒烟用**信号不足**的句子。「帮我点个外卖」在建了 food-beverage 单元
+            # 之后已能被正确识别（这是能力提升），拿它测回落测的是「餐饮行业还没建」
+            # 这个当时的快照，会把行业补全误判成回归。
+            python3 src/hanghang/cli/main.py route "随便聊聊" | grep -q "人工" && echo "  ✅ 回落冒烟通过" || { echo "  ❌ 回落冒烟失败"; exit 1; }
             # M11 行业分区库是「数据即产品」：yaml 漂移必须由流水线兜底，不能靠自觉
             echo ""
             echo "==== M11 行业分区库自检 ===="

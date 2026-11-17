@@ -1,0 +1,87 @@
+unit_id: energy-environment
+industry: 能源环保
+industry_alias:
+- 环保
+- 节能
+- 双碳
+- 环境服务
+- 碳核算
+- 环评
+- 能耗
+roles:
+- name: carbon_manager
+  prefix: '[碳管理]'
+  handoff: relay
+  composite: true
+  description: 碳管理 碳核算 碳足迹 配额 碳交易
+  keywords:
+  - 碳管理
+  - 碳核算
+  - 碳足迹
+  - 碳排放
+  - 碳配额
+  - 碳交易
+  - 双碳
+  - 碳中和
+- name: energy_manager
+  prefix: '[能源管理]'
+  handoff: relay
+  composite: true
+  description: 能源管理师 能耗 用能 节能诊断
+  keywords:
+  - 能源管理
+  - 能耗
+  - 用能
+  - 能耗诊断
+  - 节能量
+  - 能源审计
+  - 能效
+- name: environmental_consultant
+  prefix: '[环保咨询]'
+  handoff: relay
+  composite: true
+  description: 环保咨询 排污许可 环保验收 合规
+  keywords:
+  - 环保咨询
+  - 排污许可
+  - 环保验收
+  - 环保合规
+  - 排污口
+  - 环保处罚
+- name: energy_saving_planner
+  prefix: '[节能方案]'
+  handoff: relay
+  composite: true
+  description: 节能方案 节能改造 技改 投资回收
+  keywords:
+  - 节能方案
+  - 节能改造
+  - 技改
+  - 投资回收期
+  - 合同能源管理
+  - 余热利用
+- name: eia_writer
+  prefix: '[环评]'
+  handoff: relay
+  composite: true
+  description: 环评编制 环境影响评价 环评报告
+  keywords:
+  - 环评
+  - 环境影响评价
+  - 环评报告
+  - 环评编制
+  - 环境影响
+  - 报批
+entry_ref: ''
+capability_tags:
+- 碳核算
+- 能源管理
+- 环保合规
+- 节能改造
+- 环评编制
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 energy-environment 建单元（0.8 万亿，
+  revenue 口径）。
+  战略判断：「AI 做核算与方案草案，核查资格与工程责任在人」——
+  环评与碳核查都有资质门槛，本单元承接的是**编制与核算**，不是出具核查结论。

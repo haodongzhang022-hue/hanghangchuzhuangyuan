@@ -1,0 +1,102 @@
+unit_id: culture-art
+industry: 文化艺术
+industry_alias:
+- 文化娱乐
+- 演艺
+- 出版
+- 艺术服务
+- 展览
+- 演出
+- 音乐
+- 出版
+roles:
+- name: curator
+  prefix: '[策展]'
+  handoff: relay
+  composite: true
+  description: 策展人 展览 主题 展陈 布展
+  keywords:
+  - 策展
+  - 展览
+  - 展陈
+  - 布展
+  - 策展人
+  - 美术馆
+  - 展厅
+- name: talent_agent
+  prefix: '[经纪]'
+  handoff: relay
+  composite: true
+  description: 经纪人 艺人 通告 商务 档期
+  keywords:
+  - 经纪人
+  - 艺人
+  - 通告
+  - 商务合作
+  - 档期
+  - 演艺经纪
+  - 签约艺人
+- name: publisher_editor
+  prefix: '[出版]'
+  handoff: relay
+  composite: true
+  description: 出版编辑 书稿 选题 校对 印数
+  keywords:
+  - 出版编辑
+  - 书稿
+  - 选题会
+  - 校对
+  - 印数
+  - 图书出版
+  - 版权页
+- name: playwright
+  prefix: '[剧本]'
+  handoff: relay
+  composite: true
+  description: 编剧 话剧 剧本 情节 舞台
+  keywords:
+  - 话剧剧本
+  - 舞台剧
+  - 剧本创作
+  - 情节设计
+  - 剧本分场
+  - 舞台调度
+- name: music_producer
+  prefix: '[音乐制作]'
+  handoff: relay
+  composite: true
+  description: 音乐制作 编曲 混音 母带 歌曲
+  keywords:
+  - 音乐制作
+  - 编曲
+  - 混音
+  - 母带
+  - 歌曲创作
+  - 作曲
+  - 录音棚
+# 兼做岗位（weight=0.30）：内容编辑/审校在本分区只承接「出版编辑」这一小段，
+# 本职在 content-creation。不填就命中不了，所以补一条。
+- name: content_editor
+  prefix: '[审校]'
+  handoff: relay
+  composite: false
+  description: 内容编辑 出版审校 校对 文稿
+  keywords:
+  - 出版审校
+  - 文稿校对
+  - 书稿编辑
+  - 三审三校
+entry_ref: ''
+capability_tags:
+- 策展
+- 演艺经纪
+- 出版编辑
+- 剧本创作
+- 音乐制作
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 culture-art 建单元（文化艺术增加值 1 万亿，
+  value_added 口径）。
+  与 video-media 的边界：文化艺术是展览/演出/出版/音乐这类**非影视**内容；
+  影视制作与剪辑在 video-media，直播与带货在 live-streaming。
+  战略判断：「AI 出初稿，版权与署名责任归人」。

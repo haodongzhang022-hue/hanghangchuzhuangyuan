@@ -1,0 +1,481 @@
+unit_id: energy-environment
+industry: 能源环保
+updated_at: '2026-11-17'
+source_note: 随 energy-environment 单元建立而补齐；日常直接编辑本文件
+roles:
+- role: carbon_manager
+  analysis:
+    mission: 以碳管理师身份，把方案按标准交付
+    deliverables:
+    - 碳管理师交付物
+    inputs:
+    - 客户需求
+    - 碳管理师所需资料
+    outputs:
+    - 碳管理师产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 能源环保 碳管理师
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定碳管理师的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: carbon_manager
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: carbon_manager-skill
+      kind: skill
+      path: data/role-profiles/energy-environment.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 碳管理师
+    tools:
+    - 碳管理
+    - 碳核算
+    - 碳足迹
+    knowledge:
+    - 能源环保行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 碳管理师交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: &id001
+    - 客户
+    downstream: &id002
+    - 各执行岗位
+    beneficiaries: &id003
+    - 用户
+    blockers: &id004
+    - 输入不全
+    incentives: &id005
+    - 需求方
+    risk_notes: &id006
+    - 合规风险
+- role: energy_manager
+  analysis:
+    mission: 以能源管理师身份，把方案按标准交付
+    deliverables:
+    - 能源管理师交付物
+    inputs:
+    - 客户需求
+    - 能源管理师所需资料
+    outputs:
+    - 能源管理师产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 能源环保 能源管理师
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定能源管理师的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: energy_manager
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: energy_manager-skill
+      kind: skill
+      path: data/role-profiles/energy-environment.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 能源管理师
+    tools:
+    - 能源管理
+    - 能耗
+    - 用能
+    knowledge:
+    - 能源环保行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 能源管理师交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: environmental_consultant
+  analysis:
+    mission: 以环保咨询身份，把方案按标准交付
+    deliverables:
+    - 环保咨询交付物
+    inputs:
+    - 客户需求
+    - 环保咨询所需资料
+    outputs:
+    - 环保咨询产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 能源环保 环保咨询
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定环保咨询的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: environmental_consultant
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: environmental_consultant-skill
+      kind: skill
+      path: data/role-profiles/energy-environment.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 环保咨询
+    tools:
+    - 环保咨询
+    - 排污许可
+    - 环保验收
+    knowledge:
+    - 能源环保行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 环保咨询交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: energy_saving_planner
+  analysis:
+    mission: 以节能方案身份，把方案按标准交付
+    deliverables:
+    - 节能方案交付物
+    inputs:
+    - 客户需求
+    - 节能方案所需资料
+    outputs:
+    - 节能方案产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 能源环保 节能方案
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定节能方案的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: energy_saving_planner
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: energy_saving_planner-skill
+      kind: skill
+      path: data/role-profiles/energy-environment.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 节能方案
+    tools:
+    - 节能方案
+    - 节能改造
+    - 技改
+    knowledge:
+    - 能源环保行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 节能方案交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006
+- role: eia_writer
+  analysis:
+    mission: 以环评编制身份，把文本按标准交付
+    deliverables:
+    - 环评编制交付物
+    inputs:
+    - 客户需求
+    - 环评编制所需资料
+    outputs:
+    - 环评编制产出
+    kpis:
+    - 交付及时率
+    - 返工率
+  persona:
+    seniority: 能源环保 环评编制
+    mindset: 先问清目标与约束，再动手；不确定处显式标注
+    tone: 专业、就事论事
+    decision_rights:
+    - 可决定环评编制的专业判断
+    - 不可越权替客户做业务决定
+    constraints:
+    - 不臆造输入，缺料先要料
+    - 守住边界：不确定即标注
+  plugin:
+    bundle: eia_writer
+    tools:
+    - 行业资料库
+    mcp_categories:
+    - 文档协作
+    artifacts:
+    - name: eia_writer-skill
+      kind: skill
+      path: data/role-profiles/energy-environment.yaml
+    install_hint: 随行业单元内置，按需挂载
+  capability:
+    core:
+    - 环评编制
+    tools:
+    - 环评
+    - 环境影响评价
+    - 环评报告
+    knowledge:
+    - 能源环保行业常识
+    soft:
+    - 抗压
+    - 沟通
+    scoring:
+      domain: 7
+      tooling: 7
+      judging: 7
+      execution: 8
+      comms: 7
+  workflow:
+    default_flow: standard-delivery
+    activation:
+      weight: 1.0
+    templates:
+    - template: standard-delivery
+      id: wf-main
+      name: 环评编制交付流
+      default: true
+      override:
+        steps:
+          intake:
+            name: 接单与确认
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 接单与确认产出
+            verify:
+            - 接单与确认已完成且有记录
+            runtime: agent
+          produce:
+            name: 执行与产出
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 执行与产出产出
+            verify:
+            - 执行与产出已完成且有记录
+            runtime: agent
+          deliver:
+            name: 交付与复核
+            playbook: 按行业标准执行，关键步骤留痕
+            outputs:
+            - 交付与复核产出
+            verify:
+            - 交付与复核已完成且有记录
+            runtime: agent
+  stakeholders:
+    upstream: *id001
+    downstream: *id002
+    beneficiaries: *id003
+    blockers: *id004
+    incentives: *id005
+    risk_notes: *id006

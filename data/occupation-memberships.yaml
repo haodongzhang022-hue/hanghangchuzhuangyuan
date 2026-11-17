@@ -206,7 +206,7 @@ memberships:
   - {occupation: game-artist, partition: game-dev-unit, axis: occupation, weight: 0.70, unit_role: game_dev, note: "生产链在游戏研发"}
   - {occupation: game-artist, partition: design-visual, axis: occupation, weight: 0.50, unit_role: illustrator, note: "视觉技能与设计岗同源"}
   - {occupation: patent-agent, partition: legal-services, axis: occupation, weight: 0.80, unit_role: contract_advisor, note: "法律服务为主：撰写与答复审查意见同属文书交付"}
-  - {occupation: patent-agent, partition: research-academic, axis: occupation, weight: 0.30, note: "兼做科研成果转化（研究流程待拆，暂不填岗位名）"}
+  - {occupation: patent-agent, partition: research-academic, axis: occupation, weight: 0.30, note: "兼做科研成果转化（研究流程待拆，暂不填岗位名）", unit_role: patent_agent}
   - {occupation: auditor, partition: finance-accounting, axis: occupation, weight: 1.0, unit_role: accountant, note: "同一套准则、独立签字；单建审计岗前先挂会计"}
   - {occupation: nurse, partition: healthcare, axis: occupation, weight: 1.0, unit_role: health_consultant, note: "护理一线线下交付；线上窗口由健康管理岗承接"}
   - {occupation: translator, partition: translation, axis: occupation, weight: 1.0, unit_role: subtitle, note: "笼统口径（口笔译通吃）；岗位名先挂字幕，单建笔译岗再改"}
@@ -216,8 +216,8 @@ memberships:
 # 权重不是概率，也不要求相加为 100 —— 0.6 + 0.5 不是错误，是"两件活都真干"。
 # 想只看"主要归属"就按 --min-weight 0.5 筛；想全看就不加条件。
 # 注意：这些边不改变任何职业记录，删掉它们职业还在册，只是不再被这个视角看见。
-  - {occupation: customer-service, partition: tourism-hospitality, axis: occupation, weight: 0.40, note: "酒店/航司客服同岗不同业"}
+  - {occupation: customer-service, partition: tourism-hospitality, axis: occupation, weight: 0.40, note: "酒店/航司客服同岗不同业", unit_role: customer_service}
   - {occupation: data-analyst, partition: finance-accounting, axis: occupation, weight: 0.35, unit_role: finance_analyst, note: "财务数据分析是同一套技能"}
   - {occupation: data-analyst, partition: e-commerce, axis: occupation, weight: 0.30, unit_role: ecom_marketer, note: "电商经营分析"}
-  - {occupation: content-editor, partition: culture-art, axis: occupation, weight: 0.30, note: "出版编辑与内容审校同源"}
+  - {occupation: content-editor, partition: culture-art, axis: occupation, weight: 0.30, note: "出版编辑与内容审校同源", unit_role: content_editor}
   - {occupation: live-stream-operator, partition: e-commerce, axis: occupation, weight: 0.35, unit_role: ecom_marketer, note: "直播带货的选品与场控在电商侧"}

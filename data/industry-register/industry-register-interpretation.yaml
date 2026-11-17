@@ -1,0 +1,36 @@
+unit_id: interpretation
+industry: 口译服务
+industry_alias:
+- 口译
+- 同传
+- 交传
+- 现场翻译
+- 陪同翻译
+roles:
+- name: interpreter
+  prefix: '[口译]'
+  handoff: relay
+  composite: true
+  description: 口译 同传 交传 陪同 会议翻译
+  keywords:
+  - 口译
+  - 同传
+  - 交传
+  - 陪同翻译
+  - 会议口译
+  - 现场翻译
+  - 同声传译
+  - 译员
+  - 耳语同传
+entry_ref: ''
+capability_tags:
+- 同声传译
+- 交替传译
+- 陪同口译
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 interpretation 建单元。
+  产值刻意留空：分区 note 写明「gdp/employment 为语言服务合并口径，
+  故口译分区刻意留空，不在两者间拍比例」—— 不要给它编一个产值。
+  与 translation 的拆分立场：口译 AI 替代率远低于笔译，两者差一个量级，
+  混在一起会让「AI 替代率最高」的结论套到同传头上。

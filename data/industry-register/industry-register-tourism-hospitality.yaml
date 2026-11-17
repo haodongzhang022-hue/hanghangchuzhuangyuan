@@ -1,0 +1,119 @@
+unit_id: tourism-hospitality
+industry: 旅游出行
+industry_alias:
+- 旅游
+- 酒店
+- 住宿
+- 文旅
+- 民宿
+- 行程
+- 导游
+- 出行
+roles:
+- name: travel_planner
+  prefix: '[行程]'
+  handoff: relay
+  composite: true
+  description: 行程策划 线路 比价 攻略 自由行
+  keywords:
+  - 行程
+  - 行程规划
+  - 旅游攻略
+  - 线路规划
+  - 自由行
+  - 跟团
+  - 玩几天
+  - 比价
+  - 行程安排
+- name: hotel_manager
+  prefix: '[酒店]'
+  handoff: relay
+  composite: true
+  description: 酒店管理 间夜 入住率 房态 收益管理
+  keywords:
+  - 酒店管理
+  - 入住率
+  - 间夜
+  - 房态
+  - 客房
+  - 前厅
+  - 收益管理
+  - 前台
+- name: homestay_operator
+  prefix: '[民宿]'
+  handoff: relay
+  composite: true
+  description: 民宿运营 房源 房客 民宿评论
+  keywords:
+  - 民宿
+  - 房源
+  - 房客
+  - 房东
+  - 短租
+  - 民宿运营
+  - 农家乐
+- name: tour_guide
+  prefix: '[导游]'
+  handoff: relay
+  composite: true
+  description: 导游 讲解 导览 地接 领队
+  keywords:
+  - 导游
+  - 讲解词
+  - 导览
+  - 地接
+  - 领队
+  - 景点介绍
+  - 带团
+- name: booking_agent
+  prefix: '[票务]'
+  handoff: relay
+  composite: true
+  description: 票务预订 改签 退票 机酒 预订
+  keywords:
+  - 票务
+  - 预订
+  - 改签
+  - 退票
+  - 机酒
+  - 订票
+  - 订单查询
+- name: ride_hailing_driver
+  prefix: '[网约车]'
+  handoff: relay
+  composite: false
+  description: 网约车 接送机 专车 跑车
+  keywords:
+  - 网约车
+  - 接送机
+  - 专车
+  - 跑车
+  - 派单
+  - 司机端
+# 兼做岗位（weight=0.40）：客服在本分区只承接酒店/航司客服这一小段，
+# 本职在 e-commerce。不填就命中不了，所以补一条。
+- name: customer_service
+  prefix: '[客服]'
+  handoff: relay
+  composite: false
+  description: 酒店客服 航司客服 订单客服 投诉
+  keywords:
+  - 酒店客服
+  - 航司客服
+  - 订单客服
+  - 退改咨询
+  - 宾客投诉
+entry_ref: ''
+capability_tags:
+- 行程策划
+- 酒店运营
+- 民宿运营
+- 导游讲解
+- 票务预订
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 tourism-hospitality 建单元（旅游业总收入
+  5 万亿，gross_output 口径，含住宿/餐饮/景区，与餐饮有重叠）。
+  分区 note 已登记该重叠，不强行拆；本单元只承接出行服务侧。
+  战略判断：「AI 排行程出文案，现场出问题时只有人能救场」——
+  触发词覆盖行程/酒店/民宿/导游/票务/网约车六个真实环节。

@@ -1,0 +1,85 @@
+unit_id: public-affairs
+industry: 政务公共
+industry_alias:
+- 政务服务
+- 公共事务
+- 政府事务
+- 社区工作
+- 政策咨询
+- 档案管理
+roles:
+- name: policy_consultant
+  prefix: '[政策]'
+  handoff: relay
+  composite: true
+  description: 政策咨询 政策解读 申报 补贴
+  keywords:
+  - 政策解读
+  - 政策咨询
+  - 政策申报
+  - 补贴申请
+  - 扶持政策
+  - 惠企政策
+- name: community_worker
+  prefix: '[社区]'
+  handoff: relay
+  composite: true
+  description: 社区工作者 网格 居民 矛盾纠纷 走访
+  keywords:
+  - 社区工作
+  - 网格员
+  - 居民矛盾
+  - 社区走访
+  - 居委会
+  - 基层治理
+  - 邻里纠纷
+- name: gov_service_clerk
+  prefix: '[窗口]'
+  handoff: relay
+  composite: true
+  description: 政务窗口 办事指南 材料 一网通办
+  keywords:
+  - 政务窗口
+  - 办事指南
+  - 一网通办
+  - 审批材料
+  - 政务服务
+  - 办件
+  - 证照办理
+- name: records_manager
+  prefix: '[档案]'
+  handoff: relay
+  composite: true
+  description: 档案管理 归档 卷宗 借阅 保密
+  keywords:
+  - 档案管理
+  - 归档
+  - 卷宗
+  - 档案借阅
+  - 文书档案
+  - 保密等级
+- name: civic_agent
+  prefix: '[公共事务]'
+  handoff: relay
+  composite: true
+  description: 公共事务 政企沟通 舆情 公共关系
+  keywords:
+  - 公共事务
+  - 政企沟通
+  - 政府关系
+  - 舆情应对
+  - 公共关系
+  - 建言
+entry_ref: ''
+capability_tags:
+- 政策解读
+- 社区治理
+- 政务服务
+- 档案管理
+- 公共事务
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 public-affairs 建单元（产值刻意留空：
+  行政办公/政务公共这类无市场口径的分区留 null，不填 0 冒充数据）。
+  承接通道多为 non_market（财政供养）—— 项目立场是「不直接付费 ≠ 不值得分析」，
+  军警消防社区工作者都在这里，画像照样统计。

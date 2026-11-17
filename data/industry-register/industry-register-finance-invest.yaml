@@ -1,0 +1,97 @@
+unit_id: finance-invest
+industry: 金融投资
+industry_alias:
+- 投资理财
+- 财富管理
+- 保险服务
+- 证券服务
+- 理财
+- 保险
+- 券商
+- 基金
+- 信贷
+roles:
+- name: financial_advisor
+  prefix: '[理财]'
+  handoff: relay
+  composite: true
+  description: 理财顾问 资产配置 适当性 净值
+  keywords:
+  - 理财
+  - 资产配置
+  - 理财顾问
+  - 净值
+  - 稳健型
+  - 风险测评
+  - 适当性
+  - 组合建议
+- name: insurance_advisor
+  prefix: '[保险]'
+  handoff: relay
+  composite: true
+  description: 保险顾问 险种 保额 理赔 核保
+  keywords:
+  - 保险
+  - 险种
+  - 保额
+  - 理赔
+  - 核保
+  - 投保
+  - 重疾险
+  - 保单
+  - 免赔
+- name: securities_analyst
+  prefix: '[证券分析]'
+  handoff: relay
+  composite: true
+  description: 证券分析师 研报 估值 财务模型 行业研究
+  keywords:
+  - 研报
+  - 证券分析
+  - 估值模型
+  - 上市公司研究
+  - 财务模型
+  - 行业研究
+  - 目标价
+  - 盈利预测
+- name: investment_advisor
+  prefix: '[投顾]'
+  handoff: relay
+  composite: true
+  description: 投资顾问 投顾 组合再平衡 回撤
+  keywords:
+  - 投资顾问
+  - 投顾
+  - 再平衡
+  - 回撤
+  - 仓位
+  - 持仓诊断
+  - 止盈止损
+- name: loan_officer
+  prefix: '[信贷]'
+  handoff: relay
+  composite: true
+  description: 信贷专员 贷款 授信 风控 还款
+  keywords:
+  - 信贷
+  - 贷款
+  - 授信
+  - 还款
+  - 征信
+  - 抵押
+  - 利率
+  - 放款
+entry_ref: ''
+capability_tags:
+- 理财配置
+- 保险方案
+- 证券研究
+- 投资顾问
+- 信贷业务
+register_version: '1.0'
+note: >
+  由 industry-partitions 的 pending 分区 finance-invest 建单元（金融业增加值中财富管理/
+  经纪相关部分 3 万亿，value_added 口径，confidence=medium 量级估算）。
+  分区 note：「强牌照约束，AI 只做投顾辅助与合规内工作」——
+  战略边界更硬：「AI 出研报与诊断，投资建议与适当性匹配不得由模型落笔」。
+  触发词覆盖理财/保险/证券分析/投顾/信贷五个牌照业务，不写泛化的「投资」二字。
