@@ -533,10 +533,10 @@ partitions:
     gdp_confidence: medium
     employment: 5000
     employment_source: 物流与快递从业人数(含骑手/快递员)
-    unit_id: ''
+    unit_id: logistics-supply
     priority: 中
     channels: [物流与采购联合会统计, 物流企业目录, 供应链岗位库]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [logistics_operator, supply_chain_manager, warehouse_manager, buyer, customs_broker, delivery_rider, courier]
 
@@ -554,10 +554,10 @@ partitions:
     gdp_confidence: medium
     employment: 8000
     employment_source: 制造业从业人数(规上+规下估算)
-    unit_id: ''
+    unit_id: manufacturing
     priority: 中
     channels: [国家统计局工业统计, 工程师招聘平台, 工业软件厂商]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [production_planner, quality_engineer, process_engineer, equipment_manager, industrial_designer, factory_operator]
     note: 分区内需再按子行业(电子/机械/化工)二级聚类，目前只做一级
@@ -576,10 +576,10 @@ partitions:
     gdp_confidence: high
     employment: 5000
     employment_source: 建筑业从业人数
-    unit_id: ''
+    unit_id: construction-eng
     priority: 中
     channels: [住建部统计, 工程造价平台, 建筑企业名录]
-    status: pending
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [cost_estimator, supervision_engineer, construction_manager, bidding_specialist, bim_engineer, construction_worker]
 
