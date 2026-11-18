@@ -20,7 +20,7 @@
 | `data/occupation-memberships.yaml` | 205 memberships | `OccupationAxis` | 28 KB | 归属边：职业 × 分区 × 轴 × 权重（权重不是概率） |
 | `data/industry-scales.yaml` | 45 scales | `ScaleLedger` | 22 KB | 六口径规模账：盈利/资产/估值/资源消耗（gdp 与就业在 partition 上） |
 | `data/industry-money-flows.yaml` | 27 flows | `MoneyFlowBook` | 16 KB | 资金流守恒账：部门 + 行业池 + 双边记账 + 对账口径 |
-| `data/industry-official-baseline.yaml` | 17 benchmarks | `OfficialBaseline` | 18 KB | 官方口径基准：逐年表值 + 分区↔基准对表关系 |
+| `data/industry-official-baseline.yaml` | 17 benchmarks | `OfficialBaseline` | 20 KB | 官方口径基准：逐年表值 + 分区↔基准对表关系 |
 | `data/industry-input-output.yaml` | 35 accounts | `InputOutputBook` | 28 KB | 投入产出账：生产法三端 + 中间投入构成 + 池切分锚点 |
 | `data/industry-strategy.yaml` | 45 partitions | `StrategyView` | 55 KB | 行业战略视图：价值链/利润池/杠杆/驱动/风险/AI 承接面/岗位落点（粒度只到岗位/角色，工序与话术由 AI 上岗后补） |
 | `data/industry-classes.yaml` | 不适用（契约/索引文件，非条目） | `ClassStore` | 4 KB | 行业类词表汇总入口（类目本体在 data/industry-classes/*.yaml），公司靠索引现查不落库 |
