@@ -1,0 +1,1377 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: public-safety
+industry: 公共安全应急
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: emergency_planner
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[应急]'
+  description: 应急管理 预案编制 演练脚本 风险台账 隐患分级
+  keywords:
+  - 应急预案
+  - 应急管理
+  - 演练脚本
+  - 风险台账
+  - 隐患分级
+  - 预案编制
+  - 应急演练
+  - 风险评估
+  readiness:
+    role_name: emergency_planner
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 应急管理/预案编制交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 应急预案
+    - 应急管理
+    - 演练脚本
+    - 风险台账
+    - 隐患分级
+    - 预案编制
+    - 应急演练
+    - 风险评估
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以应急管理/预案编制身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 应急管理/预案编制交付物
+      inputs:
+      - 客户需求
+      - 应急管理/预案编制所需资料
+      outputs:
+      - 应急管理/预案编制产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 应急管理/预案编制
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定应急管理/预案编制的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: emergency_planner
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: emergency_planner-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 应急管理/预案编制交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 应急管理/预案编制
+      tools:
+      - 应急预案
+      - 应急管理
+      - 演练脚本
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 应急管理/预案编制交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: emergency_planner
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: emergency_planner
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: emergency_planner
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: emergency_planner
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: emergency_planner
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: emergency_planner
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: emergency_planner
+  plugin_artifacts:
+  - name: emergency_planner-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: security_officer
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[安保]'
+  description: 安保 门禁 巡逻 安防方案 监控
+  keywords:
+  - 安保
+  - 保安
+  - 门禁
+  - 巡逻
+  - 安防方案
+  - 监控值守
+  - 访客管理
+  readiness:
+    role_name: security_officer
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 安保/保安交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 安保
+    - 保安
+    - 门禁
+    - 巡逻
+    - 安防方案
+    - 监控值守
+    - 访客管理
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以安保/保安身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 安保/保安交付物
+      inputs:
+      - 客户需求
+      - 安保/保安所需资料
+      outputs:
+      - 安保/保安产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 安保/保安
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定安保/保安的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: security_officer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: security_officer-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 安保/保安交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 安保/保安
+      tools:
+      - 安保
+      - 保安
+      - 门禁
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 安保/保安交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: security_officer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: security_officer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: security_officer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: security_officer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: security_officer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: security_officer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: security_officer
+  plugin_artifacts:
+  - name: security_officer-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: firefighter
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[消防]'
+  description: 消防 灭火 救援 到场处置
+  keywords:
+  - 消防员
+  - 灭火
+  - 应急救援
+  - 火场
+  - 抢险
+  readiness:
+    role_name: firefighter
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 消防员/应急救援交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 消防员
+    - 灭火
+    - 应急救援
+    - 火场
+    - 抢险
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以消防员/应急救援身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 消防员/应急救援交付物
+      inputs:
+      - 客户需求
+      - 消防员/应急救援所需资料
+      outputs:
+      - 消防员/应急救援产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 消防员/应急救援
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定消防员/应急救援的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: firefighter
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: firefighter-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 消防员/应急救援交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与边界
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与边界产出
+              verify: &id026
+              - 接单与边界已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 消防员/应急救援
+      tools:
+      - 消防员
+      - 灭火
+      - 应急救援
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 消防员/应急救援交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: firefighter
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: firefighter
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: firefighter
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: firefighter
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: firefighter
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: firefighter
+  plugin_artifacts:
+  - name: firefighter-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: military_officer
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[军警]'
+  description: 军官警官 指挥 执法
+  keywords:
+  - 军官
+  - 警官
+  - 执法
+  - 部队
+  readiness:
+    role_name: military_officer
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 军官/警官交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 军官
+    - 警官
+    - 执法
+    - 部队
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以军官/警官身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 军官/警官交付物
+      inputs:
+      - 客户需求
+      - 军官/警官所需资料
+      outputs:
+      - 军官/警官产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 军官/警官
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定军官/警官的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: military_officer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: military_officer-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 军官/警官交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与边界
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 接单与边界产出
+              verify: &id030
+              - 接单与边界已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 交付与复核产出
+              verify: &id032
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 军官/警官
+      tools:
+      - 军官
+      - 警官
+      - 执法
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 军官/警官交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: military_officer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: military_officer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: military_officer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: military_officer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: military_officer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: military_officer
+  plugin_artifacts:
+  - name: military_officer-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: soldier
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[现役]'
+  description: 义务兵 现役 执勤
+  keywords:
+  - 义务兵
+  - 现役
+  - 执勤
+  readiness:
+    role_name: soldier
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 义务兵交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 义务兵
+    - 现役
+    - 执勤
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以义务兵身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 义务兵交付物
+      inputs:
+      - 客户需求
+      - 义务兵所需资料
+      outputs:
+      - 义务兵产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 义务兵
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定义务兵的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: soldier
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: soldier-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 义务兵交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与边界
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 接单与边界产出
+              verify: &id034
+              - 接单与边界已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 交付与复核产出
+              verify: &id036
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 义务兵
+      tools:
+      - 义务兵
+      - 现役
+      - 执勤
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 义务兵交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: soldier
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: soldier
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: soldier
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: soldier
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: soldier
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: soldier
+  plugin_artifacts:
+  - name: soldier-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: civilian_staff_mil
+  unit_id: public-safety
+  industry: 公共安全应急
+  prefix: '[文职]'
+  description: 军队文职 文书 后勤 管理支持
+  keywords:
+  - 军队文职
+  - 文职
+  - 后勤管理
+  - 部队文员
+  readiness:
+    role_name: civilian_staff_mil
+    unit_id: public-safety
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 军队文职交付流
+    industry_alias:
+    - 安防
+    - 应急管理
+    - 消防
+    - 应急预案
+    - 安保
+    - 风险监测
+    triggers:
+    - 军队文职
+    - 文职
+    - 后勤管理
+    - 部队文员
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以军队文职身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 军队文职交付物
+      inputs:
+      - 客户需求
+      - 军队文职所需资料
+      outputs:
+      - 军队文职产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 公共安全应急 军队文职
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定军队文职的专业判断
+      - 不可越权替客户或责任方做决定
+      constraints:
+      - 不臆造输入，缺料先要料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: civilian_staff_mil
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: civilian_staff_mil-skill
+        kind: skill
+        path: data/role-profiles/public-safety.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 军队文职交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与确认产出
+              verify: &id038
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id041
+              - 执行与产出产出
+              verify: &id042
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 军队文职
+      tools:
+      - 军队文职
+      - 文职
+      - 后勤管理
+      knowledge:
+      - 公共安全应急行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 军队文职交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: civilian_staff_mil
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id041
+      verify: *id042
+      runtime: agent
+      agent_role: civilian_staff_mil
+  plugin_artifacts:
+  - name: civilian_staff_mil-skill
+    kind: skill
+    path: data/role-profiles/public-safety.yaml
+  sources:
+  - role-profiles/public-safety.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

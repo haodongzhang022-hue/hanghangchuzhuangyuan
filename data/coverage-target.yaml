@@ -178,3 +178,24 @@ targets:
      status: pending,
      target_roles: [国际组织职员, 外事驻外人员],
      channels: [国际组织岗位公告, 驻外机构目录], note: "机构预算付费，无市场税目口径" }
+  # ---------------- 2026-11-18 新增分区 ----------------
+  - {id: retail-trade,        name: 零售贸易,     category: 批发和零售业, priority: 中,
+     status: registered,
+     target_roles: [门店运营经理, 买手商品企划, 导购售货员, 陈列设计, 品类管理],
+     channels: [国家统计局社零结构数据, 连锁经营协会, 商业地产招商目录],
+     note: "与 e-commerce 分列：这是门店与全渠道实体零售侧。社零含线上，故产值留空避免与电商 GMV 重复计"}
+  - {id: testing-certification, name: 检测认证,     category: 科学研究和技术服务业, priority: 中,
+     status: registered,
+     target_roles: [检测工程师, 计量工程师, 认证审核员, 实验室管理, 报告复核],
+     channels: [市场监管总局检验检测统计, 认可委获证机构目录, 检测设备厂商客户名录],
+     note: "与 research-academic 分列：这是企业付费的商业检测，交付带法律效力的报告"}
+  - {id: transport-infra,     name: 交通基建,     category: 建筑业/交通基建, priority: 中,
+     status: registered,
+     target_roles: [道路工程师, 桥隧工程师, 轨道工程师, 交通规划, 测量测绘],
+     channels: [交通运输部统计公报, 铁路与公路建设企业名录, 招投标平台],
+     note: "从 construction-eng 分出：结构物是线路与桥隧，甲方是交通局与平台公司"}
+  - {id: municipal-utility-construction, name: 市政公用建设, category: 建筑业/市政, priority: 中,
+     status: registered,
+     target_roles: [管网工程师, 水处理工程师, 市政规划, 市政施工管理],
+     channels: [住建部城乡建设统计年鉴, 城投平台项目目录, 环保设施建设企业名录],
+     note: "与 utilities 分列：这是市政建设的建设侧（建管网），那边是运营侧（跑调度）"}

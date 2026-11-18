@@ -335,3 +335,38 @@ scales:
       asset: 驻华机构资产不纳入国内统计
       valuation: 无市场估值
       resource: 耗能极小且未单列
+  - partition: retail-trade
+    missing:
+      gdp: '留空：社零 47.15 万亿含网上零售，取它会与 e-commerce 重复计；待接「限额以上零售业增加值」'
+      employment: '留空：零售从业人数含个体户与劳务，口径未拆，不按比例估算'
+      profit: 限额以上零售业利润总额未单列，本轮未接（社零是 GMV，不能当利润基数）
+      asset: 零售资产分散在连锁集团与个体门店，无可比口径
+      valuation: 零售板块市值含线上零售企业，与「实体零售」口径不一致，不取
+      resource: 门店能耗未按行业单列统计
+
+  - partition: testing-certification
+    missing:
+      gdp: '留空：检验检测服务业营业收入属市场监管总局口径，与统计局门类不直接对应'
+      employment: '留空：检验检测机构从业人员统计口径未接'
+      profit: 检验检测机构利润总额未单列，本轮未接
+      asset: 实验室资产（设备为主）未按行业分区统计
+      valuation: 检测机构多为非上市与事业单位，无独立估值口径
+      resource: 试剂耗材消耗未按行业单列
+
+  - partition: transport-infra
+    missing:
+      gdp: '留空：交通固投是投资额口径、含设备购置，与建筑业总产值不同源'
+      employment: '留空：交通基建从业含劳务分包，口径未拆'
+      profit: 交通基建利润总额未单列，本轮未接
+      asset: 平台公司资产口径与分区不一致，不取
+      valuation: 无独立上市板块（央企基建混计）
+      resource: 沥青水泥钢材消耗未按分区单列
+
+  - partition: municipal-utility-construction
+    missing:
+      gdp: '留空：市政公用设施投资额属固投口径，与增加值不同源'
+      employment: '留空：市政建设从业含劳务，口径未拆'
+      profit: 市政公用建设利润未单列，本轮未接
+      asset: 城投资产口径与分区不一致，不取
+      valuation: 无独立上市板块
+      resource: 管材与混凝土消耗未按分区单列

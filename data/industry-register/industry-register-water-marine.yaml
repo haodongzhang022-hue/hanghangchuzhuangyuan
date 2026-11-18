@@ -1,0 +1,65 @@
+unit_id: water-marine
+industry: 水利海洋
+industry_alias:
+- 水利工程
+- 海洋经济
+- 防汛
+- 航道
+- 港口
+- 水文
+roles:
+- name: water_conservancy_engineer
+  prefix: '[水利工程]'
+  handoff: relay
+  composite: true
+  description: 水利工程 勘察设计 水库调度 除险加固 灌溉
+  keywords:
+  - 水利工程
+  - 水文
+  - 水库调度
+  - 除险加固
+  - 灌溉
+  - 防汛工程
+  - 堤防
+  - 水工设计
+- name: seafarer
+  prefix: '[航海]'
+  handoff: relay
+  composite: true
+  description: 船员 航海 航行值班 船务 提单
+  keywords:
+  - 船员
+  - 航海
+  - 航行值班
+  - 船务
+  - 船舶
+  - 海员
+  - 航次
+  - 靠泊
+- name: marine_surveyor
+  prefix: '[海事]'
+  handoff: relay
+  composite: true
+  description: 海事监督 海洋测绘 船舶检验 通航安全
+  keywords:
+  - 海事监督
+  - 海洋测绘
+  - 船舶检验
+  - 通航安全
+  - 海事局
+  - 海图
+  - 水深测量
+entry_ref: ''
+capability_tags:
+- 水利工程
+- 水文调度
+- 航海
+- 海事监督
+- 海洋测绘
+register_version: '1.0'
+note: >
+  由 evaluated 转为 covered（水利海洋，总产值 1.5 万亿，gross_output，low）。
+  原判定「与建筑工程高度重合，不单列单元」——重合部分**不重复算**：
+  水利的勘察设计与施工衔接走 construction-eng 的 bim_engineer / cost_estimator，
+  本单元只承接水利特有的水文调度、防汛决策支持、船舶与海事监督。
+  战略边界：工程签字与验收、调度指令、防汛决策由人担（见 ai_weak）。

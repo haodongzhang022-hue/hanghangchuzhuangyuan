@@ -32,7 +32,9 @@ def test_covered_industries_positive_and_consistent():
     assert s["covered_industries"] >= 1
     assert s["industry_coverage"] > 0
     # 全覆盖率不可能为100%(存在 pending 缺口)
-    assert s["industry_coverage"] < 1.0
+    # 不能断言 < 1.0：目标全集被覆盖完之后它本来就是 1.0，
+    # 「必须还有缺口」不是不变式，只是在锁定某一时刻的进度。
+    assert 0 < s["industry_coverage"] <= 1.0
     # 覆盖行业 ≤ 已注册单元数(每个已注册单元至多对应一个目标行业)
     reg_count = len(reg.all_units())
     assert s["covered_industries"] <= reg_count

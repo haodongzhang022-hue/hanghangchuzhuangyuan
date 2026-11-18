@@ -1,0 +1,87 @@
+unit_id: testing-certification
+industry: 检测认证
+industry_alias:
+- 检验检测
+- 第三方检测
+- 认证认可
+- 计量校准
+- 实验室
+- 质检报告
+roles:
+- name: testing_engineer
+  prefix: '[检测]'
+  handoff: relay
+  composite: true
+  description: 检测工程师 方法验证 样品前处理 检测报告
+  keywords:
+  - 检测
+  - 检验检测
+  - 检测报告
+  - 方法验证
+  - 样品前处理
+  - 抽检
+  - 送检
+  - 检测机构
+- name: metrology_engineer
+  prefix: '[计量]'
+  handoff: relay
+  composite: true
+  description: 计量工程师 量值溯源 校准 检定
+  keywords:
+  - 计量
+  - 校准
+  - 检定
+  - 量值溯源
+  - 计量器具
+  - 计量所
+- name: certification_auditor
+  prefix: '[认证]'
+  handoff: relay
+  composite: true
+  description: 认证审核员 体系审核 不符合项 审核报告
+  keywords:
+  - 认证审核
+  - 体系审核
+  - 不符合项
+  - 内审
+  - 外审
+  - ISO认证
+  - 审核报告
+- name: lab_manager
+  prefix: '[实验室]'
+  handoff: relay
+  composite: true
+  description: 实验室管理 质控 设备 能力验证 期间核查
+  keywords:
+  - 实验室管理
+  - 质控
+  - 能力验证
+  - 期间核查
+  - 设备台账
+  - CNAS
+  - CMA
+- name: report_reviewer
+  prefix: '[复核]'
+  handoff: relay
+  composite: true
+  description: 报告复核 授权签字 结论复核 报告签发
+  keywords:
+  - 报告复核
+  - 授权签字
+  - 报告签发
+  - 结论复核
+  - 检测结论
+entry_ref: ''
+capability_tags:
+- 检验检测
+- 计量校准
+- 认证审核
+- 实验室质控
+- 报告签发
+register_version: '1.0'
+note: >
+  新增分区「检测认证」，把商业检测从 research-academic（科研经费侧）里独立出来：
+  付费方（企业合规 vs 财政科研经费）、交付（带效力的报告 vs 论文）、
+  责任（对结论担责 vs 署名与可复现）完全不同。
+  **AI 边界写死**：报告签发与法律担责由持证授权签字人签，AI 只出初稿与数据整理。
+  provider_mix 按成员职业实测（20/80），不按主观预期写——这条被校验拦过一次。

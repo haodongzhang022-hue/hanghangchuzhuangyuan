@@ -52,7 +52,9 @@ class TestWebAPI:
         assert code == 200
         assert data["total_industries"] > 0
         assert 0 < data["covered_industries"] <= data["total_industries"]
-        assert 0.0 < data["industry_coverage"] < 1.0
+        # 不能断言 < 1.0：目标全集覆盖完之后它本来就是 1.0，
+        # 「必须还有缺口」不是不变式，只是在锁定某一时刻的进度。
+        assert 0.0 < data["industry_coverage"] <= 1.0
         assert "rows" in data
 
     def test_industry_db_api(self):

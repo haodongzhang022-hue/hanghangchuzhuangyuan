@@ -1,0 +1,52 @@
+unit_id: utilities
+industry: 电力热力燃气水
+industry_alias:
+- 公用事业
+- 电力
+- 燃气
+- 供水
+- 电网
+- 供热
+- 水务
+roles:
+- name: power_grid_operator
+  prefix: '[电网调度]'
+  handoff: relay
+  composite: true
+  description: 电网调度 负荷预测 运行方式 检修计划 停送电
+  keywords:
+  - 电网调度
+  - 负荷预测
+  - 运行方式
+  - 检修计划
+  - 停送电
+  - 调度指令
+  - 潮流
+  - 电网运行
+- name: utility_billing_clerk
+  prefix: '[抄表计费]'
+  handoff: relay
+  composite: true
+  description: 抄表计费 账单 阶梯电价 客服解释 欠费
+  keywords:
+  - 抄表
+  - 计费
+  - 电费账单
+  - 阶梯电价
+  - 欠费
+  - 表计
+  - 用能查询
+  - 账单解释
+entry_ref: ''
+capability_tags:
+- 电网调度
+- 负荷预测
+- 计量收费
+- 客服解释
+register_version: '1.0'
+note: >
+  由 evaluated 转为 covered（电力热力燃气水，增加值 4.6 万亿，medium）。
+  分区原判定「AI 承接集中在客服/调度/计费」——本单元按这个边界建：
+    · 可承接：负荷预测、运行方式与检修计划**草案**、账单解释与客服
+    · 不可承接：调度操作（停送电）、价格执行、安全边界
+  战略视图 ai_weak 明写「调度操作、停送电与安全、价格执行」由人担。

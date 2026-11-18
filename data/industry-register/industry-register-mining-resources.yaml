@@ -1,0 +1,92 @@
+unit_id: mining-resources
+industry: 矿业资源
+industry_alias:
+- 采矿
+- 矿产资源
+- 能源开采
+- 矿区
+- 选矿
+- 矿山
+roles:
+- name: mining_engineer
+  prefix: '[采矿工程]'
+  handoff: relay
+  composite: true
+  description: 采矿工程 采掘计划 配矿 储量 地质资料
+  keywords:
+  - 采矿工程
+  - 采掘计划
+  - 配矿
+  - 储量
+  - 地质资料
+  - 采矿设计
+  - 品位
+  - 采矿技术员
+- name: mineral_processor
+  prefix: '[选矿]'
+  handoff: relay
+  composite: true
+  description: 选矿 矿物加工 精矿 回收率 浮选
+  keywords:
+  - 选矿
+  - 矿物加工
+  - 精矿
+  - 回收率
+  - 浮选
+  - 磨矿
+  - 尾矿
+  - 选矿厂
+- name: mine_safety_inspector
+  prefix: '[矿山安全]'
+  handoff: relay
+  composite: true
+  description: 矿山安全监察 巡检 隐患 通风 瓦斯
+  keywords:
+  - 矿山安全
+  - 安全监察
+  - 井下巡检
+  - 通风
+  - 瓦斯
+  - 顶板
+  - 隐患整改
+  - 矿山救护
+- name: underground_miner
+  prefix: '[井下]'
+  handoff: relay
+  composite: false
+  description: 井下采矿 掘进 爆破 采煤 支护
+  keywords:
+  - 井下作业
+  - 掘进
+  - 爆破
+  - 采煤
+  - 支护
+  - 井下工
+  - 矿工
+- name: open_pit_miner
+  prefix: '[露天]'
+  handoff: relay
+  composite: false
+  description: 露天采矿 剥离 台阶 装载 运输
+  keywords:
+  - 露天开采
+  - 剥离
+  - 台阶
+  - 装载
+  - 露天矿
+  - 采矿设备
+entry_ref: ''
+capability_tags:
+- 采矿设计
+- 选矿加工
+- 矿山安全
+- 井下作业
+- 露天开采
+register_version: '1.0'
+note: >
+  由 evaluated 转为 covered（矿业资源，增加值 5 万亿，medium）。
+  **AI 边界必须写死**：分区原判定是「AI 承接面窄（现场作业为主）」，
+  这条没有变——本单元只承接采矿设计、配矿、地质资料、安全巡检记录、
+  选矿参数这类**文档与计算**工作；井下/露天现场作业（爆破、支护、装载）
+  明确标 composite=false，AI 不介入。
+  「现场作业、安全与爆破责任、储量签字」三项由人担，见战略视图 ai_weak。

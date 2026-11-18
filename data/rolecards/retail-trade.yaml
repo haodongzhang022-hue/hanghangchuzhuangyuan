@@ -1,0 +1,1206 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: retail-trade
+industry: 零售贸易
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: store_operations_manager
+  unit_id: retail-trade
+  industry: 零售贸易
+  prefix: '[门店]'
+  description: 门店运营 坪效 人效 排班 客流 动销
+  keywords:
+  - 门店运营
+  - 坪效
+  - 人效
+  - 排班
+  - 客流
+  - 动销
+  - 店长
+  - 巡店
+  readiness:
+    role_name: store_operations_manager
+    unit_id: retail-trade
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 门店运营经理交付流
+    industry_alias:
+    - 零售
+    - 实体零售
+    - 商超
+    - 连锁店
+    - 百货
+    - 便利店
+    - 门店
+    - 导购
+    triggers:
+    - 门店运营
+    - 坪效
+    - 人效
+    - 排班
+    - 客流
+    - 动销
+    - 店长
+    - 巡店
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以门店运营经理身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 门店运营经理交付物
+      inputs:
+      - 门店与商品数据
+      - 门店运营经理所需资料
+      outputs:
+      - 门店运营经理产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 零售贸易 门店运营经理
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定门店运营经理的专业判断
+      - 不可越权替客户或店主做押钱决定
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: store_operations_manager
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: store_operations_manager-skill
+        kind: skill
+        path: data/role-profiles/retail-trade.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 门店运营经理交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 门店运营经理
+      tools:
+      - 门店运营
+      - 坪效
+      - 人效
+      knowledge:
+      - 零售贸易行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 门店运营经理交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: store_operations_manager
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: store_operations_manager
+  plugin_artifacts:
+  - name: store_operations_manager-skill
+    kind: skill
+    path: data/role-profiles/retail-trade.yaml
+  sources:
+  - role-profiles/retail-trade.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: retail_buyer
+  unit_id: retail-trade
+  industry: 零售贸易
+  prefix: '[买手]'
+  description: 买手 商品企划 订货 采买 选款
+  keywords:
+  - 买手
+  - 商品企划
+  - 订货
+  - 采买
+  - 选款
+  - 订货会
+  - 采销
+  - 补货节奏
+  readiness:
+    role_name: retail_buyer
+    unit_id: retail-trade
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 买手/商品企划交付流
+    industry_alias:
+    - 零售
+    - 实体零售
+    - 商超
+    - 连锁店
+    - 百货
+    - 便利店
+    - 门店
+    - 导购
+    triggers:
+    - 买手
+    - 商品企划
+    - 订货
+    - 采买
+    - 选款
+    - 订货会
+    - 采销
+    - 补货节奏
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以买手/商品企划身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 买手/商品企划交付物
+      inputs:
+      - 门店与商品数据
+      - 买手/商品企划所需资料
+      outputs:
+      - 买手/商品企划产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 零售贸易 买手/商品企划
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定买手/商品企划的专业判断
+      - 不可越权替客户或店主做押钱决定
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: retail_buyer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: retail_buyer-skill
+        kind: skill
+        path: data/role-profiles/retail-trade.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 买手/商品企划交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 买手/商品企划
+      tools:
+      - 买手
+      - 商品企划
+      - 订货
+      knowledge:
+      - 零售贸易行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 买手/商品企划交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: retail_buyer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: retail_buyer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: retail_buyer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: retail_buyer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: retail_buyer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: retail_buyer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: retail_buyer
+  plugin_artifacts:
+  - name: retail_buyer-skill
+    kind: skill
+    path: data/role-profiles/retail-trade.yaml
+  sources:
+  - role-profiles/retail-trade.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: category_manager
+  unit_id: retail-trade
+  industry: 零售贸易
+  prefix: '[品类]'
+  description: 品类管理 品类结构 毛利 动销率 价格带
+  keywords:
+  - 品类管理
+  - 品类结构
+  - 毛利
+  - 动销率
+  - 价格带
+  - 品类规划
+  - 商品结构
+  readiness:
+    role_name: category_manager
+    unit_id: retail-trade
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 品类管理交付流
+    industry_alias:
+    - 零售
+    - 实体零售
+    - 商超
+    - 连锁店
+    - 百货
+    - 便利店
+    - 门店
+    - 导购
+    triggers:
+    - 品类管理
+    - 品类结构
+    - 毛利
+    - 动销率
+    - 价格带
+    - 品类规划
+    - 商品结构
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以品类管理身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 品类管理交付物
+      inputs:
+      - 门店与商品数据
+      - 品类管理所需资料
+      outputs:
+      - 品类管理产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 零售贸易 品类管理
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定品类管理的专业判断
+      - 不可越权替客户或店主做押钱决定
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: category_manager
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: category_manager-skill
+        kind: skill
+        path: data/role-profiles/retail-trade.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 品类管理交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 品类管理
+      tools:
+      - 品类管理
+      - 品类结构
+      - 毛利
+      knowledge:
+      - 零售贸易行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 品类管理交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: category_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: category_manager
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: category_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: category_manager
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: category_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: category_manager
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: category_manager
+  plugin_artifacts:
+  - name: category_manager-skill
+    kind: skill
+    path: data/role-profiles/retail-trade.yaml
+  sources:
+  - role-profiles/retail-trade.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: visual_merchandiser
+  unit_id: retail-trade
+  industry: 零售贸易
+  prefix: '[陈列]'
+  description: 陈列设计 视觉陈列 橱窗 动线 换季
+  keywords:
+  - 陈列
+  - 视觉陈列
+  - 橱窗
+  - 动线
+  - 换季陈列
+  - 陈列设计
+  - 堆头
+  readiness:
+    role_name: visual_merchandiser
+    unit_id: retail-trade
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 陈列设计交付流
+    industry_alias:
+    - 零售
+    - 实体零售
+    - 商超
+    - 连锁店
+    - 百货
+    - 便利店
+    - 门店
+    - 导购
+    triggers:
+    - 陈列
+    - 视觉陈列
+    - 橱窗
+    - 动线
+    - 换季陈列
+    - 陈列设计
+    - 堆头
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以陈列设计身份，把物料按标准交付，边界外的事明确移交
+      deliverables:
+      - 陈列设计交付物
+      inputs:
+      - 门店与商品数据
+      - 陈列设计所需资料
+      outputs:
+      - 陈列设计产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 零售贸易 陈列设计
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定陈列设计的专业判断
+      - 不可越权替客户或店主做押钱决定
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: visual_merchandiser
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: visual_merchandiser-skill
+        kind: skill
+        path: data/role-profiles/retail-trade.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 陈列设计交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 陈列设计
+      tools:
+      - 陈列
+      - 视觉陈列
+      - 橱窗
+      knowledge:
+      - 零售贸易行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 陈列设计交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: visual_merchandiser
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: visual_merchandiser
+  plugin_artifacts:
+  - name: visual_merchandiser-skill
+    kind: skill
+    path: data/role-profiles/retail-trade.yaml
+  sources:
+  - role-profiles/retail-trade.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: sales_associate
+  unit_id: retail-trade
+  industry: 零售贸易
+  prefix: '[导购]'
+  description: 导购 售货 到店服务 连带销售
+  keywords:
+  - 导购
+  - 售货员
+  - 店员
+  - 到店服务
+  - 连带销售
+  - 试穿
+  - 收银
+  readiness:
+    role_name: sales_associate
+    unit_id: retail-trade
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 导购/售货员交付流
+    industry_alias:
+    - 零售
+    - 实体零售
+    - 商超
+    - 连锁店
+    - 百货
+    - 便利店
+    - 门店
+    - 导购
+    triggers:
+    - 导购
+    - 售货员
+    - 店员
+    - 到店服务
+    - 连带销售
+    - 试穿
+    - 收银
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以导购/售货员身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 导购/售货员交付物
+      inputs:
+      - 门店与商品数据
+      - 导购/售货员所需资料
+      outputs:
+      - 导购/售货员产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 零售贸易 导购/售货员
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定导购/售货员的专业判断
+      - 不可越权替客户或店主做押钱决定
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: sales_associate
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: sales_associate-skill
+        kind: skill
+        path: data/role-profiles/retail-trade.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 导购/售货员交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与边界
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与边界产出
+              verify: &id038
+              - 接单与边界已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 导购/售货员
+      tools:
+      - 导购
+      - 售货员
+      - 店员
+      knowledge:
+      - 零售贸易行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 导购/售货员交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与边界
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: sales_associate
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: sales_associate
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: sales_associate
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: sales_associate
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: sales_associate
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: sales_associate
+  plugin_artifacts:
+  - name: sales_associate-skill
+    kind: skill
+    path: data/role-profiles/retail-trade.yaml
+  sources:
+  - role-profiles/retail-trade.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

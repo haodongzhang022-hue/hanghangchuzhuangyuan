@@ -1,0 +1,53 @@
+unit_id: international-org
+industry: 国际组织与对外事务
+industry_alias:
+- 涉外服务
+- 国际组织
+- 外事
+- 驻外
+- 多边
+- 联合国
+roles:
+- name: un_staff
+  prefix: '[国际组织]'
+  handoff: relay
+  composite: true
+  description: 国际组织职员 项目设计 资金合规 评估报告 多边协调
+  keywords:
+  - 国际组织
+  - 联合国
+  - 多边项目
+  - 项目立项
+  - 资金合规
+  - 评估报告
+  - 双边协议
+  - 援助项目
+- name: foreign_service_officer
+  prefix: '[外事]'
+  handoff: relay
+  composite: true
+  description: 外事 驻外 议题背景 文件起草 对外表态
+  keywords:
+  - 外事
+  - 驻外
+  - 外交
+  - 对外表态
+  - 领事
+  - 双边磋商
+  - 照会
+  - 议题背景
+entry_ref: ''
+capability_tags:
+- 项目设计
+- 资金合规
+- 文件起草
+- 多语言协调
+- 对外事务
+register_version: '1.0'
+note: >
+  由 evaluated 转为 covered。**产值刻意留空**（国际组织无市场付费口径，
+  gdp_kind=none）——不填 0 冒充数据，这条与本仓其它留空分区一致。
+  原判定「雇方是机构预算、无市场付费口径」仍成立，所以本单元不产出规模账，
+  只提供能力面：议题背景与文件起草、多语言翻译与校对、项目报告与指标整理。
+  战略边界：谈判立场、授权与承诺、对外表态由人担（见 ai_weak）。
+  跨分区协作：多语言翻译走 translation 单元，本单元只管涉外事务本身。

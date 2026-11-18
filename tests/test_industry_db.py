@@ -972,7 +972,11 @@ def test_broken_reference_tables_do_not_take_down_the_db():
         db = IndustryDatabase(data_dir=dst)
         # 造库不抛，两个旁证降级为 None，主数据照常可用
         assert db.isco is None, "ISCO 表坏了应当降级为 None"
-        assert len(db.partitions) == 41 and len(db.occupations) >= 178
+        # 不锁死具体数字：本测试要守的是「旁证坏了主数据仍可用」，
+        # 而分区/职业数会随补全而增长（41→45、178→197 都是正常演进）。
+        # 写死 41/178 会让每次扩分区都误报成回归。
+        assert len(db.partitions) >= 41, len(db.partitions)
+        assert len(db.occupations) >= 178, len(db.occupations)
         s = db.compute()
         assert s["rows"], "主数据不该因为旁证坏了而空掉"
         # 降级必须可见：进 problems，不能静默当"没问题"

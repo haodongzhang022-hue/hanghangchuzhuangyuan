@@ -1,0 +1,71 @@
+unit_id: municipal-utility-construction
+industry: 市政公用建设
+industry_alias:
+- 市政工程
+- 管网建设
+- 污水处理厂
+- 供水供热管网
+- 环卫设施
+- 雨污分流
+roles:
+- name: pipeline_engineer
+  prefix: '[管网]'
+  handoff: relay
+  composite: true
+  description: 管网工程师 给排水 燃气 管线综合 管材
+  keywords:
+  - 给排水
+  - 燃气管网
+  - 管线综合
+  - 管材
+  - 供水管网
+  - 污水管网
+  - 雨污分流
+- name: water_treatment_engineer
+  prefix: '[水处理]'
+  handoff: relay
+  composite: true
+  description: 水处理工程师 污水处理 固废 工艺 达标
+  keywords:
+  - 污水处理
+  - 固废处理
+  - 水质达标
+  - 活性污泥
+  - 垃圾焚烧
+  - 渗滤液
+- name: municipal_planner
+  prefix: '[市政规划]'
+  handoff: relay
+  composite: true
+  description: 市政规划 专项规划 管线容量 投资估算
+  keywords:
+  - 市政规划
+  - 专项规划
+  - 管线容量
+  - 投资估算
+  - 海绵城市
+  - 地下综合管廊
+- name: utility_construction_manager
+  prefix: '[市政施工]'
+  handoff: relay
+  composite: true
+  description: 市政施工管理 占道 掘路 交通疏解 协管
+  keywords:
+  - 占道施工
+  - 掘路
+  - 交通疏解
+  - 市政施工
+  - 管线迁改
+  - 扰民协调
+entry_ref: ''
+capability_tags:
+- 给排水管网
+- 水处理工艺
+- 市政规划
+- 占道施工
+register_version: '1.0'
+note: >
+  新增分区「市政公用建设」：把市政建设的**建设侧**从 utilities（运营侧）分出。
+  两者都涉及水电气，但一个是建管网、一个是跑运营，甲方与岗位完全不同。
+  与 construction-eng 的边界：房建与通用土建走那边，本分区只做市政管线与厂站。
+  AI 边界：地下管线判断、施工拍板、验收签字必须由人到现场。

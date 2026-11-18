@@ -170,28 +170,28 @@ memberships:
   - {occupation: delivery-rider, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: delivery_rider}
   - {occupation: courier, partition: logistics-supply, axis: occupation, weight: 1.0, unit_role: courier}
   - {occupation: ride-hailing-driver, partition: tourism-hospitality, axis: occupation, weight: 1.0, unit_role: ride_hailing_driver}
-  - {occupation: military-officer, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: soldier, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: civilian-staff-mil, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: firefighter, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: emergency-planner, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: security-officer, partition: public-safety, axis: occupation, weight: 1.0}
-  - {occupation: mining-engineer, partition: mining-resources, axis: occupation, weight: 1.0}
-  - {occupation: underground-miner, partition: mining-resources, axis: occupation, weight: 1.0}
-  - {occupation: open-pit-miner, partition: mining-resources, axis: occupation, weight: 1.0}
-  - {occupation: mine-safety-inspector, partition: mining-resources, axis: occupation, weight: 1.0}
-  - {occupation: mineral-processor, partition: mining-resources, axis: occupation, weight: 1.0}
-  - {occupation: power-grid-operator, partition: utilities, axis: occupation, weight: 1.0}
-  - {occupation: utility-billing-clerk, partition: utilities, axis: occupation, weight: 1.0}
-  - {occupation: water-conservancy-engineer, partition: water-marine, axis: occupation, weight: 1.0}
-  - {occupation: seafarer, partition: water-marine, axis: occupation, weight: 1.0}
-  - {occupation: marine-surveyor, partition: water-marine, axis: occupation, weight: 1.0}
+  - {occupation: military-officer, partition: public-safety, axis: occupation, weight: 1.0, unit_role: military_officer}
+  - {occupation: soldier, partition: public-safety, axis: occupation, weight: 1.0, unit_role: soldier}
+  - {occupation: civilian-staff-mil, partition: public-safety, axis: occupation, weight: 1.0, unit_role: civilian_staff_mil}
+  - {occupation: firefighter, partition: public-safety, axis: occupation, weight: 1.0, unit_role: firefighter}
+  - {occupation: emergency-planner, partition: public-safety, axis: occupation, weight: 1.0, unit_role: emergency_planner}
+  - {occupation: security-officer, partition: public-safety, axis: occupation, weight: 1.0, unit_role: security_officer}
+  - {occupation: mining-engineer, partition: mining-resources, axis: occupation, weight: 1.0, unit_role: mining_engineer}
+  - {occupation: underground-miner, partition: mining-resources, axis: occupation, weight: 1.0, unit_role: underground_miner}
+  - {occupation: open-pit-miner, partition: mining-resources, axis: occupation, weight: 1.0, unit_role: open_pit_miner}
+  - {occupation: mine-safety-inspector, partition: mining-resources, axis: occupation, weight: 1.0, unit_role: mine_safety_inspector}
+  - {occupation: mineral-processor, partition: mining-resources, axis: occupation, weight: 1.0, unit_role: mineral_processor}
+  - {occupation: power-grid-operator, partition: utilities, axis: occupation, weight: 1.0, unit_role: power_grid_operator}
+  - {occupation: utility-billing-clerk, partition: utilities, axis: occupation, weight: 1.0, unit_role: utility_billing_clerk}
+  - {occupation: water-conservancy-engineer, partition: water-marine, axis: occupation, weight: 1.0, unit_role: water_conservancy_engineer}
+  - {occupation: seafarer, partition: water-marine, axis: occupation, weight: 1.0, unit_role: seafarer}
+  - {occupation: marine-surveyor, partition: water-marine, axis: occupation, weight: 1.0, unit_role: marine_surveyor}
   - {occupation: construction-worker, partition: construction-eng, axis: occupation, weight: 1.0, unit_role: construction_worker}
   - {occupation: factory-operator, partition: manufacturing, axis: occupation, weight: 1.0, unit_role: factory_operator}
   - {occupation: homemaker, partition: personal-services, axis: occupation, weight: 1.0, unit_role: homemaker}
   - {occupation: family-caregiver, partition: personal-services, axis: occupation, weight: 1.0, unit_role: family_caregiver}
-  - {occupation: un-staff, partition: international-org, axis: occupation, weight: 1.0}
-  - {occupation: foreign-service-officer, partition: international-org, axis: occupation, weight: 1.0}
+  - {occupation: un-staff, partition: international-org, axis: occupation, weight: 1.0, unit_role: un_staff}
+  - {occupation: foreign-service-officer, partition: international-org, axis: occupation, weight: 1.0, unit_role: foreign_service_officer}
 
 # ------------------------------------------------------------ 原本"只有意向"的职业
 # 这 8 条早先只在 occupation 记录里写 pending_partition（一句没人执行的承诺），
@@ -221,3 +221,30 @@ memberships:
   - {occupation: data-analyst, partition: e-commerce, axis: occupation, weight: 0.30, unit_role: ecom_marketer, note: "电商经营分析"}
   - {occupation: content-editor, partition: culture-art, axis: occupation, weight: 0.30, note: "出版编辑与内容审校同源", unit_role: content_editor}
   - {occupation: live-stream-operator, partition: e-commerce, axis: occupation, weight: 0.35, unit_role: ecom_marketer, note: "直播带货的选品与场控在电商侧"}
+
+  # ---------------- 零售贸易（2026-11-18 新增）----------------
+  - {occupation: store-operations-manager, partition: retail-trade, axis: occupation, weight: 1.0, unit_role: store_operations_manager}
+  - {occupation: retail-buyer, partition: retail-trade, axis: occupation, weight: 1.0, unit_role: retail_buyer}
+  - {occupation: sales-associate, partition: retail-trade, axis: occupation, weight: 1.0, unit_role: sales_associate}
+  - {occupation: visual-merchandiser, partition: retail-trade, axis: occupation, weight: 1.0, unit_role: visual_merchandiser}
+  - {occupation: category-manager, partition: retail-trade, axis: occupation, weight: 1.0, unit_role: category_manager}
+
+  # ---------------- 检测认证（2026-11-18 新增）----------------
+  - {occupation: testing-engineer, partition: testing-certification, axis: occupation, weight: 1.0, unit_role: testing_engineer}
+  - {occupation: metrology-engineer, partition: testing-certification, axis: occupation, weight: 1.0, unit_role: metrology_engineer}
+  - {occupation: certification-auditor, partition: testing-certification, axis: occupation, weight: 1.0, unit_role: certification_auditor}
+  - {occupation: lab-manager, partition: testing-certification, axis: occupation, weight: 1.0, unit_role: lab_manager}
+  - {occupation: report-reviewer, partition: testing-certification, axis: occupation, weight: 1.0, unit_role: report_reviewer}
+
+  # ---------------- 交通基建（2026-11-18 新增）----------------
+  - {occupation: road-engineer, partition: transport-infra, axis: occupation, weight: 1.0, unit_role: road_engineer}
+  - {occupation: bridge-tunnel-engineer, partition: transport-infra, axis: occupation, weight: 1.0, unit_role: bridge_tunnel_engineer}
+  - {occupation: track-engineer, partition: transport-infra, axis: occupation, weight: 1.0, unit_role: track_engineer}
+  - {occupation: traffic-planner, partition: transport-infra, axis: occupation, weight: 1.0, unit_role: traffic_planner}
+  - {occupation: infra-surveyor, partition: transport-infra, axis: occupation, weight: 1.0, unit_role: infra_surveyor}
+
+  # ---------------- 市政公用建设（2026-11-18 新增）----------------
+  - {occupation: pipeline-engineer, partition: municipal-utility-construction, axis: occupation, weight: 1.0, unit_role: pipeline_engineer}
+  - {occupation: water-treatment-engineer, partition: municipal-utility-construction, axis: occupation, weight: 1.0, unit_role: water_treatment_engineer}
+  - {occupation: municipal-planner, partition: municipal-utility-construction, axis: occupation, weight: 1.0, unit_role: municipal_planner}
+  - {occupation: utility-construction-manager, partition: municipal-utility-construction, axis: occupation, weight: 1.0, unit_role: utility_construction_manager}

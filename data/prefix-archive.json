@@ -1025,5 +1025,253 @@
       }
     },
     "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "international-org": {
+    "unit_id": "international-org",
+    "industry": "国际组织与对外事务",
+    "role_prefixes": {
+      "un_staff": {
+        "prefix": "[国际组织]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "foreign_service_officer": {
+        "prefix": "[外事]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "mining-resources": {
+    "unit_id": "mining-resources",
+    "industry": "矿业资源",
+    "role_prefixes": {
+      "mining_engineer": {
+        "prefix": "[采矿工程]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "mineral_processor": {
+        "prefix": "[选矿]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "mine_safety_inspector": {
+        "prefix": "[矿山安全]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "underground_miner": {
+        "prefix": "[井下]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "open_pit_miner": {
+        "prefix": "[露天]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "public-safety": {
+    "unit_id": "public-safety",
+    "industry": "公共安全应急",
+    "role_prefixes": {
+      "emergency_planner": {
+        "prefix": "[应急]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "security_officer": {
+        "prefix": "[安保]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "firefighter": {
+        "prefix": "[消防]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "military_officer": {
+        "prefix": "[军警]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "soldier": {
+        "prefix": "[现役]",
+        "composite": false,
+        "handoff": "relay"
+      },
+      "civilian_staff_mil": {
+        "prefix": "[文职]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "utilities": {
+    "unit_id": "utilities",
+    "industry": "电力热力燃气水",
+    "role_prefixes": {
+      "power_grid_operator": {
+        "prefix": "[电网调度]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "utility_billing_clerk": {
+        "prefix": "[抄表计费]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "water-marine": {
+    "unit_id": "water-marine",
+    "industry": "水利海洋",
+    "role_prefixes": {
+      "water_conservancy_engineer": {
+        "prefix": "[水利工程]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "seafarer": {
+        "prefix": "[航海]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "marine_surveyor": {
+        "prefix": "[海事]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "municipal-utility-construction": {
+    "unit_id": "municipal-utility-construction",
+    "industry": "市政公用建设",
+    "role_prefixes": {
+      "pipeline_engineer": {
+        "prefix": "[管网]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "water_treatment_engineer": {
+        "prefix": "[水处理]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "municipal_planner": {
+        "prefix": "[市政规划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "utility_construction_manager": {
+        "prefix": "[市政施工]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "retail-trade": {
+    "unit_id": "retail-trade",
+    "industry": "零售贸易",
+    "role_prefixes": {
+      "store_operations_manager": {
+        "prefix": "[门店]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "retail_buyer": {
+        "prefix": "[买手]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "category_manager": {
+        "prefix": "[品类]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "visual_merchandiser": {
+        "prefix": "[陈列]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "sales_associate": {
+        "prefix": "[导购]",
+        "composite": false,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "testing-certification": {
+    "unit_id": "testing-certification",
+    "industry": "检测认证",
+    "role_prefixes": {
+      "testing_engineer": {
+        "prefix": "[检测]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "metrology_engineer": {
+        "prefix": "[计量]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "certification_auditor": {
+        "prefix": "[认证]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "lab_manager": {
+        "prefix": "[实验室]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "report_reviewer": {
+        "prefix": "[复核]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
+  },
+  "transport-infra": {
+    "unit_id": "transport-infra",
+    "industry": "交通基建",
+    "role_prefixes": {
+      "road_engineer": {
+        "prefix": "[道路]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "bridge_tunnel_engineer": {
+        "prefix": "[桥隧]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "track_engineer": {
+        "prefix": "[轨道]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "traffic_planner": {
+        "prefix": "[交通规划]",
+        "composite": true,
+        "handoff": "relay"
+      },
+      "infra_surveyor": {
+        "prefix": "[测量]",
+        "composite": true,
+        "handoff": "relay"
+      }
+    },
+    "rule": "one_session_one_industry_fixed_prefixes"
   }
 }
