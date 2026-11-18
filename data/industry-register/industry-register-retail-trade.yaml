@@ -1,0 +1,94 @@
+unit_id: retail-trade
+industry: 零售贸易
+industry_alias:
+- 零售
+- 实体零售
+- 商超
+- 连锁店
+- 百货
+- 便利店
+- 门店
+- 导购
+roles:
+- name: store_operations_manager
+  prefix: '[门店]'
+  handoff: relay
+  composite: true
+  description: 门店运营 坪效 人效 排班 客流 动销
+  keywords:
+  - 门店运营
+  - 坪效
+  - 人效
+  - 排班
+  - 客流
+  - 动销
+  - 店长
+  - 巡店
+- name: retail_buyer
+  prefix: '[买手]'
+  handoff: relay
+  composite: true
+  description: 买手 商品企划 订货 采买 选款
+  keywords:
+  - 买手
+  - 商品企划
+  - 订货
+  - 采买
+  - 选款
+  - 订货会
+  - 采销
+  - 补货节奏
+- name: category_manager
+  prefix: '[品类]'
+  handoff: relay
+  composite: true
+  description: 品类管理 品类结构 毛利 动销率 价格带
+  keywords:
+  - 品类管理
+  - 品类结构
+  - 毛利
+  - 动销率
+  - 价格带
+  - 品类规划
+  - 商品结构
+- name: visual_merchandiser
+  prefix: '[陈列]'
+  handoff: relay
+  composite: true
+  description: 陈列设计 视觉陈列 橱窗 动线 换季
+  keywords:
+  - 陈列
+  - 视觉陈列
+  - 橱窗
+  - 动线
+  - 换季陈列
+  - 陈列设计
+  - 堆头
+- name: sales_associate
+  prefix: '[导购]'
+  handoff: relay
+  composite: false
+  description: 导购 售货 到店服务 连带销售
+  keywords:
+  - 导购
+  - 售货员
+  - 店员
+  - 到店服务
+  - 连带销售
+  - 试穿
+  - 收银
+entry_ref: ''
+capability_tags:
+- 门店运营
+- 商品企划
+- 品类管理
+- 视觉陈列
+- 到店销售
+register_version: '1.0'
+note: >
+  2026-11-18 新增分区「零售贸易」，与 e-commerce 分列：
+  e-commerce 装网上零售额 15 万亿（GMV），本单元装门店与全渠道实体零售。
+  两者付费方同为终端消费者，但交付方式（到场 vs 履约到家）与岗位能力面完全不同。
+  产值**刻意留空**：社零 47.15 万亿含网上零售，取它会与 e-commerce 重复计——
+  等拿到「限额以上零售业增加值」这类独立口径再填。
+  战略判断：零售的利润池在商品企划与陈列，不在到店成交那一下。

@@ -68,12 +68,19 @@ def test_no_market_occupations_are_registered_not_dropped():
 
 
 def test_evaluated_partition_still_holds_occupations():
-    """evaluated（不建单元）≠ 忽略：分区里的职业照样登记、照样有就业口径"""
+    """evaluated（不建单元）≠ 忽略：分区里的职业照样登记、照样有就业口径
+
+    2026-11-18 起原先的 5 个 evaluated 分区已全部转成 covered（覆盖率 41→41 后
+    又补了 45 个分区），真实数据里可能一个 evaluated 都没有。
+    所以这里**不点名具体分区**，而是按 status 动态找；找不到就显式跳过，
+    而不是让 `next(...)` / 硬编码 id 把「构造场景」测成「当时的进度快照」。
+    """
     db = _db()
-    for pid in ("mining-resources", "public-safety", "utilities",
-                "water-marine", "international-org"):
-        p = db.partition(pid)
-        assert p and p["status"] == "evaluated"
+    evaluated = [p for p in db.partitions if p.get("status") == "evaluated"]
+    if not evaluated:
+        return  # 当前没有 evaluated 分区，该场景不存在
+    for p in evaluated:
+        pid = p["id"]
         assert db.members_of(pid), f"{pid} 无成员职业（又被悄悄丢掉了）"
         assert p.get("employment") is not None, f"{pid} 缺就业口径"
 

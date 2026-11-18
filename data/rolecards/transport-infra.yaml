@@ -1,0 +1,1206 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: transport-infra
+industry: 交通基建
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: road_engineer
+  unit_id: transport-infra
+  industry: 交通基建
+  prefix: '[道路]'
+  description: 道路工程师 路基路面 线形设计 排水 沥青
+  keywords:
+  - 路基
+  - 路面
+  - 线形设计
+  - 道路工程
+  - 沥青
+  - 道路排水
+  - 公路工程
+  readiness:
+    role_name: road_engineer
+    unit_id: transport-infra
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 道路工程师交付流
+    industry_alias:
+    - 公路建设
+    - 铁路建设
+    - 桥梁隧道
+    - 机场建设
+    - 港口航道
+    - 路基路面
+    - 轨道交通
+    triggers:
+    - 路基
+    - 路面
+    - 线形设计
+    - 道路工程
+    - 沥青
+    - 道路排水
+    - 公路工程
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以道路工程师身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 道路工程师交付物
+      inputs:
+      - 客户需求
+      - 道路工程师所需资料
+      outputs:
+      - 道路工程师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 交通基建 道路工程师
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定道路工程师的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: road_engineer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: road_engineer-skill
+        kind: skill
+        path: data/role-profiles/transport-infra.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 道路工程师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 道路工程师
+      tools:
+      - 路基
+      - 路面
+      - 线形设计
+      knowledge:
+      - 交通基建行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 道路工程师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: road_engineer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: road_engineer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: road_engineer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: road_engineer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: road_engineer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: road_engineer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: road_engineer
+  plugin_artifacts:
+  - name: road_engineer-skill
+    kind: skill
+    path: data/role-profiles/transport-infra.yaml
+  sources:
+  - role-profiles/transport-infra.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: bridge_tunnel_engineer
+  unit_id: transport-infra
+  industry: 交通基建
+  prefix: '[桥隧]'
+  description: 桥隧工程师 桥梁结构 隧道 衬砌 施工监控
+  keywords:
+  - 桥梁
+  - 隧道
+  - 衬砌
+  - 桥隧
+  - 结构计算
+  - 地质超前预报
+  - 涉水桥
+  readiness:
+    role_name: bridge_tunnel_engineer
+    unit_id: transport-infra
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 桥隧工程师交付流
+    industry_alias:
+    - 公路建设
+    - 铁路建设
+    - 桥梁隧道
+    - 机场建设
+    - 港口航道
+    - 路基路面
+    - 轨道交通
+    triggers:
+    - 桥梁
+    - 隧道
+    - 衬砌
+    - 桥隧
+    - 结构计算
+    - 地质超前预报
+    - 涉水桥
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以桥隧工程师身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 桥隧工程师交付物
+      inputs:
+      - 客户需求
+      - 桥隧工程师所需资料
+      outputs:
+      - 桥隧工程师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 交通基建 桥隧工程师
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定桥隧工程师的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: bridge_tunnel_engineer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: bridge_tunnel_engineer-skill
+        kind: skill
+        path: data/role-profiles/transport-infra.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 桥隧工程师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 桥隧工程师
+      tools:
+      - 桥梁
+      - 隧道
+      - 衬砌
+      knowledge:
+      - 交通基建行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 桥隧工程师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: bridge_tunnel_engineer
+  plugin_artifacts:
+  - name: bridge_tunnel_engineer-skill
+    kind: skill
+    path: data/role-profiles/transport-infra.yaml
+  sources:
+  - role-profiles/transport-infra.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: track_engineer
+  unit_id: transport-infra
+  industry: 交通基建
+  prefix: '[轨道]'
+  description: 轨道工程师 轨道结构 无砟轨道 信号接口 联调
+  keywords:
+  - 轨道工程
+  - 无砟轨道
+  - 信号接口
+  - 联调联试
+  - 道岔
+  - 铁路工程
+  readiness:
+    role_name: track_engineer
+    unit_id: transport-infra
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 轨道工程师交付流
+    industry_alias:
+    - 公路建设
+    - 铁路建设
+    - 桥梁隧道
+    - 机场建设
+    - 港口航道
+    - 路基路面
+    - 轨道交通
+    triggers:
+    - 轨道工程
+    - 无砟轨道
+    - 信号接口
+    - 联调联试
+    - 道岔
+    - 铁路工程
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以轨道工程师身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 轨道工程师交付物
+      inputs:
+      - 客户需求
+      - 轨道工程师所需资料
+      outputs:
+      - 轨道工程师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 交通基建 轨道工程师
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定轨道工程师的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: track_engineer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: track_engineer-skill
+        kind: skill
+        path: data/role-profiles/transport-infra.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 轨道工程师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 轨道工程师
+      tools:
+      - 轨道工程
+      - 无砟轨道
+      - 信号接口
+      knowledge:
+      - 交通基建行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 轨道工程师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: track_engineer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: track_engineer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: track_engineer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: track_engineer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: track_engineer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: track_engineer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: track_engineer
+  plugin_artifacts:
+  - name: track_engineer-skill
+    kind: skill
+    path: data/role-profiles/transport-infra.yaml
+  sources:
+  - role-profiles/transport-infra.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: traffic_planner
+  unit_id: transport-infra
+  industry: 交通基建
+  prefix: '[交通规划]'
+  description: 交通规划 线位比选 流量预测 可研
+  keywords:
+  - 交通规划
+  - 线位比选
+  - 流量预测
+  - 可研报告
+  - 交通量
+  - 路网规划
+  readiness:
+    role_name: traffic_planner
+    unit_id: transport-infra
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 交通规划交付流
+    industry_alias:
+    - 公路建设
+    - 铁路建设
+    - 桥梁隧道
+    - 机场建设
+    - 港口航道
+    - 路基路面
+    - 轨道交通
+    triggers:
+    - 交通规划
+    - 线位比选
+    - 流量预测
+    - 可研报告
+    - 交通量
+    - 路网规划
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以交通规划身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 交通规划交付物
+      inputs:
+      - 客户需求
+      - 交通规划所需资料
+      outputs:
+      - 交通规划产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 交通基建 交通规划
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定交通规划的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: traffic_planner
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: traffic_planner-skill
+        kind: skill
+        path: data/role-profiles/transport-infra.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 交通规划交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 交通规划
+      tools:
+      - 交通规划
+      - 线位比选
+      - 流量预测
+      knowledge:
+      - 交通基建行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 交通规划交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: traffic_planner
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: traffic_planner
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: traffic_planner
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: traffic_planner
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: traffic_planner
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: traffic_planner
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: traffic_planner
+  plugin_artifacts:
+  - name: traffic_planner-skill
+    kind: skill
+    path: data/role-profiles/transport-infra.yaml
+  sources:
+  - role-profiles/transport-infra.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: infra_surveyor
+  unit_id: transport-infra
+  industry: 交通基建
+  prefix: '[测量]'
+  description: 测量测绘 控制测量 放样 地形图 GPS
+  keywords:
+  - 测量测绘
+  - 控制测量
+  - 施工放样
+  - 地形图
+  - GPS测量
+  - 沉降观测
+  readiness:
+    role_name: infra_surveyor
+    unit_id: transport-infra
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 测量测绘交付流
+    industry_alias:
+    - 公路建设
+    - 铁路建设
+    - 桥梁隧道
+    - 机场建设
+    - 港口航道
+    - 路基路面
+    - 轨道交通
+    triggers:
+    - 测量测绘
+    - 控制测量
+    - 施工放样
+    - 地形图
+    - GPS测量
+    - 沉降观测
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以测量测绘身份，把物料按标准交付，边界外的事明确移交
+      deliverables:
+      - 测量测绘交付物
+      inputs:
+      - 客户需求
+      - 测量测绘所需资料
+      outputs:
+      - 测量测绘产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 交通基建 测量测绘
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定测量测绘的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: infra_surveyor
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: infra_surveyor-skill
+        kind: skill
+        path: data/role-profiles/transport-infra.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 测量测绘交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id037
+              - 接单与确认产出
+              verify: &id038
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id041
+              - 执行与产出产出
+              verify: &id042
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id039
+              - 交付与复核产出
+              verify: &id040
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 测量测绘
+      tools:
+      - 测量测绘
+      - 控制测量
+      - 施工放样
+      knowledge:
+      - 交通基建行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 测量测绘交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id037
+      verify: *id038
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id039
+      verify: *id040
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: infra_surveyor
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id041
+      verify: *id042
+      runtime: agent
+      agent_role: infra_surveyor
+  plugin_artifacts:
+  - name: infra_surveyor-skill
+    kind: skill
+    path: data/role-profiles/transport-infra.yaml
+  sources:
+  - role-profiles/transport-infra.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

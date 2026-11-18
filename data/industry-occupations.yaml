@@ -315,3 +315,33 @@ occupations:
 
   # ---------------- 直播与网络表演（平台分账口径）----------------
   - {code: OCC-000178, id: live-host, name: 网络主播, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 大典(2022)未单列网络主播，按平台分账口径登记；付费方是观众打赏与品牌坑位，不是机构预算（与 live-stream-operator 的雇主付费区分开）}
+
+  # ---------------- 零售贸易（社零口径；与 e-commerce 的线上零售分列）----------------
+  # 拆分依据：e-commerce 的 15 万亿是**网上零售额**（GMV），零售贸易是**线下+全渠道实体零售**。
+  # 付费方都是终端消费者，但交付方式差一个量级（门店到场 vs 履约到家），
+  # 且岗位与能力面完全不同（门店/导购/陈列 vs 选品/投放/客服）。
+  - {code: OCC-000179, id: store-operations-manager, name: 门店运营经理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 零售贸易-门店侧}
+  - {code: OCC-000180, id: retail-buyer, name: 买手/商品企划, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 零售贸易-选品与订货}
+  - {code: OCC-000181, id: sales-associate, name: 导购/售货员, deliverable: 服务, provider: human, billing: commission, baseline_occupation: true, note: 零售贸易-门店一线}
+  - {code: OCC-000182, id: visual-merchandiser, name: 陈列设计, deliverable: 物料, provider: hybrid, billing: project, baseline_occupation: true, note: 零售贸易-门店视觉}
+  - {code: OCC-000183, id: category-manager, name: 品类管理, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 零售贸易-品类与毛利结构}
+
+  # ---------------- 检测认证（CMA/CNAS 资质驱动）----------------
+  - {code: OCC-000184, id: testing-engineer, name: 检测工程师, deliverable: 文本, provider: hybrid, billing: project, baseline_occupation: true, note: 检测认证-出具检测报告}
+  - {code: OCC-000185, id: metrology-engineer, name: 计量工程师, deliverable: 服务, provider: human, billing: project, baseline_occupation: true, note: 检测认证-量值溯源与校准}
+  - {code: OCC-000186, id: certification-auditor, name: 认证审核员, deliverable: 文本, provider: human, billing: project, baseline_occupation: true, note: 检测认证-体系审核}
+  - {code: OCC-000187, id: lab-manager, name: 实验室管理, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 检测认证-实验室运行与质控}
+  - {code: OCC-000188, id: report-reviewer, name: 报告复核, deliverable: 文本, provider: human, billing: salary, baseline_occupation: true, note: 检测认证-报告签发前复核}
+
+  # ---------------- 交通基建 ----------------
+  - {code: OCC-000189, id: road-engineer, name: 道路工程师, deliverable: 方案, provider: hybrid, billing: salary, baseline_occupation: true, note: 交通基建-路基路面与线形}
+  - {code: OCC-000190, id: bridge-tunnel-engineer, name: 桥隧工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 交通基建-桥梁与隧道结构}
+  - {code: OCC-000191, id: track-engineer, name: 轨道工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 交通基建-铁路轨道与信号接口}
+  - {code: OCC-000192, id: traffic-planner, name: 交通规划, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: 交通基建-线位与流量预测}
+  - {code: OCC-000193, id: infra-surveyor, name: 测量测绘, deliverable: 物料, provider: human, billing: project, baseline_occupation: true, note: 交通基建-控制测量与放样}
+
+  # ---------------- 市政公用建设 ----------------
+  - {code: OCC-000194, id: pipeline-engineer, name: 管网工程师, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: 市政-给排水与燃气管网}
+  - {code: OCC-000195, id: water-treatment-engineer, name: 水处理工程师, deliverable: 方案, provider: human, billing: salary, baseline_occupation: true, note: 市政-污水与固废处理工艺}
+  - {code: OCC-000196, id: municipal-planner, name: 市政规划, deliverable: 方案, provider: hybrid, billing: project, baseline_occupation: true, note: 市政-管线综合与专项规划}
+  - {code: OCC-000197, id: utility-construction-manager, name: 市政施工管理, deliverable: 服务, provider: human, billing: salary, baseline_occupation: true, note: 市政-现场施工与占道协调}

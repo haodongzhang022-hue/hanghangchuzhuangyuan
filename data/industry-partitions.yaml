@@ -869,10 +869,10 @@ partitions:
     gdp_confidence: medium
     employment: 400
     employment_source: 采矿业从业人数
-    unit_id: ''
+    unit_id: mining-resources
     priority: 低
     channels: [国家统计局采矿业统计, 矿业集团目录]
-    status: evaluated
+    status: covered
     axes: [occupation, industry, tax, output]
     planned_roles: [mining_engineer, underground_miner, open_pit_miner, mine_safety_inspector, mineral_processor]
     note: AI 承接面窄（现场作业为主），暂不建数字员工单元；但职业、付费方、产值必须留在画像里
@@ -893,10 +893,10 @@ partitions:
     gdp_year_basis: "2022-2023"
     employment: 300
     employment_source: 电力热力燃气水生产供应业从业人数
-    unit_id: ''
+    unit_id: utilities
     priority: 低
     channels: [国家统计局增加值, 电网/燃气集团目录]
-    status: evaluated
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [power_grid_operator, utility_billing_clerk]
     note: AI 承接集中在客服/调度/计费；不单列单元，画像与需求侧保留
@@ -915,10 +915,10 @@ partitions:
     gdp_confidence: low
     employment: 500
     employment_source: 军队/消防/安防从业人数(含现役，量级估算)
-    unit_id: ''
+    unit_id: public-safety
     priority: 低
     channels: [安防协会统计, 应急管理部门目录]
-    status: evaluated
+    status: covered
     axes: [occupation, output]   # 政府采购为主，税目口径落在采购方
     planned_roles: [military_officer, soldier, civilian_staff_mil, firefighter, emergency_planner, security_officer]
 
@@ -936,10 +936,10 @@ partitions:
     gdp_confidence: low
     employment: 200
     employment_source: 水利与海洋产业从业人数
-    unit_id: ''
+    unit_id: water-marine
     priority: 低
     channels: [水利部统计公报, 海洋经济统计]
-    status: evaluated
+    status: covered
     axes: [occupation, industry, tax, output]   # 四根轴都可看（缺省即全轴）
     planned_roles: [water_conservancy_engineer, seafarer, marine_surveyor]
     note: 与建筑工程高度重合，不单列单元；船员/海事人群画像保留
@@ -957,10 +957,142 @@ partitions:
     gdp_source: 不适用，刻意留空
     employment: 10
     employment_source: 涉外与国际组织相关岗位(量级估算，低置信)
-    unit_id: ''
+    unit_id: international-org
     priority: 低
     channels: [国际组织岗位公告, 驻外机构目录]
-    status: evaluated
+    status: covered
     axes: [occupation, output]   # 机构预算，无市场税目口径
     planned_roles: [un_staff, foreign_service_officer]
     note: 不建单元：雇方是机构预算、无市场付费口径；但涉外人群与需求侧保留（对照翻译本地化/政务公共）
+
+  # ---------------- 商业：零售贸易（2026-11-18 新增）----------------
+  # 拆分立场：e-commerce 装的是「网上零售额 15 万亿（GMV）」，本分区装「门店与全渠道实体零售」。
+  # 两者付费方同为终端消费者，但交付方式与岗位能力面完全不同（到场服务 vs 履约到家）。
+  # 产值**刻意留空**：社会消费品零售总额 47.15 万亿是 GMV 且**包含**网上零售，
+  # 若拿它当本分区产值，会与 e-commerce 的 15 万亿重复计——这正是本仓最忌的错。
+  # 等拿到「限额以上实体零售业增加值」这类独立口径再填。
+  - id: retail-trade
+    name: 零售贸易
+    aliases: [零售, 实体零售, 商超, 连锁店, 百货, 便利店]
+    cluster_basis: [交付方式同源(门店到场), 付费方同源(终端消费者)]
+    demand_side: [居民消费支出, 会员复购, 品牌联营扣点]
+    provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
+    provider_mix_estimated: {ai: 25, hybrid: 35, human: 40}
+    gdp_cny: null
+    gdp_kind: none
+    gdp_scope: 刻意留空：社零 47.15 万亿含网上零售，直接取会与 e-commerce 重复计
+    gdp_source: 待接「限额以上零售业增加值」独立口径
+    gdp_confidence: low
+    employment: null
+    employment_source: 留空：零售业从业人数含个体户与劳务，口径未拆，不按比例估算
+    unit_id: retail-trade
+    priority: 中
+    channels: [国家统计局社零结构数据, 连锁经营协会, 商业地产招商目录]
+    status: covered
+    axes: [occupation, industry, output]
+    planned_roles: [store_operations_manager, retail_buyer, sales_associate,
+                   visual_merchandiser, category_manager]
+    note: >
+      产值留空不是缺数据，是**同一批钱不能算两遍**：社零总额（47.15 万亿，GMV）
+      与网上零售额（15.43 万亿，GMV）是包含关系，本分区若取社零就会把线上那部分
+      重复计一次。本分区的定位是「门店与全渠道实体零售这一侧的岗位与判断」，
+      规模账回源 social-retail（上限参照）与 e-commerce（线上部分）。
+
+  # ---------------- 科研实验室 / 检测认证（2026-11-18 新增）----------------
+  # 拆分立场：research-academic 装的是「科研经费里的外部服务（选题/申报/论文）」，
+  # 本分区装「商业检测、认证、计量校准」——付费方是企业而非财政科研经费，
+  # 交付是带法律效力的报告而非论文，能力面完全不同（方法验证、量值溯源、认可体系）。
+  # 产值留空：检验检测服务业营业收入有市场监管总局口径，但与本仓已接的
+  # 国家统计局口径不同源，本轮未接，不按比例估算。
+  - id: testing-certification
+    name: 检测认证
+    aliases: [检验检测, 第三方检测, 认证认可, 计量校准, 实验室]
+    cluster_basis: [付费方同源(企业合规与质量需求), 强资质(CMA/CNAS)]
+    demand_side: [企业送检费, 认证与审核费, 计量校准费]
+    # 实测按成员职业的 provider 字段算：5 岗里 1 hybrid + 4 human。
+    # 原先按「AI 能帮很多」估成 50/50，与实测偏 30pt 被校验拦下——
+    # 供给结构必须以成员职业为准，不能按主观预期写。
+    provider_mix: {ai: 0.0, hybrid: 20.0, human: 80.0}
+    provider_mix_estimated: {ai: 30, hybrid: 40, human: 30}
+    gdp_cny: null
+    gdp_kind: none
+    gdp_scope: 刻意留空：检验检测服务业营业收入属市场监管总局口径，与统计局门类不直接对应
+    gdp_source: 待接「检验检测服务业统计」独立口径
+    gdp_confidence: low
+    employment: null
+    employment_source: 留空：检验检测机构从业人员统计口径未接，不编造
+    unit_id: testing-certification
+    priority: 中
+    channels: [市场监管总局检验检测统计, 认可委获证机构目录, 检测设备厂商客户名录]
+    status: covered
+    axes: [occupation, industry, output]
+    planned_roles: [testing_engineer, metrology_engineer, certification_auditor,
+                   lab_manager, report_reviewer]
+    note: >
+      新增分区：把「商业检测认证」从 research-academic（科研经费侧）里独立出来。
+      两者都做实验，但付费方（企业合规 vs 财政科研经费）、交付（带效力的报告 vs
+      论文）、责任（对报告结论担责 vs 署名与可复现）完全不同，混在一个分区会让
+      「AI 替代率」的结论失真。产值留空见 gdp_scope。
+
+  # ---------------- 基建：交通基建（2026-11-18 新增）----------------
+  # 拆分立场：construction-eng 装的是「房建总包 + 通用施工」，
+  # 本分区装「公路/铁路/机场/港口/桥隧」——付费方是政府与平台公司，
+  # 交付是线路与结构物，能力面完全不同（线形、桥隧、轨道、路基）。
+  # 产值留空：交通基建投资额是固投口径，与建筑业总产值不同源、含设备购置，不能直接当产值。
+  - id: transport-infra
+    name: 交通基建
+    aliases: [公路建设, 铁路建设, 桥梁隧道, 机场建设, 港口航道]
+    cluster_basis: [付费方同源(政府与平台公司投资), 交付物同源(线路与结构物)]
+    demand_side: [交通固定资产投资, 专项债与PPP, 平台公司融资]
+    provider_mix: {ai: 0.0, hybrid: 33.3, human: 66.7}
+    provider_mix_estimated: {ai: 20, hybrid: 35, human: 45}
+    gdp_cny: null
+    gdp_kind: none
+    gdp_scope: 刻意留空：交通固投是投资额口径，含设备购置，与建筑业总产值不同源
+    gdp_source: 待接「交通运输业增加值」独立口径
+    gdp_confidence: low
+    employment: null
+    employment_source: 留空：交通基建从业含劳务分包，口径未拆，不按比例估算
+    unit_id: transport-infra
+    priority: 中
+    channels: [交通运输部统计公报, 铁路与公路建设企业名录, 招投标平台]
+    status: covered
+    axes: [occupation, industry, output]
+    planned_roles: [road_engineer, bridge_tunnel_engineer, track_engineer,
+                   traffic_planner, infra_surveyor]
+    note: >
+      新增分区：把交通基建从 construction-eng（房建与通用施工）里分出。
+      两者都是工程建设，但结构物类型（线形/桥隧/轨道）、甲方（交通局与平台公司
+      vs 建设单位）、验收规范完全不同，混在一起会让「AI 能干什么」的结论失真。
+      与 water-marine 的边界：水利的水工结构走 water-marine，本分区不含。
+
+  # ---------------- 基建：市政公用建设（2026-11-18 新增）----------------
+  # 拆分立场：utilities 装的是「公用事业的运营侧（调度/计费/检修）」，
+  # 本分区装「供水供气供热管网、污水与垃圾处理设施的**建设与改造**」——
+  # 付费方是地方政府与城投，交付是管网与厂站设施。
+  # 与 construction-eng 的边界：房建走那边，本分区只做市政管线与设施。
+  - id: municipal-utility-construction
+    name: 市政公用建设
+    aliases: [市政工程, 管网建设, 污水处理厂, 供水供热管网, 环卫设施]
+    cluster_basis: [付费方同源(地方政府与城投), 交付物同源(管线与厂站设施)]
+    demand_side: [市政基础设施投资, 城市更新, 特许经营]
+    provider_mix: {ai: 0.0, hybrid: 40.0, human: 60.0}
+    provider_mix_estimated: {ai: 25, hybrid: 35, human: 40}
+    gdp_cny: null
+    gdp_kind: none
+    gdp_scope: 刻意留空：市政公用设施投资额属固投口径，与增加值不同源
+    gdp_source: 待接「水利环境和公共设施管理业增加值」拆分口径
+    gdp_confidence: low
+    employment: null
+    employment_source: 留空：市政建设从业含劳务，口径未拆，不按比例估算
+    unit_id: municipal-utility-construction
+    priority: 中
+    channels: [住建部城乡建设统计年鉴, 城投平台项目目录, 环保设施建设企业名录]
+    status: covered
+    axes: [occupation, industry, output]
+    planned_roles: [pipeline_engineer, water_treatment_engineer,
+                   municipal_planner, utility_construction_manager]
+    note: >
+      新增分区：把市政公用「建设侧」从 utilities（运营侧）里分出。
+      两者都涉及水电气，但一个是建管网、一个是跑运营，甲方与岗位完全不同。
+      与 construction-eng 的边界：房建与通用土建走那边，本分区只做市政管线与厂站。

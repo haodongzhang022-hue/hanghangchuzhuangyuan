@@ -1894,3 +1894,190 @@ partitions:
   role_focus:
   - foreign_service_officer
   - un_staff
+- partition: retail-trade
+  value_chain:
+  - 选址与开店
+  - 商品企划与订货
+  - 陈列与门店运营
+  - 到店成交
+  - 会员与复购
+  position: 到场服务的零售终端，收入按门店客流与客单价，净利由坪效与人效决定
+  profit_pool:
+  - where: 商品企划与订货
+    why: 订对货是零售的根，订错一次一季度白干
+  - where: 陈列与门店运营
+    why: 同一批货摆不同位置，动销能差一倍
+  leverage:
+  - 选址与客流
+  - 商品企划与供应链账期
+  - 会员数据
+  drivers:
+  - 全渠道与到店自提
+  - 折扣化与硬折扣店
+  - 即时零售挤压客流
+  risks:
+  - 租金与人力刚性上涨
+  - 库存积压与过季折价
+  - 电商与即时零售分流客流
+  - 食品与商品安全
+  ai_frontier:
+    strong:
+    - 商品企划与订货建议草案
+    - 陈列方案与门店运营报表
+    - 会员分层与触达文案
+    weak:
+    - 选址拍板与租约谈判
+    - 订货终审与压货决策
+    - 商品安全与现场服务责任
+    boundary: AI 出订货草案与陈列方案，压货和选址这类押钱的判断必须由人担
+  division_of_labor:
+    human_decides:
+    - 开在哪、开多大
+    - 订多少货、什么时候清货
+    ai_fills:
+    - 按门店补商品结构与动销看板
+    - 按品类补陈列与促销模板
+  role_focus:
+  - store_operations_manager
+  - retail_buyer
+
+- partition: testing-certification
+  value_chain:
+  - 送检与合同评审
+  - 方法与样品准备
+  - 检测与数据记录
+  - 报告编制与复核
+  - 签发与申诉处理
+  position: 第三方举证方，收入按项目，价值不在跑实验而在「结论能被采信」
+  profit_pool:
+  - where: 方法与样品准备
+    why: 方法与资质决定了这单能不能接，接错方法整批作废
+  - where: 报告编制与复核
+    why: 报告有法律效力，复核是一票否决的那道闸
+  leverage:
+  - CMA/CNAS 资质范围
+  - 认可的方法与量值溯源
+  - 设备与人员资格
+  drivers:
+  - 合规监管趋严
+  - 产品出口与互认
+  - 自动化检测设备
+  risks:
+  - 出具虚假报告的法律责任
+  - 资质被撤销
+  - 价格战与低价合规风险
+  - 检测数据造假
+  ai_frontier:
+    strong:
+    - 方法检索与标准条款比对
+    - 原始数据整理与报告初稿
+    - 设备记录与质控台账
+    weak:
+    - 报告签发与法律担责
+    - 方法偏离的判定
+    - 样品真实性与现场抽样
+    boundary: AI 出报告初稿与数据整理，签发与结论责任必须由持证授权签字人签
+  division_of_labor:
+    human_decides:
+    - 这单接不接、用哪个方法
+    - 报告能不能签发
+    ai_fills:
+    - 按标准补方法条款对照
+    - 按项目补质控台账
+  role_focus:
+  - testing_engineer
+  - report_reviewer
+
+- partition: transport-infra
+  value_chain:
+  - 规划与线位研究
+  - 勘察与设计
+  - 施工与结构
+  - 交安与机电
+  - 试运行与养护移交
+  position: 政府投资的工程交付方，收入按合同进度，钱看的是计量支付节奏
+  profit_pool:
+  - where: 勘察与设计
+    why: 线位与结构方案定了，全案造价就定了
+  - where: 施工与结构
+    why: 变更与计量是利润的落点，也是审计的焦点
+  leverage:
+  - 施工资质与业绩
+  - 融资与垫资能力
+  - 关键设备与专业班组
+  drivers:
+  - 交通强国与都市圈
+  - 专项债与平台融资
+  - 装配式与智能建造
+  risks:
+  - 计量支付拖延与应收
+  - 地质与安全风险
+  - 审计与变更争议
+  - 工程质量终身追责
+  ai_frontier:
+    strong:
+    - 线位与流量预测草案
+    - 结构计算书与图纸审查辅助
+    - 计量台账与变更说明初稿
+    weak:
+    - 结构方案拍板与签章
+    - 地质判断与施工安全
+    - 计量与结算的最终确认
+    boundary: AI 出计算与台账草案，结构签章、安全与计量确认必须由注册人员签
+  division_of_labor:
+    human_decides:
+    - 线位怎么定、结构选什么
+    - 变更认不认、怎么报
+    ai_fills:
+    - 按规范补计算模板
+    - 按标段补计量台账
+  role_focus:
+  - road_engineer
+  - traffic_planner
+
+- partition: municipal-utility-construction
+  value_chain:
+  - 专项规划与立项
+  - 勘察设计与管线综合
+  - 施工与占道协调
+  - 竣工验收与移交
+  - 改造与更新
+  position: 地方政府与城投的市政交付方，收入按财政与专项债，回款周期长
+  profit_pool:
+  - where: 勘察设计与管线综合
+    why: 管线打架一处没理顺，现场返工就是几十万
+  - where: 改造与更新
+    why: 存量管网改造是长期稳定的活，比新建更可持续
+  leverage:
+  - 市政资质与业绩
+  - 与地方政府的协作关系
+  - 管线数据与既有资料
+  drivers:
+  - 城市更新与老旧小区改造
+  - 海绵城市与雨污分流
+  - 专项债与特许经营
+  risks:
+  - 财政支付能力与拖欠
+  - 地下管线不明导致事故
+  - 占道施工扰民与投诉
+  - 工程质量与内涝责任
+  ai_frontier:
+    strong:
+    - 管线综合与碰撞检查
+    - 专项规划文本与投资估算初稿
+    - 施工占道方案与扰民沟通材料
+    weak:
+    - 地下既有管线现状判断
+    - 施工方案与安全拍板
+    - 验收签字与内涝责任
+    boundary: AI 出方案与材料，地下管线判断、施工拍板和验收签字必须由人到现场
+  division_of_labor:
+    human_decides:
+    - 管线怎么走、先建哪一段
+    - 占道与扰民怎么协调
+    ai_fills:
+    - 按片区补管线台账
+    - 按项目补规划文本模板
+  role_focus:
+  - pipeline_engineer
+  - municipal_planner

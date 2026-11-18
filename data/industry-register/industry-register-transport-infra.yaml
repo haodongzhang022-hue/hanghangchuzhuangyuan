@@ -1,0 +1,86 @@
+unit_id: transport-infra
+industry: 交通基建
+industry_alias:
+- 公路建设
+- 铁路建设
+- 桥梁隧道
+- 机场建设
+- 港口航道
+- 路基路面
+- 轨道交通
+roles:
+- name: road_engineer
+  prefix: '[道路]'
+  handoff: relay
+  composite: true
+  description: 道路工程师 路基路面 线形设计 排水 沥青
+  keywords:
+  - 路基
+  - 路面
+  - 线形设计
+  - 道路工程
+  - 沥青
+  - 道路排水
+  - 公路工程
+- name: bridge_tunnel_engineer
+  prefix: '[桥隧]'
+  handoff: relay
+  composite: true
+  description: 桥隧工程师 桥梁结构 隧道 衬砌 施工监控
+  keywords:
+  - 桥梁
+  - 隧道
+  - 衬砌
+  - 桥隧
+  - 结构计算
+  - 地质超前预报
+  - 涉水桥
+- name: track_engineer
+  prefix: '[轨道]'
+  handoff: relay
+  composite: true
+  description: 轨道工程师 轨道结构 无砟轨道 信号接口 联调
+  keywords:
+  - 轨道工程
+  - 无砟轨道
+  - 信号接口
+  - 联调联试
+  - 道岔
+  - 铁路工程
+- name: traffic_planner
+  prefix: '[交通规划]'
+  handoff: relay
+  composite: true
+  description: 交通规划 线位比选 流量预测 可研
+  keywords:
+  - 交通规划
+  - 线位比选
+  - 流量预测
+  - 可研报告
+  - 交通量
+  - 路网规划
+- name: infra_surveyor
+  prefix: '[测量]'
+  handoff: relay
+  composite: true
+  description: 测量测绘 控制测量 放样 地形图 GPS
+  keywords:
+  - 测量测绘
+  - 控制测量
+  - 施工放样
+  - 地形图
+  - GPS测量
+  - 沉降观测
+entry_ref: ''
+capability_tags:
+- 道路工程
+- 桥隧结构
+- 轨道工程
+- 交通规划
+- 测量测绘
+register_version: '1.0'
+note: >
+  新增分区「交通基建」：把公路/铁路/机场/港口从 construction-eng（房建与通用施工）分出。
+  结构物类型（线形/桥隧/轨道）、甲方（交通局与平台公司）、验收规范完全不同。
+  与 water-marine 的边界：水工结构走 water-marine。
+  AI 边界：结构签章、地质判断、计量确认由注册人员签。

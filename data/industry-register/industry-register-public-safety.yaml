@@ -1,0 +1,95 @@
+unit_id: public-safety
+industry: 公共安全应急
+industry_alias:
+- 安防
+- 应急管理
+- 消防
+- 应急预案
+- 安保
+- 风险监测
+roles:
+- name: emergency_planner
+  prefix: '[应急]'
+  handoff: relay
+  composite: true
+  description: 应急管理 预案编制 演练脚本 风险台账 隐患分级
+  keywords:
+  - 应急预案
+  - 应急管理
+  - 演练脚本
+  - 风险台账
+  - 隐患分级
+  - 预案编制
+  - 应急演练
+  - 风险评估
+- name: security_officer
+  prefix: '[安保]'
+  handoff: relay
+  composite: true
+  description: 安保 门禁 巡逻 安防方案 监控
+  keywords:
+  - 安保
+  - 保安
+  - 门禁
+  - 巡逻
+  - 安防方案
+  - 监控值守
+  - 访客管理
+- name: firefighter
+  prefix: '[消防]'
+  handoff: relay
+  composite: false
+  description: 消防 灭火 救援 到场处置
+  keywords:
+  - 消防员
+  - 灭火
+  - 应急救援
+  - 火场
+  - 抢险
+- name: military_officer
+  prefix: '[军警]'
+  handoff: relay
+  composite: false
+  description: 军官警官 指挥 执法
+  keywords:
+  - 军官
+  - 警官
+  - 执法
+  - 部队
+- name: soldier
+  prefix: '[现役]'
+  handoff: relay
+  composite: false
+  description: 义务兵 现役 执勤
+  keywords:
+  - 义务兵
+  - 现役
+  - 执勤
+- name: civilian_staff_mil
+  prefix: '[文职]'
+  handoff: relay
+  composite: true
+  description: 军队文职 文书 后勤 管理支持
+  keywords:
+  - 军队文职
+  - 文职
+  - 后勤管理
+  - 部队文员
+entry_ref: ''
+capability_tags:
+- 应急预案
+- 安保方案
+- 风险分级
+- 演练脚本
+register_version: '1.0'
+note: >
+  由 evaluated 转为 covered（安防市场规模 1 万亿，market_size，confidence=low）。
+  **这是最需要守边界的一个单元**：分区原判定是「军队/消防的核心交付是到场与担责，
+  AI 承接面窄且越界风险高——给出预案建议可以，替代到场不行」。
+  所以本单元只承接三类脑力/文档工作：
+    emergency_planner（预案、演练脚本、风险台账、隐患分级）
+    security_officer（安防方案、门禁流程、访客管理）
+    civilian_staff_mil（部队文书与后勤管理支持）
+  firefighter / military_officer / soldier 三个岗位 composite=false，
+  明确写死「AI 不介入现场处置与指挥」。
+  「不直接付费 ≠ 不值得分析」：这些人群 leave 在画像里，是 non_market 通道的样本。

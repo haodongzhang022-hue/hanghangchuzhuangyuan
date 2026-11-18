@@ -1,0 +1,964 @@
+# ⚠️ 本文件由 scripts/gen_rolecards.py 生成，请勿手改。
+# 改画像请编辑 data/role-profiles/，改工序请编辑 data/workflow-templates/。
+unit_id: municipal-utility-construction
+industry: 市政公用建设
+generated_by: scripts/gen_rolecards.py
+roles:
+- role: pipeline_engineer
+  unit_id: municipal-utility-construction
+  industry: 市政公用建设
+  prefix: '[管网]'
+  description: 管网工程师 给排水 燃气 管线综合 管材
+  keywords:
+  - 给排水
+  - 燃气管网
+  - 管线综合
+  - 管材
+  - 供水管网
+  - 污水管网
+  - 雨污分流
+  readiness:
+    role_name: pipeline_engineer
+    unit_id: municipal-utility-construction
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 管网工程师交付流
+    industry_alias:
+    - 市政工程
+    - 管网建设
+    - 污水处理厂
+    - 供水供热管网
+    - 环卫设施
+    - 雨污分流
+    triggers:
+    - 给排水
+    - 燃气管网
+    - 管线综合
+    - 管材
+    - 供水管网
+    - 污水管网
+    - 雨污分流
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以管网工程师身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 管网工程师交付物
+      inputs:
+      - 客户需求
+      - 管网工程师所需资料
+      outputs:
+      - 管网工程师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 市政公用建设 管网工程师
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定管网工程师的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: pipeline_engineer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: pipeline_engineer-skill
+        kind: skill
+        path: data/role-profiles/municipal-utility-construction.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 管网工程师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id001
+              - 接单与确认产出
+              verify: &id002
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id005
+              - 执行与产出产出
+              verify: &id006
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id003
+              - 交付与复核产出
+              verify: &id004
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 管网工程师
+      tools:
+      - 给排水
+      - 燃气管网
+      - 管线综合
+      knowledge:
+      - 市政公用建设行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 管网工程师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id001
+      verify: *id002
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: &id009
+      - 诉求备忘已确认
+      outputs: &id010
+      - 输入清单
+      verify: &id011
+      - 每份输入都有来源
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: &id012
+      - 输入清单齐备
+      outputs: &id013
+      - 交付物主体
+      verify: &id014
+      - 满足验收口径
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: &id015
+      - 自检记录
+      verify: &id016
+      - 不确定项已显式标注
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id003
+      verify: *id004
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: &id019
+      - 交接卡
+      verify: &id020
+      - 交接卡含产物、约束、待决项
+      runtime: agent
+      agent_role: pipeline_engineer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id005
+      verify: *id006
+      runtime: agent
+      agent_role: pipeline_engineer
+  plugin_artifacts:
+  - name: pipeline_engineer-skill
+    kind: skill
+    path: data/role-profiles/municipal-utility-construction.yaml
+  sources:
+  - role-profiles/municipal-utility-construction.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: &id023
+        source: CRM
+        query:
+        - 客户档案
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: &id024
+        source: 会员主数据
+        query:
+        - 用户画像与分群
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: water_treatment_engineer
+  unit_id: municipal-utility-construction
+  industry: 市政公用建设
+  prefix: '[水处理]'
+  description: 水处理工程师 污水处理 固废 工艺 达标
+  keywords:
+  - 污水处理
+  - 固废处理
+  - 水质达标
+  - 活性污泥
+  - 垃圾焚烧
+  - 渗滤液
+  readiness:
+    role_name: water_treatment_engineer
+    unit_id: municipal-utility-construction
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 水处理工程师交付流
+    industry_alias:
+    - 市政工程
+    - 管网建设
+    - 污水处理厂
+    - 供水供热管网
+    - 环卫设施
+    - 雨污分流
+    triggers:
+    - 污水处理
+    - 固废处理
+    - 水质达标
+    - 活性污泥
+    - 垃圾焚烧
+    - 渗滤液
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以水处理工程师身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 水处理工程师交付物
+      inputs:
+      - 客户需求
+      - 水处理工程师所需资料
+      outputs:
+      - 水处理工程师产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 市政公用建设 水处理工程师
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定水处理工程师的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: water_treatment_engineer
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: water_treatment_engineer-skill
+        kind: skill
+        path: data/role-profiles/municipal-utility-construction.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 水处理工程师交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id007
+              - 接单与确认产出
+              verify: &id008
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id021
+              - 执行与产出产出
+              verify: &id022
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id017
+              - 交付与复核产出
+              verify: &id018
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 水处理工程师
+      tools:
+      - 污水处理
+      - 固废处理
+      - 水质达标
+      knowledge:
+      - 市政公用建设行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 水处理工程师交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id007
+      verify: *id008
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id017
+      verify: *id018
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: water_treatment_engineer
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id021
+      verify: *id022
+      runtime: agent
+      agent_role: water_treatment_engineer
+  plugin_artifacts:
+  - name: water_treatment_engineer-skill
+    kind: skill
+    path: data/role-profiles/municipal-utility-construction.yaml
+  sources:
+  - role-profiles/municipal-utility-construction.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: municipal_planner
+  unit_id: municipal-utility-construction
+  industry: 市政公用建设
+  prefix: '[市政规划]'
+  description: 市政规划 专项规划 管线容量 投资估算
+  keywords:
+  - 市政规划
+  - 专项规划
+  - 管线容量
+  - 投资估算
+  - 海绵城市
+  - 地下综合管廊
+  readiness:
+    role_name: municipal_planner
+    unit_id: municipal-utility-construction
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 市政规划交付流
+    industry_alias:
+    - 市政工程
+    - 管网建设
+    - 污水处理厂
+    - 供水供热管网
+    - 环卫设施
+    - 雨污分流
+    triggers:
+    - 市政规划
+    - 专项规划
+    - 管线容量
+    - 投资估算
+    - 海绵城市
+    - 地下综合管廊
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以市政规划身份，把方案按标准交付，边界外的事明确移交
+      deliverables:
+      - 市政规划交付物
+      inputs:
+      - 客户需求
+      - 市政规划所需资料
+      outputs:
+      - 市政规划产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 市政公用建设 市政规划
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定市政规划的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: municipal_planner
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: municipal_planner-skill
+        kind: skill
+        path: data/role-profiles/municipal-utility-construction.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 市政规划交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id025
+              - 接单与确认产出
+              verify: &id026
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id029
+              - 执行与产出产出
+              verify: &id030
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id027
+              - 交付与复核产出
+              verify: &id028
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 市政规划
+      tools:
+      - 市政规划
+      - 专项规划
+      - 管线容量
+      knowledge:
+      - 市政公用建设行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 市政规划交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id025
+      verify: *id026
+      runtime: agent
+      agent_role: municipal_planner
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: municipal_planner
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: municipal_planner
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: municipal_planner
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id027
+      verify: *id028
+      runtime: agent
+      agent_role: municipal_planner
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: municipal_planner
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id029
+      verify: *id030
+      runtime: agent
+      agent_role: municipal_planner
+  plugin_artifacts:
+  - name: municipal_planner-skill
+    kind: skill
+    path: data/role-profiles/municipal-utility-construction.yaml
+  sources:
+  - role-profiles/municipal-utility-construction.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍
+- role: utility_construction_manager
+  unit_id: municipal-utility-construction
+  industry: 市政公用建设
+  prefix: '[市政施工]'
+  description: 市政施工管理 占道 掘路 交通疏解 协管
+  keywords:
+  - 占道施工
+  - 掘路
+  - 交通疏解
+  - 市政施工
+  - 管线迁改
+  - 扰民协调
+  readiness:
+    role_name: utility_construction_manager
+    unit_id: municipal-utility-construction
+    score: 100.0
+    grade: A
+    label: 可直接跑通
+    factors:
+      six_dims: 1.0
+      capability: 1.0
+      workflow: 1.0
+      plugin: 1.0
+      beneficiaries: 1.0
+    gaps: []
+  activation:
+    workflows:
+    - 市政施工管理交付流
+    industry_alias:
+    - 市政工程
+    - 管网建设
+    - 污水处理厂
+    - 供水供热管网
+    - 环卫设施
+    - 雨污分流
+    triggers:
+    - 占道施工
+    - 掘路
+    - 交通疏解
+    - 市政施工
+    - 管线迁改
+    - 扰民协调
+    weight: 1.0
+  six_dims:
+    analysis:
+      mission: 以市政施工管理身份，把服务按标准交付，边界外的事明确移交
+      deliverables:
+      - 市政施工管理交付物
+      inputs:
+      - 客户需求
+      - 市政施工管理所需资料
+      outputs:
+      - 市政施工管理产出
+      kpis:
+      - 交付及时率
+      - 返工率
+    persona:
+      seniority: 市政公用建设 市政施工管理
+      mindset: 先问清目标与边界，再动手；不确定处显式标注
+      tone: 专业、就事论事
+      decision_rights:
+      - 可决定市政施工管理的专业判断
+      - 不可越权替责任方签章或承诺
+      constraints:
+      - 不臆造输入，缺资料先要资料
+      - 守住边界：不确定即标注
+    plugin:
+      bundle: utility_construction_manager
+      tools:
+      - 行业资料库
+      mcp_categories:
+      - 文档协作
+      artifacts:
+      - name: utility_construction_manager-skill
+        kind: skill
+        path: data/role-profiles/municipal-utility-construction.yaml
+      install_hint: 随行业单元内置，按需挂载
+    workflow:
+      default_flow: standard-delivery
+      activation:
+        weight: 1.0
+      templates:
+      - template: standard-delivery
+        id: wf-main
+        name: 市政施工管理交付流
+        default: true
+        override:
+          steps:
+            intake:
+              name: 接单与确认
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id031
+              - 接单与确认产出
+              verify: &id032
+              - 接单与确认已完成且有记录
+              runtime: agent
+            produce:
+              name: 执行与产出
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id035
+              - 执行与产出产出
+              verify: &id036
+              - 执行与产出已完成且有记录
+              runtime: agent
+            deliver:
+              name: 交付与复核
+              playbook: 按行业标准执行，关键步骤留痕
+              outputs: &id033
+              - 交付与复核产出
+              verify: &id034
+              - 交付与复核已完成且有记录
+              runtime: agent
+    stakeholders:
+      upstream:
+      - 客户
+      downstream:
+      - 各执行岗位
+      beneficiaries:
+      - 用户
+      blockers:
+      - 输入不全
+      incentives:
+      - 需求方
+      risk_notes:
+      - 合规风险
+    capability:
+      core:
+      - 市政施工管理
+      tools:
+      - 占道施工
+      - 掘路
+      - 交通疏解
+      knowledge:
+      - 市政公用建设行业常识
+      soft:
+      - 抗压
+      - 沟通
+      scoring:
+        domain: 7.0
+        tooling: 7.0
+        judging: 7.0
+        execution: 8.0
+        comms: 7.0
+  workflows:
+  - id: wf-main
+    name: 市政施工管理交付流
+    default: true
+    template: standard-delivery
+    trigger: 用户提出一个需要交付物的诉求
+    handoff_out: 产物交下游岗位或直接出口复核
+    steps:
+    - id: intake
+      name: 接单与确认
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id031
+      verify: *id032
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: context
+      name: 取上下文
+      playbook: 收集必要的输入材料、数据、约束；缺料先要料，不臆造
+      preconditions: *id009
+      outputs: *id010
+      verify: *id011
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: execute
+      name: 主作业
+      playbook: 按岗位核心能力与方法产出交付物主体
+      preconditions: *id012
+      outputs: *id013
+      verify: *id014
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: selfcheck
+      name: 自检与校验
+      playbook: 按岗位自检清单逐项核对，标注不确定项与假设
+      outputs: *id015
+      verify: *id016
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: deliver
+      name: 交付与复核
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id033
+      verify: *id034
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: handoff
+      name: 交接下游
+      playbook: 生成交接卡（产物、约束、待决项），交给下游岗位或出口复核
+      outputs: *id019
+      verify: *id020
+      runtime: agent
+      agent_role: utility_construction_manager
+    - id: produce
+      name: 执行与产出
+      playbook: 按行业标准执行，关键步骤留痕
+      outputs: *id035
+      verify: *id036
+      runtime: agent
+      agent_role: utility_construction_manager
+  plugin_artifacts:
+  - name: utility_construction_manager-skill
+    kind: skill
+    path: data/role-profiles/municipal-utility-construction.yaml
+  sources:
+  - role-profiles/municipal-utility-construction.yaml
+  chain_refs:
+    upstream:
+    - raw: 客户
+      value: 客户
+      kind: industry_class
+      ref: industry_class:客户
+      index: *id023
+      note: 需求方
+    downstream:
+    - raw: 各执行岗位
+      value: 各执行岗位
+      kind: industry_class
+      ref: industry_class:各执行岗位
+      note: 内部组织
+    beneficiaries:
+    - raw: 用户
+      value: 用户
+      kind: industry_class
+      ref: industry_class:用户
+      index: *id024
+      note: 需求方
+    blockers:
+    - raw: 输入不全
+      value: 输入不全
+      kind: industry_class
+      ref: industry_class:输入不全
+      note: 阻碍

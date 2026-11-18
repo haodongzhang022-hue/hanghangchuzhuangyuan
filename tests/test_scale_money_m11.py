@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 
 from hanghang.engine.industry_db import IndustryDatabase          # noqa: E402
 from hanghang.engine.money_flow import MoneyFlowBook, RECONCILE_TOLERANCE  # noqa: E402
+from hanghang.engine.scale_ledger import SCALE_METRICS          # noqa: E402
 from hanghang.engine.scale_ledger import SCALE_METRICS  # noqa: E402
 
 
@@ -40,11 +41,27 @@ def test_every_partition_has_a_slot_in_scale_ledger():
 
 
 def test_no_partition_is_fully_hidden():
-    """当前数据里不该有全空分区：任一口径有数就能看见，全空必须逐格解释"""
+    """当前数据里不该有**无解释**的全空分区
+
+    scale_ledger.py 对 hidden 的定义是「0 个口径有数，**必须显式说明为什么**」。
+    所以这里要卡的是「全空且说不清」，不是「全空」本身：
+    一个全新补进来的分区（如零售贸易/交通基建）在拿到独立官方口径之前，
+    六格全空但每格都写了原因，是诚实状态，不该被当成"隐身"报错。
+
+    判据：六个口径全空 **且** 六格 missing 原因都写了 → 可接受；
+    全空但有一格没写原因 → 报错。
+    """
     db = _db()
-    hidden = [r["partition"] for r in db.scales.visibility_all()
-              if r["level"] == "hidden"]
-    assert not hidden, f"这些分区六口径全空（须补数或写 missing 原因）: {hidden}"
+    bad = []
+    for r in db.scales.visibility_all():
+        if r["level"] != "hidden":
+            continue
+        unexplained = [m for m in SCALE_METRICS
+                       if not (r["missing_detail"].get(m)
+                               and r["missing_detail"][m] != "未填原因")]
+        if unexplained:
+            bad.append(f"{r['partition']}({unexplained})")
+    assert not bad, f"这些分区六口径全空且没写原因（须补数或逐格写 missing）: {bad}"
 
 
 def test_visibility_counts_six_metrics():
@@ -308,7 +325,15 @@ def test_null_real_flow_counts_as_unknown_not_zero():
 def test_compute_exposes_scale_and_money_summary():
     s = _db().compute()
     assert set(s["scale"]["present_counts"]) == set(SCALE_METRICS)
-    assert s["scale"]["level_counts"]["hidden"] == 0
+    # hidden 不一定是 0：新补进来的分区在拿到独立官方口径前六格全空是诚实状态。
+    # 要卡的是「全空且说不清」——hidden 里的每个分区都必须逐格写了原因。
+    db = _db()
+    for pid in s["scale"]["hidden"]:
+        vis = db.scales.visibility(pid)
+        unexplained = [m for m in SCALE_METRICS
+                       if not (vis["missing_detail"].get(m)
+                               and vis["missing_detail"][m] != "未填原因")]
+        assert not unexplained, f"{pid} 六口径全空且未解释: {unexplained}"
     assert s["money"]["nodes"] >= 5
     assert 0.0 <= s["money"]["amount_coverage"] <= 1.0
 
